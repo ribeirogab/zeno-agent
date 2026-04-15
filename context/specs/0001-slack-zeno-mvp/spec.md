@@ -1,17 +1,17 @@
 ---
 status: draft
-feature: slack-wesker-mvp
+feature: slack-zeno-mvp
 created: 2026-04-15
 shipped: null
 ---
-# Wesker MVP — Agente pessoal via Slack que consulta GitHub
+# Zeno MVP — Agente pessoal via Slack que consulta GitHub
 
 **Status:** Draft
 **Scope:** Entregar um processo Docker que, ao receber uma menção ou DM no Slack do Operator, usa Claude Code (via OAuth do plano, não API key) pra responder perguntas sobre repos do GitHub — começando por "quais repos tem na org X?".
 
 ## Context
 
-Este repositório (hoje `<redacted>`, será renomeado pra `wesker` como primeira tarefa da implementação) é o workspace de um agente pessoal do Operator. O objetivo final é ter um agente conversacional acessível via canais de mensagem (Slack pra começar, potencialmente Discord/Telegram/WhatsApp depois) que consiga executar qualquer tarefa técnica que o Operator peça — listar repos, clonar código, editar, abrir PRs, analisar bases, etc.
+Este repositório (hoje `zeno-agent`, será renomeado pra `zeno-agent` como primeira tarefa da implementação) é o workspace de um agente pessoal do Operator. O objetivo final é ter um agente conversacional acessível via canais de mensagem (Slack pra começar, potencialmente Discord/Telegram/WhatsApp depois) que consiga executar qualquer tarefa técnica que o Operator peça — listar repos, clonar código, editar, abrir PRs, analisar bases, etc.
 
 Este spec cobre **a primeira entrega útil**: a infraestrutura mínima pra provar que o loop Slack ↔ Claude Code ↔ GitHub funciona, usando um único caso concreto como vetor de validação (listar repos de uma org). Toda a arquitetura foi desenhada pra que as iterações seguintes (outras ferramentas, outros canais, outros modelos, sessões persistentes, etc.) sejam aditivas — sem reescrever o core.
 
@@ -42,11 +42,11 @@ Explicitamente **fora do MVP** (não serão implementados nesta entrega):
 
 1. **Allowlist de usuários no Slack.** O workspace do Operator é solo; ninguém mais fala com o bot. Quando o workspace deixar de ser solo, allowlist vira bloqueador e entra imediatamente.
 2. **GitHub App.** Fica como **primeira iteração pós-MVP**, conforme confirmado no brainstorm. PAT cobre 100% do MVP.
-3. **Sessões persistentes / thread como contexto.** Cada mensagem é stateless — Wesker não lembra de turnos anteriores. Resposta na thread não continua conversa.
+3. **Sessões persistentes / thread como contexto.** Cada mensagem é stateless — Zeno não lembra de turnos anteriores. Resposta na thread não continua conversa.
 4. **File tools customizadas** (`read_file`, `write_file`, `edit_file` com diff). Só `Bash` e os outros built-ins do Claude Code são habilitados; file tools viram escopo quando o agente de dev (clonar/editar/PR) for implementado.
 5. **Outros canais** (Discord, Telegram, WhatsApp). A interface `Channel` existe, mas só `SlackChannel` é implementada.
 6. **Outros backends** (Codex, Gemini). A interface `AgentBackend` existe, mas só `ClaudeCodeBackend`.
-7. **Aprovação humana de operações destrutivas via Slack.** No MVP o Wesker não faz operações destrutivas; o system prompt orienta pedir confirmação antes de executar comandos arriscados, mas a UX de aprovação via Slack (botões, reactions) fica pra depois.
+7. **Aprovação humana de operações destrutivas via Slack.** No MVP o Zeno não faz operações destrutivas; o system prompt orienta pedir confirmação antes de executar comandos arriscados, mas a UX de aprovação via Slack (botões, reactions) fica pra depois.
 8. **Feedback incremental / streaming de progresso no Slack.** Resposta final é uma mensagem só, sem "editando arquivo X..." intermediário.
 9. **Múltiplos Slack workspaces.** Um workspace (o pessoal do Operator). Escalar pra múltiplos é trabalho de adapter, não de core.
 10. **CI/CD, métricas, dashboards, alerts.** Logs JSON em stdout (`docker compose logs`) são suficientes pra MVP.
@@ -86,60 +86,60 @@ Explicitamente **fora do MVP** (não serão implementados nesta entrega):
 
 **S1 — Caminho feliz (o vetor de validação):**
 
-1. Operator menciona no canal `#agents`: `@wesker quais repos tem na octocat?`
-2. Wesker reage na mensagem original com `:eyes:` dentro de 2s (ack).
-3. Wesker chama Claude Code, que chama `gh repo list octocat --json name,description --limit 100` via Bash.
-4. Wesker posta resposta na mesma thread em PT-BR, listando repos com descrição resumida.
-5. Wesker troca a reação pra `:white_check_mark:`.
+1. Operator menciona no canal `#agents`: `@zeno-agent quais repos tem na octocat?`
+2. Zeno reage na mensagem original com `:eyes:` dentro de 2s (ack).
+3. Zeno chama Claude Code, que chama `gh repo list octocat --json name,description --limit 100` via Bash.
+4. Zeno posta resposta na mesma thread em PT-BR, listando repos com descrição resumida.
+5. Zeno troca a reação pra `:white_check_mark:`.
 
 **S2 — Usuário fala em DM:**
 
-Mesma coisa que S1, mas a mensagem inicial é uma DM direta pro Wesker (sem `@`). `threadId` é `null`. Resposta vai na própria DM.
+Mesma coisa que S1, mas a mensagem inicial é uma DM direta pro Zeno (sem `@`). `threadId` é `null`. Resposta vai na própria DM.
 
 **S3 — Pergunta sobre org sem acesso:**
 
-1. Operator: `@wesker quais repos tem na anthropics?`
+1. Operator: `@zeno-agent quais repos tem na anthropics?`
 2. Claude chama `gh repo list anthropics`, que retorna erro de permissão.
 3. Claude lê o stderr, traduz: "não tenho acesso à org `anthropics` — seu PAT precisaria ser membro ou ter acesso a ela."
-4. Wesker posta essa explicação na thread. Não vaza conteúdo do erro bruto.
+4. Zeno posta essa explicação na thread. Não vaza conteúdo do erro bruto.
 
 **S4 — Pergunta genérica / fora do escopo de repos:**
 
-1. Operator: `@wesker qual a capital do Peru?`
+1. Operator: `@zeno-agent qual a capital do Peru?`
 2. Claude responde naturalmente ("Lima"), sem invocar tool.
-3. Wesker posta resposta. Não há erro, apenas uso do LLM sem Bash.
+3. Zeno posta resposta. Não há erro, apenas uso do LLM sem Bash.
 
 **S5 — Sessão Claude expirada:**
 
-1. Operator: `@wesker oi`
+1. Operator: `@zeno-agent oi`
 2. `ClaudeCodeBackend.query()` retorna erro indicando auth falhou.
-3. Wesker posta: "meu token Claude expirou. Roda `docker compose run --rm wesker claude setup-token`, cola o token novo em `.env` e `docker compose up -d --force-recreate`."
+3. Zeno posta: "meu token Claude expirou. Roda `docker compose run --rm zeno-agent claude setup-token`, cola o token novo em `.env` e `docker compose up -d --force-recreate`."
 4. Logs registram `warn` com timestamp e correlationId.
 
 **S6 — Boot do container:**
 
 1. Operator configura `.env` (incluindo `CLAUDE_CODE_OAUTH_TOKEN` gerado por `claude setup-token`) e roda `docker compose up -d`.
-2. Wesker conecta no Slack via Socket Mode (log `slack_connected`).
-3. Wesker valida `gh auth status` (log `github_auth_ok`).
-4. Wesker confirma `claude --version` (log `claude_cli_ok`) + presença do token (log `claude_oauth_token_present`).
-5. Log final `wesker_online`. Container fica em `up`, pronto pra receber eventos.
+2. Zeno conecta no Slack via Socket Mode (log `slack_connected`).
+3. Zeno valida `gh auth status` (log `github_auth_ok`).
+4. Zeno confirma `claude --version` (log `claude_cli_ok`) + presença do token (log `claude_oauth_token_present`).
+5. Log final `zeno_online`. Container fica em `up`, pronto pra receber eventos.
 
 ## Success Criteria
 
 Esta entrega está **pronta** quando todos os seguintes são observáveis:
 
-1. Repositório foi renomeado de `<redacted>` pra `wesker`: `origin` já aponta pra `octocat/wesker` (feito), todas as referências textuais em `README`, `AGENTS.md`, `context/constitution.md`, system prompt, package.json foram atualizadas. Nenhuma string "Zerk" ou "<redacted>" resta no código/docs do projeto (exceto histórico git).
+1. Repositório foi renomeado de `zeno-agent` pra `zeno-agent`: `origin` já aponta pra `octocat/zeno-agent` (feito), todas as referências textuais em `README`, `AGENTS.md`, `context/constitution.md`, system prompt, package.json foram atualizadas. Nenhuma string "Zeno" ou "zeno-agent" resta no código/docs do projeto (exceto histórico git).
 2. `docker compose up --build` sobe o container sem erros em máquina limpa (macOS + Docker Desktop).
-3. `docker compose run --rm wesker claude setup-token` conclui OAuth com sucesso e o token gerado, quando colado em `.env` como `CLAUDE_CODE_OAUTH_TOKEN`, é consumido pelo SDK em subsequentes `docker compose up`.
+3. `docker compose run --rm zeno-agent claude setup-token` conclui OAuth com sucesso e o token gerado, quando colado em `.env` como `CLAUDE_CODE_OAUTH_TOKEN`, é consumido pelo SDK em subsequentes `docker compose up`.
 4. Após subir, o cenário S1 (caminho feliz) funciona fim-a-fim em menos de 30 segundos: menção → reação `:eyes:` → resposta correta em PT-BR na thread → reação `:white_check_mark:`.
 5. Cenário S2 (DM) funciona — resposta na DM, sem thread.
 6. Cenário S3 (org sem acesso) produz resposta explicativa em PT-BR, não expõe stderr bruto nem token.
 7. Cenário S5 (sessão expirada) é detectado e comunicado claramente.
-8. Logs estruturados JSON aparecem em `docker compose logs -f wesker`, com os eventos-chave listados na Seção 4 do brainstorm (`message_received`, `backend_started`, `backend_tool_call`, `backend_completed`, `response_sent`), todos carregando um `correlationId` consistente por interação.
+8. Logs estruturados JSON aparecem em `docker compose logs -f zeno-agent`, com os eventos-chave listados na Seção 4 do brainstorm (`message_received`, `backend_started`, `backend_tool_call`, `backend_completed`, `response_sent`), todos carregando um `correlationId` consistente por interação.
 9. `npm run test` passa (tests unitários de `SlackAdapter.normalize`, `ClaudeCodeBackend` com spawn mockado, e `config` validation).
 10. `.env.example` versionado cobre todas as variáveis necessárias (`SLACK_APP_TOKEN`, `SLACK_BOT_TOKEN`, `GH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`), sem placeholders de `ANTHROPIC_API_KEY`.
 11. `README.md` documenta o setup completo: dependências, `setup-token`, `.env`, smoke test checklist.
-12. `context/constitution.md` atualizada refletindo as decisões fundantes (nome Wesker, stack definida, Claude Code via OAuth).
+12. `context/constitution.md` atualizada refletindo as decisões fundantes (nome Zeno, stack definida, Claude Code via OAuth).
 
 ## Risks and Mitigations
 

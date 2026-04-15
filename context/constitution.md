@@ -2,23 +2,24 @@
 status: canonical
 created: 2026-04-15
 ---
-# Zerk — Constitution
+# Zeno — Constitution
 
-This document declares the non-negotiable principles of the Zerk project. Everything here has earned its place by being a decision we never want to re-litigate or a constraint we never want to forget. Agents and humans must read this file before making any substantive change.
+This document declares the non-negotiable principles of the Zeno project. Everything here has earned its place by being a decision we never want to re-litigate or a constraint we never want to forget. Agents and humans must read this file before making any substantive change.
 
 If you are tempted to violate a rule here, stop and open a discussion first. Never silently work around the constitution.
 
-## Why Zerk exists
+## Why Zeno exists
 
-Zerk is an agent of Zunix. This repository is its workspace — the place where Zerk's identity, capabilities, configuration, and operating knowledge live.
+Zeno is a personal agent. The person who owns this instance is described in `USER.md` at the repo root (gitignored — see `USER.example.md` for the template). This repository is Zeno's workspace — the place where Zeno's identity, configuration, and operating knowledge live. It runs as a Dockerized Node/TypeScript process on the user's machine, connects to messaging channels (Slack first), and uses Claude Code (authenticated via OAuth) as its reasoning engine. The architecture is ports-and-adapters so additional channels (Discord, Telegram) and backends (Codex, Gemini) can be added without changing the core.
 
-The project is in an **exploratory phase**. Architecture, stack, and interfaces are still being discovered. The constitution will tighten as decisions are made. Until then, prefer reversible choices and document reasoning in `context/learnings/` so future-you understands why a direction was taken.
+The initial scope is deliberately minimal: one channel (Slack), one backend (Claude Code), zero custom tools. Beyond MVP, Zeno is intended to grow into a development agent — clone repos, edit code, open PRs — invoked from Slack threads.
 
 ## Scope guardrails
 
-- This repo is Zerk's workspace, not Zunix's core infrastructure. Anything generic to Zunix as a whole belongs in a Zunix-level repo, not here.
-- No production deployment concerns yet — there is nothing to deploy. When deploy targets are chosen, capture them here.
-- Do not add dependencies, tooling, or frameworks without first writing a learning or spec explaining the decision. Premature lock-in is the main risk during exploration.
+- This repo is **Zeno's workspace**: source code of the agent, its specs, its operational knowledge. Not a place for unrelated experiments.
+- **Personal scope.** Zeno is single-user — the user defined in `USER.md`. Multi-user (allowlists, OAuth per user, billing isolation) is explicitly deferred until the use case appears.
+- **No production deploy concerns.** Zeno runs locally on the user's machine. Cloud migration is possible later (Docker-first design) but not a current goal.
+- Do not add dependencies, tooling, or frameworks without first writing a learning or spec explaining the decision. Premature lock-in is the main risk during early growth.
 
 ## Architecture principles
 
@@ -49,9 +50,9 @@ Specs never get deleted. Shipped specs remain in `context/specs/` as historical 
 
 ## Knowledge layering
 
-- Project-specific knowledge lives in `context/`. Only add notes here for things unique to Zerk.
+- Project-specific knowledge lives in `context/`. Only add notes here for things unique to Zeno.
 - Generic patterns that apply to any project should not be duplicated in this vault — they belong in global instructions or the user's global memory.
-- When a decision is made about Zerk's stack or architecture, update this constitution **and** write a matching learning explaining the reasoning.
+- When a decision is made about Zeno's stack or architecture, update this constitution **and** write a matching learning explaining the reasoning.
 
 ## What this constitution is not
 

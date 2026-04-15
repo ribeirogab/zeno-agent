@@ -3,14 +3,14 @@ tags:
   - learning
   - reference
 related:
-  - "[[../specs/0001-slack-wesker-mvp/spec|Wesker MVP spec]]"
+  - "[[../specs/0001-slack-zeno-mvp/spec|Zeno MVP spec]]"
   - "[[claude-agent-sdk-typescript]]"
   - "[[claude-bare-mode-no-oauth]]"
 created: 2026-04-15
 ---
 # Claude Code CLI — headless flags
 
-Claude Code CLI flags for programmatic use via `claude -p`. Wesker's runtime path uses the SDK ([[claude-agent-sdk-typescript]]), but the CLI is still relevant for setup (`claude /login`, `claude setup-token`), debugging, and one-off scripts.
+Claude Code CLI flags for programmatic use via `claude -p`. Zeno's runtime path uses the SDK ([[claude-agent-sdk-typescript]]), but the CLI is still relevant for setup (`claude /login`, `claude setup-token`), debugging, and one-off scripts.
 
 ## Context
 
@@ -56,4 +56,4 @@ claude -p "prompt text"
 - `type: "stream_event"` / `event.delta` — partial tokens (with `--include-partial-messages`)
 - `type: "system"` / `subtype: "api_retry"` — transient error backoff
 
-**For Wesker:** the only CLI invocations expected in the container's runtime are setup-time (`/login`, `setup-token`, `--version` health check). The runtime uses the SDK.
+**For Zeno:** the only CLI invocations expected in the container's runtime are setup-time (`/login`, `setup-token`, `--version` health check). The runtime uses the SDK.

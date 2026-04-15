@@ -3,13 +3,13 @@ tags:
   - learning
   - reference
 related:
-  - "[[../specs/0001-slack-wesker-mvp/spec|Wesker MVP spec]]"
+  - "[[../specs/0001-slack-zeno-mvp/spec|Zeno MVP spec]]"
   - "[[docker-node-image-variants]]"
 created: 2026-04-15
 ---
 # Node.js LTS status (as of April 2026)
 
-**Target Node version for Wesker: Node 24.** As of April 15, 2026, Node 24 is the most recently-active LTS line.
+**Target Node version for Zeno: Node 24.** As of April 15, 2026, Node 24 is the most recently-active LTS line.
 
 ## Context
 
@@ -24,11 +24,11 @@ Node release schedule: even majors are cut in April, transition to LTS in Octobe
 - **Node 25** — Current (non-LTS), cut Oct 2025.
 - **Node 26** — next Active LTS, expected Oct 2026.
 
-**Pick for Wesker:** **Node 24** — broadest support window, widely available in `node:24-slim` Docker images, compatible with `@slack/bolt@4` (requires ≥18) and `@anthropic-ai/claude-agent-sdk`.
+**Pick for Zeno:** **Node 24** — broadest support window, widely available in `node:24-slim` Docker images, compatible with `@slack/bolt@4` (requires ≥18) and `@anthropic-ai/claude-agent-sdk`.
 
 **Pin everywhere coherently:**
 - `.nvmrc` → `24`
 - `package.json` → `"engines": { "node": ">=24.0.0" }`
 - `Dockerfile` → `FROM node:24-slim` (or `node:24-alpine` if minimum image size is critical — see [[docker-node-image-variants]])
 
-**Upcoming schedule change to watch:** starting October 2026, the release model changes to one major per year (April), with every even-numbered release becoming LTS. Node 26 will be the last under the current model; Node 27 the first under the new. No action for Wesker — Node 24 still follows the current 30-month LTS window.
+**Upcoming schedule change to watch:** starting October 2026, the release model changes to one major per year (April), with every even-numbered release becoming LTS. Node 26 will be the last under the current model; Node 27 the first under the new. No action for Zeno — Node 24 still follows the current 30-month LTS window.

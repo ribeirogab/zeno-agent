@@ -3,18 +3,18 @@ tags:
   - learning
   - reference
 related:
-  - "[[../specs/0001-slack-wesker-mvp/spec|Wesker MVP spec]]"
+  - "[[../specs/0001-slack-zeno-mvp/spec|Zeno MVP spec]]"
   - "[[claude-code-oauth-token]]"
   - "[[claude-code-cli-headless]]"
 created: 2026-04-15
 ---
 # Claude Agent SDK (TypeScript)
 
-The official TypeScript SDK for programmatic Claude Code: **`@anthropic-ai/claude-agent-sdk`**. It exposes the same agent loop that powers Claude Code CLI — built-in tools (Bash, Read, Write, Edit, Grep, Glob), MCP support, session management — as an in-process API, avoiding subprocess overhead. This is the preferred integration point for Wesker: richer API, cheaper per call, native streaming.
+The official TypeScript SDK for programmatic Claude Code: **`@anthropic-ai/claude-agent-sdk`**. It exposes the same agent loop that powers Claude Code CLI — built-in tools (Bash, Read, Write, Edit, Grep, Glob), MCP support, session management — as an in-process API, avoiding subprocess overhead. This is the preferred integration point for Zeno: richer API, cheaper per call, native streaming.
 
 ## Context
 
-Discovered during Task 0 (discovery) of spec `0001-slack-wesker-mvp`. The original plan was to `spawn('claude', ['-p', ...])` as a subprocess per request; this finding makes that unnecessary. Source: [Claude Code docs — Agent SDK TypeScript reference](https://code.claude.com/docs/en/agent-sdk/typescript).
+Discovered during Task 0 (discovery) of spec `0001-slack-zeno-mvp`. The original plan was to `spawn('claude', ['-p', ...])` as a subprocess per request; this finding makes that unnecessary. Source: [Claude Code docs — Agent SDK TypeScript reference](https://code.claude.com/docs/en/agent-sdk/typescript).
 
 ## How to Apply
 
@@ -31,7 +31,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk"
 const result = query({
   prompt: "quais repos tem na octocat?",
   options: {
-    systemPrompt: WESKER_SYSTEM_PROMPT,
+    systemPrompt: ZENO_SYSTEM_PROMPT,
     allowedTools: ["Bash"],              // start narrow for MVP
     tools: { type: "preset", preset: "claude_code" },  // enable built-ins
     cwd: "/workspace",
@@ -50,7 +50,7 @@ for await (const msg of result) {
 }
 ```
 
-**Authentication** — the SDK reads `ANTHROPIC_API_KEY` OR `CLAUDE_CODE_OAUTH_TOKEN` from env. For Wesker (OAuth path), set `CLAUDE_CODE_OAUTH_TOKEN` — see [[claude-code-oauth-token]] for how to obtain it.
+**Authentication** — the SDK reads `ANTHROPIC_API_KEY` OR `CLAUDE_CODE_OAUTH_TOKEN` from env. For Zeno (OAuth path), set `CLAUDE_CODE_OAUTH_TOKEN` — see [[claude-code-oauth-token]] for how to obtain it.
 
 **Key `Options` fields** (partial list):
 

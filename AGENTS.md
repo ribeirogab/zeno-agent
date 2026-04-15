@@ -1,6 +1,6 @@
-# Zerk — Agent Instructions
+# Zeno — Agent Instructions
 
-Zerk is an agent of Zunix. This repository is Zerk's workspace — the place where its identity, capabilities, configuration, and operating knowledge live. The project is in an exploratory phase: stack, architecture, and tooling are not yet decided.
+Zeno is a personal agent. The person who owns this instance is described in `USER.md` at the repo root — gitignored, see `USER.example.md` for the template and what goes in it. This repository is Zeno's workspace — the place where its identity, capabilities, configuration, and operating knowledge live. The first implementation is underway per `context/specs/0001-slack-zeno-mvp/` (Slack ↔ Claude Code via OAuth ↔ GitHub).
 
 ## Before starting any work
 

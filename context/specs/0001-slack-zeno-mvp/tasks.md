@@ -1,10 +1,10 @@
 ---
-feature: slack-wesker-mvp
+feature: slack-zeno-mvp
 plan: "[[plan]]"
 spec: "[[spec]]"
 created: 2026-04-15
 ---
-# Wesker MVP — Tasks
+# Zeno MVP — Tasks
 
 **For this plan:** `[[plan]]`
 
@@ -22,7 +22,7 @@ Each task is self-contained. Work in order; some depend on previous state. Every
 
 **Note naming:** kebab-case descriptive, e.g. `claude-code-headless-cli.md`, `claude-agent-sdk-node.md`, `slack-bolt-socket-mode.md`, `mcp-slack-server.md`, `gh-repo-list-json.md`, `node-lts-current.md`, `docker-node-slim-best-practices.md`. One note per finding keeps them reusable beyond this spec and enables Obsidian backlinks.
 
-**Frontmatter:** include `related: ["[[../specs/0001-slack-wesker-mvp/spec]]"]` so each note backlinks to this spec.
+**Frontmatter:** include `related: ["[[../specs/0001-slack-zeno-mvp/spec]]"]` so each note backlinks to this spec.
 
 **Purpose:** Before writing any code, confirm that the assumptions in the spec and plan are still valid in April 2026. Claude's knowledge cutoff is May 2025 — a year of drift. Anything that has materially changed (new SDK, deprecated flag, new LTS) is captured as a learning note and, if significant, triggers a spec revision before code starts.
 
@@ -110,84 +110,86 @@ git commit -m "docs: record discovery findings as atomic learnings"
 
 ---
 
-### Task 1: Rename Zerk → Wesker throughout the repo
+### Task 1: Update constitution with finalized stack decisions
+
+The repo rename (Zerk → Wesker → Zeno) was completed pre-implementation as a one-off operation; no rename work remains here. What remains is updating `context/constitution.md` to drop the "exploratory phase" language and lock in the decisions made during brainstorming + discovery.
 
 **Files to modify:**
-- `AGENTS.md`
 - `context/constitution.md`
-- `context/_index/home.md`
-- `context/_index/specs.md`
-- `context/_index/learnings.md`
-- `context/_index/conventions.md`
-- `context/_index/rules.md`
 
-**Files to NOT modify:**
-- `CLAUDE.md` (symlink to `AGENTS.md`, changes propagate automatically)
-- `context/specs/0001-slack-wesker-mvp/spec.md` (already uses "Wesker"; do not touch historical spec language)
-- `.git/**` (obviously)
-- The working directory itself (`/Users/operator/www/agents/<redacted>/<redacted>/`) — Operator confirmed no local rename in this pass
+- [ ] **Step 1: Replace the "Architecture principles" section**
 
-- [ ] **Step 1: Find all occurrences**
+Replace the current "_Not yet decided._ When the first architectural commitments..." block with locked-in commitments:
+
+```markdown
+## Architecture principles
+
+- **Ports & adapters.** Two pluggable abstractions exist: `Channel` (message sources — Slack today, Discord/Telegram/etc. future) and `AgentBackend` (LLMs — Claude Code today, Codex/Gemini future). The Agent Core orchestrator depends only on these interfaces, never on concrete implementations.
+- **Zero custom tools by default.** Capabilities come from Claude Code's built-in toolset (Bash, Read, Write, Edit, Grep, Glob). Custom tools require justification.
+- **Stateless per turn (MVP).** No conversation memory between Slack mentions. Persistent thread sessions are a future iteration with explicit storage decisions attached.
+- **Sandboxed execution.** Shell access (Bash tool) runs inside the Docker container only. Container has no host filesystem access beyond mounted volumes.
+
+Principles that remain:
+
+- **Reversibility first.** Prefer choices that are easy to back out of.
+- **One decision at a time.** Don't bundle stack choices; each should have its own rationale.
+- **Write before you build.** If a solution isn't obvious in one sentence, use the spec flow (`/spec`).
+```
+
+- [ ] **Step 2: Replace the "Tooling and workflow principles" section**
+
+Replace "_Not yet decided._" with locked-in tooling:
+
+```markdown
+## Tooling and workflow principles
+
+- **Language:** TypeScript, strict mode. Node 24 LTS.
+- **Package manager:** npm.
+- **Runtime container:** `node:24-slim`. See `context/learnings/docker-node-image-variants.md`.
+- **Tests:** `vitest`. Unit tests for pure functions and well-mocked boundaries; smoke tests for integration.
+- **Logging:** `pino`, structured JSON to stdout.
+- **Env validation:** `zod`.
+- **Slack integration:** `@slack/bolt@4` with Socket Mode.
+- **LLM:** `@anthropic-ai/claude-agent-sdk` in-process, authenticated via `CLAUDE_CODE_OAUTH_TOKEN` (subscription OAuth, not API key).
+
+Workflow principles that already apply:
+
+- **Never push to `main`.** Always branch + PR. Pushing to `main`/`master` is blocked by convention — it triggers deploys/automations (see global rule 20).
+- **Use `/open-pr`** to open pull requests. It generates title and description consistently.
+- **Explicit consent for `git add`/`commit`/`push`.** No autonomous git writes.
+- **Read-only database.** No write queries without approval.
+```
+
+- [ ] **Step 3: Verify the "Why Zeno exists" section is correct**
+
+The opening prose was already updated inline during pre-implementation cleanup. Confirm it matches:
+
+```markdown
+## Why Zeno exists
+
+Zeno is a personal agent. The person who owns this instance is described in `USER.md` at the repo root (gitignored — see `USER.example.md` for the template). This repository is Zeno's workspace — the place where Zeno's identity, configuration, and operating knowledge live. It runs as a Dockerized Node/TypeScript process on the user's machine, connects to messaging channels (Slack first), and uses Claude Code (authenticated via OAuth) as its reasoning engine. The architecture is ports-and-adapters so additional channels (Discord, Telegram) and backends (Codex, Gemini) can be added without changing the core.
+
+The initial scope is deliberately minimal: one channel (Slack), one backend (Claude Code), zero custom tools. Beyond MVP, Zeno is intended to grow into a development agent — clone repos, edit code, open PRs — invoked from Slack threads.
+```
+
+- [ ] **Step 4: Verify there are no residual `Zerk`/`Wesker`/`<redacted>` references**
 
 ```bash
-grep -rn -E "\bZerk\b|\b<redacted>\b" \
+grep -rn -E "\bZerk\b|\b<redacted>\b|\bWesker\b|\bwesker\b" \
   --include="*.md" \
   --exclude-dir=.git \
   --exclude-dir=node_modules \
   --exclude-dir=.claude \
-  . | grep -v "^./context/specs/0001-slack-wesker-mvp/spec.md:"
+  . | grep -v "/Users/operator/www/agents/<redacted>/<redacted>/"
 ```
 
-Review the list. Decide on per-file edits: most occurrences replace with `Wesker` (capitalized) or `wesker` (lowercase, in paths/URLs).
+Expected: zero output. (The `grep -v` excludes the local working-directory path, which is intentionally NOT renamed.)
 
-- [ ] **Step 2: Update `AGENTS.md`**
-
-Replace every "Zerk" with "Wesker". The file's opening paragraph should read:
-
-```markdown
-# Wesker — Agent Instructions
-
-Wesker is a personal agent for Operator. This repository is Wesker's workspace — the place where its identity, capabilities, configuration, and operating knowledge live. Implementation is underway per `context/specs/0001-slack-wesker-mvp/`.
-```
-
-Leave everything else structurally identical; only the name changes.
-
-- [ ] **Step 3: Update `context/constitution.md`**
-
-Replace the `# Zerk — Constitution` heading with `# Wesker — Constitution`. Replace every other "Zerk" with "Wesker". Update the "Why … exists" section to reflect finalized decisions:
-
-```markdown
-## Why Wesker exists
-
-Wesker is Operator's personal agent. This repository is its workspace — where its identity, configuration, and operating knowledge live. It runs as a Dockerized Node/TypeScript process on Operator's machine, connects to Slack via Socket Mode, and uses Claude Code (authenticated via OAuth) as its reasoning engine. The architecture is ports-and-adapters so additional message channels (Discord, Telegram) and agent backends (Codex, Gemini) can be added without changing the core.
-
-The initial scope is deliberately minimal: one channel (Slack), one backend (Claude Code), zero custom tools. The first feature proves the end-to-end loop by answering "which repos exist in org X?" via `gh` CLI invoked from Claude's built-in Bash tool.
-```
-
-Update the "Architecture principles" and "Tooling and workflow principles" sections to stop saying "not yet decided" and instead list the locked-in decisions from the spec. Keep the safety rules (pushes, read-only DB, etc.) unchanged.
-
-- [ ] **Step 4: Update the five `context/_index/*.md` files**
-
-In each, replace "Zerk" with "Wesker" wherever it appears in headings and prose. This is mechanical — no structural changes.
-
-- [ ] **Step 5: Verify no residual references**
+- [ ] **Step 5: Commit**
 
 ```bash
-grep -rn -E "\bZerk\b|\b<redacted>\b" \
-  --include="*.md" \
-  --exclude-dir=.git \
-  --exclude-dir=node_modules \
-  --exclude-dir=.claude \
-  .
-```
-
-Expected: the only match is `context/specs/0001-slack-wesker-mvp/spec.md` (historical, untouched).
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add AGENTS.md context/constitution.md context/_index/
-git commit -m "chore: rename Zerk to Wesker throughout repo"
+git add context/constitution.md
+git commit -m "docs: update constitution with finalized stack decisions"
 ```
 
 ---
@@ -214,7 +216,7 @@ Create with:
 
 ```json
 {
-  "name": "wesker",
+  "name": "zeno-agent",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -440,7 +442,7 @@ import { loadConfig } from "./config.js"
 
 export const logger = pino({
   level: loadConfig().logLevel,
-  base: { service: "wesker" },
+  base: { service: "zeno-agent" },
   timestamp: pino.stdTimeFunctions.isoTime,
 })
 ```
@@ -455,7 +457,7 @@ SLACK_BOT_TOKEN=xoxb-REPLACE_ME
 # GitHub
 GH_TOKEN=ghp_REPLACE_ME
 
-# Claude Code — obtain via `docker compose run --rm wesker claude setup-token`
+# Claude Code — obtain via `docker compose run --rm zeno-agent claude setup-token`
 CLAUDE_CODE_OAUTH_TOKEN=REPLACE_ME
 
 # Runtime
@@ -483,7 +485,7 @@ git commit -m "feat(config): env loading with zod validation and pino logger"
 
 ```ts
 /**
- * A message source Wesker can listen to and reply on.
+ * A message source Zeno can listen to and reply on.
  * Implementations: SlackChannel (MVP), DiscordChannel (future), etc.
  */
 export interface Channel {
@@ -966,7 +968,7 @@ function mockQueryThrow(error: Error): void {
 }
 
 const baseInput = {
-  systemPrompt: "You are Wesker.",
+  systemPrompt: "You are Zeno.",
   userMessage: "oi",
   cwd: "/workspace",
   correlationId: "test-cid",
@@ -983,7 +985,7 @@ describe("ClaudeCodeBackend", () => {
     expect(query).toHaveBeenCalledOnce()
     const call = vi.mocked(query).mock.calls[0][0]
     expect(call.prompt).toBe("oi")
-    expect(call.options?.systemPrompt).toBe("You are Wesker.")
+    expect(call.options?.systemPrompt).toBe("You are Zeno.")
     expect(call.options?.cwd).toBe("/workspace")
     expect(call.options?.allowedTools).toContain("Bash")
     expect(call.options?.tools).toEqual({ type: "preset", preset: "claude_code" })
@@ -1168,24 +1170,24 @@ git commit -m "feat(agent): ClaudeCodeBackend using Claude Agent SDK"
 
 ---
 
-### Task 9: System prompt
+### Task 9: System prompt builder
 
 **Files:**
 - Create: `src/agent/system-prompt.ts`
 
-- [ ] **Step 1: Write the system prompt**
+The system prompt is built at boot from a static base + the contents of `USER.md` (loaded by `index.ts`, see Task 11). This keeps Zeno's identity stable while letting each user inject their own preferences/context without modifying source.
 
-`src/agent/system-prompt.ts`:
+- [ ] **Step 1: Implement `src/agent/system-prompt.ts`**
 
 ```ts
-export const WESKER_SYSTEM_PROMPT = `
-You are Wesker, Operator's personal agent. Your workspace is the Docker container you run in. The repository that hosts you is github.com/octocat/wesker.
+const BASE_PROMPT = `
+You are Zeno, a personal agent. Your workspace is the Docker container you run in. The repository that hosts you is github.com/octocat/zeno-agent.
 
 # Language
 Reply in Brazilian Portuguese by default. Switch only if the user writes in another language.
 
 # Tone
-Direct, practical, minimal fluff. Light humor is ok (Resident Evil references included). Keep replies short. Use Slack markdown — code blocks for commands/output, **bold** for emphasis. Avoid large tables.
+Direct, practical, minimal fluff. Light humor is ok. Keep replies short. Use Slack markdown — code blocks for commands/output, **bold** for emphasis. Avoid large tables.
 
 # Environment
 You have access to the Bash tool inside a Linux container with:
@@ -1194,7 +1196,7 @@ You have access to the Bash tool inside a Linux container with:
   • /workspace is where you can clone repos and work; it's a persistent volume
 
 For GitHub operations, prefer \`gh\` with --json flags for structured output. Example:
-  \`gh repo list octocat --json name,description --limit 100\`
+  \`gh repo list <org> --json name,description --limit 100\`
 
 # Safety rules
 Do not run — without asking the user first — any of:
@@ -1203,20 +1205,41 @@ Do not run — without asking the user first — any of:
   • gh repo delete, gh pr merge
   • Any command touching shared resources (deploys, databases, external APIs with side effects)
 
-Never echo the content of GH_TOKEN, ANTHROPIC_API_KEY, or any variable whose name contains TOKEN, KEY, or SECRET. Never send file contents from the host to external URLs.
+Never echo the content of GH_TOKEN, ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, or any variable whose name contains TOKEN, KEY, or SECRET. Never send file contents from the host to external URLs.
 
 # Behavior
 If you can't do something, explain why clearly (e.g., "your PAT doesn't have read:org for that org").
 If you need clarification, ask in ONE sentence.
 Do not speculate — confirm the goal before starting anything that takes time.
 `.trim()
+
+const NO_USER_NOTE = "_USER.md not found — Zeno is operating without user-specific context. Address the user generically and ask for missing details (name, github username, preferences) when relevant._"
+
+/**
+ * Build the full system prompt by appending the user profile (USER.md content)
+ * to the static base. Pass null when USER.md is missing — a fallback note is used.
+ */
+export function buildSystemPrompt(userMdContent: string | null): string {
+  const userBlock = userMdContent && userMdContent.trim().length > 0
+    ? userMdContent.trim()
+    : NO_USER_NOTE
+  return `${BASE_PROMPT}\n\n# About the user\n\n${userBlock}`
+}
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 2: Typecheck**
+
+```bash
+npm run typecheck
+```
+
+Expected: passes.
+
+- [ ] **Step 3: Commit**
 
 ```bash
 git add src/agent/system-prompt.ts
-git commit -m "feat(agent): add Wesker system prompt"
+git commit -m "feat(agent): system-prompt builder with USER.md injection"
 ```
 
 ---
@@ -1235,12 +1258,13 @@ This is glue — it ties `IncomingMessage` to `AgentBackend.query` and back. The
 ```ts
 import type { Channel, IncomingMessage, MessageTarget } from "../channels/types.js"
 import { AgentBackendError, type AgentBackend } from "./types.js"
-import { WESKER_SYSTEM_PROMPT } from "./system-prompt.js"
 import { logger } from "../logger.js"
 
 export interface AgentCoreOptions {
   backend: AgentBackend
   workspaceDir: string
+  /** Full system prompt (built once at boot via buildSystemPrompt). */
+  systemPrompt: string
 }
 
 export class AgentCore {
@@ -1263,7 +1287,7 @@ export class AgentCore {
 
       try {
         const out = await this.opts.backend.query({
-          systemPrompt: WESKER_SYSTEM_PROMPT,
+          systemPrompt: this.opts.systemPrompt,
           userMessage: msg.text,
           cwd: this.opts.workspaceDir,
           correlationId: msg.correlationId,
@@ -1300,7 +1324,7 @@ function translateError(err: unknown): string {
   if (err instanceof AgentBackendError) {
     switch (err.kind) {
       case "auth_expired":
-        return "minha sessão Claude expirou. Roda `docker compose run --rm wesker claude setup-token` pra me reautenticar."
+        return "minha sessão Claude expirou. Roda `docker compose run --rm zeno-agent claude setup-token` pra me reautenticar."
       case "rate_limited":
         return "bati o limite do plano Claude. Tenta daqui a pouco."
       case "timeout":
@@ -1340,11 +1364,13 @@ git commit -m "feat(agent): AgentCore wiring channel ↔ backend with error tran
 
 ```ts
 import { spawn } from "node:child_process"
+import { readFileSync } from "node:fs"
 import { loadConfig } from "./config.js"
 import { logger } from "./logger.js"
 import { SlackChannel } from "./channels/slack/adapter.js"
 import { ClaudeCodeBackend } from "./agent/backends/claude-code.js"
 import { AgentCore } from "./agent/core.js"
+import { buildSystemPrompt } from "./agent/system-prompt.js"
 
 async function run(cmd: string, args: string[], env?: NodeJS.ProcessEnv): Promise<{ code: number | null; out: string; err: string }> {
   return new Promise((resolve) => {
@@ -1354,6 +1380,17 @@ async function run(cmd: string, args: string[], env?: NodeJS.ProcessEnv): Promis
     p.stderr?.on("data", (d) => (err += d.toString()))
     p.on("close", (code) => resolve({ code, out, err }))
   })
+}
+
+/** Try /app/USER.md (Docker mount) first, then ./USER.md (dev mode). */
+function loadUserMd(): string | null {
+  for (const path of ["/app/USER.md", "USER.md"]) {
+    try {
+      const content = readFileSync(path, "utf8").trim()
+      if (content.length > 0) return content
+    } catch { /* try next candidate */ }
+  }
+  return null
 }
 
 async function healthChecks(config: ReturnType<typeof loadConfig>): Promise<void> {
@@ -1377,17 +1414,26 @@ async function healthChecks(config: ReturnType<typeof loadConfig>): Promise<void
 
 async function main() {
   const config = loadConfig()
-  logger.info({ event: "boot_start" }, "Wesker booting")
+  logger.info({ event: "boot_start" }, "Zeno booting")
 
   await healthChecks(config)
 
+  // Load USER.md (gitignored) and bake it into the system prompt
+  const userMd = loadUserMd()
+  if (userMd) {
+    logger.info({ event: "user_md_loaded", bytes: userMd.length }, "USER.md loaded")
+  } else {
+    logger.warn({ event: "user_md_missing" }, "USER.md not found — Zeno will run without user-specific context")
+  }
+  const systemPrompt = buildSystemPrompt(userMd)
+
   const backend = new ClaudeCodeBackend()
-  const core = new AgentCore({ backend, workspaceDir: config.workspaceDir })
+  const core = new AgentCore({ backend, workspaceDir: config.workspaceDir, systemPrompt })
 
   const slack = new SlackChannel(config.slack)
   await slack.start(core.bind(slack))
 
-  logger.info({ event: "wesker_online" }, "Wesker online")
+  logger.info({ event: "zeno_online" }, "Zeno online")
 
   const shutdown = async (signal: string) => {
     logger.info({ event: "shutdown", signal }, "shutting down")
@@ -1483,15 +1529,15 @@ Node 24 was confirmed by Task 0 as the current Active LTS — see `[[../../learn
 - [ ] **Step 2: Build the image**
 
 ```bash
-docker build -t wesker:dev .
+docker build -t zeno-agent:dev .
 ```
 
-Expected: succeeds. Note the final image size (`docker images wesker:dev`); should be roughly 500–800MB.
+Expected: succeeds. Note the final image size (`docker images zeno-agent:dev`); should be roughly 500–800MB.
 
 - [ ] **Step 3: Smoke-check the built image**
 
 ```bash
-docker run --rm wesker:dev bash -c "node --version && gh --version && claude --version && git --version"
+docker run --rm zeno-agent:dev bash -c "node --version && gh --version && claude --version && git --version"
 ```
 
 Expected: all four tools print versions.
@@ -1514,13 +1560,14 @@ git commit -m "feat: multi-stage Dockerfile with gh, git, claude preinstalled"
 
 ```yaml
 services:
-  wesker:
+  zeno-agent:
     build: .
-    image: wesker:dev
-    container_name: wesker
+    image: zeno-agent:dev
+    container_name: zeno-agent
     env_file: .env
     volumes:
       - workspace:/workspace
+      - ./USER.md:/app/USER.md:ro
     restart: unless-stopped
     stdin_open: true
     tty: true
@@ -1529,7 +1576,7 @@ volumes:
   workspace:
 ```
 
-`stdin_open` + `tty` are required so `docker compose run --rm wesker claude setup-token` can open the browser URL interactively. No `claude-home` volume is needed: the OAuth token is plain text in `.env` (env var `CLAUDE_CODE_OAUTH_TOKEN`), read by the SDK directly.
+`stdin_open` + `tty` are required so `docker compose run --rm zeno-agent claude setup-token` can open the browser URL interactively. The `USER.md` mount is read-only and required: if `USER.md` doesn't exist locally, `docker compose up` fails with a clear file-not-found error — that's intentional, since Zeno needs the user profile to personalize. The README documents copying `USER.example.md` to `USER.md` as a setup step. No `claude-home` volume is needed: the OAuth token is plain text in `.env` (env var `CLAUDE_CODE_OAUTH_TOKEN`), read by the SDK directly.
 
 - [ ] **Step 2: Validate compose file**
 
@@ -1558,7 +1605,7 @@ git commit -m "feat: docker-compose service with OAuth and workspace volumes"
 - [ ] **Step 1: Write `README.md`**
 
 ```markdown
-# Wesker
+# Zeno
 
 Personal agent. Runs in Docker on your machine, listens to Slack via Socket Mode, answers using Claude Code (OAuth).
 
@@ -1579,34 +1626,42 @@ Personal agent. Runs in Docker on your machine, listens to Slack via Socket Mode
 
    Fill in \`SLACK_APP_TOKEN\` (\`xapp-…\`), \`SLACK_BOT_TOKEN\` (\`xoxb-…\`), and \`GH_TOKEN\` (\`ghp_…\`).
 
-2. Build the image:
+2. Create your user profile:
+
+   \`\`\`bash
+   cp USER.example.md USER.md
+   \`\`\`
+
+   Open \`USER.md\` and fill in your name, GitHub username, Slack user ID, and any preferences/context you want Zeno to know. The file is gitignored — your profile never leaves the machine. Required: \`docker compose up\` will fail without it.
+
+3. Build the image:
 
    \`\`\`bash
    docker compose build
    \`\`\`
 
-3. Mint the Claude Code OAuth token (first time, and whenever it expires):
+4. Mint the Claude Code OAuth token (first time, and whenever it expires):
 
    \`\`\`bash
-   docker compose run --rm wesker claude setup-token
+   docker compose run --rm zeno-agent claude setup-token
    \`\`\`
 
    A browser URL prints in the terminal — open it, complete OAuth on your host browser, the CLI prints the token. Paste the token into \`.env\` as \`CLAUDE_CODE_OAUTH_TOKEN=<token>\`.
 
-4. Start Wesker:
+5. Start Zeno:
 
    \`\`\`bash
    docker compose up -d
-   docker compose logs -f wesker
+   docker compose logs -f zeno-agent
    \`\`\`
 
-   Watch for the \`wesker_online\` log event.
+   Watch for the \`zeno_online\` log event. The line \`user_md_loaded\` confirms your profile was read.
 
 ## Usage
 
 Mention the bot in any Slack channel where it's invited:
 
-> @wesker quais repos tem na octocat?
+> @zeno-agent quais repos tem na octocat?
 
 Or DM it directly.
 
@@ -1618,46 +1673,48 @@ The spec targets ~30 seconds end-to-end for the happy path — this is a **warm-
 
 | Symptom | Fix |
 |---|---|
-| "minha sessão Claude expirou" | Re-run \`docker compose run --rm wesker claude setup-token\`, paste new token into \`.env\`, \`docker compose up -d --force-recreate\` |
+| "minha sessão Claude expirou" | Re-run \`docker compose run --rm zeno-agent claude setup-token\`, paste new token into \`.env\`, \`docker compose up -d --force-recreate\` |
 | Container exits with "Invalid environment" | Check \`.env\` — all four vars (\`SLACK_APP_TOKEN\`, \`SLACK_BOT_TOKEN\`, \`GH_TOKEN\`, \`CLAUDE_CODE_OAUTH_TOKEN\`) must be set |
 | Bot doesn't react to mentions | Verify the Socket Mode connection in the Slack app config; check logs for \`slack_connected\` |
 | "não tenho acesso à org X" | Your PAT needs \`read:org\` and, for SAML SSO orgs, must be authorized for that org in GitHub settings |
 
 ## Architecture
 
-See \`context/specs/0001-slack-wesker-mvp/\` for the full spec, plan, and task breakdown. Briefly:
+See \`context/specs/0001-slack-zeno-mvp/\` for the full spec, plan, and task breakdown. Briefly:
 
 - **Channels** (\`src/channels/\`) — pluggable message sources. Slack is MVP; Discord/Telegram are future.
 - **Agent Core** (\`src/agent/core.ts\`) — wires a channel to a backend. Channel-agnostic and backend-agnostic.
 - **Agent Backends** (\`src/agent/backends/\`) — pluggable reasoning engines. Claude Code is MVP (via \`@anthropic-ai/claude-agent-sdk\`); Codex/Gemini future.
-- **Tools** — none. Wesker uses Claude Code's built-in tools (Bash etc.) directly. GitHub queries go via the \`gh\` CLI inside the container.
+- **Tools** — none. Zeno uses Claude Code's built-in tools (Bash etc.) directly. GitHub queries go via the \`gh\` CLI inside the container.
 ```
 
 - [ ] **Step 2: Write `SMOKE.md`**
 
 ```markdown
-# Wesker — Smoke Test Checklist
+# Zeno — Smoke Test Checklist
 
 Run this after any change that touches container setup, authentication, or the Slack/backend plumbing.
 
 ## Pre-flight
 
 - [ ] \`.env\` has \`SLACK_APP_TOKEN\`, \`SLACK_BOT_TOKEN\`, \`GH_TOKEN\`, \`CLAUDE_CODE_OAUTH_TOKEN\` set
-- [ ] Wesker bot has been invited to at least one Slack channel you test in
+- [ ] \`USER.md\` exists at the repo root (copied from \`USER.example.md\` and filled in)
+- [ ] Zeno bot has been invited to at least one Slack channel you test in
 - [ ] \`claude setup-token\` has been run and the resulting token is pasted into \`.env\`
 
 ## Boot
 
 - [ ] \`docker compose up -d\` starts without error
-- [ ] \`docker compose logs wesker\` shows \`github_auth_ok\`
+- [ ] \`docker compose logs zeno-agent\` shows \`github_auth_ok\`
 - [ ] Logs show \`claude_cli_ok\` with a version string
 - [ ] Logs show \`claude_oauth_token_present\`
+- [ ] Logs show \`user_md_loaded\` with byte count
 - [ ] Logs show \`slack_connected\` with a \`botUserId\`
-- [ ] Logs show \`wesker_online\`
+- [ ] Logs show \`zeno_online\`
 
 ## Happy path (Spec S1)
 
-- [ ] Mention \`@wesker quais repos tem na octocat?\` in a channel
+- [ ] Mention \`@zeno-agent quais repos tem na octocat?\` in a channel
 - [ ] Eyes reaction appears on your message within ~2 seconds
 - [ ] A reply lands in the same thread within ~30 seconds
 - [ ] Reply is in Portuguese (PT-BR)
@@ -1666,27 +1723,27 @@ Run this after any change that touches container setup, authentication, or the S
 
 ## DM path (Spec S2)
 
-- [ ] Send \`oi\` as a DM to the Wesker bot
+- [ ] Send \`oi\` as a DM to the Zeno bot
 - [ ] Reply arrives in the DM (not in a thread, \`thread_ts\` is null)
 - [ ] Reply is in Portuguese
 
 ## Org without access (Spec S3)
 
-- [ ] Mention \`@wesker quais repos tem na SomeOrgYouCantSee?\`
+- [ ] Mention \`@zeno-agent quais repos tem na SomeOrgYouCantSee?\`
 - [ ] Reply explains in plain language that there's no access
 - [ ] Reply does not include raw stderr or mention the word "GH_TOKEN"
 
 ## Off-topic (Spec S4)
 
-- [ ] Mention \`@wesker qual a capital do Peru?\`
+- [ ] Mention \`@zeno-agent qual a capital do Peru?\`
 - [ ] Reply: "Lima" (or equivalent), no tool call in logs (\`backend_tool_call\` absent)
 
 ## Auth expired simulation (Spec S5)
 
 - [ ] In \`.env\`, set \`CLAUDE_CODE_OAUTH_TOKEN\` to an obviously-invalid value (e.g., \`cct_bogus\`)
 - [ ] \`docker compose up -d --force-recreate\` so the SDK picks up the bad token
-- [ ] Mention \`@wesker oi\`
-- [ ] Reply instructs to run \`docker compose run --rm wesker claude setup-token\`
+- [ ] Mention \`@zeno-agent oi\`
+- [ ] Reply instructs to run \`docker compose run --rm zeno-agent claude setup-token\`
 - [ ] Logs show \`handler_failed\` with error kind \`auth_expired\`
 - [ ] Restore: run \`setup-token\`, paste real token, \`--force-recreate\` again
 ```
@@ -1718,7 +1775,7 @@ Fill Slack tokens and `GH_TOKEN`. Leave `CLAUDE_CODE_OAUTH_TOKEN` blank — fill
 - [ ] **Step 3: Mint the Claude OAuth token**
 
 ```bash
-docker compose run --rm wesker claude setup-token
+docker compose run --rm zeno-agent claude setup-token
 ```
 
 Follow the browser flow, copy the printed token into `.env` as `CLAUDE_CODE_OAUTH_TOKEN=...`.
@@ -1727,7 +1784,7 @@ Follow the browser flow, copy the printed token into `.env` as `CLAUDE_CODE_OAUT
 
 ```bash
 docker compose up -d
-docker compose logs -f wesker
+docker compose logs -f zeno-agent
 ```
 
 Verify boot logs match the "Boot" section of `SMOKE.md`.
@@ -1738,24 +1795,24 @@ Mark each item as passed or file a bug. Do not mark this task complete until eve
 
 - [ ] **Step 6: Mark spec as shipped**
 
-Edit `context/specs/0001-slack-wesker-mvp/spec.md` frontmatter:
+Edit `context/specs/0001-slack-zeno-mvp/spec.md` frontmatter:
 
 ```yaml
 ---
 status: shipped
-feature: slack-wesker-mvp
+feature: slack-zeno-mvp
 created: 2026-04-15
 shipped: <YYYY-MM-DD>
 ---
 ```
 
-Update `context/_index/specs.md`: move the "0001-slack-wesker-mvp" bullet from "Active" to "Shipped" with the ship date.
+Update `context/_index/specs.md`: move the "0001-slack-zeno-mvp" bullet from "Active" to "Shipped" with the ship date.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add context/specs/0001-slack-wesker-mvp/spec.md context/_index/specs.md
-git commit -m "chore: mark slack-wesker-mvp shipped"
+git add context/specs/0001-slack-zeno-mvp/spec.md context/_index/specs.md
+git commit -m "chore: mark slack-zeno-mvp shipped"
 ```
 
 - [ ] **Step 8: Post-mortem notes**

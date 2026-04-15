@@ -1,9 +1,9 @@
 ---
-feature: slack-wesker-mvp
+feature: slack-zeno-mvp
 spec: "[[spec]]"
 created: 2026-04-15
 ---
-# Wesker MVP — Implementation Plan
+# Zeno MVP — Implementation Plan
 
 **For this spec:** `[[spec]]`
 
@@ -64,7 +64,7 @@ The plan front-loads **Task 0 (Discovery)** as a non-code checkpoint that valida
 - **`AgentBackend`** (port, `src/agent/types.ts`) — defines `query(input): Promise<output>`. Knows nothing about specific LLMs or CLIs.
 - **`ClaudeCodeBackend`** (`src/agent/backends/claude-code.ts`) — implements `AgentBackend` by calling `query()` from `@anthropic-ai/claude-agent-sdk` in-process. Consumes the async iterator of SDK messages, extracts the final `result` text and tool-call summary. Translates known error modes (auth expired, rate limit, timeout) into typed `AgentBackendError` values.
 - **`AgentCore`** (`src/agent/core.ts`) — wires a `Channel` to an `AgentBackend`. Handles correlation IDs, reaction acks, error translation to human-readable Slack messages, structured logging.
-- **`system-prompt`** (`src/agent/system-prompt.ts`) — the multiline string defining Wesker's identity, language, tools, and safety rules.
+- **`system-prompt`** (`src/agent/system-prompt.ts`) — the multiline string defining Zeno's identity, language, tools, and safety rules.
 - **`config`** (`src/config.ts`) — loads and validates env vars with zod. Fails fast on boot if anything is missing or malformed.
 - **`index.ts`** — composition root. Instantiates config, backend, channels, core; runs boot-time health checks; starts channels; sets up graceful shutdown.
 
@@ -111,22 +111,22 @@ Every file the MVP creates, with single-line responsibility:
 - `.nvmrc` — Pin Node major version
 - `.env.example` — Variables required (no real secrets)
 - `.dockerignore` — Excludes `node_modules`, `.env`, etc.
+- `USER.example.md` — Template for the per-user profile (committed)
+- `USER.md` — Per-user profile (gitignored; loaded at boot, injected into the system prompt)
 - `Dockerfile` — Multi-stage build (deps → build → runtime) with `gh`, `git`, `claude` (CLI for `setup-token` only)
-- `docker-compose.yml` — Single `wesker` service, `workspace` volume
+- `docker-compose.yml` — Single `zeno-agent` service, `workspace` volume, `USER.md` bind-mount
 - `README.md` — Setup, `setup-token` flow, smoke-test checklist, architecture TL;DR
 - `SMOKE.md` — Step-by-step verification of every spec success criterion
 
 **Updates to existing files (Task 1):**
-- `AGENTS.md` — rename `Zerk` → `Wesker`
-- `context/constitution.md` — rename, update "Why … exists" paragraph with finalized decisions
-- `context/_index/home.md`, `specs.md`, `learnings.md`, `conventions.md`, `rules.md` — rename in titles/body
-- `.gitignore` — add `.env`, `node_modules`, `dist/`
+- `context/constitution.md` — finalize "Architecture principles" and "Tooling and workflow principles" sections (drop "not yet decided" placeholders)
+- (Repo-wide rename Zerk/Wesker → Zeno was completed pre-implementation as a one-off; no rename work remains in the plan)
 
 ## Phase Ordering
 
 Phases are grouped by what can be validated independently. Each phase ends with a working state that could theoretically be shipped in isolation.
 
-1. **Discovery & Rename (Tasks 0–1)** — Non-code preparation. Confirms assumptions; cleans up residual `Zerk` references. End state: project is named Wesker everywhere.
+1. **Discovery & Rename (Tasks 0–1)** — Non-code preparation. Confirms assumptions; cleans up residual `Zeno` references. End state: project is named Zeno everywhere.
 2. **Project Bootstrap (Tasks 2–3)** — Node project scaffolding, config loading. End state: `npm run dev` runs a no-op process that validates env and exits cleanly.
 3. **Core Types (Tasks 4–5)** — Ports defined. End state: TS compiles, no runtime behavior yet.
 4. **Slack Adapter (Tasks 6–7)** — `SlackChannel` connects to Slack, echoes messages back (temporary). End state: mention in Slack → echo reply in thread.

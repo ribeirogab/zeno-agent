@@ -4,7 +4,7 @@ tags:
 ---
 # Rules — Map of Content
 
-Zerk-specific safety and workflow rules.
+Zeno-specific safety and workflow rules.
 
 **Nothing here yet.** Rules are added when a project-specific safety or workflow constraint is discovered.
 

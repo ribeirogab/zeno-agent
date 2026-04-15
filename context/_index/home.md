@@ -2,9 +2,9 @@
 tags:
   - moc
 ---
-# Zerk — Project Knowledge Vault
+# Zeno — Project Knowledge Vault
 
-This vault contains all project-specific knowledge for Zerk: constitution, specs, learnings, and rules.
+This vault contains all project-specific knowledge for Zeno: constitution, specs, learnings, and rules.
 
 ## Where to go
 

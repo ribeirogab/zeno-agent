@@ -3,20 +3,20 @@ tags:
   - learning
   - reference
 related:
-  - "[[../specs/0001-slack-wesker-mvp/spec|Wesker MVP spec]]"
+  - "[[../specs/0001-slack-zeno-mvp/spec|Zeno MVP spec]]"
 created: 2026-04-15
 ---
 # `gh repo list` with `--json` — fields and usage
 
-Listing repos via the GitHub CLI with structured output, as used by Wesker's Claude to answer "which repos are in org X?" without any custom code.
+Listing repos via the GitHub CLI with structured output, as used by Zeno's Claude to answer "which repos are in org X?" without any custom code.
 
 ## Context
 
-Source: [gh cli manual — `gh repo list`](https://cli.github.com/manual/gh_repo_list). Authenticated inside Wesker's container via `GH_TOKEN` env var (PAT with `repo` + `read:org`).
+Source: [gh cli manual — `gh repo list`](https://cli.github.com/manual/gh_repo_list). Authenticated inside Zeno's container via `GH_TOKEN` env var (PAT with `repo` + `read:org`).
 
 ## How to Apply
 
-**Canonical call for Wesker:**
+**Canonical call for Zeno:**
 
 ```bash
 gh repo list octocat --json name,description,url,isPrivate,updatedAt --limit 100
@@ -41,6 +41,6 @@ Output is a JSON array, one object per repo.
 **Useful JSON fields** (subset of ~60 available):
 `name`, `description`, `url`, `isPrivate`, `updatedAt`, `createdAt`, `owner`, `isFork`, `isArchived`, `stargazerCount`, `primaryLanguage`, `visibility`, `pushedAt`, `diskUsage`.
 
-**Auth via env var:** setting `GH_TOKEN=<pat>` is equivalent to `gh auth login`. For orgs with SAML SSO, the PAT must be authorized for that org in GitHub settings — otherwise `gh repo list <org>` returns an empty list or a 403 without a clear error. Document this in the Wesker troubleshooting section.
+**Auth via env var:** setting `GH_TOKEN=<pat>` is equivalent to `gh auth login`. For orgs with SAML SSO, the PAT must be authorized for that org in GitHub settings — otherwise `gh repo list <org>` returns an empty list or a 403 without a clear error. Document this in the Zeno troubleshooting section.
 
 **Tip for LLM prompting:** add a hint in the system prompt that `gh` supports `--json` and prefer it over plain text — otherwise Claude may parse human-formatted output which is brittle.

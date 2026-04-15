@@ -4,9 +4,9 @@ tags:
 ---
 # Learnings — Map of Content
 
-Atomic notes about Wesker's architecture, patterns, and gotchas. Categorized by tag.
+Atomic notes about Zeno's architecture, patterns, and gotchas. Categorized by tag.
 
-Learnings here are specific to Wesker. Code style conventions live in `[[conventions|Conventions MOC]]`.
+Learnings here are specific to Zeno. Code style conventions live in `[[conventions|Conventions MOC]]`.
 
 ## `#concept` — Architecture and patterns
 
@@ -21,7 +21,7 @@ Learnings here are specific to Wesker. Code style conventions live in `[[convent
 - [[../learnings/slack-bolt-socket-mode|Slack Bolt Socket Mode]] — `@slack/bolt@4.7` minimal setup + scopes.
 - [[../learnings/gh-repo-list-json|gh repo list with --json]] — fields and auth via `GH_TOKEN`.
 - [[../learnings/node-lts-current|Node.js LTS status]] — Node 24 is current Active LTS (as of 2026-04).
-- [[../learnings/docker-node-image-variants|Node.js Docker image variant]] — `node:24-slim` is the right default for Wesker.
+- [[../learnings/docker-node-image-variants|Node.js Docker image variant]] — `node:24-slim` is the right default for Zeno.
 
 ## `#gotcha` — Things that tripped us up
 

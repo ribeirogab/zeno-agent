@@ -6,3 +6,6 @@ context/.obsidian/plugins/*/data.json
 
 # OS
 .DS_Store
+
+# User profile (personal to whoever runs this Zeno instance)
+USER.md

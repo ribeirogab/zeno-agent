@@ -3,7 +3,7 @@ tags:
   - learning
   - reference
 related:
-  - "[[../specs/0001-slack-wesker-mvp/spec|Wesker MVP spec]]"
+  - "[[../specs/0001-slack-zeno-mvp/spec|Zeno MVP spec]]"
   - "[[slack-mcp-vs-bolt]]"
 created: 2026-04-15
 ---
@@ -13,7 +13,7 @@ created: 2026-04-15
 
 ## Context
 
-Source: [@slack/bolt on npm](https://www.npmjs.com/package/@slack/bolt) and [Bolt JS Socket Mode docs](https://docs.slack.dev/tools/bolt-js/concepts/socket-mode/). Wesker uses Socket Mode to avoid exposing a public URL — the bot opens an outbound WebSocket and receives events through it.
+Source: [@slack/bolt on npm](https://www.npmjs.com/package/@slack/bolt) and [Bolt JS Socket Mode docs](https://docs.slack.dev/tools/bolt-js/concepts/socket-mode/). Zeno uses Socket Mode to avoid exposing a public URL — the bot opens an outbound WebSocket and receives events through it.
 
 ## How to Apply
 
@@ -26,8 +26,8 @@ npm install @slack/bolt
 - `SLACK_BOT_TOKEN` — `xoxb-…` (Bot User OAuth Token, from the app's OAuth & Permissions page)
 - `SLACK_APP_TOKEN` — `xapp-…` (App-Level Token with `connections:write` scope, from Basic Information)
 
-**Required Slack app scopes** for the Wesker MVP:
-- `app_mentions:read` — receive `@wesker` mentions
+**Required Slack app scopes** for the Zeno MVP:
+- `app_mentions:read` — receive `@zeno-agent` mentions
 - `chat:write` — post replies
 - `im:history`, `im:read` — receive direct messages
 - `reactions:write` — add/remove `:eyes:` / `:white_check_mark:`

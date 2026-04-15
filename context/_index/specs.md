@@ -4,7 +4,7 @@ tags:
 ---
 # Specs — Map of Content
 
-All specs for Zerk features, past and current. Specs never get deleted — shipped specs remain as historical record.
+All specs for Zeno features, past and current. Specs never get deleted — shipped specs remain as historical record.
 
 ## Workflow trigger
 

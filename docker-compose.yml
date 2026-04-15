@@ -1,0 +1,15 @@
+services:
+  zeno-agent:
+    build: .
+    image: zeno-agent:dev
+    container_name: zeno-agent
+    env_file: .env
+    volumes:
+      - workspace:/workspace
+      - ./USER.md:/app/USER.md:ro
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+volumes:
+  workspace:

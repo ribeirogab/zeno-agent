@@ -1,0 +1,8 @@
+# Obsidian workspace (machine-local)
+context/.obsidian/workspace.json
+context/.obsidian/workspace-mobile.json
+context/.obsidian/cache
+context/.obsidian/plugins/*/data.json
+
+# OS
+.DS_Store

@@ -1,0 +1,36 @@
+{
+  "display_information": {
+    "name": "zeno-agent"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "zeno-agent",
+      "always_online": false
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "chat:write",
+        "app_mentions:read",
+        "im:history",
+        "im:read",
+        "reactions:write",
+        "users:read"
+      ]
+    },
+    "pkce_enabled": false
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": ["app_mention", "message.im"]
+    },
+    "interactivity": {
+      "is_enabled": true
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false,
+    "is_mcp_enabled": false
+  }
+}

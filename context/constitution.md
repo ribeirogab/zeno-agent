@@ -23,24 +23,39 @@ The initial scope is deliberately minimal: one channel (Slack), one backend (Cla
 
 ## Architecture principles
 
-_Not yet decided._ When the first architectural commitments are made (language, runtime, agent framework, storage, etc.), record them here as non-negotiables and drop a matching learning in `context/learnings/` with the reasoning.
+- **Ports & adapters.** Two pluggable abstractions exist: `Channel` (message sources — Slack today, Discord/Telegram/etc. future) and `AgentBackend` (reasoning engines — Claude Code today, Codex/Gemini future). The Agent Core orchestrator depends only on these interfaces, never on concrete implementations. Adding a new channel or backend must be additive — never a modification to the core.
+- **Zero custom tools by default.** Capabilities come from Claude Code's built-in toolset (`Bash`, `Read`, `Write`, `Edit`, `Grep`, `Glob`). Custom tools require justification in a learning or spec — the bias is to teach the agent through the system prompt and let it use the shell.
+- **Stateless per turn (current MVP).** No conversation memory between Slack mentions. Persistent thread sessions are a future iteration and require an explicit storage decision attached to a spec before being added.
+- **Sandboxed execution.** Shell access (Bash tool) runs inside the Docker container only. The container has no host filesystem access beyond mounted volumes (`workspace`, `USER.md` read-only).
+- **OAuth, not API key.** Claude is accessed via `CLAUDE_CODE_OAUTH_TOKEN` (subscription auth), not `ANTHROPIC_API_KEY`. This aligns the cost model with personal use and respects the design constraint set by the user. Migration to API key (or enterprise auth) is reserved for the day Zeno serves multiple people.
 
-Principles to honor until then:
+Principles that frame all of the above:
 
 - **Reversibility first.** Prefer choices that are easy to back out of.
-- **One decision at a time.** Don't bundle stack choices; each should have its own rationale.
+- **One decision at a time.** Don't bundle stack choices; each should have its own rationale captured in a learning.
 - **Write before you build.** If a solution isn't obvious in one sentence, use the spec flow (`/spec`).
 
 ## Tooling and workflow principles
 
-_Not yet decided._ Package manager, linter, formatter, test runner, and CI are all open. When chosen, pin them here.
+**Stack (locked in via spec `0001-slack-zeno-mvp` + Task 0 discovery):**
 
-Workflow principles that already apply:
+- **Language:** TypeScript, strict mode.
+- **Runtime:** Node.js 24 LTS — see `[[learnings/node-lts-current]]`.
+- **Package manager:** npm.
+- **Tests:** `vitest`. Unit tests for pure functions and well-mocked boundaries; smoke tests for integration.
+- **Logging:** `pino`, structured JSON to stdout. Each log entry carries an `event` field and (for request-scoped events) a `correlationId`.
+- **Env validation:** `zod` — schema parsed at boot, fails fast on missing/malformed env.
+- **Slack integration:** `@slack/bolt@4` with Socket Mode (outbound websocket; no public URL needed).
+- **LLM:** `@anthropic-ai/claude-agent-sdk` in-process, authenticated via `CLAUDE_CODE_OAUTH_TOKEN`.
+- **Container:** `node:24-slim` Debian-based — see `[[learnings/docker-node-image-variants]]`. Multi-stage build: deps → build → runtime.
+
+**Workflow:**
 
 - **Never push to `main`.** Always branch + PR. Pushing to `main`/`master` is blocked by convention — it triggers deploys/automations (see global rule 20).
 - **Use `/open-pr`** to open pull requests. It generates title and description consistently.
 - **Explicit consent for `git add`/`commit`/`push`.** No autonomous git writes.
 - **Read-only database.** No write queries without approval.
+- **Verify before implementing.** Before writing code that depends on third-party SDKs/CLIs, confirm current versions and idioms via discovery (Task 0 pattern). Capture findings as atomic notes in `[[_index/learnings|Learnings MOC]]`. The knowledge cutoff of any AI agent helping is months behind real time.
 
 ## Spec-Driven workflow
 

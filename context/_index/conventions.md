@@ -8,4 +8,4 @@ Deliberate code style choices that all code in Zeno must follow. These are not s
 
 ## Code style
 
-_No conventions yet. Add the first one when a team decision is made._
+- [[../conventions/code-style|TypeScript code style]] — single quotes, semicolons, trailing commas, no one-letter vars, organized imports. Enforced by Biome (`biome.json`).

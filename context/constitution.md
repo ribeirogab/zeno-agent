@@ -43,6 +43,7 @@ Principles that frame all of the above:
 - **Runtime:** Node.js 24 LTS — see `[[learnings/node-lts-current]]`.
 - **Package manager:** npm.
 - **Tests:** `vitest`. Unit tests for pure functions and well-mocked boundaries; smoke tests for integration.
+- **Lint + format:** `biome` (single tool replaces ESLint + Prettier). Style rules in `[[conventions/code-style]]`.
 - **Logging:** `pino`, structured JSON to stdout. Each log entry carries an `event` field and (for request-scoped events) a `correlationId`.
 - **Env validation:** `zod` — schema parsed at boot, fails fast on missing/malformed env.
 - **Slack integration:** `@slack/bolt@4` with Socket Mode (outbound websocket; no public URL needed).

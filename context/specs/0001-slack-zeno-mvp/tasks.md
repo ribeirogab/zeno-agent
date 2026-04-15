@@ -199,7 +199,7 @@ git commit -m "docs: update constitution with finalized stack decisions"
 ### Task 2: Node project init
 
 **Files:**
-- Create: `package.json`, `package-lock.json`, `tsconfig.json`, `.nvmrc`, `.dockerignore`
+- Create: `package.json`, `package-lock.json`, `tsconfig.json`, `.nvmrc`, `.dockerignore`, `biome.json`
 - Modify: `.gitignore` (add Node artifacts + `.env`)
 
 - [ ] **Step 1: `.nvmrc`**
@@ -229,7 +229,10 @@ Create with:
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "check": "biome check --write ."
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^<LATEST>",
@@ -238,6 +241,7 @@ Create with:
     "zod": "^<LATEST>"
   },
   "devDependencies": {
+    "@biomejs/biome": "^<LATEST>",
     "@types/node": "^24",
     "tsx": "^<LATEST>",
     "typescript": "^<LATEST>",
@@ -305,7 +309,51 @@ context/
 
 (`context/` is excluded because the container doesn't need the knowledge vault.)
 
-- [ ] **Step 6: Verify TS compiles (empty project)**
+- [ ] **Step 6: Create `biome.json`**
+
+Biome handles formatting + linting + import organization. Convention: single quotes, always semicolons, organized imports. See `context/conventions/code-style.md`.
+
+```json
+{
+  "$schema": "https://biomejs.dev/schemas/<VERSION>/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": { "includes": ["src/**/*.ts", "tests/**/*.ts", "*.json"] },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always",
+      "bracketSameLine": false,
+      "bracketSpacing": true,
+      "quoteProperties": "asNeeded"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": { "noExplicitAny": "warn" }
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": { "source": { "organizeImports": "on" } }
+  }
+}
+```
+
+Replace `<VERSION>` with the installed Biome major.minor.patch.
+
+- [ ] **Step 7: Verify TS compiles (empty project)**
 
 ```bash
 mkdir -p src && echo 'export {}' > src/index.ts
@@ -314,11 +362,19 @@ npm run typecheck
 
 Expected: no output, exit 0. Then remove the stub: `rm src/index.ts`.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Verify Biome runs clean**
 
 ```bash
-git add package.json package-lock.json tsconfig.json .nvmrc .gitignore .dockerignore
-git commit -m "chore: init Node/TS project"
+npx biome check .
+```
+
+Expected: "No fixes applied" or success message.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add package.json package-lock.json tsconfig.json .nvmrc .gitignore .dockerignore biome.json
+git commit -m "chore: init Node/TS project with Biome"
 ```
 
 ---

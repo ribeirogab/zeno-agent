@@ -17,9 +17,14 @@ Each task is self-contained. Work in order; some depend on previous state. Every
 ### Task 0: Discovery — verify current versions and practices
 
 **Files:**
-- Create: `context/learnings/2026-04-15-discovery-findings.md`
+- Create one **atomic learning note per topic** in `context/learnings/` (not a single combined file). Use `context/templates/learning.md` as the template.
+- Update: `context/_index/learnings.md` — add each new note under its tag section (`#reference` for CLI/API/version facts, `#concept` for architectural patterns, `#gotcha` for surprises).
 
-**Purpose:** Before writing any code, confirm that the assumptions in the spec and plan are still valid in April 2026. Claude's knowledge cutoff is May 2025 — a year of drift. Anything that has materially changed (new SDK, deprecated flag, new LTS) gets captured here and, if significant, triggers a spec revision before code starts.
+**Note naming:** kebab-case descriptive, e.g. `claude-code-headless-cli.md`, `claude-agent-sdk-node.md`, `slack-bolt-socket-mode.md`, `mcp-slack-server.md`, `gh-repo-list-json.md`, `node-lts-current.md`, `docker-node-slim-best-practices.md`. One note per finding keeps them reusable beyond this spec and enables Obsidian backlinks.
+
+**Frontmatter:** include `related: ["[[../specs/0001-slack-wesker-mvp/spec]]"]` so each note backlinks to this spec.
+
+**Purpose:** Before writing any code, confirm that the assumptions in the spec and plan are still valid in April 2026. Claude's knowledge cutoff is May 2025 — a year of drift. Anything that has materially changed (new SDK, deprecated flag, new LTS) is captured as a learning note and, if significant, triggers a spec revision before code starts.
 
 - [ ] **Step 1: Claude Code / Agent SDK**
 
@@ -30,7 +35,7 @@ Check, in order:
   3. GitHub `anthropics/claude-code` — latest release notes and breaking changes since mid-2025.
   4. Check whether Claude Code now has a `server` or `daemon` mode (e.g., `claude server --port 3001`) that accepts requests over HTTP/stdio — would eliminate spawn overhead per request.
 
-Record findings in `context/learnings/2026-04-15-discovery-findings.md` under a `## Claude Code / Agent SDK` heading. For each item, write the confirmed current approach and link to its doc.
+Produce notes: `context/learnings/claude-code-headless-cli.md` (tag `#reference`, flags + invocation pattern) and `context/learnings/claude-agent-sdk-node.md` (tag `#reference` or `#concept`, whether it's usable and when to prefer over subprocess). Include concrete CLI snippets and doc links.
 
 - [ ] **Step 2: Slack Bolt (TypeScript) — Socket Mode**
 
@@ -41,7 +46,7 @@ Check:
   3. Required Slack app scopes — confirm `app_mentions:read`, `chat:write`, `im:history`, `im:read`, `users:read` are still the right set, and `connections:write` for App-Level Token.
   4. Known pitfalls — any advisory about retries, 3s ack window, duplicate events.
 
-Record under `## Slack Bolt` heading with version + code skeleton.
+Produce note: `context/learnings/slack-bolt-socket-mode.md` (tag `#reference`) with version, instantiation skeleton, required scopes, and any known gotchas (the latter promoted to a separate `#gotcha` note if non-trivial).
 
 - [ ] **Step 3: MCP ecosystem for Slack & GitHub**
 
@@ -51,7 +56,7 @@ Check:
   2. Same for GitHub (`@modelcontextprotocol/server-github`).
   3. If either dramatically simplifies the design, note it. **Decision gate:** if an MCP Slack server offers push-style subscription (not just pull/call), we may defer writing `SlackChannel` entirely and let Claude handle both sides via MCP. Write your recommendation with evidence.
 
-Record under `## MCP Servers` heading.
+Produce notes: `context/learnings/mcp-slack-server.md` and `context/learnings/mcp-github-server.md` (tag `#reference`), each with availability status, what tools each exposes, and a recommendation for MVP. If MCP Slack changes the SlackChannel design, add a `#concept` note with the reasoning and flag it as a potential spec amendment before proceeding.
 
 - [ ] **Step 4: `gh` CLI flags**
 
@@ -60,11 +65,11 @@ Run `gh repo list --help` (on your host machine if `gh` is installed; or check t
   - Any newer flag like `--visibility` or `--topic` worth knowing.
   - Auth via `GH_TOKEN` env var still works for the `repo list` subcommand with `read:org` scope.
 
-Record under `## gh CLI` heading.
+Produce note: `context/learnings/gh-repo-list-json.md` (tag `#reference`) with the exact command, JSON shape it returns, and auth caveats (env-var PAT, SSO, scopes).
 
 - [ ] **Step 5: Node LTS**
 
-Check `nodejs.org/en/about/previous-releases`. Identify the current Active LTS (should be an even major number). If 24 is LTS, target 24; if 22 is still LTS, target 22. Record target under `## Node LTS` heading.
+Check `nodejs.org/en/about/previous-releases`. Identify the current Active LTS (should be an even major number). If 24 is LTS, target 24; if 22 is still LTS, target 22. Produce note: `context/learnings/node-lts-current.md` (tag `#reference`) with the current Active LTS, its EOL, and the next LTS timeline.
 
 - [ ] **Step 6: Dockerfile best practices**
 
@@ -73,20 +78,34 @@ Check current guidance (Docker docs, node official image repo). Note:
   - Whether multi-stage is still the standard or if there's a newer pattern.
   - Non-root user recommendation — is running as `node` user expected now?
 
-Record under `## Docker` heading.
+Produce note: `context/learnings/docker-node-slim-best-practices.md` (tag `#reference`) with current recommended base tag, whether multi-stage is still standard, non-root user practice, and any other relevant guidance surfaced.
 
-- [ ] **Step 7: Decision gate**
+- [ ] **Step 7: Update the learnings MOC**
+
+Edit `context/_index/learnings.md` — under each tag section (`#reference`, `#concept`, `#gotcha`), add a one-line bullet for every note created in steps 1–6, linking to it with an Obsidian wikilink. Example:
+
+```markdown
+## `#reference` — Environment and commands
+
+- [[../learnings/claude-code-headless-cli|Claude Code headless CLI]] — invocation pattern and flags (as of 2026-04-15).
+- [[../learnings/slack-bolt-socket-mode|Slack Bolt Socket Mode]] — current stable setup.
+- ...
+```
+
+This keeps the MOC honest and makes the learnings discoverable via the `#reference` tag or the Obsidian graph view.
+
+- [ ] **Step 8: Decision gate**
 
 Re-read the spec (`[[spec]]`) with the findings in hand. Ask: **does any finding invalidate a spec decision or success criterion?**
 
   - **No** → proceed to Task 1 as planned.
   - **Yes** → stop. Open discussion with Operator. Amend spec, re-run spec review, then return.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add context/learnings/2026-04-15-discovery-findings.md
-git commit -m "docs: record discovery findings for slack-wesker-mvp"
+git add context/learnings/ context/_index/learnings.md
+git commit -m "docs: record discovery findings as atomic learnings"
 ```
 
 ---
@@ -211,20 +230,21 @@ Create with:
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@slack/bolt": "^<TASK-0-CONFIRMED>",
-    "pino": "^<TASK-0-CONFIRMED>",
-    "zod": "^<TASK-0-CONFIRMED>"
+    "@anthropic-ai/claude-agent-sdk": "^<LATEST>",
+    "@slack/bolt": "^4.7.0",
+    "pino": "^<LATEST>",
+    "zod": "^<LATEST>"
   },
   "devDependencies": {
-    "@types/node": "^<TASK-0-CONFIRMED>",
-    "tsx": "^<TASK-0-CONFIRMED>",
-    "typescript": "^<TASK-0-CONFIRMED>",
-    "vitest": "^<TASK-0-CONFIRMED>"
+    "@types/node": "^24",
+    "tsx": "^<LATEST>",
+    "typescript": "^<LATEST>",
+    "vitest": "^<LATEST>"
   }
 }
 ```
 
-Replace each `<TASK-0-CONFIRMED>` with versions confirmed in discovery findings. Then run `npm install` to generate the lockfile.
+Replace each `<LATEST>` with the newest stable version at install time (`npm view <pkg> version`). Then run `npm install` to generate the lockfile. `@slack/bolt@4.7.0` and `@types/node@^24` are pinned from Task 0 findings; the rest float at latest.
 
 - [ ] **Step 3: `tsconfig.json`**
 
@@ -322,6 +342,7 @@ describe("loadConfig", () => {
       SLACK_APP_TOKEN: "xapp-1-abc",
       SLACK_BOT_TOKEN: "xoxb-abc",
       GH_TOKEN: "ghp_abc",
+      CLAUDE_CODE_OAUTH_TOKEN: "cct_abc",
     }
   })
 
@@ -334,11 +355,17 @@ describe("loadConfig", () => {
     expect(cfg.slack.appToken).toBe("xapp-1-abc")
     expect(cfg.slack.botToken).toBe("xoxb-abc")
     expect(cfg.github.token).toBe("ghp_abc")
+    expect(cfg.claude.oauthToken).toBe("cct_abc")
   })
 
   it("throws with clear message on missing SLACK_APP_TOKEN", () => {
     delete process.env.SLACK_APP_TOKEN
     expect(() => loadConfig()).toThrow(/SLACK_APP_TOKEN/)
+  })
+
+  it("throws on missing CLAUDE_CODE_OAUTH_TOKEN", () => {
+    delete process.env.CLAUDE_CODE_OAUTH_TOKEN
+    expect(() => loadConfig()).toThrow(/CLAUDE_CODE_OAUTH_TOKEN/)
   })
 
   it("throws on malformed SLACK_APP_TOKEN prefix", () => {
@@ -354,7 +381,7 @@ describe("loadConfig", () => {
 npm test
 ```
 
-Expected: all three tests fail (module doesn't exist).
+Expected: all four tests fail (module doesn't exist).
 
 - [ ] **Step 3: Implement `src/config.ts`**
 
@@ -365,6 +392,7 @@ const schema = z.object({
   SLACK_APP_TOKEN: z.string().startsWith("xapp-"),
   SLACK_BOT_TOKEN: z.string().startsWith("xoxb-"),
   GH_TOKEN: z.string().min(1),
+  CLAUDE_CODE_OAUTH_TOKEN: z.string().min(1),
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error"]).default("info"),
   WORKSPACE_DIR: z.string().default("/workspace"),
 })
@@ -372,6 +400,7 @@ const schema = z.object({
 export type Config = {
   slack: { appToken: string; botToken: string }
   github: { token: string }
+  claude: { oauthToken: string }
   logLevel: "trace" | "debug" | "info" | "warn" | "error"
   workspaceDir: string
 }
@@ -388,6 +417,7 @@ export function loadConfig(): Config {
   return {
     slack: { appToken: e.SLACK_APP_TOKEN, botToken: e.SLACK_BOT_TOKEN },
     github: { token: e.GH_TOKEN },
+    claude: { oauthToken: e.CLAUDE_CODE_OAUTH_TOKEN },
     logLevel: e.LOG_LEVEL,
     workspaceDir: e.WORKSPACE_DIR,
   }
@@ -400,7 +430,7 @@ export function loadConfig(): Config {
 npm test
 ```
 
-Expected: all three pass.
+Expected: all four pass.
 
 - [ ] **Step 5: Create `src/logger.ts`**
 
@@ -424,6 +454,9 @@ SLACK_BOT_TOKEN=xoxb-REPLACE_ME
 
 # GitHub
 GH_TOKEN=ghp_REPLACE_ME
+
+# Claude Code — obtain via `docker compose run --rm wesker claude setup-token`
+CLAUDE_CODE_OAUTH_TOKEN=REPLACE_ME
 
 # Runtime
 LOG_LEVEL=info
@@ -892,12 +925,12 @@ git commit -m "feat(slack): SlackChannel adapter over Bolt Socket Mode"
 
 ## Phase 5: Claude Code Backend
 
-### Task 8: `ClaudeCodeBackend` (TDD for spawn args + error classification)
+### Task 8: `ClaudeCodeBackend` via Claude Agent SDK (TDD)
 
 **Files:**
 - Create: `src/agent/backends/claude-code.ts`, `tests/agent/backends/claude-code.test.ts`
 
-**Assumption to verify first:** Invocation is `claude -p "<prompt>" --append-system-prompt "<sys>" --output-format stream-json --cwd <dir>` and output is newline-delimited JSON with terminal message containing final assistant text. If Task 0 findings say otherwise, adapt the code below before writing — the test structure remains valid.
+**Approach confirmed by Task 0:** use the official `@anthropic-ai/claude-agent-sdk` in-process via `query()`. SDK reads `CLAUDE_CODE_OAUTH_TOKEN` from env automatically. No subprocess. See `[[../../learnings/claude-agent-sdk-typescript]]`.
 
 - [ ] **Step 1: Write failing tests**
 
@@ -905,28 +938,34 @@ git commit -m "feat(slack): SlackChannel adapter over Bolt Socket Mode"
 
 ```ts
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import type { ChildProcess } from "node:child_process"
-import { EventEmitter } from "node:events"
-import { Readable, Writable } from "node:stream"
 
-// We mock child_process.spawn before importing the module under test.
-vi.mock("node:child_process", () => ({ spawn: vi.fn() }))
+// Mock the SDK module BEFORE importing the unit under test
+vi.mock("@anthropic-ai/claude-agent-sdk", () => ({ query: vi.fn() }))
 
-import { spawn } from "node:child_process"
+import { query } from "@anthropic-ai/claude-agent-sdk"
 import { ClaudeCodeBackend } from "../../../src/agent/backends/claude-code.js"
-import { AgentBackendError } from "../../../src/agent/types.js"
 
-function fakeProcess(stdoutLines: string[], stderr: string, exitCode: number): ChildProcess {
-  const emitter = new EventEmitter() as any
-  emitter.stdout = Readable.from(stdoutLines.map((l) => l + "\n"))
-  emitter.stderr = Readable.from([stderr])
-  emitter.stdin = new Writable({ write(_c, _e, cb) { cb() } })
-  emitter.kill = vi.fn()
-  setImmediate(() => emitter.emit("close", exitCode))
-  return emitter
+function mockQueryStream(messages: any[]): void {
+  vi.mocked(query).mockImplementation(() => {
+    async function* gen() {
+      for (const m of messages) yield m
+    }
+    return gen() as any
+  })
 }
 
-const base = {
+function mockQueryThrow(error: Error): void {
+  vi.mocked(query).mockImplementation(() => {
+    async function* gen() {
+      throw error
+      // eslint-disable-next-line no-unreachable
+      yield undefined as any
+    }
+    return gen() as any
+  })
+}
+
+const baseInput = {
   systemPrompt: "You are Wesker.",
   userMessage: "oi",
   cwd: "/workspace",
@@ -936,55 +975,70 @@ const base = {
 beforeEach(() => vi.clearAllMocks())
 
 describe("ClaudeCodeBackend", () => {
-  it("spawns claude with the expected args", async () => {
-    vi.mocked(spawn).mockReturnValue(
-      fakeProcess([JSON.stringify({ type: "result", result: "hi" })], "", 0),
-    )
+  it("passes prompt, systemPrompt, cwd, and allowed tools to query()", async () => {
+    mockQueryStream([{ type: "result", result: "hi", total_cost_usd: 0.001 }])
     const backend = new ClaudeCodeBackend()
-    await backend.query(base)
-    expect(spawn).toHaveBeenCalledTimes(1)
-    const [cmd, args] = vi.mocked(spawn).mock.calls[0]
-    expect(cmd).toBe("claude")
-    expect(args).toContain("-p")
-    expect(args).toContain("--output-format")
-    expect(args).toContain("stream-json")
+    await backend.query(baseInput)
+
+    expect(query).toHaveBeenCalledOnce()
+    const call = vi.mocked(query).mock.calls[0][0]
+    expect(call.prompt).toBe("oi")
+    expect(call.options?.systemPrompt).toBe("You are Wesker.")
+    expect(call.options?.cwd).toBe("/workspace")
+    expect(call.options?.allowedTools).toContain("Bash")
+    expect(call.options?.tools).toEqual({ type: "preset", preset: "claude_code" })
+    expect(call.options?.permissionMode).toBe("bypassPermissions")
   })
 
-  it("returns the final assistant text from stream-json output", async () => {
-    const stream = [
-      JSON.stringify({ type: "system", subtype: "init" }),
-      JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: "partial" }] } }),
-      JSON.stringify({ type: "result", result: "final answer" }),
-    ]
-    vi.mocked(spawn).mockReturnValue(fakeProcess(stream, "", 0))
+  it("returns text from the final `result` message", async () => {
+    mockQueryStream([
+      { type: "system", subtype: "init" },
+      { type: "assistant", message: { content: [{ type: "text", text: "thinking..." }] } },
+      { type: "result", result: "final answer", total_cost_usd: 0.001 },
+    ])
     const backend = new ClaudeCodeBackend()
-    const out = await backend.query(base)
+    const out = await backend.query(baseInput)
     expect(out.text).toBe("final answer")
   })
 
-  it("classifies auth_expired on specific stderr signal", async () => {
-    vi.mocked(spawn).mockReturnValue(
-      fakeProcess([], "Error: not authenticated. Run `claude /login`.", 1),
-    )
+  it("captures tool_use blocks as toolCalls for logging", async () => {
+    mockQueryStream([
+      {
+        type: "assistant",
+        message: {
+          content: [
+            { type: "tool_use", name: "Bash", input: { command: "gh repo list" } },
+          ],
+        },
+      },
+      { type: "result", result: "done", total_cost_usd: 0.001 },
+    ])
     const backend = new ClaudeCodeBackend()
-    await expect(backend.query(base)).rejects.toMatchObject({
+    const out = await backend.query(baseInput)
+    expect(out.toolCalls).toHaveLength(1)
+    expect(out.toolCalls[0].tool).toBe("Bash")
+    expect(out.toolCalls[0].input).toEqual({ command: "gh repo list" })
+  })
+
+  it("classifies auth_expired when the SDK throws an auth-related error", async () => {
+    mockQueryThrow(new Error("Authentication failed: CLAUDE_CODE_OAUTH_TOKEN invalid"))
+    const backend = new ClaudeCodeBackend()
+    await expect(backend.query(baseInput)).rejects.toMatchObject({
       name: "AgentBackendError",
       kind: "auth_expired",
     })
   })
 
-  it("classifies rate_limited on specific stderr signal", async () => {
-    vi.mocked(spawn).mockReturnValue(
-      fakeProcess([], "Error: usage limit reached for current billing period.", 1),
-    )
+  it("classifies rate_limited on usage-limit errors", async () => {
+    mockQueryThrow(new Error("Rate limit exceeded: monthly usage cap"))
     const backend = new ClaudeCodeBackend()
-    await expect(backend.query(base)).rejects.toMatchObject({ kind: "rate_limited" })
+    await expect(backend.query(baseInput)).rejects.toMatchObject({ kind: "rate_limited" })
   })
 
-  it("wraps unknown failures as kind=unknown", async () => {
-    vi.mocked(spawn).mockReturnValue(fakeProcess([], "segfault", 139))
+  it("wraps anything else as kind=unknown", async () => {
+    mockQueryThrow(new Error("something weird"))
     const backend = new ClaudeCodeBackend()
-    await expect(backend.query(base)).rejects.toMatchObject({ kind: "unknown" })
+    await expect(backend.query(baseInput)).rejects.toMatchObject({ kind: "unknown" })
   })
 })
 ```
@@ -995,64 +1049,63 @@ describe("ClaudeCodeBackend", () => {
 npm test -- claude-code
 ```
 
-Expected: all five fail (module missing).
+Expected: all six fail (module missing).
 
 - [ ] **Step 3: Implement `src/agent/backends/claude-code.ts`**
 
 ```ts
-import { spawn } from "node:child_process"
-import * as readline from "node:readline"
+import { query } from "@anthropic-ai/claude-agent-sdk"
 import type { AgentBackend, AgentInput, AgentOutput, ToolCallSummary } from "../types.js"
 import { AgentBackendError } from "../types.js"
 import { logger } from "../../logger.js"
 
 export interface ClaudeCodeBackendOptions {
-  /** Absolute path or command name. Defaults to `claude` (must be on PATH). */
-  binary?: string
-  /** Max wall-clock ms. Exceeding this kills the process and raises kind=timeout. */
+  /** Max wall-clock ms; on expiry the AbortController fires and raises kind=timeout. */
   timeoutMs?: number
+  /** Tools auto-approved. MVP: Bash only. */
+  allowedTools?: string[]
 }
 
 export class ClaudeCodeBackend implements AgentBackend {
   readonly name = "claude-code"
-  private binary: string
-  private timeoutMs: number
+  private readonly timeoutMs: number
+  private readonly allowedTools: string[]
 
   constructor(opts: ClaudeCodeBackendOptions = {}) {
-    this.binary = opts.binary ?? "claude"
     this.timeoutMs = opts.timeoutMs ?? 60_000
+    this.allowedTools = opts.allowedTools ?? ["Bash"]
   }
 
   async query(input: AgentInput): Promise<AgentOutput> {
-    const args = [
-      "-p", input.userMessage,
-      "--append-system-prompt", input.systemPrompt,
-      "--output-format", "stream-json",
-    ]
-
     logger.info(
       { event: "backend_started", backend: this.name, correlationId: input.correlationId },
-      "spawning claude",
+      "starting claude agent SDK query",
     )
 
-    const proc = spawn(this.binary, args, { cwd: input.cwd })
-
-    const stderrChunks: string[] = []
-    proc.stderr?.on("data", (d) => stderrChunks.push(d.toString()))
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs)
 
     const toolCalls: ToolCallSummary[] = []
     let finalText = ""
 
-    const rl = readline.createInterface({ input: proc.stdout!, crlfDelay: Infinity })
-    const parsePromise = (async () => {
-      for await (const line of rl) {
-        if (!line.trim()) continue
-        let evt: any
-        try { evt = JSON.parse(line) } catch { continue }
-        if (evt.type === "result" && typeof evt.result === "string") {
-          finalText = evt.result
-        } else if (evt.type === "assistant" && Array.isArray(evt.message?.content)) {
-          for (const block of evt.message.content) {
+    try {
+      const iter = query({
+        prompt: input.userMessage,
+        options: {
+          systemPrompt: input.systemPrompt,
+          allowedTools: this.allowedTools,
+          tools: { type: "preset", preset: "claude_code" },
+          cwd: input.cwd,
+          permissionMode: "bypassPermissions",
+          abortController: controller,
+        },
+      })
+
+      for await (const msg of iter) {
+        if (msg.type === "result" && typeof msg.result === "string") {
+          finalText = msg.result
+        } else if (msg.type === "assistant" && Array.isArray(msg.message?.content)) {
+          for (const block of msg.message.content) {
             if (block.type === "tool_use") {
               toolCalls.push({ tool: block.name, input: block.input })
               logger.debug(
@@ -1063,38 +1116,38 @@ export class ClaudeCodeBackend implements AgentBackend {
           }
         }
       }
-    })()
-
-    const timeout = setTimeout(() => proc.kill("SIGKILL"), this.timeoutMs)
-
-    const exitCode: number | null = await new Promise((resolve) => {
-      proc.once("close", (code) => resolve(code))
-    })
-    clearTimeout(timeout)
-    await parsePromise
-
-    const stderr = stderrChunks.join("")
-
-    if (exitCode !== 0) {
-      if (exitCode === null) {
-        throw new AgentBackendError("timeout", `claude exceeded ${this.timeoutMs}ms`, { stderr })
-      }
-      if (/not authenticated|login/i.test(stderr)) {
-        throw new AgentBackendError("auth_expired", "Claude Code OAuth session expired", { stderr })
-      }
-      if (/usage limit|rate limit|quota/i.test(stderr)) {
-        throw new AgentBackendError("rate_limited", "Claude Code plan limit reached", { stderr })
-      }
-      throw new AgentBackendError("unknown", `claude exited ${exitCode}: ${stderr.slice(0, 400)}`, { stderr, exitCode })
+    } catch (err) {
+      throw classifyError(err, this.timeoutMs, controller.signal.aborted)
+    } finally {
+      clearTimeout(timer)
     }
 
     logger.info(
-      { event: "backend_completed", backend: this.name, correlationId: input.correlationId, toolCalls: toolCalls.length },
+      {
+        event: "backend_completed",
+        backend: this.name,
+        correlationId: input.correlationId,
+        toolCalls: toolCalls.length,
+      },
       "claude completed",
     )
 
     return { text: finalText || "(sem resposta)", toolCalls }
   }
+}
+
+function classifyError(err: unknown, timeoutMs: number, aborted: boolean): AgentBackendError {
+  if (aborted) {
+    return new AgentBackendError("timeout", `claude exceeded ${timeoutMs}ms`, err)
+  }
+  const msg = err instanceof Error ? err.message : String(err)
+  if (/authenticat|oauth|unauthorized|401|CLAUDE_CODE_OAUTH_TOKEN/i.test(msg)) {
+    return new AgentBackendError("auth_expired", "Claude OAuth token invalid or expired", err)
+  }
+  if (/rate limit|usage limit|usage cap|quota/i.test(msg)) {
+    return new AgentBackendError("rate_limited", "Claude plan limit reached", err)
+  }
+  return new AgentBackendError("unknown", `claude SDK failure: ${msg.slice(0, 400)}`, err)
 }
 ```
 
@@ -1104,13 +1157,13 @@ export class ClaudeCodeBackend implements AgentBackend {
 npm test -- claude-code
 ```
 
-Expected: all five pass.
+Expected: all six pass.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add src/agent/backends/claude-code.ts tests/agent/backends/claude-code.test.ts
-git commit -m "feat(agent): ClaudeCodeBackend with typed errors"
+git commit -m "feat(agent): ClaudeCodeBackend using Claude Agent SDK"
 ```
 
 ---
@@ -1247,7 +1300,7 @@ function translateError(err: unknown): string {
   if (err instanceof AgentBackendError) {
     switch (err.kind) {
       case "auth_expired":
-        return "minha sessão Claude expirou. Roda `docker compose run --rm wesker claude /login` pra me reautenticar."
+        return "minha sessão Claude expirou. Roda `docker compose run --rm wesker claude setup-token` pra me reautenticar."
       case "rate_limited":
         return "bati o limite do plano Claude. Tenta daqui a pouco."
       case "timeout":
@@ -1304,19 +1357,22 @@ async function run(cmd: string, args: string[], env?: NodeJS.ProcessEnv): Promis
 }
 
 async function healthChecks(config: ReturnType<typeof loadConfig>): Promise<void> {
-  // 1. gh CLI authenticated
+  // 1. gh CLI authenticated (used by Claude's Bash tool at runtime)
   const gh = await run("gh", ["auth", "status"], { GH_TOKEN: config.github.token })
   if (gh.code !== 0) {
     throw new Error(`gh auth failed: ${gh.err.slice(0, 200)}`)
   }
   logger.info({ event: "github_auth_ok" }, "gh CLI authenticated")
 
-  // 2. claude CLI available
+  // 2. claude CLI available (for setup-token re-runs; not used at request time)
   const cc = await run("claude", ["--version"])
   if (cc.code !== 0) {
     throw new Error(`claude --version failed: ${cc.err.slice(0, 200)}`)
   }
-  logger.info({ event: "claude_ok", version: cc.out.trim() }, "claude CLI available")
+  logger.info({ event: "claude_cli_ok", version: cc.out.trim() }, "claude CLI available")
+
+  // 3. CLAUDE_CODE_OAUTH_TOKEN presence was already validated by loadConfig() via zod.
+  logger.info({ event: "claude_oauth_token_present" }, "Claude OAuth token configured")
 }
 
 async function main() {
@@ -1422,7 +1478,7 @@ VOLUME ["/workspace", "/root/.claude"]
 CMD ["node", "dist/index.js"]
 ```
 
-Replace `node:24-slim` with the Node LTS confirmed in Task 0 if it differs.
+Node 24 was confirmed by Task 0 as the current Active LTS — see `[[../../learnings/node-lts-current]]`. The `claude` CLI is installed only for setup-time use (`claude setup-token`, re-login); runtime uses the SDK in-process.
 
 - [ ] **Step 2: Build the image**
 
@@ -1464,18 +1520,16 @@ services:
     container_name: wesker
     env_file: .env
     volumes:
-      - claude-home:/root/.claude
       - workspace:/workspace
     restart: unless-stopped
     stdin_open: true
     tty: true
 
 volumes:
-  claude-home:
   workspace:
 ```
 
-`stdin_open` + `tty` are required so `docker compose run --rm wesker claude /login` can run interactively.
+`stdin_open` + `tty` are required so `docker compose run --rm wesker claude setup-token` can open the browser URL interactively. No `claude-home` volume is needed: the OAuth token is plain text in `.env` (env var `CLAUDE_CODE_OAUTH_TOKEN`), read by the SDK directly.
 
 - [ ] **Step 2: Validate compose file**
 
@@ -1531,13 +1585,13 @@ Personal agent. Runs in Docker on your machine, listens to Slack via Socket Mode
    docker compose build
    \`\`\`
 
-3. Run the Claude Code login flow (first time, and whenever the session expires):
+3. Mint the Claude Code OAuth token (first time, and whenever it expires):
 
    \`\`\`bash
-   docker compose run --rm wesker claude /login
+   docker compose run --rm wesker claude setup-token
    \`\`\`
 
-   Follow the URL printed in the terminal, complete OAuth in your browser, return. The session persists in the \`claude-home\` Docker volume.
+   A browser URL prints in the terminal — open it, complete OAuth on your host browser, the CLI prints the token. Paste the token into \`.env\` as \`CLAUDE_CODE_OAUTH_TOKEN=<token>\`.
 
 4. Start Wesker:
 
@@ -1564,8 +1618,8 @@ The spec targets ~30 seconds end-to-end for the happy path — this is a **warm-
 
 | Symptom | Fix |
 |---|---|
-| "minha sessão Claude expirou" | Run \`docker compose run --rm wesker claude /login\` |
-| Container exits with "Invalid environment" | Check \`.env\` — all three \`SLACK_*\`/\`GH_TOKEN\` variables must be set |
+| "minha sessão Claude expirou" | Re-run \`docker compose run --rm wesker claude setup-token\`, paste new token into \`.env\`, \`docker compose up -d --force-recreate\` |
+| Container exits with "Invalid environment" | Check \`.env\` — all four vars (\`SLACK_APP_TOKEN\`, \`SLACK_BOT_TOKEN\`, \`GH_TOKEN\`, \`CLAUDE_CODE_OAUTH_TOKEN\`) must be set |
 | Bot doesn't react to mentions | Verify the Socket Mode connection in the Slack app config; check logs for \`slack_connected\` |
 | "não tenho acesso à org X" | Your PAT needs \`read:org\` and, for SAML SSO orgs, must be authorized for that org in GitHub settings |
 
@@ -1575,7 +1629,7 @@ See \`context/specs/0001-slack-wesker-mvp/\` for the full spec, plan, and task b
 
 - **Channels** (\`src/channels/\`) — pluggable message sources. Slack is MVP; Discord/Telegram are future.
 - **Agent Core** (\`src/agent/core.ts\`) — wires a channel to a backend. Channel-agnostic and backend-agnostic.
-- **Agent Backends** (\`src/agent/backends/\`) — pluggable reasoning engines. Claude Code is MVP; Codex/Gemini future.
+- **Agent Backends** (\`src/agent/backends/\`) — pluggable reasoning engines. Claude Code is MVP (via \`@anthropic-ai/claude-agent-sdk\`); Codex/Gemini future.
 - **Tools** — none. Wesker uses Claude Code's built-in tools (Bash etc.) directly. GitHub queries go via the \`gh\` CLI inside the container.
 ```
 
@@ -1588,15 +1642,16 @@ Run this after any change that touches container setup, authentication, or the S
 
 ## Pre-flight
 
-- [ ] \`.env\` has \`SLACK_APP_TOKEN\`, \`SLACK_BOT_TOKEN\`, \`GH_TOKEN\` set
+- [ ] \`.env\` has \`SLACK_APP_TOKEN\`, \`SLACK_BOT_TOKEN\`, \`GH_TOKEN\`, \`CLAUDE_CODE_OAUTH_TOKEN\` set
 - [ ] Wesker bot has been invited to at least one Slack channel you test in
-- [ ] \`docker compose run --rm wesker claude /login\` completed successfully (or was previously completed and still valid)
+- [ ] \`claude setup-token\` has been run and the resulting token is pasted into \`.env\`
 
 ## Boot
 
 - [ ] \`docker compose up -d\` starts without error
 - [ ] \`docker compose logs wesker\` shows \`github_auth_ok\`
-- [ ] Logs show \`claude_ok\` with a version string
+- [ ] Logs show \`claude_cli_ok\` with a version string
+- [ ] Logs show \`claude_oauth_token_present\`
 - [ ] Logs show \`slack_connected\` with a \`botUserId\`
 - [ ] Logs show \`wesker_online\`
 
@@ -1628,11 +1683,12 @@ Run this after any change that touches container setup, authentication, or the S
 
 ## Auth expired simulation (Spec S5)
 
-- [ ] \`docker compose exec wesker rm -rf /root/.claude/sessions\` (or whatever location OAuth session is stored — confirm in Task 0 findings)
+- [ ] In \`.env\`, set \`CLAUDE_CODE_OAUTH_TOKEN\` to an obviously-invalid value (e.g., \`cct_bogus\`)
+- [ ] \`docker compose up -d --force-recreate\` so the SDK picks up the bad token
 - [ ] Mention \`@wesker oi\`
-- [ ] Reply instructs to run \`docker compose run --rm wesker claude /login\`
-- [ ] Warning-level log includes \`auth_expired\`
-- [ ] Restore by running \`/login\` again
+- [ ] Reply instructs to run \`docker compose run --rm wesker claude setup-token\`
+- [ ] Logs show \`handler_failed\` with error kind \`auth_expired\`
+- [ ] Restore: run \`setup-token\`, paste real token, \`--force-recreate\` again
 ```
 
 - [ ] **Step 3: Commit**
@@ -1651,19 +1707,21 @@ git commit -m "docs: README setup guide and SMOKE checklist"
 - [ ] **Step 1: Build fresh from clean state**
 
 ```bash
-docker compose down --volumes  # WARNING: wipes claude-home; confirm with Operator before running on a live install
+docker compose down --volumes  # WARNING: wipes workspace volume; confirm with Operator before running on a live install
 docker compose build --no-cache
 ```
 
 - [ ] **Step 2: Create `.env` from example and populate real tokens**
 
-- [ ] **Step 3: Run `/login`**
+Fill Slack tokens and `GH_TOKEN`. Leave `CLAUDE_CODE_OAUTH_TOKEN` blank — filled in step 3.
+
+- [ ] **Step 3: Mint the Claude OAuth token**
 
 ```bash
-docker compose run --rm wesker claude /login
+docker compose run --rm wesker claude setup-token
 ```
 
-Follow the browser flow.
+Follow the browser flow, copy the printed token into `.env` as `CLAUDE_CODE_OAUTH_TOKEN=...`.
 
 - [ ] **Step 4: Start the stack**
 

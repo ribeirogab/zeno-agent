@@ -18,7 +18,7 @@ Este spec cobre **a primeira entrega útil**: a infraestrutura mínima pra prova
 Decisões fundantes tomadas no brainstorming (ver histórico da conversa, 2026-04-15):
 
 - **Onde roda:** processo Node/TS em container Docker, na máquina local do Operator. Migração futura pra nuvem prevista mas não necessária agora.
-- **Como o LLM é acessado:** Claude Code CLI instalado no container, autenticado via `/login` (OAuth) — **não usa `ANTHROPIC_API_KEY`**. Custo previsível pelo plano, alinhado ao modelo "agente pessoal".
+- **Como o LLM é acessado:** `@anthropic-ai/claude-agent-sdk` chamado in-process. Autenticação via `CLAUDE_CODE_OAUTH_TOKEN` env var, gerada uma vez pelo comando `claude setup-token` — **não usa `ANTHROPIC_API_KEY`**. Custo previsível pelo plano, alinhado ao modelo "agente pessoal". O binário `claude` fica no container só pra rodar `setup-token` quando a OAuth expirar. Decisão validada durante Task 0 discovery; detalhes em `context/learnings/claude-agent-sdk-typescript.md` e `claude-code-oauth-token.md`.
 - **Arquitetura:** ports & adapters. Duas abstrações plugáveis — `Channel` (fontes de mensagem) e `AgentBackend` (modelos/CLIs como Claude Code, Codex, Gemini). MVP implementa uma de cada: `SlackChannel` + `ClaudeCodeBackend`.
 - **Ferramentas do agente:** toolset built-in do Claude Code (Bash, Read, Write, Edit, Grep, Glob). **Nenhuma ferramenta custom é escrita no MVP**. Tarefas de GitHub são resolvidas pelo Claude chamando `gh` CLI via Bash.
 - **GitHub auth:** Personal Access Token (PAT classic) com escopo `repo` + `read:org`. GitHub App fica pra próxima iteração.
@@ -58,8 +58,8 @@ Explicitamente **fora do MVP** (não serão implementados nesta entrega):
 **Técnicas:**
 
 - Precisa rodar em Docker desde o início (portabilidade pra cloud no futuro).
-- Precisa usar Claude Code CLI com OAuth, não API key — implica instalar `claude` no container e manter um volume pra sessão (`/root/.claude/`).
-- Primeiro `/login` é manual e interativo (abre URL no browser do host). Precisa estar documentado.
+- Precisa usar Claude Agent SDK com OAuth, não API key — implica instalar `claude` CLI no container (pra gerar token via `setup-token`) e manter `CLAUDE_CODE_OAUTH_TOKEN` no `.env`.
+- Primeiro `setup-token` é manual e interativo (abre URL no browser do host, copia token pro `.env`). Precisa estar documentado.
 - Socket Mode do Slack requer um **App-level token** (`xapp-...`) além do bot token — os dois vão em `.env`.
 - PAT do GitHub deve ter escopo mínimo `repo` + `read:org`.
 - Stack: TypeScript + Node 22 LTS (confirmar LTS vigente no Task 0 da implementação).
@@ -113,15 +113,15 @@ Mesma coisa que S1, mas a mensagem inicial é uma DM direta pro Wesker (sem `@`)
 
 1. Operator: `@wesker oi`
 2. `ClaudeCodeBackend.query()` retorna erro indicando auth falhou.
-3. Wesker posta: "minha sessão Claude expirou. Roda `docker compose run --rm wesker claude /login` pra me reautenticar."
+3. Wesker posta: "meu token Claude expirou. Roda `docker compose run --rm wesker claude setup-token`, cola o token novo em `.env` e `docker compose up -d --force-recreate`."
 4. Logs registram `warn` com timestamp e correlationId.
 
 **S6 — Boot do container:**
 
-1. Operator faz `docker compose up -d` após configurar `.env` e fazer `/login`.
+1. Operator configura `.env` (incluindo `CLAUDE_CODE_OAUTH_TOKEN` gerado por `claude setup-token`) e roda `docker compose up -d`.
 2. Wesker conecta no Slack via Socket Mode (log `slack_connected`).
 3. Wesker valida `gh auth status` (log `github_auth_ok`).
-4. Wesker valida `claude --version` responde (log `claude_ok`).
+4. Wesker confirma `claude --version` (log `claude_cli_ok`) + presença do token (log `claude_oauth_token_present`).
 5. Log final `wesker_online`. Container fica em `up`, pronto pra receber eventos.
 
 ## Success Criteria
@@ -130,15 +130,15 @@ Esta entrega está **pronta** quando todos os seguintes são observáveis:
 
 1. Repositório foi renomeado de `<redacted>` pra `wesker`: `origin` já aponta pra `octocat/wesker` (feito), todas as referências textuais em `README`, `AGENTS.md`, `context/constitution.md`, system prompt, package.json foram atualizadas. Nenhuma string "Zerk" ou "<redacted>" resta no código/docs do projeto (exceto histórico git).
 2. `docker compose up --build` sobe o container sem erros em máquina limpa (macOS + Docker Desktop).
-3. `docker compose run --rm wesker claude /login` conclui OAuth com sucesso e a sessão persiste entre restarts do container (volume `claude-home`).
+3. `docker compose run --rm wesker claude setup-token` conclui OAuth com sucesso e o token gerado, quando colado em `.env` como `CLAUDE_CODE_OAUTH_TOKEN`, é consumido pelo SDK em subsequentes `docker compose up`.
 4. Após subir, o cenário S1 (caminho feliz) funciona fim-a-fim em menos de 30 segundos: menção → reação `:eyes:` → resposta correta em PT-BR na thread → reação `:white_check_mark:`.
 5. Cenário S2 (DM) funciona — resposta na DM, sem thread.
 6. Cenário S3 (org sem acesso) produz resposta explicativa em PT-BR, não expõe stderr bruto nem token.
 7. Cenário S5 (sessão expirada) é detectado e comunicado claramente.
 8. Logs estruturados JSON aparecem em `docker compose logs -f wesker`, com os eventos-chave listados na Seção 4 do brainstorm (`message_received`, `backend_started`, `backend_tool_call`, `backend_completed`, `response_sent`), todos carregando um `correlationId` consistente por interação.
 9. `npm run test` passa (tests unitários de `SlackAdapter.normalize`, `ClaudeCodeBackend` com spawn mockado, e `config` validation).
-10. `.env.example` versionado cobre todas as variáveis necessárias (`SLACK_APP_TOKEN`, `SLACK_BOT_TOKEN`, `GH_TOKEN`), sem placeholders de `ANTHROPIC_API_KEY`.
-11. `README.md` documenta o setup completo: dependências, `/login`, `.env`, smoke test checklist.
+10. `.env.example` versionado cobre todas as variáveis necessárias (`SLACK_APP_TOKEN`, `SLACK_BOT_TOKEN`, `GH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`), sem placeholders de `ANTHROPIC_API_KEY`.
+11. `README.md` documenta o setup completo: dependências, `setup-token`, `.env`, smoke test checklist.
 12. `context/constitution.md` atualizada refletindo as decisões fundantes (nome Wesker, stack definida, Claude Code via OAuth).
 
 ## Risks and Mitigations
@@ -146,10 +146,10 @@ Esta entrega está **pronta** quando todos os seguintes são observáveis:
 | Risk | Mitigation |
 |---|---|
 | Meu conhecimento (Claude) é de maio/2025 e estamos em abril/2026 — APIs de Claude Code, Agent SDK e Bolt podem ter mudado de forma relevante. | **Task 0 do plano de implementação é discovery obrigatório** — verificar docs oficiais atuais de cada dependência antes de codar. Se algo mudou materialmente, voltar pra spec e ajustar. Formalizar esse passo como convenção do projeto após o MVP entregar. |
-| Claude Code headless via subprocess pode ter output complexo difícil de parsear, ou o modo `-p` pode não ser a interface certa em 2026. | Discovery (Task 0) inclui validar se `claude -p` com `--output-format stream-json` ainda é a forma correta, ou se há API oficial mais adequada (ex: MCP server nativo, SDK com auth OAuth, etc.). Se houver caminho melhor, atualizar spec. |
-| OAuth session do Claude Code expira sem aviso prévio claro. | Detectar exit code/stderr específico de auth no `ClaudeCodeBackend`, traduzir em mensagem no Slack com instruções de re-login (S5). |
+| ~~Claude Code headless via subprocess pode ter output complexo difícil de parsear~~ | **Resolvido durante Task 0:** usamos `@anthropic-ai/claude-agent-sdk` in-process (`query()` async generator), não subprocess. Ver `context/learnings/claude-agent-sdk-typescript.md`. |
+| Token OAuth do Claude Code expira sem aviso prévio claro. | Detectar erro de auth vindo do SDK no `ClaudeCodeBackend`, classificar como `kind: "auth_expired"`, traduzir em mensagem no Slack com instruções de `setup-token` (S5). |
 | `gh` CLI autenticado por `GH_TOKEN` via env var pode se comportar diferente de `gh auth login` interativo em algumas edge cases (ex: 2FA, SSO orgs). | Documentar no README: PAT precisa ter SSO autorizado pras orgs que Operator quer consultar. Smoke test cobre isso. |
-| Primeiro `/login` via Docker exige copiar URL do terminal pro browser do host — fluxo chato. | README documenta explicitamente. Aceitar UX pobre aqui; é setup único. |
+| Primeiro `setup-token` via Docker exige copiar URL do terminal pro browser do host e colar token de volta no `.env` — fluxo chato. | README documenta explicitamente. Aceitar UX pobre aqui; é setup único (e por-renovação). |
 | Socket Mode do Slack Bolt pode ter padrões diferentes em 2026 (retry, reconnect, etc). | Discovery (Task 0). Fallback: usar os defaults do Bolt SDK atual, que são razoáveis. |
 | `bash` como única tool é poderoso demais — usuário mal-intencionado pode fazer estragos. | Hoje mitigado por: (a) workspace solo = só Operator fala com o bot, (b) container = sandbox sem acesso ao host além dos volumes montados, (c) system prompt orienta pedir confirmação antes de comandos destrutivos. Allowlist ativa no momento que workspace deixar de ser solo. |
 | Rate limit do plano Claude Code pode bater em uso intenso. | Detectar erro específico, avisar no Slack ("bati limite, tenta depois"). Não é bloqueador de MVP — é feedback claro. |

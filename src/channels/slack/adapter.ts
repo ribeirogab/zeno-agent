@@ -1,7 +1,7 @@
 import { App, LogLevel } from '@slack/bolt';
-import { logger } from '../../logger.js';
-import type { Channel, MessageHandler, MessageTarget } from '../types.js';
-import { normalizeSlackEvent } from './normalize.js';
+import { normalizeSlackEvent } from '@/channels/slack/normalize';
+import type { Channel, MessageHandler, MessageTarget } from '@/channels/types';
+import { logger } from '@/logger';
 
 export interface SlackChannelOptions {
   appToken: string;

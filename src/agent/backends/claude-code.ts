@@ -1,12 +1,12 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
-import { logger } from '../../logger.js';
 import {
   type AgentBackend,
   AgentBackendError,
   type AgentInput,
   type AgentOutput,
   type ToolCallSummary,
-} from '../types.js';
+} from '@/agent/types';
+import { logger } from '@/logger';
 
 export interface ClaudeCodeBackendOptions {
   /** Max wall-clock ms; on expiry the AbortController fires and raises kind=timeout. */

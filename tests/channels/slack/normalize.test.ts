@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeSlackEvent } from '../../../src/channels/slack/normalize.js';
+import { normalizeSlackEvent } from '@/channels/slack/normalize';
 
 const BOT_USER_ID = 'UBOT';
 

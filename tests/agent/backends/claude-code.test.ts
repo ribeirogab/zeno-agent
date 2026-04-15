@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@anthropic-ai/claude-agent-sdk', () => ({ query: vi.fn() }));
 
 import { query } from '@anthropic-ai/claude-agent-sdk';
-import { ClaudeCodeBackend } from '../../../src/agent/backends/claude-code.js';
+import { ClaudeCodeBackend } from '@/agent/backends/claude-code';
 
 // biome-ignore lint/suspicious/noExplicitAny: SDK message stream is loosely typed in tests
 function mockQueryStream(messages: any[]): void {

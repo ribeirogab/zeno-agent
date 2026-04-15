@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { IncomingMessage } from '../types.js';
+import type { IncomingMessage } from '@/channels/types';
 
 /**
  * Convert a Slack Bolt event payload into a normalized IncomingMessage.

@@ -26,7 +26,8 @@ Consistency with no human cycles spent on formatting. One tool (Biome) replaces 
 
 **Mandatory rules (linter / hygiene):**
 - **No one-letter variable names.** Trade `e` → `error`/`env`, `i` → `index`/`issue`, `r` → `result`, `m` → `message`. Loop counters and lambda parameters included. Biome's `useNamingConvention` rule is off (it didn't fit our env-var pattern); enforcement is by review and convention.
-- **Imports auto-organized** by Biome on `npm run check`. Order: external packages first, then internal (alphabetical within group). Don't manually reorder.
+- **Path aliases for cross-package imports.** Use `@/...` for `src/...` and `@tests/...` for `tests/...`. Never use deep relative paths (`../../../foo`). Configured in `tsconfig.json` (`paths`), `vitest.config.ts` (`resolve.alias`), and rewritten at build time by `tsc-alias --resolve-full-paths` (adds `.js` for ESM).
+- **Imports auto-organized** by Biome on `npm run check`. Order: Node built-ins → external packages → aliased imports (`@/`) → relative (`./`, `../`). Don't manually reorder.
 
 **Commands:**
 - `npm run format` — apply formatter (write changes).
@@ -40,12 +41,15 @@ Consistency with no human cycles spent on formatting. One tool (Biome) replaces 
 ```ts
 // good
 import { z } from 'zod';
+import { logger } from '@/logger';
+import type { Channel } from '@/channels/types';
 
 const env = parsed.data;
 const issues = parsed.error.issues.map((issue) => issue.message).join('; ');
 
-// bad — double quotes, missing semicolon, one-letter var
+// bad — double quotes, missing semicolon, one-letter var, deep relative import
 import { z } from "zod"
+import { logger } from "../../logger.js"
 const e = parsed.data
 const m = parsed.error.issues.map(i => i.message).join("; ")
 ```

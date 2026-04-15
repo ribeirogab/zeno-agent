@@ -1,11 +1,11 @@
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { ClaudeCodeBackend } from './agent/backends/claude-code.js';
-import { AgentCore } from './agent/core.js';
-import { buildSystemPrompt } from './agent/system-prompt.js';
-import { SlackChannel } from './channels/slack/adapter.js';
-import { type Config, loadConfig } from './config.js';
-import { logger } from './logger.js';
+import { ClaudeCodeBackend } from '@/agent/backends/claude-code';
+import { AgentCore } from '@/agent/core';
+import { buildSystemPrompt } from '@/agent/system-prompt';
+import { SlackChannel } from '@/channels/slack/adapter';
+import { type Config, loadConfig } from '@/config';
+import { logger } from '@/logger';
 
 interface RunResult {
   code: number | null;

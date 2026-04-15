@@ -1,6 +1,6 @@
-import type { Channel, IncomingMessage, MessageTarget } from '../channels/types.js';
-import { logger } from '../logger.js';
-import { type AgentBackend, AgentBackendError } from './types.js';
+import { type AgentBackend, AgentBackendError } from '@/agent/types';
+import type { Channel, IncomingMessage, MessageTarget } from '@/channels/types';
+import { logger } from '@/logger';
 
 export interface AgentCoreOptions {
   backend: AgentBackend;

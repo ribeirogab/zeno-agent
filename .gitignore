@@ -9,3 +9,15 @@ context/.obsidian/plugins/*/data.json
 
 # User profile (personal to whoever runs this Zeno instance)
 USER.md
+
+# Node
+node_modules/
+dist/
+
+# Secrets
+.env
+.env.local
+
+# Logs
+*.log
+

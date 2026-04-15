@@ -22,7 +22,7 @@ export class ClaudeCodeBackend implements AgentBackend {
 
   constructor(opts: ClaudeCodeBackendOptions = {}) {
     this.timeoutMs = opts.timeoutMs ?? 60_000;
-    this.allowedTools = opts.allowedTools ?? ['Bash'];
+    this.allowedTools = opts.allowedTools ?? ['Bash', 'Read', 'Glob', 'Grep'];
   }
 
   async query(input: AgentInput): Promise<AgentOutput> {

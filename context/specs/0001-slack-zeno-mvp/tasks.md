@@ -1624,6 +1624,7 @@ services:
     volumes:
       - workspace:/workspace
       - ./USER.md:/app/USER.md:ro
+      - ./context:/app/context:ro
     restart: unless-stopped
     stdin_open: true
     tty: true

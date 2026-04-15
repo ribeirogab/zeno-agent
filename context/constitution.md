@@ -66,9 +66,10 @@ Specs never get deleted. Shipped specs remain in `context/specs/` as historical 
 
 ## Knowledge layering
 
-- Project-specific knowledge lives in `context/`. Only add notes here for things unique to Zeno.
-- Generic patterns that apply to any project should not be duplicated in this vault — they belong in global instructions or the user's global memory.
-- When a decision is made about Zeno's stack or architecture, update this constitution **and** write a matching learning explaining the reasoning.
+- `context/` is **Zeno's own knowledge vault** — read by both humans/agents working on the code AND by Zeno itself at runtime (mounted read-only at `/app/context` inside the container; system prompt instructs Zeno to consult it via Read/Glob/Grep).
+- Anything Zeno should "know" — its principles, decisions, architecture, surprises, conventions — lives here.
+- Only add notes for things unique to Zeno. Generic patterns that apply to any project belong in global instructions or the user's global memory, not in this vault.
+- When a decision is made about Zeno's stack or architecture, update this constitution **and** write a matching learning explaining the reasoning. Both will be visible to Zeno on its next conversation turn.
 
 ## What this constitution is not
 

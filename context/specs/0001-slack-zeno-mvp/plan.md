@@ -114,7 +114,7 @@ Every file the MVP creates, with single-line responsibility:
 - `USER.example.md` — Template for the per-user profile (committed)
 - `USER.md` — Per-user profile (gitignored; loaded at boot, injected into the system prompt)
 - `Dockerfile` — Multi-stage build (deps → build → runtime) with `gh`, `git`, `claude` (CLI for `setup-token` only)
-- `docker-compose.yml` — Single `zeno-agent` service, `workspace` volume, `USER.md` bind-mount
+- `docker-compose.yml` — Single `zeno-agent` service, `workspace` volume, `USER.md` and `context/` bind-mounts (`context/` is Zeno's own knowledge vault, read-only)
 - `README.md` — Setup, `setup-token` flow, smoke-test checklist, architecture TL;DR
 - `SMOKE.md` — Step-by-step verification of every spec success criterion
 

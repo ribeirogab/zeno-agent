@@ -78,6 +78,26 @@ CREATE TABLE commands (
 CREATE INDEX commands_pending_idx ON commands(status, created_at) WHERE status = 'pending';
 `,
   },
+  {
+    id: 3,
+    name: 'logs',
+    sql: `
+    CREATE TABLE logs (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts             TEXT NOT NULL,
+      level          INTEGER NOT NULL,
+      service        TEXT NOT NULL,
+      event          TEXT,
+      correlation_id TEXT,
+      message        TEXT,
+      payload        TEXT NOT NULL
+    );
+    CREATE INDEX logs_ts_desc_idx ON logs(ts DESC);
+    CREATE INDEX logs_level_idx ON logs(level);
+    CREATE INDEX logs_event_idx ON logs(event);
+    CREATE INDEX logs_correlation_idx ON logs(correlation_id);
+  `,
+  },
 ];
 
 /**

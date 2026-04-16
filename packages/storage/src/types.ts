@@ -89,3 +89,36 @@ export interface CreateCommandInput {
   payload?: unknown;
   correlationId: string;
 }
+
+export type LogLevel = 10 | 20 | 30 | 40 | 50 | 60;
+
+export interface Log {
+  id: number;
+  ts: string;
+  level: LogLevel;
+  service: string;
+  event: string | null;
+  correlationId: string | null;
+  message: string | null;
+  payload: string;
+}
+
+export interface CreateLogInput {
+  ts: string;
+  level: LogLevel;
+  service: string;
+  event: string | null;
+  correlationId: string | null;
+  message: string | null;
+  payload: string;
+}
+
+export interface LogFilter {
+  level?: LogLevel;
+  q?: string;
+  since?: string;
+  until?: string;
+  cursorId?: number;
+  sinceId?: number;
+  limit?: number;
+}

@@ -262,7 +262,7 @@ Route `/_authed/crons.new.tsx` renders an overlay modal above the `/crons` list.
 | NEW | `apps/api/src/routes/sessions.ts` + tests |
 | NEW | `apps/api/src/routes/settings.ts` + tests |
 | NEW | `apps/api/src/lib/read-session-jsonl.ts` + tests (fixture file under `apps/api/tests/fixtures/`) |
-| NEW | `apps/api/src/lib/mcp-snapshot.ts` — reads `profile/mcp.json` for the settings endpoint (wraps the existing `loadMcpConfig` logic; may require moving that helper to a package or duplicating — decided during implementation) |
+| NEW | `apps/api/src/lib/mcp-snapshot.ts` — duplicates `loadMcpConfig` logic from `apps/worker/src/agent/mcp.ts` (see Design section). Extract to a package only when a third consumer appears. |
 | EDIT | `apps/api/src/server.ts` — mount new routes with `requireAuth` |
 | NEW | `apps/dashboard/src/routes/_authed/{crons,crons.$id,crons.new,sessions,sessions.$threadId,settings}.tsx` |
 | NEW | `apps/dashboard/src/components/{crons,sessions,settings}/**` |

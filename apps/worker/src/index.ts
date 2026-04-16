@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { createLogger } from '@zeno/logger';
 import {
+  CommandRepo,
   CronRepo,
   CronRunRepo,
   closeDatabase,
@@ -17,6 +18,9 @@ import { loadMcpConfig, type McpServerConfig } from '@/agent/mcp';
 import { buildSystemPrompt, loadProfileFile } from '@/agent/system-prompt';
 import type { AgentBackend } from '@/agent/types';
 import { SlackChannel } from '@/channels/slack/adapter';
+import { buildDispatcher } from '@/commands/dispatcher';
+import { buildHandlerMap } from '@/commands/handlers';
+import { CommandsPoller } from '@/commands/poller';
 import { type Config, loadConfig } from '@/config';
 import { CronRunner } from '@/cron/runner';
 import { loadStaticCrons } from '@/cron/static-loader';
@@ -127,6 +131,7 @@ async function main(): Promise<void> {
   const sessions = new SessionRepo(db);
   const crons = new CronRepo(db);
   const cronRuns = new CronRunRepo(db);
+  const commands = new CommandRepo(db);
 
   // Static crons are the source of truth in profile/crons.yaml — replace on every boot.
   const staticCrons = loadStaticCrons();
@@ -156,6 +161,20 @@ async function main(): Promise<void> {
     workspaceDir: config.workspaceDir,
     channel: slack,
     defaultConversationId: defaultCronChannel,
+  });
+
+  const dispatcher = buildDispatcher(
+    buildHandlerMap({
+      crons,
+      cronRuns,
+      runner,
+      exit: (code) => process.exit(code),
+    }),
+  );
+
+  const commandsPoller = new CommandsPoller({
+    commandRepo: commands,
+    dispatch: dispatcher,
   });
 
   // The chat-facing backend gets the in-process MCP server with cron CRUD tools wired to repos + runner
@@ -194,6 +213,7 @@ async function main(): Promise<void> {
 
   await slack.start(core.bind(slack));
   runner.start();
+  commandsPoller.start();
   watcher.start();
 
   logger.info({ event: 'zeno_online' }, 'Zeno online');
@@ -207,6 +227,11 @@ async function main(): Promise<void> {
     }
     try {
       runner.stop();
+    } catch {
+      // best effort
+    }
+    try {
+      commandsPoller.stop();
     } catch {
       // best effort
     }

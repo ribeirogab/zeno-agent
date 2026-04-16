@@ -36,6 +36,7 @@ export class ClaudeCodeBackend implements AgentBackend {
 
     const toolCalls: ToolCallSummary[] = [];
     let finalText = '';
+    let sessionId: string | undefined;
 
     try {
       const iter = query({
@@ -46,6 +47,12 @@ export class ClaudeCodeBackend implements AgentBackend {
           cwd: input.cwd,
           permissionMode: 'bypassPermissions',
           abortController: controller,
+          // Session handling: resume if sessionId provided, or explicitly disable persistence for stateless turns
+          ...(input.resumeSessionId
+            ? { resume: input.resumeSessionId }
+            : input.persistSession === false
+              ? { persistSession: false }
+              : {}),
           stderr: (line) => {
             logger.warn(
               {
@@ -66,6 +73,9 @@ export class ClaudeCodeBackend implements AgentBackend {
           typeof message.result === 'string'
         ) {
           finalText = message.result;
+          if ('session_id' in message && typeof message.session_id === 'string') {
+            sessionId = message.session_id;
+          }
         } else if (
           message.type === 'assistant' &&
           'message' in message &&
@@ -118,7 +128,7 @@ export class ClaudeCodeBackend implements AgentBackend {
       'claude completed',
     );
 
-    return { text: finalText || '(sem resposta)', toolCalls };
+    return { text: finalText || '(sem resposta)', toolCalls, sessionId };
   }
 }
 

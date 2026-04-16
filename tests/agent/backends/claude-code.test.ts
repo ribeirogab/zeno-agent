@@ -64,6 +64,52 @@ describe('ClaudeCodeBackend', () => {
     expect(output.text).toBe('final answer');
   });
 
+  it('extracts sessionId from the result message', async () => {
+    mockQueryStream([
+      {
+        type: 'result',
+        result: 'done',
+        session_id: 'sess_abc123',
+        total_cost_usd: 0.001,
+      },
+    ]);
+    const backend = new ClaudeCodeBackend();
+    const output = await backend.query(baseInput);
+    expect(output.sessionId).toBe('sess_abc123');
+  });
+
+  it('passes resume option when resumeSessionId is provided', async () => {
+    mockQueryStream([
+      { type: 'result', result: 'ok', session_id: 'sess_abc', total_cost_usd: 0.001 },
+    ]);
+    const backend = new ClaudeCodeBackend();
+    await backend.query({ ...baseInput, resumeSessionId: 'sess_abc' });
+
+    const call = vi.mocked(query).mock.calls[0][0];
+    expect(call.options?.resume).toBe('sess_abc');
+    expect(call.options?.persistSession).toBeUndefined();
+  });
+
+  it('passes persistSession: false when explicitly disabled', async () => {
+    mockQueryStream([{ type: 'result', result: 'ok', total_cost_usd: 0.001 }]);
+    const backend = new ClaudeCodeBackend();
+    await backend.query({ ...baseInput, persistSession: false });
+
+    const call = vi.mocked(query).mock.calls[0][0];
+    expect(call.options?.persistSession).toBe(false);
+    expect(call.options?.resume).toBeUndefined();
+  });
+
+  it('does not pass persistSession or resume when neither is set (SDK default applies)', async () => {
+    mockQueryStream([{ type: 'result', result: 'ok', total_cost_usd: 0.001 }]);
+    const backend = new ClaudeCodeBackend();
+    await backend.query(baseInput);
+
+    const call = vi.mocked(query).mock.calls[0][0];
+    expect(call.options?.persistSession).toBeUndefined();
+    expect(call.options?.resume).toBeUndefined();
+  });
+
   it('captures tool_use blocks as toolCalls for logging', async () => {
     mockQueryStream([
       {

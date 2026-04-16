@@ -12,11 +12,17 @@ export interface AgentInput {
   userMessage: string;
   cwd: string;
   correlationId: string;
+  /** Set to false to disable session persistence (stateless DMs). Undefined/true = default SDK behavior (persist). */
+  persistSession?: boolean;
+  /** When provided, resume the given session instead of starting a new one. */
+  resumeSessionId?: string;
 }
 
 export interface AgentOutput {
   text: string;
   toolCalls: ToolCallSummary[];
+  /** Session id from the SDK result — used by AgentCore to map Slack threads to SDK sessions. */
+  sessionId?: string;
 }
 
 export interface ToolCallSummary {

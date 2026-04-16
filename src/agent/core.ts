@@ -1,4 +1,4 @@
-import { type AgentBackend, AgentBackendError } from '@/agent/types';
+import { type AgentBackend, AgentBackendError, type AgentInput } from '@/agent/types';
 import type { Channel, IncomingMessage, MessageTarget } from '@/channels/types';
 import { logger } from '@/logger';
 
@@ -10,7 +10,26 @@ interface AgentCoreOptions {
 }
 
 export class AgentCore {
+  /** Maps Slack thread IDs to SDK session IDs for multi-turn conversations. */
+  private readonly sessionMap = new Map<string, string>();
+
   constructor(private readonly opts: AgentCoreOptions) {}
+
+  private async reportFailure(
+    channel: Channel,
+    target: MessageTarget,
+    correlationId: string,
+    error: unknown,
+  ): Promise<void> {
+    const reply = translateError(error);
+    await channel.send(target, reply);
+    await safe(() => channel.unreact(target, 'eyes'));
+    await safe(() => channel.react(target, 'warning'));
+    logger.error(
+      { event: 'handler_failed', correlationId, err: String(error) },
+      'core handler failed',
+    );
+  }
 
   /**
    * Binds the core to a channel. The channel calls back with IncomingMessage;
@@ -27,36 +46,90 @@ export class AgentCore {
 
       await safe(() => channel.react(target, 'eyes'));
 
+      const resumeSessionId = message.threadId ? this.sessionMap.get(message.threadId) : undefined;
+
+      const agentInput: AgentInput = {
+        systemPrompt: this.opts.systemPrompt,
+        userMessage: message.text,
+        cwd: this.opts.workspaceDir,
+        correlationId: message.correlationId,
+        // Messages without a thread (DM first msg) are stateless — don't persist the SDK session
+        persistSession: message.threadId == null ? false : undefined,
+        resumeSessionId,
+      };
+
+      if (resumeSessionId) {
+        logger.info(
+          {
+            event: 'session_resumed',
+            correlationId: message.correlationId,
+            threadId: message.threadId,
+            sessionId: resumeSessionId,
+          },
+          'resuming session',
+        );
+      }
+
       try {
-        const output = await this.opts.backend.query({
-          systemPrompt: this.opts.systemPrompt,
-          userMessage: message.text,
-          cwd: this.opts.workspaceDir,
-          correlationId: message.correlationId,
-        });
+        const output = await this.opts.backend.query(agentInput);
 
         await channel.send(target, output.text);
         await safe(() => channel.unreact(target, 'eyes'));
         await safe(() => channel.react(target, 'white_check_mark'));
 
+        // Store the session mapping for this thread
+        if (message.threadId && output.sessionId) {
+          const wasNew = !this.sessionMap.has(message.threadId);
+          this.sessionMap.set(message.threadId, output.sessionId);
+          if (wasNew) {
+            logger.info(
+              {
+                event: 'session_created',
+                correlationId: message.correlationId,
+                threadId: message.threadId,
+                sessionId: output.sessionId,
+              },
+              'session created',
+            );
+          }
+        }
+
         logger.info(
           { event: 'response_sent', correlationId: message.correlationId },
           'response sent',
         );
-      } catch (error) {
-        const reply = translateError(error);
-        await channel.send(target, reply);
-        await safe(() => channel.unreact(target, 'eyes'));
-        await safe(() => channel.react(target, 'warning'));
+      } catch (firstError) {
+        // If this was a resume attempt and it failed, clear the stale mapping and retry fresh
+        if (resumeSessionId && isResumeFailure(firstError)) {
+          if (message.threadId) this.sessionMap.delete(message.threadId);
+          logger.warn(
+            {
+              event: 'session_resume_failed',
+              correlationId: message.correlationId,
+              threadId: message.threadId,
+              staleSessionId: resumeSessionId,
+            },
+            'stale session, starting fresh',
+          );
+          try {
+            const retryOutput = await this.opts.backend.query({
+              ...agentInput,
+              resumeSessionId: undefined,
+            });
+            await channel.send(target, retryOutput.text);
+            await safe(() => channel.unreact(target, 'eyes'));
+            await safe(() => channel.react(target, 'white_check_mark'));
+            if (message.threadId && retryOutput.sessionId) {
+              this.sessionMap.set(message.threadId, retryOutput.sessionId);
+            }
+            return;
+          } catch (retryError) {
+            await this.reportFailure(channel, target, message.correlationId, retryError);
+            return;
+          }
+        }
 
-        logger.error(
-          {
-            event: 'handler_failed',
-            correlationId: message.correlationId,
-            err: String(error),
-          },
-          'core handler failed',
-        );
+        await this.reportFailure(channel, target, message.correlationId, firstError);
       }
     };
   }
@@ -68,6 +141,11 @@ async function safe(fn: () => Promise<unknown>): Promise<void> {
   } catch {
     // swallow — non-critical reaction ops
   }
+}
+
+function isResumeFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return /resume|session.*(not found|invalid|expired|missing)|no such session/i.test(error.message);
 }
 
 function translateError(error: unknown): string {

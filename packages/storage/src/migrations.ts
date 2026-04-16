@@ -59,6 +59,25 @@ CREATE TABLE IF NOT EXISTS cron_runs (
 CREATE INDEX IF NOT EXISTS idx_cron_runs_cron ON cron_runs(cron_id, started_at DESC);
 `,
   },
+  {
+    id: 2,
+    name: 'commands',
+    sql: `
+CREATE TABLE commands (
+  id             TEXT PRIMARY KEY,
+  type           TEXT NOT NULL,
+  payload        TEXT,
+  status         TEXT NOT NULL DEFAULT 'pending',
+  created_at     TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  processed_at   TEXT,
+  completed_at   TEXT,
+  result         TEXT,
+  correlation_id TEXT NOT NULL
+);
+
+CREATE INDEX commands_pending_idx ON commands(status, created_at) WHERE status = 'pending';
+`,
+  },
 ];
 
 /**

@@ -61,3 +61,31 @@ export interface CronRun {
   output: string | null;
   error: string | null;
 }
+
+export type CommandType =
+  | 'cron_create'
+  | 'cron_pause'
+  | 'cron_resume'
+  | 'cron_run_now'
+  | 'cron_delete'
+  | 'worker_restart';
+
+export type CommandStatus = 'pending' | 'processing' | 'success' | 'failed';
+
+export interface Command {
+  id: string;
+  type: CommandType;
+  payload: string | null;
+  status: CommandStatus;
+  createdAt: string;
+  processedAt: string | null;
+  completedAt: string | null;
+  result: string | null;
+  correlationId: string;
+}
+
+export interface CreateCommandInput {
+  type: CommandType;
+  payload?: unknown;
+  correlationId: string;
+}

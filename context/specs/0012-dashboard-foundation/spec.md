@@ -132,7 +132,7 @@ Where:
 3. On mismatch: `await sleep(500)` (anti-brute-force) → `401 { error: 'invalid_credentials' }`.
 4. On match: compute `expiresAt = Date.now() + 7 * 24 * 3600 * 1000`, sign HMAC, `Set-Cookie: zeno_auth=<value>; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800; Secure (if NODE_ENV=production)` → `204 No Content`.
 
-**`requireAuth` middleware (applied to all `/api/*` except `/api/auth/login` and `/api/health`):**
+**`requireAuth` middleware (applied to all `/api/*` except `/api/auth/login` and `/api/health`; explicitly **includes** `/api/auth/me` — the guard relies on the middleware reaching it):**
 1. Read `zeno_auth` from cookies. If absent → `401`.
 2. Split on `.`. If shape wrong → `401`.
 3. Recompute HMAC of `expiresAtMs` part with the secret. `crypto.timingSafeEqual(provided, expected)`. If false → `401`.
@@ -291,7 +291,7 @@ volumes:
    - Sees "Boa noite, Operator." (or "Bom dia"/"Boa tarde" based on local hour) + 4 stat tiles with real numbers + activity timeline with the last 10 cron runs.
 
 2. **Operator hits the dashboard with an expired session.**
-   - Cookie present but `expiresAt < now` → middleware returns 401 to `/api/health` → TanStack Router `beforeLoad` catches → redirect to `/login`.
+   - Cookie present but `expiresAt < now` → middleware returns 401 to `/api/auth/me` → TanStack Router `beforeLoad` catches → redirect to `/login`.
 
 3. **Operator types wrong password 3 times.**
    - Each attempt waits 500ms server-side. No lockout in Phase A — relies on the slowdown to make brute force impractical for a single-user local tool.

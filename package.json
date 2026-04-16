@@ -20,7 +20,8 @@
     "docker:up": "docker compose -f infra/docker-compose.yml --project-directory . up -d",
     "docker:down": "docker compose -f infra/docker-compose.yml --project-directory . down",
     "docker:logs": "docker compose -f infra/docker-compose.yml --project-directory . logs -f zeno-agent",
-    "docker:setup-token": "docker compose -f infra/docker-compose.yml --project-directory . run --rm zeno-agent claude setup-token"
+    "docker:setup-token": "docker compose -f infra/docker-compose.yml --project-directory . run --rm zeno-agent claude setup-token",
+    "docker:sh": "docker compose -f infra/docker-compose.yml --project-directory . exec zeno-agent bash"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.110",

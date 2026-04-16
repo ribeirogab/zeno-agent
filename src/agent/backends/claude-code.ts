@@ -1,4 +1,5 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import type { McpServerConfig } from '@/agent/mcp';
 import {
   type AgentBackend,
   AgentBackendError,
@@ -8,21 +9,32 @@ import {
 } from '@/agent/types';
 import { logger } from '@/logger';
 
+// biome-ignore lint/suspicious/noExplicitAny: an in-process MCP server returned by createSdkMcpServer; SDK types are not exported
+type InProcessMcpServer = any;
+
 interface ClaudeCodeBackendOptions {
   /** Max wall-clock ms; on expiry the AbortController fires and raises kind=timeout. */
   timeoutMs?: number;
   /** Tools auto-approved. MVP: Bash only. */
   allowedTools?: string[];
+  /** MCP servers loaded from profile/mcp.json. Passed verbatim to the SDK. */
+  mcpServers?: Record<string, McpServerConfig>;
+  /** In-process MCP servers (e.g. cron tools) created via the SDK's createSdkMcpServer helper. */
+  inProcessMcpServers?: Record<string, InProcessMcpServer>;
 }
 
 export class ClaudeCodeBackend implements AgentBackend {
   readonly name = 'claude-code';
   private readonly timeoutMs: number;
   private readonly allowedTools: string[];
+  private readonly mcpServers: Record<string, McpServerConfig>;
+  private readonly inProcessMcpServers: Record<string, InProcessMcpServer>;
 
   constructor(opts: ClaudeCodeBackendOptions = {}) {
     this.timeoutMs = opts.timeoutMs ?? 300_000;
     this.allowedTools = opts.allowedTools ?? ['Bash', 'Read', 'Glob', 'Grep'];
+    this.mcpServers = opts.mcpServers ?? {};
+    this.inProcessMcpServers = opts.inProcessMcpServers ?? {};
   }
 
   async query(input: AgentInput): Promise<AgentOutput> {
@@ -47,6 +59,8 @@ export class ClaudeCodeBackend implements AgentBackend {
           cwd: input.cwd,
           permissionMode: 'bypassPermissions',
           abortController: controller,
+          // biome-ignore lint/suspicious/noExplicitAny: SDK mcpServers union is stricter than our shape
+          ...(this.buildMcpServers() as any),
           // Session handling: resume if sessionId provided, or explicitly disable persistence for stateless turns
           ...(input.resumeSessionId
             ? { resume: input.resumeSessionId }
@@ -129,6 +143,16 @@ export class ClaudeCodeBackend implements AgentBackend {
     );
 
     return { text: finalText || '(sem resposta)', toolCalls, sessionId };
+  }
+
+  /** Merge config-driven MCP servers with in-process ones into the SDK's mcpServers option. */
+  private buildMcpServers(): { mcpServers?: Record<string, McpServerConfig> } {
+    const merged: Record<string, McpServerConfig> = {
+      ...this.mcpServers,
+      ...(this.inProcessMcpServers as Record<string, McpServerConfig>),
+    };
+    if (Object.keys(merged).length === 0) return {};
+    return { mcpServers: merged };
   }
 }
 

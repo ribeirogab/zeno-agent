@@ -40,3 +40,6 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/claude-bare-mode-no-oauth|Claude Code `--bare` mode skips OAuth]] — use the SDK or drop `--bare`.
 - [[../learnings/claude-code-cli-blocks-root|Claude Code CLI blocks `--dangerously-skip-permissions` as root]] — container must run as non-root for `permissionMode: 'bypassPermissions'`.
 - [[../learnings/hermes-prompt-caching-invariants|Hermes' prompt-caching invariants]] — never alter past context mid-conversation; applies to Zeno too.
+- [[../learnings/sdk-mcp-server-type-not-exported|SDK MCP server type not exported]] — in-process MCP servers need a cast at the call boundary; SDK union doesn't include them.
+- [[../learnings/hot-reload-needs-getter-not-snapshot|Hot-reload needs getter, not snapshot]] — long-lived components must read mutable state via `() => T`, not a captured value.
+- [[../learnings/pnpm-only-built-dependencies|pnpm `onlyBuiltDependencies` for native modules]] — non-interactive way to allow postinstall scripts; required for Docker + CI.

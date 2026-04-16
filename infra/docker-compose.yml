@@ -10,6 +10,7 @@ services:
     env_file: .env
     volumes:
       - workspace:/workspace
+      - claude_home:/home/node/.claude
       - ./profile:/app/profile:ro
     restart: unless-stopped
     stdin_open: true
@@ -17,3 +18,4 @@ services:
 
 volumes:
   workspace:
+  claude_home:

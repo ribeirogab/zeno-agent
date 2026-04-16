@@ -8,8 +8,8 @@ import {
   CommandRepo,
   CronRepo,
   CronRunRepo,
-  LogRepo,
   closeDatabase,
+  LogRepo,
   openDatabase,
   runMigrations,
 } from '@zeno/storage';

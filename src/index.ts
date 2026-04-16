@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { join } from 'node:path';
 import { ClaudeCodeBackend } from '@/agent/backends/claude-code';
 import { AgentCore } from '@/agent/core';
 import { loadMcpConfig } from '@/agent/mcp';
@@ -6,6 +7,11 @@ import { buildSystemPrompt, loadProfileFile } from '@/agent/system-prompt';
 import { SlackChannel } from '@/channels/slack/adapter';
 import { type Config, loadConfig } from '@/config';
 import { logger } from '@/logger';
+import { closeDatabase, openDatabase } from '@/storage/db';
+import { runMigrations } from '@/storage/migrations';
+import { CronRunRepo } from '@/storage/repos/cron-runs';
+import { CronRepo } from '@/storage/repos/crons';
+import { SessionRepo } from '@/storage/repos/sessions';
 
 interface RunResult {
   code: number | null;
@@ -68,6 +74,17 @@ async function main(): Promise<void> {
 
   const systemPrompt = buildSystemPrompt(soulMd, userMd);
 
+  const dbPath = join(config.workspaceDir, 'zeno.db');
+  const db = openDatabase(dbPath);
+  runMigrations(db);
+  const sessions = new SessionRepo(db);
+  const crons = new CronRepo(db);
+  const cronRuns = new CronRunRepo(db);
+  // Repos are instantiated now and wired to AgentCore + cron runner in subsequent specs.
+  void sessions;
+  void crons;
+  void cronRuns;
+
   const mcpServers = loadMcpConfig();
   logger.info(
     {
@@ -90,6 +107,11 @@ async function main(): Promise<void> {
     logger.info({ event: 'shutdown', signal }, 'shutting down');
     try {
       await slack.stop();
+    } catch {
+      // best effort
+    }
+    try {
+      closeDatabase(db);
     } catch {
       // best effort
     }

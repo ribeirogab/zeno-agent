@@ -28,16 +28,23 @@
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.110",
     "@slack/bolt": "^4.7.0",
+    "better-sqlite3": "^12.9.0",
     "pino": "^10.3.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.12.2",
     "knip": "^6.4.1",
     "tsc-alias": "^1.8.16",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
   }
 }

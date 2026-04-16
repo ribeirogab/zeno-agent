@@ -46,6 +46,12 @@ export class ClaudeCodeBackend implements AgentBackend {
           cwd: input.cwd,
           permissionMode: 'bypassPermissions',
           abortController: controller,
+          stderr: (line) => {
+            logger.warn(
+              { event: 'sdk_stderr', correlationId: input.correlationId, line: line.slice(0, 1000) },
+              'sdk stderr',
+            );
+          },
         },
       });
 
@@ -77,6 +83,22 @@ export class ClaudeCodeBackend implements AgentBackend {
         }
       }
     } catch (error) {
+      // biome-ignore lint/suspicious/noExplicitAny: debug logging the full error shape
+      const errorAny = error as any;
+      logger.error(
+        {
+          event: 'backend_error_raw',
+          correlationId: input.correlationId,
+          message: errorAny?.message,
+          name: errorAny?.name,
+          code: errorAny?.code,
+          stderr: errorAny?.stderr,
+          stdout: errorAny?.stdout,
+          cause: errorAny?.cause ? String(errorAny.cause).slice(0, 500) : undefined,
+          stack: errorAny?.stack?.split('\n').slice(0, 5),
+        },
+        'raw SDK error',
+      );
       throw classifyError(error, this.timeoutMs, controller.signal.aborted);
     } finally {
       clearTimeout(timer);

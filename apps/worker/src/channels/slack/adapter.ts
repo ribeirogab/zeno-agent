@@ -1,7 +1,7 @@
 import { App, LogLevel } from '@slack/bolt';
+import { createLogger } from '@zeno/logger';
 import { normalizeSlackEvent } from '@/channels/slack/normalize';
 import type { Channel, MessageHandler, MessageTarget } from '@/channels/types';
-import { createLogger } from '@zeno/logger';
 
 const logger = createLogger({ service: 'worker' });
 

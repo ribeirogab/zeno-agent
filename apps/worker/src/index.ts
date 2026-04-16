@@ -1,5 +1,14 @@
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
+import { createLogger } from '@zeno/logger';
+import {
+  CronRepo,
+  CronRunRepo,
+  closeDatabase,
+  openDatabase,
+  runMigrations,
+  SessionRepo,
+} from '@zeno/storage';
 import { ClaudeCodeBackend } from '@/agent/backends/claude-code';
 import { MockBackend } from '@/agent/backends/mock';
 import { loadMockFixtures } from '@/agent/backends/mock-fixtures';
@@ -13,15 +22,6 @@ import { CronRunner } from '@/cron/runner';
 import { loadStaticCrons } from '@/cron/static-loader';
 import { buildCronMcpServer } from '@/cron/tools';
 import { ProfileWatcher } from '@/profile/watcher';
-import { createLogger } from '@zeno/logger';
-import {
-  closeDatabase,
-  CronRepo,
-  CronRunRepo,
-  openDatabase,
-  runMigrations,
-  SessionRepo,
-} from '@zeno/storage';
 
 const logger = createLogger({ service: 'worker' });
 

@@ -1,4 +1,5 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import { createLogger } from '@zeno/logger';
 import type { McpServerConfig } from '@/agent/mcp';
 import {
   type AgentBackend,
@@ -7,7 +8,6 @@ import {
   type AgentOutput,
   type ToolCallSummary,
 } from '@/agent/types';
-import { createLogger } from '@zeno/logger';
 
 const logger = createLogger({ service: 'worker' });
 

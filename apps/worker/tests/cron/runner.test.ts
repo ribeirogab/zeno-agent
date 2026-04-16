@@ -1,8 +1,8 @@
+import { CronRepo, CronRunRepo, type DB, openDatabase, runMigrations } from '@zeno/storage';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentBackend } from '@/agent/types';
 import type { Channel, MessageHandler, MessageTarget } from '@/channels/types';
 import { CronRunner } from '@/cron/runner';
-import { CronRepo, CronRunRepo, type DB, openDatabase, runMigrations } from '@zeno/storage';
 
 class StubChannel implements Channel {
   readonly name = 'slack';

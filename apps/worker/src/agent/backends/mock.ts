@@ -1,5 +1,5 @@
-import type { AgentBackend, AgentInput, AgentOutput } from '@/agent/types';
 import { createLogger } from '@zeno/logger';
+import type { AgentBackend, AgentInput, AgentOutput } from '@/agent/types';
 
 const logger = createLogger({ service: 'worker' });
 

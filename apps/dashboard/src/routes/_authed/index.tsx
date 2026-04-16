@@ -3,7 +3,9 @@ import type { JSX } from 'react';
 import { ActivityRow } from '@/components/home/ActivityRow';
 import { StatTile } from '@/components/home/StatTile';
 import { greetingForHour } from '@/lib/greeting';
+import { homeSubtitle } from '@/lib/home-subtitle';
 import { useActivity } from '@/lib/use-activity';
+import { useHealth } from '@/lib/use-health';
 import { useStats } from '@/lib/use-stats';
 
 export const Route = createFileRoute('/_authed/')({
@@ -14,20 +16,29 @@ const USER_NAME = 'Operator';
 
 function HomePage(): JSX.Element {
   const stats = useStats();
+  const health = useHealth();
   const activity = useActivity();
   const now = new Date();
   const dateLabel = now
     .toLocaleDateString('pt-BR', { weekday: 'long', month: 'long', day: 'numeric' })
     .replace(/^\w/, (c) => c.toUpperCase());
   const greeting = greetingForHour(now.getHours(), USER_NAME);
+  const subtitle = homeSubtitle({
+    stats: stats.data,
+    lastTickAt: health.data?.lastTickAt,
+    now,
+  });
 
   return (
     <div className="flex flex-col gap-12">
-      <header className="flex flex-col gap-2">
+      <header className="flex flex-col gap-3">
         <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
           {dateLabel}
         </span>
-        <h1 className="font-serif text-4xl leading-tight text-text-primary">{greeting}</h1>
+        <h1 className="font-serif text-4xl leading-tight text-text-primary">
+          <span className="italic text-accent">{greeting.verb},</span> {greeting.name}.
+        </h1>
+        <p className="max-w-[560px] text-sm leading-5 text-text-secondary">{subtitle}</p>
       </header>
 
       <section className="flex gap-16 border-b border-border-subtle pb-2">

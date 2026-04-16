@@ -37,6 +37,8 @@ describe('ProfileWatcher', () => {
       debounceMs: 50,
     });
     watcher.start();
+    // give fs.watch a moment to attach (macOS can lose events otherwise)
+    await wait(50);
 
     touch('SOUL.md', 'v1');
     touch('SOUL.md', 'v2');
@@ -57,6 +59,8 @@ describe('ProfileWatcher', () => {
       debounceMs: 50,
     });
     watcher.start();
+    // give fs.watch a moment to attach (macOS can lose events otherwise)
+    await wait(50);
 
     touch('crons.yaml', 'crons: []\n');
 
@@ -75,6 +79,8 @@ describe('ProfileWatcher', () => {
       debounceMs: 50,
     });
     watcher.start();
+    // give fs.watch a moment to attach (macOS can lose events otherwise)
+    await wait(50);
 
     touch('mcp.json', '{}');
 
@@ -95,6 +101,7 @@ describe('ProfileWatcher', () => {
       debounceMs: 50,
     });
     watcher.start();
+    await wait(50);
 
     writeFileSync(join(workdir, 'profile', 'skills', 'foo.md'), 'hi', 'utf8');
 
@@ -116,6 +123,8 @@ describe('ProfileWatcher', () => {
       debounceMs: 50,
     });
     watcher.start();
+    // give fs.watch a moment to attach (macOS can lose events otherwise)
+    await wait(50);
 
     touch('SOUL.md', 'v1');
     await wait(150);

@@ -1,9 +1,12 @@
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { ClaudeCodeBackend } from '@/agent/backends/claude-code';
+import { MockBackend } from '@/agent/backends/mock';
+import { loadMockFixtures } from '@/agent/backends/mock-fixtures';
 import { AgentCore } from '@/agent/core';
-import { loadMcpConfig } from '@/agent/mcp';
+import { loadMcpConfig, type McpServerConfig } from '@/agent/mcp';
 import { buildSystemPrompt, loadProfileFile } from '@/agent/system-prompt';
+import type { AgentBackend } from '@/agent/types';
 import { SlackChannel } from '@/channels/slack/adapter';
 import { type Config, loadConfig } from '@/config';
 import { CronRunner } from '@/cron/runner';
@@ -38,6 +41,30 @@ async function run(cmd: string, args: string[], env?: NodeJS.ProcessEnv): Promis
   });
 }
 
+interface BackendBuildOptions {
+  mcpServers: Record<string, McpServerConfig>;
+  // biome-ignore lint/suspicious/noExplicitAny: in-process MCP server type is not exported
+  inProcessMcpServers?: Record<string, any>;
+}
+
+/**
+ * Pick the agent backend based on ZENO_BACKEND. Default is the real Claude SDK; 'mock' is for dev/tests.
+ * Throws on unknown values so a typo never silently degrades to a mock in prod.
+ */
+function buildBackend(opts: BackendBuildOptions): AgentBackend {
+  const choice = process.env.ZENO_BACKEND ?? 'claude-code';
+  switch (choice) {
+    case 'claude-code':
+      logger.info({ event: 'backend_selected', backend: 'claude-code' }, 'using ClaudeCodeBackend');
+      return new ClaudeCodeBackend(opts);
+    case 'mock':
+      logger.info({ event: 'backend_selected', backend: 'mock' }, 'using MockBackend');
+      return new MockBackend(loadMockFixtures());
+    default:
+      throw new Error(`Unknown ZENO_BACKEND='${choice}' (expected 'claude-code' or 'mock')`);
+  }
+}
+
 async function healthChecks(config: Config): Promise<void> {
   const ghResult = await run('gh', ['auth', 'status'], { GH_TOKEN: config.github.token });
   if (ghResult.code !== 0) {
@@ -58,7 +85,11 @@ async function main(): Promise<void> {
   const config = loadConfig();
   logger.info({ event: 'boot_start' }, 'Zeno booting');
 
-  await healthChecks(config);
+  if ((process.env.ZENO_BACKEND ?? 'claude-code') === 'claude-code') {
+    await healthChecks(config);
+  } else {
+    logger.info({ event: 'health_checks_skipped' }, 'mock backend selected, skipping CLI checks');
+  }
 
   // Load profile files (SOUL.md = agent identity, USER.md = user profile)
   const buildPromptNow = (): string => {
@@ -109,7 +140,7 @@ async function main(): Promise<void> {
   const defaultCronChannel = process.env.ZENO_CRON_DEFAULT_CHANNEL ?? null;
 
   // Build runner first so its `runOnce` is bound to the cron tools
-  const backendForRunner = new ClaudeCodeBackend({ mcpServers });
+  const backendForRunner = buildBackend({ mcpServers });
   const runner = new CronRunner({
     crons,
     cronRuns,
@@ -122,7 +153,7 @@ async function main(): Promise<void> {
 
   // The chat-facing backend gets the in-process MCP server with cron CRUD tools wired to repos + runner
   const cronMcp = buildCronMcpServer({ crons, cronRuns, runner });
-  const backend = new ClaudeCodeBackend({
+  const backend = buildBackend({
     mcpServers,
     inProcessMcpServers: { zeno: cronMcp },
   });

@@ -1,0 +1,26 @@
+{
+  "name": "@zeno/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc && tsc-alias --resolve-full-paths",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.14",
+    "@hono/zod-validator": "^0.7.6",
+    "@zeno/logger": "workspace:*",
+    "@zeno/storage": "workspace:*",
+    "hono": "^4.12.14",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "tsc-alias": "^1.8.16",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  }
+}

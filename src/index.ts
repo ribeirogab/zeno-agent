@@ -80,8 +80,7 @@ async function main(): Promise<void> {
   const sessions = new SessionRepo(db);
   const crons = new CronRepo(db);
   const cronRuns = new CronRunRepo(db);
-  // Repos are instantiated now and wired to AgentCore + cron runner in subsequent specs.
-  void sessions;
+  // crons + cronRuns are wired to the cron runner in spec 0007.
   void crons;
   void cronRuns;
 
@@ -96,7 +95,12 @@ async function main(): Promise<void> {
   );
 
   const backend = new ClaudeCodeBackend({ mcpServers });
-  const core = new AgentCore({ backend, workspaceDir: config.workspaceDir, systemPrompt });
+  const core = new AgentCore({
+    backend,
+    workspaceDir: config.workspaceDir,
+    systemPrompt,
+    sessions,
+  });
 
   const slack = new SlackChannel(config.slack);
   await slack.start(core.bind(slack));

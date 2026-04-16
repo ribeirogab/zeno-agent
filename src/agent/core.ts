@@ -1,18 +1,18 @@
 import { type AgentBackend, AgentBackendError, type AgentInput } from '@/agent/types';
 import type { Channel, IncomingMessage, MessageTarget } from '@/channels/types';
 import { logger } from '@/logger';
+import type { SessionRepo } from '@/storage/repos/sessions';
 
 interface AgentCoreOptions {
   backend: AgentBackend;
   workspaceDir: string;
   /** Full system prompt (built once at boot via buildSystemPrompt). */
   systemPrompt: string;
+  /** Persistent store mapping Slack thread IDs to SDK session IDs. */
+  sessions: SessionRepo;
 }
 
 export class AgentCore {
-  /** Maps Slack thread IDs to SDK session IDs for multi-turn conversations. */
-  private readonly sessionMap = new Map<string, string>();
-
   constructor(private readonly opts: AgentCoreOptions) {}
 
   private async reportFailure(
@@ -46,7 +46,9 @@ export class AgentCore {
 
       await safe(() => channel.react(target, 'eyes'));
 
-      const resumeSessionId = message.threadId ? this.sessionMap.get(message.threadId) : undefined;
+      const resumeSessionId = message.threadId
+        ? (this.opts.sessions.get(message.threadId) ?? undefined)
+        : undefined;
 
       const agentInput: AgentInput = {
         systemPrompt: this.opts.systemPrompt,
@@ -79,8 +81,8 @@ export class AgentCore {
 
         // Store the session mapping for this thread
         if (message.threadId && output.sessionId) {
-          const wasNew = !this.sessionMap.has(message.threadId);
-          this.sessionMap.set(message.threadId, output.sessionId);
+          const wasNew = this.opts.sessions.get(message.threadId) === null;
+          this.opts.sessions.upsert(message.threadId, output.sessionId);
           if (wasNew) {
             logger.info(
               {
@@ -101,7 +103,7 @@ export class AgentCore {
       } catch (firstError) {
         // If this was a resume attempt and it failed, clear the stale mapping and retry fresh
         if (resumeSessionId && isResumeFailure(firstError)) {
-          if (message.threadId) this.sessionMap.delete(message.threadId);
+          if (message.threadId) this.opts.sessions.delete(message.threadId);
           logger.warn(
             {
               event: 'session_resume_failed',
@@ -120,7 +122,7 @@ export class AgentCore {
             await safe(() => channel.unreact(target, 'eyes'));
             await safe(() => channel.react(target, 'white_check_mark'));
             if (message.threadId && retryOutput.sessionId) {
-              this.sessionMap.set(message.threadId, retryOutput.sessionId);
+              this.opts.sessions.upsert(message.threadId, retryOutput.sessionId);
             }
             return;
           } catch (retryError) {

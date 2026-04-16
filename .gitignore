@@ -47,3 +47,6 @@ packages/*/.turbo/
 # TanStack Router generated route tree
 apps/dashboard/src/route-tree.gen.ts
 
+# Playwright MCP output (screenshots, snapshots, console logs from browser test sessions)
+.playwright-mcp/
+

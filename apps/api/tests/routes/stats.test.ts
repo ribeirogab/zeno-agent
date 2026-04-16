@@ -1,4 +1,5 @@
 import {
+  CommandRepo,
   CronRepo,
   CronRunRepo,
   type DB,
@@ -33,6 +34,7 @@ function makeApp(database: DB) {
     db: database,
     cronRepo: new CronRepo(database),
     cronRunRepo: new CronRunRepo(database),
+    commandRepo: new CommandRepo(database),
   });
 }
 

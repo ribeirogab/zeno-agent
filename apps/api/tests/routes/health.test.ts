@@ -1,4 +1,11 @@
-import { CronRepo, CronRunRepo, type DB, openDatabase, runMigrations } from '@zeno/storage';
+import {
+  CommandRepo,
+  CronRepo,
+  CronRunRepo,
+  type DB,
+  openDatabase,
+  runMigrations,
+} from '@zeno/storage';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '@/server';
 
@@ -22,6 +29,7 @@ function makeApp(database: DB) {
     db: database,
     cronRepo: new CronRepo(database),
     cronRunRepo: new CronRunRepo(database),
+    commandRepo: new CommandRepo(database),
   });
 }
 

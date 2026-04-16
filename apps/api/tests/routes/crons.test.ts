@@ -1,4 +1,11 @@
-import { CronRepo, CronRunRepo, type DB, openDatabase, runMigrations } from '@zeno/storage';
+import {
+  CommandRepo,
+  CronRepo,
+  CronRunRepo,
+  type DB,
+  openDatabase,
+  runMigrations,
+} from '@zeno/storage';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { signSession } from '@/auth/hmac';
 import { COOKIE_NAME } from '@/auth/middleware';
@@ -26,6 +33,7 @@ function makeApp(database: DB) {
     db: database,
     cronRepo: new CronRepo(database),
     cronRunRepo: new CronRunRepo(database),
+    commandRepo: new CommandRepo(database),
   });
 }
 
@@ -114,5 +122,132 @@ describe('GET /api/crons/:id', () => {
   it('returns 404 for unknown id', async () => {
     const res = await makeApp(db).request('/api/crons/nope', { headers: authed() });
     expect(res.status).toBe(404);
+  });
+});
+
+describe('POST /api/crons', () => {
+  it('enqueues cron_create command', async () => {
+    const commands = new CommandRepo(db);
+    const res = await makeApp(db).request('/api/crons', {
+      method: 'POST',
+      headers: { ...authed(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'new-one',
+        prompt: 'hi',
+        schedule: '0 9 * * *',
+      }),
+    });
+    expect(res.status).toBe(204);
+    const pending = commands.claimPending(10);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.type).toBe('cron_create');
+  });
+
+  it('rejects invalid body', async () => {
+    const res = await makeApp(db).request('/api/crons', {
+      method: 'POST',
+      headers: { ...authed(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'x' }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects without auth', async () => {
+    const res = await makeApp(db).request('/api/crons', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'x', prompt: 'p', schedule: '* * * * *' }),
+    });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('POST /api/crons/:id/pause', () => {
+  it('enqueues cron_pause', async () => {
+    const crons = new CronRepo(db);
+    const cron = crons.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'chat' });
+    const res = await makeApp(db).request(`/api/crons/${cron.id}/pause`, {
+      method: 'POST',
+      headers: authed(),
+    });
+    expect(res.status).toBe(204);
+    const pending = new CommandRepo(db).claimPending(1);
+    expect(pending[0]?.type).toBe('cron_pause');
+  });
+
+  it('returns 404 if cron does not exist', async () => {
+    const res = await makeApp(db).request('/api/crons/missing/pause', {
+      method: 'POST',
+      headers: authed(),
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('POST /api/crons/:id/resume', () => {
+  it('enqueues cron_resume', async () => {
+    const crons = new CronRepo(db);
+    const cron = crons.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'chat' });
+    const res = await makeApp(db).request(`/api/crons/${cron.id}/resume`, {
+      method: 'POST',
+      headers: authed(),
+    });
+    expect(res.status).toBe(204);
+    const pending = new CommandRepo(db).claimPending(1);
+    expect(pending[0]?.type).toBe('cron_resume');
+  });
+
+  it('returns 404 if cron does not exist', async () => {
+    const res = await makeApp(db).request('/api/crons/missing/resume', {
+      method: 'POST',
+      headers: authed(),
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('POST /api/crons/:id/run-now', () => {
+  it('enqueues cron_run_now', async () => {
+    const crons = new CronRepo(db);
+    const cron = crons.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'chat' });
+    const res = await makeApp(db).request(`/api/crons/${cron.id}/run-now`, {
+      method: 'POST',
+      headers: authed(),
+    });
+    expect(res.status).toBe(204);
+    const pending = new CommandRepo(db).claimPending(1);
+    expect(pending[0]?.type).toBe('cron_run_now');
+  });
+
+  it('returns 404 if cron does not exist', async () => {
+    const res = await makeApp(db).request('/api/crons/missing/run-now', {
+      method: 'POST',
+      headers: authed(),
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('DELETE /api/crons/:id', () => {
+  it('refuses static crons with 409', async () => {
+    const crons = new CronRepo(db);
+    const cron = crons.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'static' });
+    const res = await makeApp(db).request(`/api/crons/${cron.id}`, {
+      method: 'DELETE',
+      headers: authed(),
+    });
+    expect(res.status).toBe(409);
+  });
+
+  it('enqueues cron_delete for chat crons', async () => {
+    const crons = new CronRepo(db);
+    const cron = crons.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'chat' });
+    const res = await makeApp(db).request(`/api/crons/${cron.id}`, {
+      method: 'DELETE',
+      headers: authed(),
+    });
+    expect(res.status).toBe(204);
+    const pending = new CommandRepo(db).claimPending(1);
+    expect(pending[0]?.type).toBe('cron_delete');
   });
 });

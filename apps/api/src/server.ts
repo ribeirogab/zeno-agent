@@ -1,4 +1,4 @@
-import type { CronRepo, CronRunRepo, DB } from '@zeno/storage';
+import type { CommandRepo, CronRepo, CronRunRepo, DB } from '@zeno/storage';
 import { Hono } from 'hono';
 import { requireAuth } from '@/auth/middleware';
 import type { ApiConfig } from '@/config';
@@ -14,6 +14,7 @@ export interface AppDeps {
   db: DB;
   cronRepo: CronRepo;
   cronRunRepo: CronRunRepo;
+  commandRepo: CommandRepo;
   /** Absolute path to the dashboard's built static assets (apps/dashboard/dist). Optional in tests. */
   spaDir?: string;
 }
@@ -36,7 +37,14 @@ export function createApp(deps: AppDeps): Hono {
   app.route('/api/activity', buildActivityRoute(deps.db));
   app.use('/api/crons', requireAuth({ secret: deps.config.sessionSecret, secure }));
   app.use('/api/crons/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
-  app.route('/api/crons', buildCronsRoute({ crons: deps.cronRepo, cronRuns: deps.cronRunRepo }));
+  app.route(
+    '/api/crons',
+    buildCronsRoute({
+      crons: deps.cronRepo,
+      cronRuns: deps.cronRunRepo,
+      commands: deps.commandRepo,
+    }),
+  );
   if (deps.spaDir) {
     app.get('*', serveStaticSpa(deps.spaDir));
   }

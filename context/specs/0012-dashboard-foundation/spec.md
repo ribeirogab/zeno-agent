@@ -147,9 +147,10 @@ Where:
 
 | Method | Path | Returns | Notes |
 |---|---|---|---|
-| `GET` | `/api/health` | `{ status: 'ok', uptime: number }` | Unauthenticated |
-| `GET` | `/api/stats` | `{ activeCrons, sessions24h, runsToday, failures24h }` | All numbers; computed via SQL `COUNT()` queries against `crons`, `sessions`, `cron_runs` |
-| `GET` | `/api/activity?limit=10` | `Array<{ id, kind: 'cron_run' | 'message_received', timestamp, summary, status }>` | Phase A: just `cron_run` rows from `cron_runs` joined with `crons` for the name. Phase B+ may add `message_received` from a future events stream. |
+| `GET` | `/api/health` | `{ status: 'ok', uptime: number }` | Unauthenticated. Used by Docker healthcheck and external monitoring; never used to gate the SPA. |
+| `GET` | `/api/auth/me` | `204 No Content` | Authenticated. Used by the SPA's auth guard — middleware-only handler; if `requireAuth` lets it through, the cookie is valid. |
+| `GET` | `/api/stats` | `{ activeCrons, sessions24h, runsToday, failures24h }` | All `number`. Each computed by a single SQL `COUNT(*)`: `activeCrons = WHERE enabled=1`; `sessions24h = WHERE last_used_at > datetime('now','-24 hours')` (uses `sessions.last_used_at`, the most recent activity on a thread); `runsToday = WHERE date(started_at) = date('now')`; `failures24h = WHERE status='failed' AND started_at > datetime('now','-24 hours')`. |
+| `GET` | `/api/activity?limit=10` | `Array<{ id, kind: 'cron_run' \| 'message_received', timestamp, summary, status }>` | Phase A: just `cron_run` rows from `cron_runs` joined with `crons` for the name. Phase B+ may add `message_received` from a future events stream. |
 
 All authenticated. Each response is JSON validated by a Zod schema co-located with the route — request and response shapes are typed end-to-end via shared types in `apps/api/src/routes/*.types.ts`, importable by the dashboard via duplication (Phase A) or a future shared package (deferred).
 
@@ -166,7 +167,7 @@ src/routes/
     └── index.tsx     # / (home)
 ```
 
-The `_authed` group's `beforeLoad` calls `GET /api/health` with credentials; on 401 throws `redirect({ to: '/login' })`. Cheap, idiomatic to TanStack.
+The `_authed` group's `beforeLoad` calls `GET /api/auth/me` (the authenticated lightweight endpoint declared in the read-endpoints table). The middleware either lets it through (204) or returns 401; on 401 the loader throws `redirect({ to: '/login' })`. `/api/health` is **not** used here because it is unauthenticated and would always pass — the guard would never fire.
 
 **Components:**
 - `<Layout>` — sidebar (240px fixed) + content area, exact paste of the Paper sidebar (logo, nav with 5 items, status section, user chip)

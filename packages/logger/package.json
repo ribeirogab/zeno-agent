@@ -13,6 +13,7 @@
   },
   "scripts": {
     "build": "tsc -b",
+    "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "clean": "rm -rf dist"

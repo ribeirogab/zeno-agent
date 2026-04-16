@@ -6,7 +6,19 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["src/**/*.ts", "tests/**/*.ts", "*.json"]
+    "includes": [
+      "apps/**/*.ts",
+      "apps/**/*.tsx",
+      "apps/**/*.json",
+      "packages/**/*.ts",
+      "packages/**/*.tsx",
+      "packages/**/*.json",
+      "*.json",
+      "!**/dist/**",
+      "!**/node_modules/**",
+      "!**/.turbo/**",
+      "!apps/dashboard/src/route-tree.gen.ts"
+    ]
   },
   "formatter": {
     "enabled": true,

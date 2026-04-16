@@ -35,3 +35,15 @@ tmp/
 # TypeScript incremental build info
 *.tsbuildinfo
 
+# Turborepo cache
+.turbo/
+
+# Workspace dist outputs
+apps/*/dist/
+packages/*/dist/
+apps/*/.turbo/
+packages/*/.turbo/
+
+# TanStack Router generated route tree
+apps/dashboard/src/route-tree.gen.ts
+

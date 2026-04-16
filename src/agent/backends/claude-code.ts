@@ -21,7 +21,7 @@ export class ClaudeCodeBackend implements AgentBackend {
   private readonly allowedTools: string[];
 
   constructor(opts: ClaudeCodeBackendOptions = {}) {
-    this.timeoutMs = opts.timeoutMs ?? 60_000;
+    this.timeoutMs = opts.timeoutMs ?? 300_000;
     this.allowedTools = opts.allowedTools ?? ['Bash', 'Read', 'Glob', 'Grep'];
   }
 

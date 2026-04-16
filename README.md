@@ -47,19 +47,19 @@ zeno-agent/
 
 3. **Build:**
    ```bash
-   npm run build:docker
+   npm run docker:build
    ```
 
 4. **Claude OAuth token** (first time + on expiry):
    ```bash
-   docker compose -f infra/docker-compose.yml --project-directory . run --rm zeno-agent claude setup-token
+   npm run docker:setup-token
    ```
    Complete OAuth in browser, paste the printed token into `.env` as `CLAUDE_CODE_OAUTH_TOKEN`.
 
 5. **Start:**
    ```bash
-   npm run up
-   npm run logs
+   npm run docker:up
+   npm run docker:logs
    ```
    Watch for: `soul_md_loaded` → `user_md_loaded` → `slack_connected` → `zeno_online`.
 
@@ -75,10 +75,11 @@ Or DM it directly.
 
 | Script | What it does |
 |---|---|
-| `npm run build:docker` | Build the container image |
-| `npm run up` | Start in background |
-| `npm run down` | Stop |
-| `npm run logs` | Tail logs |
+| `npm run docker:build` | Build the container image |
+| `npm run docker:up` | Start in background |
+| `npm run docker:down` | Stop |
+| `npm run docker:logs` | Tail logs |
+| `npm run docker:setup-token` | Mint/refresh Claude OAuth token |
 
 ## Performance
 
@@ -106,20 +107,21 @@ Full spec: `context/specs/0001-slack-zeno-mvp/`.
 
 ## Development
 
+Zeno only runs inside Docker. Dev scripts below are for code validation, not for running the agent:
+
 ```bash
 npm install
-npm run dev        # tsx watch (requires gh + claude on host)
 npm run check      # biome format + lint + organize imports
 npm run typecheck  # tsc --noEmit
 npm test           # vitest
-npm run build      # tsc + tsc-alias
+npm run build      # tsc + tsc-alias (used by Dockerfile build stage)
 ```
 
 ## Smoke test
 
 After setup, verify these in order:
 
-1. `npm run up` → logs show `zeno_online`
+1. `npm run docker:up` → logs show `zeno_online`
 2. `@zeno oi` in Slack → eyes reaction → PT-BR reply → checkmark
 3. `@zeno quais repos tem na octocat?` → lists repos via `gh`
 4. DM the bot → reply in DM (no thread)

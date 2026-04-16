@@ -8,18 +8,17 @@
   },
   "scripts": {
     "build": "tsc && tsc-alias --resolve-full-paths",
-    "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check --write .",
-    "up": "docker compose -f infra/docker-compose.yml --project-directory . up -d",
-    "down": "docker compose -f infra/docker-compose.yml --project-directory . down",
-    "logs": "docker compose -f infra/docker-compose.yml --project-directory . logs -f zeno-agent",
-    "build:docker": "docker compose -f infra/docker-compose.yml --project-directory . build"
+    "docker:build": "docker compose -f infra/docker-compose.yml --project-directory . build",
+    "docker:up": "docker compose -f infra/docker-compose.yml --project-directory . up -d",
+    "docker:down": "docker compose -f infra/docker-compose.yml --project-directory . down",
+    "docker:logs": "docker compose -f infra/docker-compose.yml --project-directory . logs -f zeno-agent",
+    "docker:setup-token": "docker compose -f infra/docker-compose.yml --project-directory . run --rm zeno-agent claude setup-token"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.110",

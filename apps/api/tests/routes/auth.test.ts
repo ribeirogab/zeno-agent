@@ -1,4 +1,11 @@
-import { CommandRepo, CronRepo, CronRunRepo, openDatabase, runMigrations } from '@zeno/storage';
+import {
+  CommandRepo,
+  CronRepo,
+  CronRunRepo,
+  LogRepo,
+  openDatabase,
+  runMigrations,
+} from '@zeno/storage';
 import { describe, expect, it } from 'vitest';
 import { COOKIE_NAME } from '@/auth/middleware';
 import { createApp } from '@/server';
@@ -22,6 +29,7 @@ function makeApp() {
     cronRepo: new CronRepo(db),
     cronRunRepo: new CronRunRepo(db),
     commandRepo: new CommandRepo(db),
+    logRepo: new LogRepo(db),
     claudeHome: '/tmp',
     profileDir: '/tmp',
   });

@@ -1,4 +1,4 @@
-import type { CommandRepo, CronRepo, CronRunRepo, DB } from '@zeno/storage';
+import type { CommandRepo, CronRepo, CronRunRepo, DB, LogRepo } from '@zeno/storage';
 import { SessionRepo } from '@zeno/storage';
 import { Hono } from 'hono';
 import { requireAuth } from '@/auth/middleware';
@@ -7,6 +7,7 @@ import { buildActivityRoute } from '@/routes/activity';
 import { buildAuthRoutes } from '@/routes/auth';
 import { buildCronsRoute } from '@/routes/crons';
 import { buildHealthRoute } from '@/routes/health';
+import { buildLogsRoute } from '@/routes/logs';
 import { buildSessionsRoute } from '@/routes/sessions';
 import { buildSettingsRoute } from '@/routes/settings';
 import { serveStaticSpa } from '@/routes/static';
@@ -18,6 +19,7 @@ export interface AppDeps {
   cronRepo: CronRepo;
   cronRunRepo: CronRunRepo;
   commandRepo: CommandRepo;
+  logRepo: LogRepo;
   /** Directory holding Claude Code JSONL transcripts (e.g. `~/.claude/projects/-workspace`). */
   claudeHome: string;
   /** Directory holding the agent profile files (SOUL.md, USER.md, crons.yaml, mcp.json). */
@@ -70,6 +72,9 @@ export function createApp(deps: AppDeps): Hono {
       profileDir: deps.profileDir,
     }),
   );
+  app.use('/api/logs', requireAuth({ secret: deps.config.sessionSecret, secure }));
+  app.use('/api/logs/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
+  app.route('/api/logs', buildLogsRoute({ logs: deps.logRepo }));
   if (deps.spaDir) {
     app.get('*', serveStaticSpa(deps.spaDir));
   }

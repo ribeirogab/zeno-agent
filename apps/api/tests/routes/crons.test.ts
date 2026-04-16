@@ -3,6 +3,7 @@ import {
   CronRepo,
   CronRunRepo,
   type DB,
+  LogRepo,
   openDatabase,
   runMigrations,
 } from '@zeno/storage';
@@ -34,6 +35,7 @@ function makeApp(database: DB) {
     cronRepo: new CronRepo(database),
     cronRunRepo: new CronRunRepo(database),
     commandRepo: new CommandRepo(database),
+    logRepo: new LogRepo(database),
     claudeHome: '/tmp',
     profileDir: '/tmp',
   });

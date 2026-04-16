@@ -19,9 +19,32 @@ If you discovered something non-obvious during implementation — a gotcha, a co
 
 ## Commands
 
-_No project scripts yet — tooling hasn't been chosen. Update this section when `package.json`, `Makefile`, or similar is introduced._
+The project is a Turborepo monorepo orchestrated by `pnpm` workspaces. **All runtime is Docker-only** — there are no `pnpm dev`/`start` scripts to run apps locally. Use `pnpm run quality-gate` for fast local IDE-driven feedback.
 
-Full command catalog: `context/learnings/commands-catalog.md` _(create this note after tooling is introduced)_.
+| Command | What it does |
+|---|---|
+| `pnpm run quality-gate` | Run lint + typecheck + tests across all workspaces (via `turbo run`). Fast, runs locally, gates every commit. |
+| `pnpm run lint` / `pnpm run typecheck` / `pnpm run test` / `pnpm run build` | Individual turbo passes; each fans out to all workspaces. |
+| `pnpm run docker:build` | Build the multi-stage container image. |
+| `pnpm run docker:up` / `pnpm run docker:down` | Start / stop the container in detached mode. |
+| `pnpm run docker:logs` | Tail container logs (`-f`). Output is prefixed `[worker]` / `[api]`. |
+| `pnpm run docker:sh` | Open an interactive shell inside the running container. |
+| `pnpm run docker:setup-token` | One-time helper to acquire the Claude OAuth token. |
+
+**Dashboard URL (after `docker:up`):** http://localhost:3000
+
+## Workspace layout
+
+```
+apps/worker/         Slack listener + cron runner + profile watcher + agent core (Node)
+apps/api/            Hono HTTP server + auth + read endpoints + serves dashboard build (Node, port 3000)
+apps/dashboard/      Vite + React + TanStack + shadcn SPA (built into static assets)
+packages/storage/    @zeno/storage — DB connection + migrations + repos + types
+packages/logger/     @zeno/logger — pino factory tipado
+infra/               Dockerfile + docker-compose.yml
+profile/             SOUL.md, USER.md, mcp.json, crons.yaml, skills/ (agent identity + config)
+context/             Specs, learnings, conventions, rules
+```
 
 ## Knowledge locations
 
@@ -34,6 +57,7 @@ Full command catalog: `context/learnings/commands-catalog.md` _(create this note
 | Project-specific rules | `context/rules/` |
 | Spec template | `context/specs/_template/` |
 | Note templates (learning, rule) | `context/templates/` |
+| Dashboard design (Paper artboards) | Spec 0008 + Paper file "Hearty island" |
 
 ## Claude Code skills and commands
 

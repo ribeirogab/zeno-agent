@@ -13,7 +13,12 @@ describe('signSession + verifySession', () => {
   it('rejects a tampered signature', () => {
     const cookie = signSession(SECRET, Date.now() + 1000);
     const [exp, sig] = cookie.split('.');
-    const tampered = `${exp}.${sig?.slice(0, -1)}0`;
+    if (!sig) throw new Error('signSession returned cookie without signature segment');
+    // Replace the last char with one that is guaranteed to differ (avoid the
+    // ~6% chance of picking the same char and producing an unaltered string).
+    const lastChar = sig.slice(-1);
+    const replacement = lastChar === '0' ? '1' : '0';
+    const tampered = `${exp}.${sig.slice(0, -1)}${replacement}`;
     expect(verifySession(SECRET, tampered)).toEqual({ valid: false, reason: 'bad_signature' });
   });
 

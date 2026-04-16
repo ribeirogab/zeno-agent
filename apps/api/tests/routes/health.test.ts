@@ -20,6 +20,8 @@ function makeApp(database: DB) {
       port: 3000,
     },
     db: database,
+    cronRepo: new CronRepo(database),
+    cronRunRepo: new CronRunRepo(database),
   });
 }
 

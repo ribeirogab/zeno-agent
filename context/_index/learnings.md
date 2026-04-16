@@ -26,3 +26,4 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 ## `#gotcha` — Things that tripped us up
 
 - [[../learnings/claude-bare-mode-no-oauth|Claude Code `--bare` mode skips OAuth]] — use the SDK or drop `--bare`.
+- [[../learnings/claude-code-cli-blocks-root|Claude Code CLI blocks `--dangerously-skip-permissions` as root]] — container must run as non-root for `permissionMode: 'bypassPermissions'`.

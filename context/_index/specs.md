@@ -14,8 +14,8 @@ Template: `[[../specs/_template/spec|_template/spec]]`
 
 ## Active
 
-_No active specs. When a request requires the spec flow, link the new spec here._
+_No active specs._
 
 ## Shipped
 
-_No shipped specs yet._
+- [[../specs/0001-slack-zeno-mvp/spec|0001 — Slack Zeno MVP]] (2026-04-15) — agente pessoal via Slack que consulta GitHub via Claude Code (OAuth) + `gh` CLI.

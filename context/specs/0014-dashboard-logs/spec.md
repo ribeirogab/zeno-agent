@@ -48,12 +48,14 @@ A "Following" live-tail toggle makes it useful *while something is happening*, n
 - **DB is the contract between worker and API.** The logs table is the contract for this feature. Both processes write to it (worker and api both generate logs). API is the only reader for the SPA.
 - **Zero impact on processes that don't configure a `dbSink`.** `@zeno/logger`'s signature stays backward compatible — current `createLogger({ service })` callers keep working with no changes. The dbSink is optional; tests don't pass it.
 - **`@zeno/logger` does not depend on `@zeno/storage`.** Would create a dependency surface we don't want (logger is a leaf package today). Instead, `@zeno/logger` defines a minimal `LogSink` interface; `LogRepo` from `@zeno/storage` satisfies it structurally at the call site.
-- **Writes are synchronous.** better-sqlite3 is sync; the transport calls `logRepo.insert(...)` inline inside the pino stream callback. Write latency is ~1-5µs per line on the container's SSD; at Zeno's realistic log volume (<10 lines/s steady state) this is negligible.
+- **Writes are synchronous.** better-sqlite3 is sync; the transport calls `logRepo.insert(...)` inline inside the pino stream callback. The raw insert cost is ~1-5µs per line. The realistic upper bound on a log write isn't raw insert latency but **writer-lock contention** with other writes to the same DB — SQLite serialises writers, so a running `db.transaction(...)` in the worker (e.g., `commandRepo.claimPending` or a batch-insert elsewhere) briefly blocks the api's log-sink insert. At Zeno's observed log volume (<10 lines/s steady state), this is not a problem; at 1000+ lines/s with long worker transactions, it becomes one. The Risks table documents the mitigation path (in-memory ring buffer + periodic flush) if profiling ever shows saturation.
 - **Retention runs in the worker.** One process owns the delete sweep; the api stays read-only for this table. Daily cadence via `setInterval(86_400_000)` starting at boot.
 - **SSE over long-lived HTTP, no WebSocket.** Browser `EventSource` is trivial, auto-reconnects with `Last-Event-ID` support, works with Hono out of the box.
 - **Single-tenant assumption.** At most one SSE subscriber at a time; the per-request polling loop is acceptable.
 
 ## Design
+
+**No backfill.** The `logs` table is populated exclusively by the pino sink going forward from the moment migration 3 runs. No boot-time migration reads or parses historical docker stdout. Pre-existing lines from `docker logs` remain only there.
 
 ### New table `logs` (migration 3)
 
@@ -109,7 +111,7 @@ export interface CreateLogInput {
 
 export interface LogFilter {
   level?: number;          // exact match; undefined means "any"
-  q?: string;              // matches event prefix OR correlation_id exact
+  q?: string;              // see note below
   since?: string;          // ISO; inclusive
   until?: string;          // ISO; exclusive
   cursorId?: number;       // pagination: return rows with id < cursorId
@@ -117,6 +119,14 @@ export interface LogFilter {
   limit?: number;          // default 100, max 500
 }
 ```
+
+**`q` semantics (precise):** case-insensitive `event` prefix match OR case-sensitive `correlation_id` exact match. SQL predicate:
+
+```sql
+(event LIKE ? || '%' COLLATE NOCASE OR correlation_id = ?)
+```
+
+Both parameters bind the raw `q` value. `event` matches prefix (not substring) because event names follow `snake_case` conventions the operator types left-to-right (`cron_run` → matches `cron_run_success`, `cron_run_failed`, etc.). `correlation_id` matches exact because it's a UUID — partial matches would be noise.
 
 Methods:
 - `insert(input: CreateLogInput): void` — sync
@@ -151,6 +161,8 @@ export function createLogger(options: CreateLoggerOptions): Logger;
 
 `LogSink` is declared inside `@zeno/logger`. `LogRepo` from `@zeno/storage` satisfies the shape structurally; at the call site, consumers pass their `LogRepo` instance as `dbSink`. No runtime dep between the packages.
 
+**Known coupling:** the structural satisfaction holds only as long as `LogSink.insert`'s parameter shape and `CreateLogInput` stay in sync. A future addition of a required field to `CreateLogInput` that isn't mirrored in `LogSink` will not produce a compile error at the logger package boundary (since the logger only sees its own `LogSink`). Mitigation: `packages/storage/src/repos/logs.ts` includes a compile-time assertion — e.g. `const _assignable: LogSink = {} as Pick<LogRepo, 'insert'>;` — so a drift breaks the build on the storage side where both types are visible.
+
 Implementation: when `dbSink` is set, `createLogger` builds pino with `pino.multistream([ stdoutStream, sinkStream ])`. The sinkStream is a Writable that:
 1. Parses each chunk as JSON (pino writes NDJSON to streams)
 2. Extracts `ts = parsed.time`, `level = parsed.level`, `service = parsed.service`, `event = parsed.event ?? null`, `correlationId = parsed.correlationId ?? null`, `message = parsed.msg ?? null`, `payload = chunk.toString()`
@@ -163,7 +175,7 @@ When `dbSink` is absent, pino has a single stream (stdout). Identical behavior t
 
 The worker instantiates a `LogsRetention` helper that:
 1. On `start()`: run `logRepo.sweep(now - RETENTION_DAYS)` immediately, then schedule `setInterval(86_400_000)` for daily runs
-2. Logs the sweep result via the same logger (deliberately circular — the delete happens *before* the sweep's own log line, so the sweep doesn't delete its own log). Corner case protected by the `WHERE ts < ?` predicate anyway.
+2. Logs the sweep result (count + threshold) via the same logger. The `WHERE ts < ?` predicate guarantees the sweep's own log line (whose `ts` is `now`) is never eligible for deletion, regardless of ordering between the DELETE and the log-write call.
 3. On `stop()`: clear interval
 
 `RETENTION_DAYS` from env `LOGS_RETENTION_DAYS` (default `7`). Validated via the worker config zod schema at boot.
@@ -175,15 +187,17 @@ The worker instantiates a `LogsRetention` helper that:
 | `GET` | `/api/logs` | `level` (enum info\|warn\|error), `q` (string), `since` (iso), `until` (iso), `limit` (1-500, default 100), `cursorId` (int) | `{ logs: Log[]; nextCursorId: number \| null }` | cookie |
 | `GET` | `/api/logs/stream` | same as `/api/logs` minus `limit`/`cursorId`, plus optional `sinceId` | SSE stream — heartbeat comment `:ping\n\n` every 30s; each matching log as `data: {json}\n\n` with `id: {numericId}` line for `Last-Event-ID` support | cookie |
 
-**SSE implementation detail.** Per-request Node interval at 500ms:
+**SSE implementation detail.** Per-request Node interval at 500ms. `lastId` **must be captured inside the `streamSSE` callback**, after the connection is open, so that any log row inserted between request arrival and the first poll is still picked up on the very next 500ms tick:
 
 ```
-function streamHandler(c) {
+async function streamHandler(c) {
   // auth applied via middleware before this
   const filter = parseFilter(c.req.query);
-  let lastId = filter.sinceId ?? (await logRepo.list({ limit: 1 })).logs[0]?.id ?? 0;
-
   return streamSSE(c, async (stream) => {
+    // Resolve lastId here (not earlier) — closes the race between request
+    // parsing and the first poll tick. If client supplied sinceId, honor it.
+    let lastId = filter.sinceId ?? (logRepo.list({ limit: 1 }).logs[0]?.id ?? 0);
+    let lastHeartbeat = Date.now();
     const interval = setInterval(async () => {
       if (stream.closed) return clearInterval(interval);
       const batch = logRepo.listSince({ ...filter, sinceId: lastId });
@@ -302,7 +316,7 @@ Switching toggle back to OFF: close stream, keep the accumulated rows visible un
 4. `curl -sf 'http://localhost:3000/api/logs?level=info&limit=5' -b "zeno_auth=..."` returns 5 rows matching the filter in JSON.
 5. Browser at `/logs`: list renders; Following toggle works; level chips filter; search narrows; expanding a row shows JSON.
 6. `curl -sf 'http://localhost:3000/api/logs/stream' -b "..."` streams text/event-stream with `data:` lines as new logs arrive.
-7. After `docker compose restart zeno-agent` the `commands_swept` log line appears (persisted across restart) — confirms logs survive process restart.
+7. After `docker compose restart zeno-agent`, querying the table returns log lines from *before* the restart (e.g., the last `zeno_online` event before shutdown is visible via `GET /api/logs?q=zeno_online`) — confirms logs persist across restart.
 8. Artificially write 10000 log lines; `SELECT id` shows strictly monotonic ids even after a sweep.
 9. Visual fidelity to Paper artboard `Zeno · Logs` — palette, typography, sidebar consistency.
 10. Zero `any` or `// biome-ignore` in new code.
@@ -311,7 +325,7 @@ Switching toggle back to OFF: close stream, keep the accumulated rows visible un
 
 | Risk | Mitigation |
 |---|---|
-| Write latency blocks the worker event loop in hot loops (e.g., a tight for-loop emitting 1000+ logs/s) | better-sqlite3 sync write is ~1-5µs. Measured steady-state log rate in Zeno (observed during Phase A/B) is <10 lines/s. If profiling ever shows saturation, add an in-memory ring buffer + periodic batch flush; the schema and sink interface accommodate either strategy without changes. |
+| Write latency blocks the event loop under high log volume, or writer-lock contention between worker and api delays log inserts during long DB transactions | Two distinct failure modes with one mitigation. Raw insert is ~1-5µs; at Zeno's observed steady-state rate (<10 lines/s split across worker + api) this is negligible. Writer-lock contention can briefly stall a log-sink insert while the other process holds a transaction open — acceptable at current scale. If either becomes a problem, add an in-memory ring buffer + periodic batch flush inside `@zeno/logger`; the schema and sink interface accommodate the strategy change without consumer impact. |
 | Circular dependency between `@zeno/logger` and `@zeno/storage` | The logger defines a structural `LogSink` interface. `LogRepo` satisfies it by shape only. No import from `@zeno/storage` in `@zeno/logger`. |
 | Logger transport parses pino NDJSON twice (once by pino, once by sink) | Acceptable overhead for the write path; the JSON.parse on ~400 byte pino lines costs ~2µs. The alternative — having pino emit pre-parsed objects via a custom formatter — adds more surface than it saves. |
 | Pino stream backpressure if the sink throws | The sink's `insert` is sync and never async, so backpressure cannot queue. Any throw inside `insert` is caught by the outer try in the stream `write` method and logged to stderr; the log line is dropped but pino doesn't crash. |

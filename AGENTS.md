@@ -17,6 +17,10 @@ Zeno is a personal agent. The person who owns this instance is described in `pro
 
 If you discovered something non-obvious during implementation — a gotcha, a constraint, a surprising behavior — create an atomic note in `context/learnings/` using the template at `context/templates/learning.md`. Link it to the relevant spec with a wikilink if applicable. Do this without asking permission.
 
+## Generated / temporary files
+
+Anything you produce that isn't part of the codebase (screenshots, scratch scripts, dumps, browser output) goes under `tmp/`. See `context/rules/generated-files-location.md` for sub-folder conventions.
+
 ## Commands
 
 The project is a Turborepo monorepo orchestrated by `pnpm` workspaces. **All runtime is Docker-only** — there are no `pnpm dev`/`start` scripts to run apps locally. Use `pnpm run quality-gate` for fast local IDE-driven feedback.

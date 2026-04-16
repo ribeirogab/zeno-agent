@@ -6,7 +6,7 @@ tags:
 
 Zeno-specific safety and workflow rules.
 
-**Nothing here yet.** Rules are added when a project-specific safety or workflow constraint is discovered.
+Rules are added when a project-specific safety or workflow constraint is discovered.
 
 ## `severity: critical`
 
@@ -14,7 +14,7 @@ _(none yet)_
 
 ## `severity: important`
 
-_(none yet)_
+- [[../rules/generated-files-location|Generated / temporary files go under `tmp/`]] — screenshots, scratch scripts, dumps, browser output. Never at repo root.
 
 ## `severity: advisory`
 

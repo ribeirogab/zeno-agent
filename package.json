@@ -14,6 +14,7 @@
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check --write .",
+    "quality-gate": "biome check . && tsc --noEmit && vitest run",
     "docker:build": "docker compose -f infra/docker-compose.yml --project-directory . build",
     "docker:up": "docker compose -f infra/docker-compose.yml --project-directory . up -d",
     "docker:down": "docker compose -f infra/docker-compose.yml --project-directory . down",

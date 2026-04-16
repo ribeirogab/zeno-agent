@@ -10,6 +10,7 @@ import { CronRunner } from '@/cron/runner';
 import { loadStaticCrons } from '@/cron/static-loader';
 import { buildCronMcpServer } from '@/cron/tools';
 import { logger } from '@/logger';
+import { ProfileWatcher } from '@/profile/watcher';
 import { closeDatabase, openDatabase } from '@/storage/db';
 import { runMigrations } from '@/storage/migrations';
 import { CronRunRepo } from '@/storage/repos/cron-runs';
@@ -60,14 +61,19 @@ async function main(): Promise<void> {
   await healthChecks(config);
 
   // Load profile files (SOUL.md = agent identity, USER.md = user profile)
-  const soulMd = loadProfileFile('SOUL.md');
-  if (soulMd) {
-    logger.info({ event: 'soul_md_loaded', bytes: soulMd.length }, 'SOUL.md loaded');
-  }
+  const buildPromptNow = (): string => {
+    const soul = loadProfileFile('SOUL.md');
+    const user = loadProfileFile('USER.md');
+    return buildSystemPrompt(soul, user);
+  };
 
-  const userMd = loadProfileFile('USER.md');
-  if (userMd) {
-    logger.info({ event: 'user_md_loaded', bytes: userMd.length }, 'USER.md loaded');
+  const initialSoul = loadProfileFile('SOUL.md');
+  if (initialSoul) {
+    logger.info({ event: 'soul_md_loaded', bytes: initialSoul.length }, 'SOUL.md loaded');
+  }
+  const initialUser = loadProfileFile('USER.md');
+  if (initialUser) {
+    logger.info({ event: 'user_md_loaded', bytes: initialUser.length }, 'USER.md loaded');
   } else {
     logger.warn(
       { event: 'user_md_missing' },
@@ -75,7 +81,7 @@ async function main(): Promise<void> {
     );
   }
 
-  const systemPrompt = buildSystemPrompt(soulMd, userMd);
+  const promptHolder = { value: buildSystemPrompt(initialSoul, initialUser) };
 
   const dbPath = join(config.workspaceDir, 'zeno.db');
   const db = openDatabase(dbPath);
@@ -108,7 +114,7 @@ async function main(): Promise<void> {
     crons,
     cronRuns,
     backend: backendForRunner,
-    systemPrompt,
+    getSystemPrompt: () => promptHolder.value,
     workspaceDir: config.workspaceDir,
     channel: slack,
     defaultConversationId: defaultCronChannel,
@@ -123,17 +129,44 @@ async function main(): Promise<void> {
   const core = new AgentCore({
     backend,
     workspaceDir: config.workspaceDir,
-    systemPrompt,
+    getSystemPrompt: () => promptHolder.value,
     sessions,
+  });
+
+  const watcher = new ProfileWatcher({
+    onPromptFilesChanged: () => {
+      promptHolder.value = buildPromptNow();
+      logger.info(
+        { event: 'system_prompt_reloaded', bytes: promptHolder.value.length },
+        'system prompt reloaded',
+      );
+    },
+    onCronsChanged: () => {
+      const next = loadStaticCrons();
+      crons.replaceStaticSet(next);
+      logger.info({ event: 'static_crons_reloaded', count: next.length }, 'static crons reloaded');
+    },
+    onMcpChanged: () => {
+      logger.warn(
+        { event: 'mcp_change_requires_restart' },
+        'profile/mcp.json changed — restart Zeno to apply',
+      );
+    },
   });
 
   await slack.start(core.bind(slack));
   runner.start();
+  watcher.start();
 
   logger.info({ event: 'zeno_online' }, 'Zeno online');
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ event: 'shutdown', signal }, 'shutting down');
+    try {
+      watcher.stop();
+    } catch {
+      // best effort
+    }
     try {
       runner.stop();
     } catch {

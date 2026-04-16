@@ -10,7 +10,8 @@ interface CronRunnerOptions {
   crons: CronRepo;
   cronRuns: CronRunRepo;
   backend: AgentBackend;
-  systemPrompt: string;
+  /** Returns the current system prompt — called per fire so profile/ hot-reload applies to cron runs too. */
+  getSystemPrompt: () => string;
   workspaceDir: string;
   /** Slack (or any other) channel used to post cron output. */
   channel: Channel;
@@ -97,7 +98,7 @@ export class CronRunner {
 
     try {
       const output = await this.opts.backend.query({
-        systemPrompt: this.opts.systemPrompt,
+        systemPrompt: this.opts.getSystemPrompt(),
         userMessage: cron.prompt,
         cwd: this.opts.workspaceDir,
         correlationId,

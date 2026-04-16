@@ -6,8 +6,8 @@ import type { SessionRepo } from '@/storage/repos/sessions';
 interface AgentCoreOptions {
   backend: AgentBackend;
   workspaceDir: string;
-  /** Full system prompt (built once at boot via buildSystemPrompt). */
-  systemPrompt: string;
+  /** Returns the current system prompt. Called per turn so profile/ hot-reload takes effect on new sessions. */
+  getSystemPrompt: () => string;
   /** Persistent store mapping Slack thread IDs to SDK session IDs. */
   sessions: SessionRepo;
 }
@@ -51,7 +51,7 @@ export class AgentCore {
         : undefined;
 
       const agentInput: AgentInput = {
-        systemPrompt: this.opts.systemPrompt,
+        systemPrompt: this.opts.getSystemPrompt(),
         userMessage: wrapWithSlackContext(message),
         cwd: this.opts.workspaceDir,
         correlationId: message.correlationId,

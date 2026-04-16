@@ -63,7 +63,7 @@ describe('CronRunner.tick', () => {
       crons,
       cronRuns,
       backend,
-      systemPrompt: 'sys',
+      getSystemPrompt: () => 'sys',
       workspaceDir: '/tmp',
       channel,
     });
@@ -99,7 +99,7 @@ describe('CronRunner.tick', () => {
       crons,
       cronRuns,
       backend,
-      systemPrompt: 'sys',
+      getSystemPrompt: () => 'sys',
       workspaceDir: '/tmp',
       channel,
     });
@@ -127,7 +127,7 @@ describe('CronRunner.tick', () => {
       crons,
       cronRuns,
       backend,
-      systemPrompt: 'sys',
+      getSystemPrompt: () => 'sys',
       workspaceDir: '/tmp',
       channel,
     });
@@ -153,7 +153,7 @@ describe('CronRunner.tick', () => {
       crons,
       cronRuns,
       backend: fakeBackend('hello'),
-      systemPrompt: 'sys',
+      getSystemPrompt: () => 'sys',
       workspaceDir: '/tmp',
       channel,
       defaultConversationId: 'C-default',
@@ -176,7 +176,7 @@ describe('CronRunner.tick', () => {
       crons,
       cronRuns,
       backend: fakeBackend('hello'),
-      systemPrompt: 'sys',
+      getSystemPrompt: () => 'sys',
       workspaceDir: '/tmp',
       channel,
     });

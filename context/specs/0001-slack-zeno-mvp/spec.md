@@ -1,13 +1,15 @@
 ---
-status: draft
+status: shipped
 feature: slack-zeno-mvp
 created: 2026-04-15
-shipped: null
+shipped: 2026-04-15
 ---
 # Zeno MVP — Agente pessoal via Slack que consulta GitHub
 
-**Status:** Draft
+**Status:** Shipped (2026-04-15)
 **Scope:** Entregar um processo Docker que, ao receber uma menção ou DM no Slack do Operator, usa Claude Code (via OAuth do plano, não API key) pra responder perguntas sobre repos do GitHub — começando por "quais repos tem na org X?".
+
+**Validação:** S1 (happy path: `@zeno-agent quais repos tem na octocat?` → resposta em PT-BR com 23 repos) validado fim-a-fim em smoke real no Slack + claude direto no container. Cenários S2 (DM), S3 (org sem acesso) e S5 (auth expirado) cobertos por código (mesmo path do S1 + unit tests do `classifyError`); validação manual no Slack opcional.
 
 ## Context
 

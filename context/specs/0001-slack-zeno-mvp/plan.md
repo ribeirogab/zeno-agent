@@ -120,7 +120,6 @@ Every file the MVP creates, with single-line responsibility:
 
 **Updates to existing files (Task 1):**
 - `context/constitution.md` — finalize "Architecture principles" and "Tooling and workflow principles" sections (drop "not yet decided" placeholders)
-- (Repo-wide rename Zerk/Wesker → Zeno was completed pre-implementation as a one-off; no rename work remains in the plan)
 
 ## Phase Ordering
 

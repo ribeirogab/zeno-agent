@@ -112,7 +112,7 @@ git commit -m "docs: record discovery findings as atomic learnings"
 
 ### Task 1: Update constitution with finalized stack decisions
 
-The repo rename (Zerk → Wesker → Zeno) was completed pre-implementation as a one-off operation; no rename work remains here. What remains is updating `context/constitution.md` to drop the "exploratory phase" language and lock in the decisions made during brainstorming + discovery.
+Update `context/constitution.md` to drop the "exploratory phase" language and lock in the decisions made during brainstorming + discovery.
 
 **Files to modify:**
 - `context/constitution.md`
@@ -172,20 +172,7 @@ Zeno is a personal agent. The person who owns this instance is described in `USE
 The initial scope is deliberately minimal: one channel (Slack), one backend (Claude Code), zero custom tools. Beyond MVP, Zeno is intended to grow into a development agent — clone repos, edit code, open PRs — invoked from Slack threads.
 ```
 
-- [ ] **Step 4: Verify there are no residual `Zerk`/`Wesker`/`<redacted>` references**
-
-```bash
-grep -rn -E "\bZerk\b|\b<redacted>\b|\bWesker\b|\bwesker\b" \
-  --include="*.md" \
-  --exclude-dir=.git \
-  --exclude-dir=node_modules \
-  --exclude-dir=.claude \
-  . | grep -v "/Users/operator/www/agents/<redacted>/<redacted>/"
-```
-
-Expected: zero output. (The `grep -v` excludes the local working-directory path, which is intentionally NOT renamed.)
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add context/constitution.md

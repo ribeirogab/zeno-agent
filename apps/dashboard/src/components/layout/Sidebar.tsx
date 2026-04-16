@@ -10,9 +10,9 @@ interface NavItem {
 
 const navItems: ReadonlyArray<NavItem> = [
   { label: 'Home', to: '/', enabled: true },
-  { label: 'Crons', to: '/crons', enabled: false },
-  { label: 'Sessions', to: '/sessions', enabled: false },
-  { label: 'Settings', to: '/settings', enabled: false },
+  { label: 'Crons', to: '/crons', enabled: true },
+  { label: 'Sessions', to: '/sessions', enabled: true },
+  { label: 'Settings', to: '/settings', enabled: true },
   { label: 'Logs', to: '/logs', enabled: false },
 ];
 

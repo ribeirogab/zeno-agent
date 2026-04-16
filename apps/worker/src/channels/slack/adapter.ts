@@ -1,7 +1,9 @@
 import { App, LogLevel } from '@slack/bolt';
 import { normalizeSlackEvent } from '@/channels/slack/normalize';
 import type { Channel, MessageHandler, MessageTarget } from '@/channels/types';
-import { logger } from '@/logger';
+import { createLogger } from '@zeno/logger';
+
+const logger = createLogger({ service: 'worker' });
 
 interface SlackChannelOptions {
   appToken: string;

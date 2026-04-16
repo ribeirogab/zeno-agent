@@ -2,10 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentBackend } from '@/agent/types';
 import type { Channel, MessageHandler, MessageTarget } from '@/channels/types';
 import { CronRunner } from '@/cron/runner';
-import { type DB, openDatabase } from '@/storage/db';
-import { runMigrations } from '@/storage/migrations';
-import { CronRunRepo } from '@/storage/repos/cron-runs';
-import { CronRepo } from '@/storage/repos/crons';
+import { CronRepo, CronRunRepo, type DB, openDatabase, runMigrations } from '@zeno/storage';
 
 class StubChannel implements Channel {
   readonly name = 'slack';

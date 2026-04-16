@@ -1,5 +1,7 @@
 import { existsSync, type FSWatcher, watch } from 'node:fs';
-import { logger } from '@/logger';
+import { createLogger } from '@zeno/logger';
+
+const logger = createLogger({ service: 'worker' });
 
 /** Logical groupings of profile/ files. The watcher dispatches one group per debounce window. */
 type FileGroup = 'prompt' | 'crons' | 'mcp' | 'ignored';

@@ -1,5 +1,7 @@
 import type { AgentBackend, AgentInput, AgentOutput } from '@/agent/types';
-import { logger } from '@/logger';
+import { createLogger } from '@zeno/logger';
+
+const logger = createLogger({ service: 'worker' });
 
 export interface Fixture {
   /** RegExp tested against the (slack-context-stripped) user message. First match wins. */

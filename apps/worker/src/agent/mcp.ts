@@ -1,5 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { logger } from '@/logger';
+import { createLogger } from '@zeno/logger';
+
+const logger = createLogger({ service: 'worker' });
 
 const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
 

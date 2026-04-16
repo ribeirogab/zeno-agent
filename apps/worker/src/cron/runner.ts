@@ -1,10 +1,10 @@
 import type { AgentBackend } from '@/agent/types';
 import type { Channel, MessageTarget } from '@/channels/types';
 import { nextRunAfter } from '@/cron/parser';
-import { logger } from '@/logger';
-import type { CronRunRepo } from '@/storage/repos/cron-runs';
-import type { CronRepo } from '@/storage/repos/crons';
-import type { Cron } from '@/storage/types';
+import { createLogger } from '@zeno/logger';
+import type { Cron, CronRepo, CronRunRepo } from '@zeno/storage';
+
+const logger = createLogger({ service: 'worker' });
 
 interface CronRunnerOptions {
   crons: CronRepo;

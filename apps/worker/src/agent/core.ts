@@ -1,7 +1,9 @@
 import { type AgentBackend, AgentBackendError, type AgentInput } from '@/agent/types';
 import type { Channel, IncomingMessage, MessageTarget } from '@/channels/types';
-import { logger } from '@/logger';
-import type { SessionRepo } from '@/storage/repos/sessions';
+import { createLogger } from '@zeno/logger';
+import type { SessionRepo } from '@zeno/storage';
+
+const logger = createLogger({ service: 'worker' });
 
 interface AgentCoreOptions {
   backend: AgentBackend;

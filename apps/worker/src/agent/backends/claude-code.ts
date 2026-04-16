@@ -7,7 +7,9 @@ import {
   type AgentOutput,
   type ToolCallSummary,
 } from '@/agent/types';
-import { logger } from '@/logger';
+import { createLogger } from '@zeno/logger';
+
+const logger = createLogger({ service: 'worker' });
 
 // biome-ignore lint/suspicious/noExplicitAny: an in-process MCP server returned by createSdkMcpServer; SDK types are not exported
 type InProcessMcpServer = any;

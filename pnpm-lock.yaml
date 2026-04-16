@@ -58,6 +58,40 @@ importers:
         specifier: ^4.1.4
         version: 4.1.4(@types/node@24.12.2)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
 
+  apps/worker:
+    dependencies:
+      '@anthropic-ai/claude-agent-sdk':
+        specifier: ^0.2.110
+        version: 0.2.110(zod@4.3.6)
+      '@slack/bolt':
+        specifier: ^4.7.0
+        version: 4.7.0(@types/express@5.0.6)
+      '@zeno/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      '@zeno/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
+      cron-parser:
+        specifier: ^5.5.0
+        version: 5.5.0
+      yaml:
+        specifier: ^2.8.3
+        version: 2.8.3
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      tsc-alias:
+        specifier: ^1.8.16
+        version: 1.8.16
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.2
+      vitest:
+        specifier: ^4.1.4
+        version: 4.1.4(@types/node@24.12.2)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
+
   packages/logger:
     dependencies:
       pino:

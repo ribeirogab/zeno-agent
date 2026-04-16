@@ -2,8 +2,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import { nextRunAfter, validateSchedule } from '@/cron/parser';
-import { logger } from '@/logger';
-import type { CreateCronInput } from '@/storage/types';
+import { createLogger } from '@zeno/logger';
+import type { CreateCronInput } from '@zeno/storage';
+
+const logger = createLogger({ service: 'worker' });
 
 const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
 

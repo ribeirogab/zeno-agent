@@ -2,10 +2,10 @@ import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import { nextRunAfter, validateSchedule } from '@/cron/parser';
 import type { CronRunner } from '@/cron/runner';
-import { logger } from '@/logger';
-import type { CronRunRepo } from '@/storage/repos/cron-runs';
-import type { CronRepo } from '@/storage/repos/crons';
-import type { Cron, CronRun, CronSource } from '@/storage/types';
+import { createLogger } from '@zeno/logger';
+import type { Cron, CronRepo, CronRun, CronRunRepo, CronSource } from '@zeno/storage';
+
+const logger = createLogger({ service: 'worker' });
 
 interface CronToolDeps {
   crons: CronRepo;

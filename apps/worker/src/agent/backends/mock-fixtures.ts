@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import type { Fixture } from '@/agent/backends/mock';
-import { logger } from '@/logger';
+import { createLogger } from '@zeno/logger';
+
+const logger = createLogger({ service: 'worker' });
 
 const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
 

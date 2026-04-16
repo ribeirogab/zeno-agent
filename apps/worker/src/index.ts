@@ -12,13 +12,18 @@ import { type Config, loadConfig } from '@/config';
 import { CronRunner } from '@/cron/runner';
 import { loadStaticCrons } from '@/cron/static-loader';
 import { buildCronMcpServer } from '@/cron/tools';
-import { logger } from '@/logger';
 import { ProfileWatcher } from '@/profile/watcher';
-import { closeDatabase, openDatabase } from '@/storage/db';
-import { runMigrations } from '@/storage/migrations';
-import { CronRunRepo } from '@/storage/repos/cron-runs';
-import { CronRepo } from '@/storage/repos/crons';
-import { SessionRepo } from '@/storage/repos/sessions';
+import { createLogger } from '@zeno/logger';
+import {
+  closeDatabase,
+  CronRepo,
+  CronRunRepo,
+  openDatabase,
+  runMigrations,
+  SessionRepo,
+} from '@zeno/storage';
+
+const logger = createLogger({ service: 'worker' });
 
 interface RunResult {
   code: number | null;
@@ -116,7 +121,9 @@ async function main(): Promise<void> {
 
   const dbPath = join(config.workspaceDir, 'zeno.db');
   const db = openDatabase(dbPath);
+  logger.info({ event: 'db_opened', path: dbPath }, 'database opened');
   runMigrations(db);
+  logger.info({ event: 'migrations_applied' }, 'migrations applied');
   const sessions = new SessionRepo(db);
   const crons = new CronRepo(db);
   const cronRuns = new CronRunRepo(db);
@@ -209,6 +216,7 @@ async function main(): Promise<void> {
       // best effort
     }
     try {
+      logger.info({ event: 'db_closed' }, 'closing database');
       closeDatabase(db);
     } catch {
       // best effort

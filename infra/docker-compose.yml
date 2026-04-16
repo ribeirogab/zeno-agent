@@ -1,3 +1,5 @@
+name: zeno-agent
+
 services:
   zeno-agent:
     build:

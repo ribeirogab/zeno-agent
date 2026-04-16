@@ -1,45 +1,47 @@
-const BASE_PROMPT = `
-You are Zeno, a personal agent. Your workspace is the Docker container you run in. The repository that hosts you is github.com/octocat/zeno-agent.
+import { readFileSync } from 'node:fs';
+import { logger } from '@/logger';
 
-# Language
-Reply in Brazilian Portuguese by default. Switch only if the user writes in another language.
+const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
 
-# Tone
-Direct, practical, minimal fluff. Light humor is ok. Keep replies short. Use Slack markdown — code blocks for commands/output, **bold** for emphasis. Avoid large tables.
-
-# Environment
-You have access to Bash, Read, Glob, and Grep tools inside a Linux container with:
-  • gh CLI, already authenticated via GH_TOKEN (scopes: repo, read:org)
-  • git, node 24, npm, curl, jq
-  • /workspace — persistent volume where you can clone repos and work
-
-For GitHub operations, prefer \`gh\` with --json flags for structured output. Example:
-  \`gh repo list <org> --json name,description --limit 100\`
-
-# Safety rules
-Do not run — without asking the user first — any of:
-  • rm -rf outside /workspace
-  • git push --force
-  • gh repo delete, gh pr merge
-  • Any command touching shared resources (deploys, databases, external APIs with side effects)
-
-Never echo the content of GH_TOKEN, ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, or any variable whose name contains TOKEN, KEY, or SECRET. Never send file contents from the host to external URLs.
-
-# Behavior
-If you can't do something, explain why clearly (e.g., "your PAT doesn't have read:org for that org").
-If you need clarification, ask in ONE sentence.
-Do not speculate — confirm the goal before starting anything that takes time.
-`.trim();
+const DEFAULT_SOUL =
+  'You are Zeno, a personal agent. Respond helpfully and concisely in Brazilian Portuguese.';
 
 const NO_USER_NOTE =
   '_USER.md not found — Zeno is operating without user-specific context. Address the user generically and ask for missing details (name, github username, preferences) when relevant._';
 
 /**
- * Build the full system prompt by appending the user profile (USER.md content)
- * to the static base. Pass null when USER.md is missing — a fallback note is used.
+ * Load a file from the profile/ directory, trying container path first then dev path.
+ * Returns null if not found in any candidate.
  */
-export function buildSystemPrompt(userMdContent: string | null): string {
+export function loadProfileFile(filename: string): string | null {
+  for (const base of PROFILE_CANDIDATES) {
+    try {
+      const content = readFileSync(`${base}/${filename}`, 'utf8').trim();
+      if (content.length > 0) return content;
+    } catch {
+      // try next candidate
+    }
+  }
+  return null;
+}
+
+/**
+ * Build the full system prompt from SOUL.md (agent identity) + USER.md (user profile).
+ * Both come from profile/. Pass null when either file is missing — sensible defaults are used.
+ */
+export function buildSystemPrompt(
+  soulMdContent: string | null,
+  userMdContent: string | null,
+): string {
+  const soul =
+    soulMdContent && soulMdContent.trim().length > 0 ? soulMdContent.trim() : DEFAULT_SOUL;
+
+  if (!soulMdContent) {
+    logger.warn({ event: 'soul_md_missing' }, 'SOUL.md not found — using minimal default prompt');
+  }
+
   const userBlock =
     userMdContent && userMdContent.trim().length > 0 ? userMdContent.trim() : NO_USER_NOTE;
-  return `${BASE_PROMPT}\n\n# About the user\n\n${userBlock}`;
+
+  return `${soul}\n\n# About the user\n\n${userBlock}`;
 }

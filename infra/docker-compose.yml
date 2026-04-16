@@ -1,12 +1,14 @@
 services:
   zeno-agent:
-    build: .
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
     image: zeno-agent:dev
     container_name: zeno-agent
-    env_file: .env
+    env_file: ../.env
     volumes:
       - workspace:/workspace
-      - ./USER.md:/app/USER.md:ro
+      - ../profile:/app/profile:ro
     restart: unless-stopped
     stdin_open: true
     tty: true

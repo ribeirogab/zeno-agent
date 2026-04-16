@@ -48,7 +48,11 @@ export class ClaudeCodeBackend implements AgentBackend {
           abortController: controller,
           stderr: (line) => {
             logger.warn(
-              { event: 'sdk_stderr', correlationId: input.correlationId, line: line.slice(0, 1000) },
+              {
+                event: 'sdk_stderr',
+                correlationId: input.correlationId,
+                line: line.slice(0, 1000),
+              },
               'sdk stderr',
             );
           },

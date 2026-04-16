@@ -1,8 +1,7 @@
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { ClaudeCodeBackend } from '@/agent/backends/claude-code';
 import { AgentCore } from '@/agent/core';
-import { buildSystemPrompt } from '@/agent/system-prompt';
+import { buildSystemPrompt, loadProfileFile } from '@/agent/system-prompt';
 import { SlackChannel } from '@/channels/slack/adapter';
 import { type Config, loadConfig } from '@/config';
 import { logger } from '@/logger';
@@ -28,19 +27,6 @@ async function run(cmd: string, args: string[], env?: NodeJS.ProcessEnv): Promis
   });
 }
 
-/** Try /app/USER.md (Docker mount) first, then ./USER.md (dev mode). */
-function loadUserMd(): string | null {
-  for (const path of ['/app/USER.md', 'USER.md']) {
-    try {
-      const content = readFileSync(path, 'utf8').trim();
-      if (content.length > 0) return content;
-    } catch {
-      // try next candidate
-    }
-  }
-  return null;
-}
-
 async function healthChecks(config: Config): Promise<void> {
   const ghResult = await run('gh', ['auth', 'status'], { GH_TOKEN: config.github.token });
   if (ghResult.code !== 0) {
@@ -54,7 +40,6 @@ async function healthChecks(config: Config): Promise<void> {
   }
   logger.info({ event: 'claude_cli_ok', version: claudeResult.out.trim() }, 'claude CLI available');
 
-  // CLAUDE_CODE_OAUTH_TOKEN presence was already validated by loadConfig() via zod.
   logger.info({ event: 'claude_oauth_token_present' }, 'Claude OAuth token configured');
 }
 
@@ -64,7 +49,13 @@ async function main(): Promise<void> {
 
   await healthChecks(config);
 
-  const userMd = loadUserMd();
+  // Load profile files (SOUL.md = agent identity, USER.md = user profile)
+  const soulMd = loadProfileFile('SOUL.md');
+  if (soulMd) {
+    logger.info({ event: 'soul_md_loaded', bytes: soulMd.length }, 'SOUL.md loaded');
+  }
+
+  const userMd = loadProfileFile('USER.md');
   if (userMd) {
     logger.info({ event: 'user_md_loaded', bytes: userMd.length }, 'USER.md loaded');
   } else {
@@ -73,7 +64,8 @@ async function main(): Promise<void> {
       'USER.md not found — Zeno will run without user-specific context',
     );
   }
-  const systemPrompt = buildSystemPrompt(userMd);
+
+  const systemPrompt = buildSystemPrompt(soulMd, userMd);
 
   const backend = new ClaudeCodeBackend();
   const core = new AgentCore({ backend, workspaceDir: config.workspaceDir, systemPrompt });
@@ -88,7 +80,7 @@ async function main(): Promise<void> {
     try {
       await slack.stop();
     } catch {
-      // best effort during shutdown
+      // best effort
     }
     process.exit(0);
   };

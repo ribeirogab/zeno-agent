@@ -1,6 +1,6 @@
 # Zeno — Agent Instructions
 
-Zeno is a personal agent. The person who owns this instance is described in `USER.md` at the repo root — gitignored, see `USER.example.md` for the template and what goes in it. This repository is Zeno's workspace — the place where its identity, capabilities, configuration, and operating knowledge live. The first implementation is underway per `context/specs/0001-slack-zeno-mvp/` (Slack ↔ Claude Code via OAuth ↔ GitHub).
+Zeno is a personal agent. The person who owns this instance is described in `profile/USER.md` (gitignored — see `profile/USER.example.md` for the template). This repository is Zeno's workspace — the place where its identity, capabilities, configuration, and operating knowledge live.
 
 ## Before starting any work
 

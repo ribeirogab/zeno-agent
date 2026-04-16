@@ -2,97 +2,125 @@
 
 Personal agent. Runs in Docker on your machine, listens to Slack via Socket Mode, answers using Claude Code (OAuth subscription auth).
 
+## Project structure
+
+```
+zeno-agent/
+├── profile/                  # runtime: mounted into container (read-only)
+│   ├── SOUL.md               # agent personality and rules
+│   ├── USER.md (gitignored)  # your personal profile
+│   ├── USER.example.md       # template for USER.md
+│   └── skills/               # SKILL.md bundles (agentskills.io)
+├── src/                      # TypeScript source
+│   ├── index.ts              # boot + composition root
+│   ├── config.ts             # env validation (zod)
+│   ├── logger.ts             # pino structured JSON
+│   ├── channels/             # message-source adapters (Slack, future Discord…)
+│   └── agent/                # core + backends + prompt loader
+├── tests/                    # vitest
+├── context/                  # maintainer knowledge vault (NOT in container)
+├── infra/                    # Dockerfile, docker-compose, Slack manifest
+├── AGENTS.md                 # instructions for AI agents working on this code
+└── .env.example              # env var template
+```
+
 ## Prerequisites
 
 - Docker and Docker Compose
-- A Slack App with Socket Mode enabled (scopes: `app_mentions:read`, `chat:write`, `im:history`, `im:read`, `users:read`, `reactions:write` + `connections:write` for the App-Level token)
+- A Slack App with Socket Mode enabled (see `infra/slack-app-manifest.json` or create via `infra/README.md`)
 - A GitHub PAT with `repo` + `read:org`
 - A Claude Code account (Pro/Max plan)
 
 ## Setup
 
-1. Clone the repo and copy the env template:
-
+1. **Env vars:**
    ```bash
    cp .env.example .env
    ```
+   Fill in `SLACK_APP_TOKEN`, `SLACK_BOT_TOKEN`, `GH_TOKEN`.
 
-   Fill in `SLACK_APP_TOKEN` (`xapp-…`), `SLACK_BOT_TOKEN` (`xoxb-…`), and `GH_TOKEN` (`ghp_…`).
-
-2. Create your user profile:
-
+2. **User profile:**
    ```bash
-   cp USER.example.md USER.md
+   cp profile/USER.example.md profile/USER.md
+   ```
+   Fill in name, GitHub username, Slack user ID, preferences.
+
+3. **Build:**
+   ```bash
+   npm run build:docker
    ```
 
-   Open `USER.md` and fill in your name, GitHub username, Slack user ID, and any preferences/context you want Zeno to know. The file is gitignored — your profile never leaves the machine. Required: `docker compose up` will fail without it.
-
-3. Build the image:
-
+4. **Claude OAuth token** (first time + on expiry):
    ```bash
-   docker compose build
+   docker compose -f infra/docker-compose.yml --project-directory . run --rm zeno-agent claude setup-token
    ```
+   Complete OAuth in browser, paste the printed token into `.env` as `CLAUDE_CODE_OAUTH_TOKEN`.
 
-4. Mint the Claude Code OAuth token (first time, and whenever it expires):
-
+5. **Start:**
    ```bash
-   docker compose run --rm zeno-agent claude setup-token
+   npm run up
+   npm run logs
    ```
-
-   A browser URL prints in the terminal — open it, complete OAuth on your host browser, the CLI prints the token. Paste the token into `.env` as `CLAUDE_CODE_OAUTH_TOKEN=<token>`.
-
-5. Start Zeno:
-
-   ```bash
-   docker compose up -d
-   docker compose logs -f zeno-agent
-   ```
-
-   Watch for the `zeno_online` log event. The line `user_md_loaded` confirms your profile was read.
+   Watch for: `soul_md_loaded` → `user_md_loaded` → `slack_connected` → `zeno_online`.
 
 ## Usage
 
-Mention the bot in any Slack channel where it's invited:
+Mention the bot in any channel where it's invited:
 
 > @zeno quais repos tem na octocat?
 
 Or DM it directly.
 
+## Docker scripts
+
+| Script | What it does |
+|---|---|
+| `npm run build:docker` | Build the container image |
+| `npm run up` | Start in background |
+| `npm run down` | Stop |
+| `npm run logs` | Tail logs |
+
 ## Performance
 
-The spec targets ~30 seconds end-to-end for the happy path — this is a **warm-path** target, not a guarantee. Cold-start responses (first mention after container restart or a full rebuild) may take 45–60 seconds as Claude Code initializes.
+~30 seconds end-to-end warm-path target (not a guarantee). Cold starts may take 45-60s.
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| "meu token Claude expirou" | Re-run `docker compose run --rm zeno-agent claude setup-token`, paste new token into `.env`, `docker compose up -d --force-recreate` |
-| Container exits with "Invalid environment" | Check `.env` — all four vars (`SLACK_APP_TOKEN`, `SLACK_BOT_TOKEN`, `GH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`) must be set |
-| `docker compose up` fails with `USER.md not found` | Run step 2 above (`cp USER.example.md USER.md` and fill in) |
-| Bot doesn't react to mentions | Verify the Socket Mode connection in the Slack app config; check logs for `slack_connected` |
-| "não tenho acesso à org X" | Your PAT needs `read:org` and, for SAML SSO orgs, must be authorized for that org in GitHub settings |
+| "meu token Claude expirou" | Re-run `claude setup-token`, paste new token into `.env`, `npm run up` again |
+| "Invalid environment" on boot | Check `.env` — all 4 tokens must be set |
+| Mount error for `profile/USER.md` | `cp profile/USER.example.md profile/USER.md` and fill in |
+| Bot doesn't react to mentions | Check Slack Socket Mode config; look for `slack_connected` in logs |
+| "não tenho acesso à org X" | PAT needs `read:org`; for SSO orgs, authorize the token in GitHub settings |
 
 ## Architecture
 
-See `context/specs/0001-slack-zeno-mvp/` for the full spec, plan, and task breakdown. Briefly:
+- **Channels** (`src/channels/`) — pluggable message sources. Slack is MVP.
+- **Agent Core** (`src/agent/core.ts`) — wires channel to backend. Channel-agnostic, backend-agnostic.
+- **Agent Backends** (`src/agent/backends/`) — pluggable LLM engines. Claude Code (via `@anthropic-ai/claude-agent-sdk`) is MVP.
+- **Profile** (`profile/`) — `SOUL.md` (agent identity) + `USER.md` (who you are) + `skills/` (reusable capabilities). Mounted read-only into the container.
+- **Tools** — zero custom. Zeno uses Claude Code's built-in Bash/Read/Glob/Grep. GitHub queries go via `gh` CLI.
 
-- **Channels** (`src/channels/`) — pluggable message sources. Slack is MVP; Discord/Telegram are future.
-- **Agent Core** (`src/agent/core.ts`) — wires a channel to a backend. Channel-agnostic and backend-agnostic.
-- **Agent Backends** (`src/agent/backends/`) — pluggable reasoning engines. Claude Code is MVP (via `@anthropic-ai/claude-agent-sdk`); Codex/Gemini future.
-- **Tools** — none. Zeno uses Claude Code's built-in tools (Bash etc.) directly. GitHub queries go via the `gh` CLI inside the container.
+Full spec: `context/specs/0001-slack-zeno-mvp/`.
 
 ## Development
 
-Local dev outside Docker (faster iteration):
-
 ```bash
 npm install
-# Requires gh + claude installed on host
-npm run dev
+npm run dev        # tsx watch (requires gh + claude on host)
+npm run check      # biome format + lint + organize imports
+npm run typecheck  # tsc --noEmit
+npm test           # vitest
+npm run build      # tsc + tsc-alias
 ```
 
-Scripts:
-- `npm run check` — Biome (format + lint + organize imports, write changes)
-- `npm run typecheck` — `tsc --noEmit`
-- `npm test` — vitest run
-- `npm run build` — `tsc`
+## Smoke test
+
+After setup, verify these in order:
+
+1. `npm run up` → logs show `zeno_online`
+2. `@zeno oi` in Slack → eyes reaction → PT-BR reply → checkmark
+3. `@zeno quais repos tem na octocat?` → lists repos via `gh`
+4. DM the bot → reply in DM (no thread)
+5. Ask about an org you don't have access to → explains clearly, no raw stderr

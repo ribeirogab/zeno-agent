@@ -8,7 +8,7 @@ context/.obsidian/plugins/*/data.json
 .DS_Store
 
 # User profile (personal to whoever runs this Zeno instance)
-USER.md
+profile/USER.md
 
 # Node
 node_modules/

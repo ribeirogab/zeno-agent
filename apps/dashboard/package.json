@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.99.0",
+    "@tanstack/react-router": "^1.168.22",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "react": "^19.2.5",
@@ -21,6 +22,8 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",
+    "@tanstack/router-cli": "^1.166.33",
+    "@tanstack/router-plugin": "^1.167.22",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "25.6.0",

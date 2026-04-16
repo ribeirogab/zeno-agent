@@ -1,10 +1,14 @@
+import type { DB } from '@zeno/storage';
 import { Hono } from 'hono';
+import { requireAuth } from '@/auth/middleware';
 import type { ApiConfig } from '@/config';
 import { buildAuthRoutes } from '@/routes/auth';
 import { healthRoute } from '@/routes/health';
+import { buildStatsRoute } from '@/routes/stats';
 
 export interface AppDeps {
   config: ApiConfig;
+  db: DB;
 }
 
 export function createApp(deps: AppDeps): Hono {
@@ -19,5 +23,7 @@ export function createApp(deps: AppDeps): Hono {
       secure,
     }),
   );
+  app.use('/api/stats', requireAuth({ secret: deps.config.sessionSecret, secure }));
+  app.route('/api/stats', buildStatsRoute(deps.db));
   return app;
 }

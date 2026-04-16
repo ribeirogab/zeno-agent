@@ -1,3 +1,4 @@
+import { openDatabase, runMigrations } from '@zeno/storage';
 import { describe, expect, it } from 'vitest';
 import { COOKIE_NAME } from '@/auth/middleware';
 import { createApp } from '@/server';
@@ -6,6 +7,8 @@ const TEST_PASSWORD = 'test-password-123';
 const TEST_SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 function makeApp() {
+  const db = openDatabase(':memory:');
+  runMigrations(db);
   return createApp({
     config: {
       password: TEST_PASSWORD,
@@ -15,6 +18,7 @@ function makeApp() {
       nodeEnv: 'test',
       port: 3000,
     },
+    db,
   });
 }
 

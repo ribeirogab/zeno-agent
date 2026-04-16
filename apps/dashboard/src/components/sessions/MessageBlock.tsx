@@ -12,11 +12,18 @@ export function MessageBlock({ message }: { message: SessionMessageApi }): JSX.E
       <div className="whitespace-pre-wrap text-sm leading-6 text-text-primary">{message.text}</div>
       {message.toolCalls.length > 0 && (
         <div className="flex flex-col gap-1 pt-1">
-          {message.toolCalls.map((tc, i) => (
-            <span key={i} className="font-mono text-[11px] text-text-tertiary">
-              → {tc.tool}({typeof tc.input === 'object' ? JSON.stringify(tc.input) : String(tc.input)})
-            </span>
-          ))}
+          {message.toolCalls.map((tc) => {
+            const inputText =
+              typeof tc.input === 'object' ? JSON.stringify(tc.input) : String(tc.input);
+            return (
+              <span
+                key={`${tc.tool}:${inputText}`}
+                className="font-mono text-[11px] text-text-tertiary"
+              >
+                → {tc.tool}({inputText})
+              </span>
+            );
+          })}
         </div>
       )}
     </div>

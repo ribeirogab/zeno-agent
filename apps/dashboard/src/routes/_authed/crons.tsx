@@ -19,8 +19,8 @@ function CronsPage(): JSX.Element {
           </span>
           <h1 className="text-[22px] font-semibold tracking-tight text-text-primary">Crons</h1>
           <p className="max-w-[560px] text-sm leading-5 text-text-secondary">
-            Recurring tasks. Static lives in <span className="font-mono">profile/crons.yaml</span>;
-            chat-source crons came from Slack or the dashboard.
+            Recurring tasks. Static lives in <span className="font-mono">profile/crons.yaml</span>
+            {' · '}chat-source crons came from Slack or the dashboard.
           </p>
         </div>
         <Link to="/crons/new">

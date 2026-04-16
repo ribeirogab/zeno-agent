@@ -25,7 +25,9 @@ function SessionsPage(): JSX.Element {
         {q.data?.length === 0 && (
           <span className="py-4 text-sm text-text-secondary">nenhuma sessão ainda</span>
         )}
-        {q.data?.map((s) => <SessionRow key={s.threadId} session={s} />)}
+        {q.data?.map((s) => (
+          <SessionRow key={s.threadId} session={s} />
+        ))}
       </section>
     </div>
   );

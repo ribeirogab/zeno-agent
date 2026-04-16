@@ -111,3 +111,19 @@ describe('GET /api/logs', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('GET /api/logs/stream', () => {
+  it('rejects without auth', async () => {
+    const res = await makeApp(db).request('/api/logs/stream');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns a text/event-stream response with correct headers', async () => {
+    seedLog('2026-04-16T12:00:00.000Z', 30, 'initial');
+    const res = await makeApp(db).request('/api/logs/stream?sinceId=0', {
+      headers: authed(),
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toContain('text/event-stream');
+  });
+});

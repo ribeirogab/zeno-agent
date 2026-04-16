@@ -1,0 +1,25 @@
+{
+  "name": "@zeno/dashboard",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.8",
+    "vitest": "^4.1.4"
+  }
+}

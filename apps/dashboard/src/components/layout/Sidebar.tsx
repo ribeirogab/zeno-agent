@@ -13,7 +13,7 @@ const navItems: ReadonlyArray<NavItem> = [
   { label: 'Crons', to: '/crons', enabled: true },
   { label: 'Sessions', to: '/sessions', enabled: true },
   { label: 'Settings', to: '/settings', enabled: true },
-  { label: 'Logs', to: '/logs', enabled: false },
+  { label: 'Logs', to: '/logs', enabled: true },
 ];
 
 const dotColor: Record<ServiceStatus, string> = {

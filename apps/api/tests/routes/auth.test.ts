@@ -22,6 +22,7 @@ function makeApp() {
     cronRepo: new CronRepo(db),
     cronRunRepo: new CronRunRepo(db),
     commandRepo: new CommandRepo(db),
+    claudeHome: '/tmp',
   });
 }
 

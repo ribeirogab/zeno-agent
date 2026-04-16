@@ -1,3 +1,4 @@
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
@@ -27,7 +28,18 @@ function main(): void {
   const here = dirname(fileURLToPath(import.meta.url));
   // After build: apps/api/dist/index.js → ../.. → apps → /dashboard/dist
   const spaDir = join(here, '..', '..', 'dashboard', 'dist');
-  const app = createApp({ config, db, cronRepo, cronRunRepo, commandRepo, spaDir });
+  // Claude Code JSONL transcripts live under $HOME/.claude/projects/-workspace/<sessionId>.jsonl.
+  // In the container, the worker user's home is /home/node, so this resolves to the shared volume.
+  const claudeHome = join(homedir(), '.claude', 'projects', '-workspace');
+  const app = createApp({
+    config,
+    db,
+    cronRepo,
+    cronRunRepo,
+    commandRepo,
+    claudeHome,
+    spaDir,
+  });
   const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
     logger.info({ event: 'api_listening', port: info.port }, `api listening on :${info.port}`);
   });

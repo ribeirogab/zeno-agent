@@ -8,6 +8,7 @@ import {
   CommandRepo,
   CronRepo,
   CronRunRepo,
+  LogRepo,
   closeDatabase,
   openDatabase,
   runMigrations,
@@ -25,17 +26,22 @@ function resolveProfileDir(): string {
   return PROFILE_CANDIDATES[PROFILE_CANDIDATES.length - 1] as string;
 }
 
-const logger = createLogger({ service: 'api' });
+// Bootstrap logger for messages that happen before the DB is open. Once the
+// LogRepo exists we swap to a runtime logger wired to the dbSink so every
+// log line also lands in the logs table (powering the Logs page).
+const bootLogger = createLogger({ service: 'api' });
 
 function main(): void {
   const config = loadApiConfig();
-  logger.info({ event: 'api_boot_start' }, 'api booting');
+  bootLogger.info({ event: 'api_boot_start' }, 'api booting');
   const dbPath = join(config.workspaceDir, 'zeno.db');
   const db = openDatabase(dbPath);
   runMigrations(db);
   const cronRepo = new CronRepo(db);
   const cronRunRepo = new CronRunRepo(db);
   const commandRepo = new CommandRepo(db);
+  const logRepo = new LogRepo(db);
+  const logger = createLogger({ service: 'api', dbSink: logRepo });
   const here = dirname(fileURLToPath(import.meta.url));
   // After build: apps/api/dist/index.js → ../.. → apps → /dashboard/dist
   const spaDir = join(here, '..', '..', 'dashboard', 'dist');
@@ -49,6 +55,7 @@ function main(): void {
     cronRepo,
     cronRunRepo,
     commandRepo,
+    logRepo,
     claudeHome,
     profileDir,
     spaDir,

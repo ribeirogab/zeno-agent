@@ -29,3 +29,6 @@ dist/
 # Local scratch / references (screenshots, drafts, etc.)
 tmp/
 
+# Claude Code internal scheduling state (per-machine)
+.claude/scheduled_tasks.lock
+

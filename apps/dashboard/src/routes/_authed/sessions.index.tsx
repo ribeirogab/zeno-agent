@@ -3,7 +3,7 @@ import type { JSX } from 'react';
 import { SessionRow } from '@/components/sessions/SessionRow';
 import { useSessions } from '@/lib/use-sessions';
 
-export const Route = createFileRoute('/_authed/sessions')({
+export const Route = createFileRoute('/_authed/sessions/')({
   component: SessionsPage,
 });
 

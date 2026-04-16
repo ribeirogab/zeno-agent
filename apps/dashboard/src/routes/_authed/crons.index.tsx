@@ -4,7 +4,7 @@ import { CronRow } from '@/components/crons/CronRow';
 import { Button } from '@/components/ui/button';
 import { useCrons } from '@/lib/use-crons';
 
-export const Route = createFileRoute('/_authed/crons')({
+export const Route = createFileRoute('/_authed/crons/')({
   component: CronsPage,
 });
 

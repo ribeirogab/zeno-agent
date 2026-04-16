@@ -8,6 +8,9 @@ services:
     image: zeno-agent:dev
     container_name: zeno-agent
     env_file: .env
+    init: true
+    ports:
+      - "3000:3000"
     volumes:
       - workspace:/workspace
       - claude_home:/home/node/.claude

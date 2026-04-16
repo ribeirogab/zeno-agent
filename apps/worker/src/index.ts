@@ -1,11 +1,12 @@
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
-import { createLogger } from '@zeno/logger';
+import { createLogger, type Logger } from '@zeno/logger';
 import {
   CommandRepo,
   CronRepo,
   CronRunRepo,
   closeDatabase,
+  LogRepo,
   openDatabase,
   runMigrations,
   SessionRepo,
@@ -25,9 +26,8 @@ import { type Config, loadConfig } from '@/config';
 import { CronRunner } from '@/cron/runner';
 import { loadStaticCrons } from '@/cron/static-loader';
 import { buildCronMcpServer } from '@/cron/tools';
+import { LogsRetention } from '@/logs/retention';
 import { ProfileWatcher } from '@/profile/watcher';
-
-const logger = createLogger({ service: 'worker' });
 
 interface RunResult {
   code: number | null;
@@ -60,7 +60,7 @@ interface BackendBuildOptions {
  * Pick the agent backend based on ZENO_BACKEND. Default is the real Claude SDK; 'mock' is for dev/tests.
  * Throws on unknown values so a typo never silently degrades to a mock in prod.
  */
-function buildBackend(opts: BackendBuildOptions): AgentBackend {
+function buildBackend(logger: Logger, opts: BackendBuildOptions): AgentBackend {
   const choice = process.env.ZENO_BACKEND ?? 'claude-code';
   switch (choice) {
     case 'claude-code':
@@ -74,7 +74,7 @@ function buildBackend(opts: BackendBuildOptions): AgentBackend {
   }
 }
 
-async function healthChecks(config: Config): Promise<void> {
+async function healthChecks(logger: Logger, config: Config): Promise<void> {
   const ghResult = await run('gh', ['auth', 'status'], { GH_TOKEN: config.github.token });
   if (ghResult.code !== 0) {
     throw new Error(`gh auth failed: ${ghResult.err.slice(0, 200)}`);
@@ -92,12 +92,18 @@ async function healthChecks(config: Config): Promise<void> {
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  logger.info({ event: 'boot_start' }, 'Zeno booting');
+  // Bootstrap logger for pre-DB events. The real logger (with dbSink) is
+  // created after the DB opens so retention + observability stay consistent.
+  const bootLogger = createLogger({ service: 'worker' });
+  bootLogger.info({ event: 'boot_start' }, 'Zeno booting');
 
   if ((process.env.ZENO_BACKEND ?? 'claude-code') === 'claude-code') {
-    await healthChecks(config);
+    await healthChecks(bootLogger, config);
   } else {
-    logger.info({ event: 'health_checks_skipped' }, 'mock backend selected, skipping CLI checks');
+    bootLogger.info(
+      { event: 'health_checks_skipped' },
+      'mock backend selected, skipping CLI checks',
+    );
   }
 
   // Load profile files (SOUL.md = agent identity, USER.md = user profile)
@@ -108,10 +114,28 @@ async function main(): Promise<void> {
   };
 
   const initialSoul = loadProfileFile('SOUL.md');
+  const initialUser = loadProfileFile('USER.md');
+
+  const promptHolder = { value: buildSystemPrompt(initialSoul, initialUser) };
+
+  const dbPath = join(config.workspaceDir, 'zeno.db');
+  const db = openDatabase(dbPath);
+  bootLogger.info({ event: 'db_opened', path: dbPath }, 'database opened');
+  runMigrations(db);
+  bootLogger.info({ event: 'migrations_applied' }, 'migrations applied');
+  const sessions = new SessionRepo(db);
+  const crons = new CronRepo(db);
+  const cronRuns = new CronRunRepo(db);
+  const commands = new CommandRepo(db);
+  const logs = new LogRepo(db);
+
+  // Real logger now that the sink is available. Every log from here on is
+  // persisted for the dashboard Logs page.
+  const logger = createLogger({ service: 'worker', dbSink: logs });
+
   if (initialSoul) {
     logger.info({ event: 'soul_md_loaded', bytes: initialSoul.length }, 'SOUL.md loaded');
   }
-  const initialUser = loadProfileFile('USER.md');
   if (initialUser) {
     logger.info({ event: 'user_md_loaded', bytes: initialUser.length }, 'USER.md loaded');
   } else {
@@ -120,18 +144,6 @@ async function main(): Promise<void> {
       'USER.md not found — Zeno will run without user-specific context',
     );
   }
-
-  const promptHolder = { value: buildSystemPrompt(initialSoul, initialUser) };
-
-  const dbPath = join(config.workspaceDir, 'zeno.db');
-  const db = openDatabase(dbPath);
-  logger.info({ event: 'db_opened', path: dbPath }, 'database opened');
-  runMigrations(db);
-  logger.info({ event: 'migrations_applied' }, 'migrations applied');
-  const sessions = new SessionRepo(db);
-  const crons = new CronRepo(db);
-  const cronRuns = new CronRunRepo(db);
-  const commands = new CommandRepo(db);
 
   // Static crons are the source of truth in profile/crons.yaml — replace on every boot.
   const staticCrons = loadStaticCrons();
@@ -152,7 +164,7 @@ async function main(): Promise<void> {
   const defaultCronChannel = process.env.ZENO_CRON_DEFAULT_CHANNEL ?? null;
 
   // Build runner first so its `runOnce` is bound to the cron tools
-  const backendForRunner = buildBackend({ mcpServers });
+  const backendForRunner = buildBackend(logger, { mcpServers });
   const runner = new CronRunner({
     crons,
     cronRuns,
@@ -179,7 +191,7 @@ async function main(): Promise<void> {
 
   // The chat-facing backend gets the in-process MCP server with cron CRUD tools wired to repos + runner
   const cronMcp = buildCronMcpServer({ crons, cronRuns, runner });
-  const backend = buildBackend({
+  const backend = buildBackend(logger, {
     mcpServers,
     inProcessMcpServers: { zeno: cronMcp },
   });
@@ -216,6 +228,16 @@ async function main(): Promise<void> {
   commandsPoller.start();
   watcher.start();
 
+  const logsRetention = new LogsRetention({
+    logRepo: logs,
+    retentionDays: config.logsRetentionDays,
+  });
+  logsRetention.start();
+  logger.info(
+    { event: 'logs_retention_scheduled', retentionDays: config.logsRetentionDays },
+    'logs retention scheduled',
+  );
+
   logger.info({ event: 'zeno_online' }, 'Zeno online');
 
   const shutdown = async (signal: string): Promise<void> => {
@@ -227,6 +249,11 @@ async function main(): Promise<void> {
     }
     try {
       runner.stop();
+    } catch {
+      // best effort
+    }
+    try {
+      logsRetention.stop();
     } catch {
       // best effort
     }
@@ -253,6 +280,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  logger.fatal({ event: 'boot_failed', err: String(error) }, 'boot failed');
+  const fatalLogger = createLogger({ service: 'worker' });
+  fatalLogger.fatal({ event: 'boot_failed', err: String(error) }, 'boot failed');
   process.exit(1);
 });

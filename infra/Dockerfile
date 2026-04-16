@@ -13,6 +13,7 @@ FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 COPY apps/worker/package.json ./apps/worker/
 COPY apps/api/package.json ./apps/api/
+COPY apps/dashboard/package.json ./apps/dashboard/
 COPY packages/storage/package.json ./packages/storage/
 COPY packages/logger/package.json ./packages/logger/
 RUN pnpm install --frozen-lockfile
@@ -23,7 +24,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps ./apps
 COPY --from=deps /app/packages ./packages
 COPY . .
-RUN pnpm turbo run build --filter=@zeno/worker... --filter=@zeno/api...
+RUN pnpm turbo run build --filter=@zeno/worker... --filter=@zeno/api... --filter=@zeno/dashboard...
 
 # Stage 4: runtime
 FROM base AS runtime
@@ -43,6 +44,7 @@ COPY --from=builder /app/apps/worker/node_modules ./apps/worker/node_modules
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=builder /app/apps/dashboard/dist ./apps/dashboard/dist
 COPY package.json pnpm-workspace.yaml ./
 
 # Persistent volume mount point (owned by node so the agent can write workspaces)

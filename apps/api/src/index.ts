@@ -1,4 +1,5 @@
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
 import { createLogger } from '@zeno/logger';
 import { closeDatabase, openDatabase, runMigrations } from '@zeno/storage';
@@ -13,7 +14,10 @@ function main(): void {
   const dbPath = join(config.workspaceDir, 'zeno.db');
   const db = openDatabase(dbPath);
   runMigrations(db);
-  const app = createApp({ config, db });
+  const here = dirname(fileURLToPath(import.meta.url));
+  // After build: apps/api/dist/index.js → ../.. → apps → /dashboard/dist
+  const spaDir = join(here, '..', '..', 'dashboard', 'dist');
+  const app = createApp({ config, db, spaDir });
   const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
     logger.info({ event: 'api_listening', port: info.port }, `api listening on :${info.port}`);
   });

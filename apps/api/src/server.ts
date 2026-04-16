@@ -5,11 +5,14 @@ import type { ApiConfig } from '@/config';
 import { buildActivityRoute } from '@/routes/activity';
 import { buildAuthRoutes } from '@/routes/auth';
 import { buildHealthRoute } from '@/routes/health';
+import { serveStaticSpa } from '@/routes/static';
 import { buildStatsRoute } from '@/routes/stats';
 
 export interface AppDeps {
   config: ApiConfig;
   db: DB;
+  /** Absolute path to the dashboard's built static assets (apps/dashboard/dist). Optional in tests. */
+  spaDir?: string;
 }
 
 export function createApp(deps: AppDeps): Hono {
@@ -28,5 +31,8 @@ export function createApp(deps: AppDeps): Hono {
   app.route('/api/stats', buildStatsRoute(deps.db));
   app.use('/api/activity', requireAuth({ secret: deps.config.sessionSecret, secure }));
   app.route('/api/activity', buildActivityRoute(deps.db));
+  if (deps.spaDir) {
+    app.get('*', serveStaticSpa(deps.spaDir));
+  }
   return app;
 }

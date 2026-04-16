@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { ClaudeCodeBackend } from '@/agent/backends/claude-code';
 import { AgentCore } from '@/agent/core';
+import { loadMcpConfig } from '@/agent/mcp';
 import { buildSystemPrompt, loadProfileFile } from '@/agent/system-prompt';
 import { SlackChannel } from '@/channels/slack/adapter';
 import { type Config, loadConfig } from '@/config';
@@ -67,7 +68,17 @@ async function main(): Promise<void> {
 
   const systemPrompt = buildSystemPrompt(soulMd, userMd);
 
-  const backend = new ClaudeCodeBackend();
+  const mcpServers = loadMcpConfig();
+  logger.info(
+    {
+      event: 'mcp_loaded',
+      count: Object.keys(mcpServers).length,
+      servers: Object.keys(mcpServers),
+    },
+    'mcp servers loaded',
+  );
+
+  const backend = new ClaudeCodeBackend({ mcpServers });
   const core = new AgentCore({ backend, workspaceDir: config.workspaceDir, systemPrompt });
 
   const slack = new SlackChannel(config.slack);

@@ -1,4 +1,5 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import type { McpServerConfig } from '@/agent/mcp';
 import {
   type AgentBackend,
   AgentBackendError,
@@ -13,16 +14,20 @@ interface ClaudeCodeBackendOptions {
   timeoutMs?: number;
   /** Tools auto-approved. MVP: Bash only. */
   allowedTools?: string[];
+  /** MCP servers loaded from profile/mcp.json. Passed verbatim to the SDK. */
+  mcpServers?: Record<string, McpServerConfig>;
 }
 
 export class ClaudeCodeBackend implements AgentBackend {
   readonly name = 'claude-code';
   private readonly timeoutMs: number;
   private readonly allowedTools: string[];
+  private readonly mcpServers: Record<string, McpServerConfig>;
 
   constructor(opts: ClaudeCodeBackendOptions = {}) {
     this.timeoutMs = opts.timeoutMs ?? 300_000;
     this.allowedTools = opts.allowedTools ?? ['Bash', 'Read', 'Glob', 'Grep'];
+    this.mcpServers = opts.mcpServers ?? {};
   }
 
   async query(input: AgentInput): Promise<AgentOutput> {
@@ -47,6 +52,10 @@ export class ClaudeCodeBackend implements AgentBackend {
           cwd: input.cwd,
           permissionMode: 'bypassPermissions',
           abortController: controller,
+          ...(Object.keys(this.mcpServers).length > 0
+            ? // biome-ignore lint/suspicious/noExplicitAny: SDK mcpServers type has stricter discriminated union than our config shape
+              { mcpServers: this.mcpServers as any }
+            : {}),
           // Session handling: resume if sessionId provided, or explicitly disable persistence for stateless turns
           ...(input.resumeSessionId
             ? { resume: input.resumeSessionId }

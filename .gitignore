@@ -32,3 +32,6 @@ tmp/
 # Claude Code internal scheduling state (per-machine)
 .claude/scheduled_tasks.lock
 
+# TypeScript incremental build info
+*.tsbuildinfo
+

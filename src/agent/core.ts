@@ -52,7 +52,7 @@ export class AgentCore {
 
       const agentInput: AgentInput = {
         systemPrompt: this.opts.systemPrompt,
-        userMessage: message.text,
+        userMessage: wrapWithSlackContext(message),
         cwd: this.opts.workspaceDir,
         correlationId: message.correlationId,
         // Messages without a thread (DM first msg) are stateless — don't persist the SDK session
@@ -135,6 +135,26 @@ export class AgentCore {
       }
     };
   }
+}
+
+/**
+ * Prepend a `[slack_context]` preamble so the agent can default cron tool args
+ * (notify_conversation_id, notify_thread_id) to the current Slack target.
+ * Concatenated into the user message — NOT into the system prompt — to keep the prompt cache valid.
+ */
+function wrapWithSlackContext(message: IncomingMessage): string {
+  if (message.platform !== 'slack') return message.text;
+  const lines = [
+    '[slack_context]',
+    `conversation_id: ${message.conversationId}`,
+    `thread_id: ${message.threadId ?? 'null'}`,
+    `user_id: ${message.userId}`,
+    `current_time: ${new Date().toISOString()}`,
+    '[/slack_context]',
+    '',
+    message.text,
+  ];
+  return lines.join('\n');
 }
 
 async function safe(fn: () => Promise<unknown>): Promise<void> {

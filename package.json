@@ -29,7 +29,9 @@
     "@anthropic-ai/claude-agent-sdk": "^0.2.110",
     "@slack/bolt": "^4.7.0",
     "better-sqlite3": "^12.9.0",
+    "cron-parser": "^5.5.0",
     "pino": "^10.3.1",
+    "yaml": "^2.8.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {

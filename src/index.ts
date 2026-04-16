@@ -6,6 +6,9 @@ import { loadMcpConfig } from '@/agent/mcp';
 import { buildSystemPrompt, loadProfileFile } from '@/agent/system-prompt';
 import { SlackChannel } from '@/channels/slack/adapter';
 import { type Config, loadConfig } from '@/config';
+import { CronRunner } from '@/cron/runner';
+import { loadStaticCrons } from '@/cron/static-loader';
+import { buildCronMcpServer } from '@/cron/tools';
 import { logger } from '@/logger';
 import { closeDatabase, openDatabase } from '@/storage/db';
 import { runMigrations } from '@/storage/migrations';
@@ -80,9 +83,11 @@ async function main(): Promise<void> {
   const sessions = new SessionRepo(db);
   const crons = new CronRepo(db);
   const cronRuns = new CronRunRepo(db);
-  // crons + cronRuns are wired to the cron runner in spec 0007.
-  void crons;
-  void cronRuns;
+
+  // Static crons are the source of truth in profile/crons.yaml — replace on every boot.
+  const staticCrons = loadStaticCrons();
+  crons.replaceStaticSet(staticCrons);
+  logger.info({ event: 'cron_static_loaded', count: staticCrons.length }, 'static crons loaded');
 
   const mcpServers = loadMcpConfig();
   logger.info(
@@ -94,7 +99,27 @@ async function main(): Promise<void> {
     'mcp servers loaded',
   );
 
-  const backend = new ClaudeCodeBackend({ mcpServers });
+  const slack = new SlackChannel(config.slack);
+  const defaultCronChannel = process.env.ZENO_CRON_DEFAULT_CHANNEL ?? null;
+
+  // Build runner first so its `runOnce` is bound to the cron tools
+  const backendForRunner = new ClaudeCodeBackend({ mcpServers });
+  const runner = new CronRunner({
+    crons,
+    cronRuns,
+    backend: backendForRunner,
+    systemPrompt,
+    workspaceDir: config.workspaceDir,
+    channel: slack,
+    defaultConversationId: defaultCronChannel,
+  });
+
+  // The chat-facing backend gets the in-process MCP server with cron CRUD tools wired to repos + runner
+  const cronMcp = buildCronMcpServer({ crons, cronRuns, runner });
+  const backend = new ClaudeCodeBackend({
+    mcpServers,
+    inProcessMcpServers: { zeno: cronMcp },
+  });
   const core = new AgentCore({
     backend,
     workspaceDir: config.workspaceDir,
@@ -102,13 +127,18 @@ async function main(): Promise<void> {
     sessions,
   });
 
-  const slack = new SlackChannel(config.slack);
   await slack.start(core.bind(slack));
+  runner.start();
 
   logger.info({ event: 'zeno_online' }, 'Zeno online');
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ event: 'shutdown', signal }, 'shutting down');
+    try {
+      runner.stop();
+    } catch {
+      // best effort
+    }
     try {
       await slack.stop();
     } catch {

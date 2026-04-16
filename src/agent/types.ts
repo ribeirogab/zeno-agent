@@ -30,7 +30,7 @@ export interface ToolCallSummary {
  * Classified failure modes the core must distinguish.
  * Anything else becomes AgentBackendError with kind 'unknown'.
  */
-export type AgentBackendErrorKind =
+type AgentBackendErrorKind =
   | 'auth_expired' // Claude OAuth session needs re-login
   | 'rate_limited' // Plan limit hit
   | 'timeout' // Exceeded configured timeout

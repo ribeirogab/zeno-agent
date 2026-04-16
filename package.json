@@ -14,7 +14,8 @@
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check --write .",
-    "quality-gate": "biome check . && tsc --noEmit && vitest run",
+    "knip": "knip",
+    "quality-gate": "biome check . && tsc --noEmit && knip && vitest run",
     "docker:build": "docker compose -f infra/docker-compose.yml --project-directory . build",
     "docker:up": "docker compose -f infra/docker-compose.yml --project-directory . up -d",
     "docker:down": "docker compose -f infra/docker-compose.yml --project-directory . down",
@@ -30,6 +31,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",
     "@types/node": "^24.12.2",
+    "knip": "^6.4.1",
     "tsc-alias": "^1.8.16",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",

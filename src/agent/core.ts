@@ -2,7 +2,7 @@ import { type AgentBackend, AgentBackendError } from '@/agent/types';
 import type { Channel, IncomingMessage, MessageTarget } from '@/channels/types';
 import { logger } from '@/logger';
 
-export interface AgentCoreOptions {
+interface AgentCoreOptions {
   backend: AgentBackend;
   workspaceDir: string;
   /** Full system prompt (built once at boot via buildSystemPrompt). */

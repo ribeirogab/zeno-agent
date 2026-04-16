@@ -8,7 +8,7 @@ import {
 } from '@/agent/types';
 import { logger } from '@/logger';
 
-export interface ClaudeCodeBackendOptions {
+interface ClaudeCodeBackendOptions {
   /** Max wall-clock ms; on expiry the AbortController fires and raises kind=timeout. */
   timeoutMs?: number;
   /** Tools auto-approved. MVP: Bash only. */

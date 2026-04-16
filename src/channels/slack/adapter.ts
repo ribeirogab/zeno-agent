@@ -3,7 +3,7 @@ import { normalizeSlackEvent } from '@/channels/slack/normalize';
 import type { Channel, MessageHandler, MessageTarget } from '@/channels/types';
 import { logger } from '@/logger';
 
-export interface SlackChannelOptions {
+interface SlackChannelOptions {
   appToken: string;
   botToken: string;
 }

@@ -8,6 +8,7 @@ import { buildAuthRoutes } from '@/routes/auth';
 import { buildCronsRoute } from '@/routes/crons';
 import { buildHealthRoute } from '@/routes/health';
 import { buildSessionsRoute } from '@/routes/sessions';
+import { buildSettingsRoute } from '@/routes/settings';
 import { serveStaticSpa } from '@/routes/static';
 import { buildStatsRoute } from '@/routes/stats';
 
@@ -19,6 +20,8 @@ export interface AppDeps {
   commandRepo: CommandRepo;
   /** Directory holding Claude Code JSONL transcripts (e.g. `~/.claude/projects/-workspace`). */
   claudeHome: string;
+  /** Directory holding the agent profile files (SOUL.md, USER.md, crons.yaml, mcp.json). */
+  profileDir: string;
   /** Absolute path to the dashboard's built static assets (apps/dashboard/dist). Optional in tests. */
   spaDir?: string;
 }
@@ -56,6 +59,15 @@ export function createApp(deps: AppDeps): Hono {
     buildSessionsRoute({
       sessions: new SessionRepo(deps.db),
       claudeHome: deps.claudeHome,
+    }),
+  );
+  app.use('/api/settings', requireAuth({ secret: deps.config.sessionSecret, secure }));
+  app.use('/api/settings/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
+  app.route(
+    '/api/settings',
+    buildSettingsRoute({
+      commands: deps.commandRepo,
+      profileDir: deps.profileDir,
     }),
   );
   if (deps.spaDir) {

@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +14,16 @@ import {
 } from '@zeno/storage';
 import { loadApiConfig } from '@/config';
 import { createApp } from '@/server';
+
+// Mirror the worker's PROFILE_CANDIDATES: container path first, dev fallback second.
+const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
+
+function resolveProfileDir(): string {
+  for (const candidate of PROFILE_CANDIDATES) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return PROFILE_CANDIDATES[PROFILE_CANDIDATES.length - 1] as string;
+}
 
 const logger = createLogger({ service: 'api' });
 
@@ -31,6 +42,7 @@ function main(): void {
   // Claude Code JSONL transcripts live under $HOME/.claude/projects/-workspace/<sessionId>.jsonl.
   // In the container, the worker user's home is /home/node, so this resolves to the shared volume.
   const claudeHome = join(homedir(), '.claude', 'projects', '-workspace');
+  const profileDir = resolveProfileDir();
   const app = createApp({
     config,
     db,
@@ -38,6 +50,7 @@ function main(): void {
     cronRunRepo,
     commandRepo,
     claudeHome,
+    profileDir,
     spaDir,
   });
   const server = serve({ fetch: app.fetch, port: config.port }, (info) => {

@@ -42,7 +42,7 @@ export function useLogsStream(
       if (sourceRef.current === source) sourceRef.current = null;
       setConnected(false);
     };
-  }, [enabled, filters.level, filters.q, filters.timeRange]);
+  }, [enabled, filters]);
 
   return { logs, connected };
 }

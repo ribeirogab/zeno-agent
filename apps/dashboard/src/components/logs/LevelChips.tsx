@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
-import { cn } from '@/lib/utils';
 import type { LogFilters } from '@/lib/log-filters';
+import { cn } from '@/lib/utils';
 
 const CHIPS: Array<{ key: LogFilters['level']; label: string }> = [
   { key: 'all', label: 'All' },

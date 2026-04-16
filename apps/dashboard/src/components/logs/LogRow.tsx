@@ -1,7 +1,7 @@
 import { type JSX, useState } from 'react';
-import { cn } from '@/lib/utils';
-import type { LogApi } from '@/lib/log-filters';
 import { LogJsonBlock } from '@/components/logs/LogJsonBlock';
+import type { LogApi } from '@/lib/log-filters';
+import { cn } from '@/lib/utils';
 
 function levelLabel(level: number): { text: string; colorClass: string; dotClass: string } {
   if (level >= 50)

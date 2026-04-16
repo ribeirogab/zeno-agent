@@ -34,7 +34,8 @@ function LogsPage(): JSX.Element {
           </span>
           <h1 className="text-[22px] font-semibold tracking-tight text-text-primary">Logs</h1>
           <p className="max-w-[560px] text-sm leading-5 text-text-secondary">
-            Pino JSON logs do worker + api. Filtra, busca por event ou correlationId, expande qualquer linha pra ver o payload inteiro.
+            Pino JSON logs do worker + api. Filtra, busca por event ou correlationId, expande
+            qualquer linha pra ver o payload inteiro.
           </p>
         </div>
         <FollowingToggle
@@ -50,10 +51,7 @@ function LogsPage(): JSX.Element {
           onChange={(level) => setFilters((f) => ({ ...f, level }))}
         />
         <div className="flex-1">
-          <LogSearchInput
-            value={filters.q}
-            onChange={(q) => setFilters((f) => ({ ...f, q }))}
-          />
+          <LogSearchInput value={filters.q} onChange={(q) => setFilters((f) => ({ ...f, q }))} />
         </div>
         <TimeRangeSelect
           value={filters.timeRange}
@@ -69,7 +67,9 @@ function LogsPage(): JSX.Element {
           <span className="py-4 text-sm text-status-failed">falhou ao carregar</span>
         )}
         {logs.length === 0 && !historical.isLoading && (
-          <span className="py-4 text-sm text-text-secondary">sem resultados nos filtros atuais</span>
+          <span className="py-4 text-sm text-text-secondary">
+            sem resultados nos filtros atuais
+          </span>
         )}
         {logs.map((l) => (
           <LogRow key={l.id} log={l} />

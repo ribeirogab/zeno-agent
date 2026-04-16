@@ -4,7 +4,7 @@ import { requireAuth } from '@/auth/middleware';
 import type { ApiConfig } from '@/config';
 import { buildActivityRoute } from '@/routes/activity';
 import { buildAuthRoutes } from '@/routes/auth';
-import { healthRoute } from '@/routes/health';
+import { buildHealthRoute } from '@/routes/health';
 import { buildStatsRoute } from '@/routes/stats';
 
 export interface AppDeps {
@@ -15,7 +15,7 @@ export interface AppDeps {
 export function createApp(deps: AppDeps): Hono {
   const app = new Hono();
   const secure = deps.config.nodeEnv === 'production';
-  app.route('/api/health', healthRoute);
+  app.route('/api/health', buildHealthRoute(deps.db));
   app.route(
     '/api/auth',
     buildAuthRoutes({

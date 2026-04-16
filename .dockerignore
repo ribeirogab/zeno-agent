@@ -4,4 +4,6 @@ dist
 .env
 .env.local
 *.log
+context/
+infra/
 

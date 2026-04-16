@@ -47,19 +47,19 @@ zeno-agent/
 
 3. **Build:**
    ```bash
-   npm run docker:build
+   pnpm run docker:build
    ```
 
 4. **Claude OAuth token** (first time + on expiry):
    ```bash
-   npm run docker:setup-token
+   pnpm run docker:setup-token
    ```
    Complete OAuth in browser, paste the printed token into `.env` as `CLAUDE_CODE_OAUTH_TOKEN`.
 
 5. **Start:**
    ```bash
-   npm run docker:up
-   npm run docker:logs
+   pnpm run docker:up
+   pnpm run docker:logs
    ```
    Watch for: `soul_md_loaded` → `user_md_loaded` → `slack_connected` → `zeno_online`.
 
@@ -75,11 +75,11 @@ Or DM it directly.
 
 | Script | What it does |
 |---|---|
-| `npm run docker:build` | Build the container image |
-| `npm run docker:up` | Start in background |
-| `npm run docker:down` | Stop |
-| `npm run docker:logs` | Tail logs |
-| `npm run docker:setup-token` | Mint/refresh Claude OAuth token |
+| `pnpm run docker:build` | Build the container image |
+| `pnpm run docker:up` | Start in background |
+| `pnpm run docker:down` | Stop |
+| `pnpm run docker:logs` | Tail logs |
+| `pnpm run docker:setup-token` | Mint/refresh Claude OAuth token |
 
 ## Performance
 
@@ -89,7 +89,7 @@ Or DM it directly.
 
 | Symptom | Fix |
 |---|---|
-| "meu token Claude expirou" | Re-run `claude setup-token`, paste new token into `.env`, `npm run up` again |
+| "meu token Claude expirou" | Re-run `claude setup-token`, paste new token into `.env`, `pnpm run docker:up` again |
 | "Invalid environment" on boot | Check `.env` — all 4 tokens must be set |
 | Mount error for `profile/USER.md` | `cp profile/USER.example.md profile/USER.md` and fill in |
 | Bot doesn't react to mentions | Check Slack Socket Mode config; look for `slack_connected` in logs |
@@ -110,18 +110,18 @@ Full spec: `context/specs/0001-slack-zeno-mvp/`.
 Zeno only runs inside Docker. Dev scripts below are for code validation, not for running the agent:
 
 ```bash
-npm install
-npm run check      # biome format + lint + organize imports
-npm run typecheck  # tsc --noEmit
-npm test           # vitest
-npm run build      # tsc + tsc-alias (used by Dockerfile build stage)
+pnpm install
+pnpm run check      # biome format + lint + organize imports
+pnpm run typecheck  # tsc --noEmit
+pnpm test           # vitest
+pnpm run build      # tsc + tsc-alias (used by Dockerfile build stage)
 ```
 
 ## Smoke test
 
 After setup, verify these in order:
 
-1. `npm run docker:up` → logs show `zeno_online`
+1. `pnpm run docker:up` → logs show `zeno_online`
 2. `@zeno oi` in Slack → eyes reaction → PT-BR reply → checkmark
 3. `@zeno quais repos tem na octocat?` → lists repos via `gh`
 4. DM the bot → reply in DM (no thread)

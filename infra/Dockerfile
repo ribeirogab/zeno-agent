@@ -1,16 +1,18 @@
 # syntax=docker/dockerfile:1
 FROM node:24-slim AS deps
+RUN corepack enable
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm install --omit=dev --no-audit --no-fund
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod --frozen-lockfile
 
 FROM node:24-slim AS build
+RUN corepack enable
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm install --no-audit --no-fund
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY tsconfig.json ./
 COPY src ./src
-RUN npm run build
+RUN pnpm run build
 
 FROM node:24-slim AS runtime
 ENV NODE_ENV=production

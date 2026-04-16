@@ -106,12 +106,13 @@ All 1440×900 desktop. Built incrementally per Paper guide.
 5. **`Zeno · Sessions (list)`** — sidebar + table. Columns: thread · channel · last user message preview · last activity · message count.
 6. **`Zeno · Session detail`** — sidebar + thread reading view. Header: channel + thread title. Message list with subtle alternation between user and Zeno turns. No bubbles — just left-aligned blocks with author label, like a transcript.
 7. **`Zeno · Settings`** — sidebar + sections: backend (claude-code/mock toggle), MCP servers status table (loaded / skipped / disabled), profile paths (paths + last-modified), shutdown control.
+8. **`Zeno · Logs`** — sidebar + main. Filter bar: level chips (all/info/warn/error), event/correlationId search, time range picker, "Following" live-tail indicator. Log list: dot (level color) · timestamp (mono) · level pill (uppercase color-matched) · event name (mono) · message (sans). One row shown expanded with the full Pino JSON payload in a code block — proves the inspect-on-click pattern.
 
 ## Success Criteria
 
-1. All 7 artboards exist in the user's Paper file, each at 1440×900.
+1. All 8 artboards exist in the user's Paper file, each at 1440×900 (Settings + Logs use `height: fit-content` because their content overflows).
 2. Each artboard uses the locked palette and type scale exclusively (no off-palette colors, no off-system font sizes).
-3. Sidebar component is consistent across all sidebar-bearing artboards (Home, Crons list, Cron detail, Sessions list, Session detail, Settings).
+3. Sidebar component is consistent across all sidebar-bearing artboards (Home, Crons list, Cron detail, Sessions list, Session detail, Settings, Logs) — same nav items in the same order.
 4. The Cron detail artboard's "Run now" coral button is the only coral element on that screen — proving the "one accent moment per screen" rule.
 5. The user can review the design and either approve or annotate; implementation is gated on that review.
 

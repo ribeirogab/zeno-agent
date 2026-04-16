@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { DB } from '@/storage/db';
-import type { CreateCronInput, Cron, CronSource, UpdateCronInput } from '@/storage/types';
+import type { DB } from '../db.js';
+import type { CreateCronInput, Cron, CronSource, UpdateCronInput } from '../types.js';
 
 interface CronRow {
   id: string;

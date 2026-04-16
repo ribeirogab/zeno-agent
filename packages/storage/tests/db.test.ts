@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { closeDatabase, openDatabase } from '@/storage/db';
-import { runMigrations } from '@/storage/migrations';
+import { closeDatabase, openDatabase } from '../src/db';
+import { runMigrations } from '../src/migrations';
 
 describe('storage/db + migrations', () => {
   it('opens an in-memory database with WAL pragmas', () => {

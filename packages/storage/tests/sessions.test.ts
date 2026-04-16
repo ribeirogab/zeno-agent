@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { type DB, openDatabase } from '@/storage/db';
-import { runMigrations } from '@/storage/migrations';
-import { SessionRepo } from '@/storage/repos/sessions';
+import { type DB, openDatabase } from '../src/db';
+import { runMigrations } from '../src/migrations';
+import { SessionRepo } from '../src/repos/sessions';
 
 let db: DB;
 let repo: SessionRepo;

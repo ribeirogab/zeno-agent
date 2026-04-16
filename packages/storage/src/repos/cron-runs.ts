@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { DB } from '@/storage/db';
-import type { CronRun, CronRunStatus } from '@/storage/types';
+import type { DB } from '../db.js';
+import type { CronRun, CronRunStatus } from '../types.js';
 
 interface CronRunRow {
   id: string;

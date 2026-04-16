@@ -1,5 +1,4 @@
-import { logger } from '@/logger';
-import type { DB } from '@/storage/db';
+import type { DB } from './db.js';
 
 interface Migration {
   id: number;
@@ -86,30 +85,10 @@ export function runMigrations(db: DB): { applied: number[]; current: number } {
       db.exec(migration.sql);
       db.prepare('INSERT OR REPLACE INTO migrations (id) VALUES (?)').run(migration.id);
     });
-    try {
-      apply();
-      newlyApplied.push(migration.id);
-      logger.info(
-        { event: 'migration_applied', id: migration.id, name: migration.name },
-        'migration applied',
-      );
-    } catch (error) {
-      logger.fatal(
-        { event: 'migration_failed', id: migration.id, name: migration.name, err: String(error) },
-        'migration failed',
-      );
-      throw error;
-    }
+    apply();
+    newlyApplied.push(migration.id);
   }
 
   const current = MIGRATIONS.length > 0 ? (MIGRATIONS[MIGRATIONS.length - 1] as Migration).id : 0;
-  if (newlyApplied.length > 0) {
-    logger.info(
-      { event: 'migrations_applied', count: newlyApplied.length, current },
-      'migrations complete',
-    );
-  } else {
-    logger.info({ event: 'migrations_up_to_date', current }, 'no pending migrations');
-  }
   return { applied: newlyApplied, current };
 }

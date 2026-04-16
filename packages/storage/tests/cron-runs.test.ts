@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { type DB, openDatabase } from '@/storage/db';
-import { runMigrations } from '@/storage/migrations';
-import { CronRunRepo } from '@/storage/repos/cron-runs';
-import { CronRepo } from '@/storage/repos/crons';
+import { type DB, openDatabase } from '../src/db';
+import { runMigrations } from '../src/migrations';
+import { CronRunRepo } from '../src/repos/cron-runs';
+import { CronRepo } from '../src/repos/crons';
 
 let db: DB;
 let cronRepo: CronRepo;

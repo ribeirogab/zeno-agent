@@ -1,5 +1,5 @@
-import type { DB } from '@/storage/db';
-import type { Session } from '@/storage/types';
+import type { DB } from '../db.js';
+import type { Session } from '../types.js';
 
 interface SessionRow {
   thread_id: string;

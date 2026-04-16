@@ -187,6 +187,7 @@ async function main(): Promise<void> {
   const commandsPoller = new CommandsPoller({
     commandRepo: commands,
     dispatch: dispatcher,
+    logger,
   });
 
   // The chat-facing backend gets the in-process MCP server with cron CRUD tools wired to repos + runner
@@ -231,6 +232,7 @@ async function main(): Promise<void> {
   const logsRetention = new LogsRetention({
     logRepo: logs,
     retentionDays: config.logsRetentionDays,
+    logger,
   });
   logsRetention.start();
   logger.info(

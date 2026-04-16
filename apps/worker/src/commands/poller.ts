@@ -1,12 +1,14 @@
-import { createLogger } from '@zeno/logger';
+import { createLogger, type Logger } from '@zeno/logger';
 import type { Command, CommandRepo } from '@zeno/storage';
 import type { HandlerResult } from '@/commands/dispatcher';
 
-const logger = createLogger({ service: 'worker' });
+const fallbackLogger = createLogger({ service: 'worker' });
 
 interface CommandsPollerOptions {
   commandRepo: CommandRepo;
   dispatch: (cmd: Command) => Promise<HandlerResult>;
+  /** Pass the dbSink-enabled logger from index.ts so command events land in the logs table. */
+  logger?: Logger;
   tickMs?: number;
 }
 
@@ -20,20 +22,26 @@ export class CommandsPoller {
   private readonly inFlight = new Set<string>();
   private readonly tickMs: number;
 
+  private readonly logger: Logger;
+
   constructor(private readonly opts: CommandsPollerOptions) {
     this.tickMs = opts.tickMs ?? 1000;
+    this.logger = opts.logger ?? fallbackLogger;
   }
 
   start(): void {
     if (this.timer) return;
     const swept = this.opts.commandRepo.sweepStuck();
     if (swept > 0) {
-      logger.warn({ event: 'commands_swept', count: swept }, 'marked stuck commands as failed');
+      this.logger.warn(
+        { event: 'commands_swept', count: swept },
+        'marked stuck commands as failed',
+      );
     }
     this.timer = setInterval(() => {
       void this.tick();
     }, this.tickMs);
-    logger.info(
+    this.logger.info(
       { event: 'commands_poller_started', tickMs: this.tickMs },
       'commands poller started',
     );
@@ -43,7 +51,7 @@ export class CommandsPoller {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
-      logger.info({ event: 'commands_poller_stopped' }, 'commands poller stopped');
+      this.logger.info({ event: 'commands_poller_stopped' }, 'commands poller stopped');
     }
   }
 
@@ -57,13 +65,32 @@ export class CommandsPoller {
         const result = await this.opts.dispatch(cmd);
         if (result.ok) {
           this.opts.commandRepo.finish(cmd.id, 'success', result.data ?? {});
+          this.logger.info(
+            {
+              event: 'command_processed',
+              commandId: cmd.id,
+              type: cmd.type,
+              correlationId: cmd.correlationId,
+            },
+            'command processed',
+          );
         } else {
           this.opts.commandRepo.finish(cmd.id, 'failed', { error: result.error });
+          this.logger.warn(
+            {
+              event: 'command_failed',
+              commandId: cmd.id,
+              type: cmd.type,
+              correlationId: cmd.correlationId,
+              reason: result.error,
+            },
+            'command failed',
+          );
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         this.opts.commandRepo.finish(cmd.id, 'failed', { error: message });
-        logger.error(
+        this.logger.error(
           { event: 'command_handler_threw', commandId: cmd.id, type: cmd.type, err: message },
           'command handler threw',
         );

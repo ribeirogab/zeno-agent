@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { JSX } from 'react';
+import { CronActions } from '@/components/crons/CronActions';
 import { CronRunHistoryRow } from '@/components/crons/CronRunHistoryRow';
 import { CronStatusPill } from '@/components/crons/CronStatusPill';
 import { useCron } from '@/lib/use-cron';
@@ -29,7 +30,10 @@ function CronDetailPage(): JSX.Element {
       </nav>
 
       <header className="flex flex-col gap-3">
-        <h1 className="font-serif text-4xl leading-tight text-text-primary">{cron.name}</h1>
+        <div className="flex items-start justify-between gap-6">
+          <h1 className="font-serif text-4xl leading-tight text-text-primary">{cron.name}</h1>
+          <CronActions cron={cron} />
+        </div>
         {cron.description && (
           <p className="max-w-[640px] text-sm text-text-secondary">{cron.description}</p>
         )}

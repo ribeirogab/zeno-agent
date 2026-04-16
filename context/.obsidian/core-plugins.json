@@ -16,5 +16,18 @@
   "canvas": true,
   "properties": true,
   "bookmarks": true,
-  "editor-status": true
+  "editor-status": true,
+  "footnotes": false,
+  "daily-notes": true,
+  "slash-command": false,
+  "markdown-importer": false,
+  "zk-prefixer": false,
+  "random-note": false,
+  "slides": false,
+  "audio-recorder": false,
+  "workspaces": false,
+  "publish": false,
+  "sync": true,
+  "bases": true,
+  "webviewer": false
 }

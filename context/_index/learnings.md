@@ -19,6 +19,11 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/multi-agent-routing-channels-to-agents|Multi-agent routing — channels to agents]] — OpenClaw's pattern; triggers to adopt in Zeno.
 - [[../learnings/slack-mcp-vs-bolt|Slack MCP server vs Slack Bolt]] — MCP is pull-only; still need Bolt for ingress.
 - [[../learnings/mcp-github-server-status|GitHub MCP server status]] — moved to github/github-mcp-server; `gh` + Bash is simpler for MVP.
+- [[../learnings/db-as-contract-pattern|DB is the contract between worker and API]] — zero IPC; every coordination goes through a SQLite table (commands, logs, sessions).
+- [[../learnings/fire-and-forget-mutation-ux|Fire-and-forget mutation UX]] — API 204 + 1.5s invalidate, no command-status polling in the dashboard.
+- [[../learnings/two-logger-bootstrap-pattern|Two-logger bootstrap pattern]] — boot logger (pre-DB, stdout only) + main logger (dbSink) inside `main()`.
+- [[../learnings/shadcn-copy-not-library|shadcn primitives are code you own]] — hand-write the shape, audit per-file, never run the CLI in this repo.
+- [[../learnings/structural-interface-across-packages|Structural interface across packages]] — declare minimal interface in consumer; producer satisfies by shape; no cross-package runtime dep.
 
 ## `#reference` — Environment and commands
 
@@ -28,12 +33,14 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/agent-skills-open-standard|Agent Skills open standard (agentskills.io)]] — SKILL.md format, portability across agents.
 - [[../learnings/profile-isolation-via-env-var|Profile isolation via env var]] — Hermes' HERMES_HOME pattern for multi-instance.
 - [[../learnings/claude-agent-sdk-typescript|Claude Agent SDK (TypeScript)]] — `query()` API, options, OAuth via env.
+- [[../learnings/claude-sdk-jsonl-transcript-shape|Claude Agent SDK JSONL transcript shape]] — where session transcripts live + parser strategy.
 - [[../learnings/claude-code-oauth-token|Claude Code OAuth token]] — `claude setup-token` workflow for `CLAUDE_CODE_OAUTH_TOKEN`.
 - [[../learnings/claude-code-cli-headless|Claude Code CLI — headless flags]] — `-p`, `--bare`, output formats.
 - [[../learnings/slack-bolt-socket-mode|Slack Bolt Socket Mode]] — `@slack/bolt@4.7` minimal setup + scopes.
 - [[../learnings/gh-repo-list-json|gh repo list with --json]] — fields and auth via `GH_TOKEN`.
 - [[../learnings/node-lts-current|Node.js LTS status]] — Node 24 is current Active LTS (as of 2026-04).
 - [[../learnings/docker-node-image-variants|Node.js Docker image variant]] — `node:24-slim` is the right default for Zeno.
+- [[../learnings/moduleresolution-split-worker-vs-dashboard|`moduleResolution` split: NodeNext in packages, Bundler in apps]] — what each workspace uses and why.
 
 ## `#gotcha` — Things that tripped us up
 
@@ -43,3 +50,15 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/sdk-mcp-server-type-not-exported|SDK MCP server type not exported]] — in-process MCP servers need a cast at the call boundary; SDK union doesn't include them.
 - [[../learnings/hot-reload-needs-getter-not-snapshot|Hot-reload needs getter, not snapshot]] — long-lived components must read mutable state via `() => T`, not a captured value.
 - [[../learnings/pnpm-only-built-dependencies|pnpm `onlyBuiltDependencies` for native modules]] — non-interactive way to allow postinstall scripts; required for Docker + CI.
+- [[../learnings/sqlite-current-timestamp-tiebreaker|SQLite CURRENT_TIMESTAMP tie-breaker]] — second-precision ties; use `rowid` to break them for deterministic ORDER BY.
+- [[../learnings/tanstack-router-flat-file-nesting|TanStack Router flat-file naming needs `.index`]] — `foo.tsx` becomes a layout route when `foo.bar.tsx` exists.
+- [[../learnings/sqlite-autoincrement-for-stable-cursors|SQLite AUTOINCREMENT for stable cursors]] — `INTEGER PRIMARY KEY` reuses rowid after DELETE; AUTOINCREMENT doesn't.
+- [[../learnings/better-sqlite3-writer-contention|better-sqlite3 writer-lock contention]] — raw insert is µs; a long transaction blocks the other process.
+- [[../learnings/logger-factory-dbsink-propagation|Module-level loggers skip the dbSink]] — pass the logger through constructors for events to reach the logs table.
+- [[../learnings/appdeps-growth-propagates-to-tests|AppDeps growth propagates to tests]] — a new field means sweeping all api test helpers; don't miss one.
+- [[../learnings/workspace-node-modules-in-docker|pnpm workspace node_modules in Docker]] — each workspace's `node_modules/` must be copied into the runtime image, not just the root.
+
+## `#meta` — Workflow and process
+
+- [[../learnings/spec-review-loop-catches-real-bugs|Spec review loop catches real design bugs]] — the `spec-document-reviewer` subagent finds what I miss; don't skip it.
+- [[../learnings/subagent-driven-implementation-patterns|Subagent-driven implementation patterns]] — briefing templates, review loops, when to go inline instead.

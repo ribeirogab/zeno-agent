@@ -1,0 +1,3 @@
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"abre um PR"}]},"timestamp":"2026-04-16T12:00:00Z","uuid":"msg-1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"feito, aqui está"},{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"echo ok"}}]},"timestamp":"2026-04-16T12:00:05Z","uuid":"msg-2"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"ok, obrigado"}]},"timestamp":"2026-04-16T12:00:10Z","uuid":"msg-3"}

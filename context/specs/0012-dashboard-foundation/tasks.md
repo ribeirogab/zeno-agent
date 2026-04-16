@@ -1223,7 +1223,7 @@ git commit -m "feat(api): add requireAuth middleware with sliding cookie renewal
 - Create: `apps/api/tests/routes/auth.test.ts`
 - Modify: `apps/api/src/server.ts` (mount auth routes + apply middleware)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `apps/api/tests/routes/auth.test.ts`:
 
@@ -1317,12 +1317,12 @@ describe('GET /api/auth/me', () => {
 });
 ```
 
-- [ ] **Step 2: Run test — expect FAIL**
+- [x] **Step 2: Run test — expect FAIL**
 
 Run: `cd apps/api && pnpm test`
 Expected: FAIL — routes don't exist.
 
-- [ ] **Step 3: Implement `apps/api/src/routes/auth.ts`**
+- [x] **Step 3: Implement `apps/api/src/routes/auth.ts`**
 
 ```typescript
 import { timingSafeEqual } from 'node:crypto';
@@ -1383,7 +1383,7 @@ export function buildAuthRoutes(options: AuthRoutesOptions): Hono {
 }
 ```
 
-- [ ] **Step 4: Update `apps/api/src/server.ts`**
+- [x] **Step 4: Update `apps/api/src/server.ts`**
 
 ```typescript
 import { Hono } from 'hono';
@@ -1411,14 +1411,14 @@ export function createApp(deps: AppDeps): Hono {
 }
 ```
 
-- [ ] **Step 5: Run tests — expect PASS**
+- [x] **Step 5: Run tests — expect PASS**
 
 Run: `cd apps/api && pnpm test`
 Expected: 17 passing (5 hmac + 6 middleware + 6 auth routes).
 
 Note: the "wrong password" test will take ~500ms because of the delay. Acceptable.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/api/src/routes/auth.ts apps/api/src/server.ts apps/api/tests/routes/auth.test.ts
@@ -1674,7 +1674,7 @@ git commit -m "feat(api): add /api/stats with SQL counts from storage"
 - Create: `apps/api/tests/routes/activity.test.ts`
 - Modify: `apps/api/src/server.ts` (mount)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `apps/api/tests/routes/activity.test.ts`:
 
@@ -1747,12 +1747,12 @@ describe('GET /api/activity', () => {
 });
 ```
 
-- [ ] **Step 2: Run test — expect FAIL**
+- [x] **Step 2: Run test — expect FAIL**
 
 Run: `cd apps/api && pnpm test`
 Expected: FAIL — `/api/activity` not found.
 
-- [ ] **Step 3: Implement `apps/api/src/routes/activity.ts`**
+- [x] **Step 3: Implement `apps/api/src/routes/activity.ts`**
 
 ```typescript
 import { Hono } from 'hono';
@@ -1801,7 +1801,7 @@ export function buildActivityRoute(db: DB): Hono {
 }
 ```
 
-- [ ] **Step 4: Mount in server**
+- [x] **Step 4: Mount in server**
 
 In `apps/api/src/server.ts`, add:
 
@@ -1812,12 +1812,12 @@ app.use('/api/activity', requireAuth({ secret: deps.config.sessionSecret, secure
 app.route('/api/activity', buildActivityRoute(deps.db));
 ```
 
-- [ ] **Step 5: Run tests — expect PASS**
+- [x] **Step 5: Run tests — expect PASS**
 
 Run: `cd apps/api && pnpm test`
 Expected: all tests pass (~26 total).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/api/src/routes/activity.ts apps/api/src/server.ts apps/api/tests/routes/activity.test.ts

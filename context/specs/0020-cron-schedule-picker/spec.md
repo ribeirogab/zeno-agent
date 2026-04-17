@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: cron-schedule-picker
 created: 2026-04-17
-shipped: null
+shipped: 2026-04-17
 ---
 # Cron Schedule Picker — Spec
 
-**Status:** Draft
+**Status:** Shipped
 **Scope:** Replace the raw `<Input>` for the `schedule` field in the new-cron form with a preset-driven picker (`SchedulePicker`) that covers the common cron shapes via friendly fields (hour, minute, day-of-week, day-of-month), falls back to a raw input for arbitrary expressions, and renders a live humanized preview ("runs every weekday at 9:00 AM") via the `cronstrue` library.
 
 ## Context

@@ -18,7 +18,7 @@ _(none)_
 
 ## Active
 
-- [[../specs/0020-cron-schedule-picker/spec|0020 — Cron Schedule Picker]] (2026-04-17) — preset-driven picker replaces raw cron input; humanized preview via `cronstrue`; custom stays as escape hatch.
+_(none)_
 
 ## Design-only
 
@@ -26,6 +26,7 @@ _(none)_
 
 ## Shipped
 
+- [[../specs/0020-cron-schedule-picker/spec|0020 — Cron Schedule Picker]] (2026-04-17) — `SchedulePicker` replaces raw cron input; 7 presets + custom escape hatch; humanized preview via `cronstrue`.
 - [[../specs/0019-dashboard-optimistic-updates/spec|0019 — Dashboard Optimistic Updates]] (2026-04-17) — `useOptimisticMutation` primitive; five cron mutations migrated; instant-feedback UX with <50ms click-to-render, rollback on error, invalidate as server-reality safety net.
 - [[../specs/0018-dashboard-ux-cleanup/spec|0018 — Dashboard UX Cleanup]] (2026-04-17) — `AlertDialog` / `Skeleton` / `EmptyState` / `ErrorState` primitives in `@zeno/ui`; `window.confirm` + raw "carregando…" removed.
 - [[../specs/0017-paper-design-system/spec|0017 — Paper Design System]] (2026-04-17) — "Hearty island" Paper file organized (Foundations · Primitives · Patterns · Feature components · Pages) + `packages/ui/DESIGN.md` registry + `ui-in-paper` governance rule.

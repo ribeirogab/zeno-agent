@@ -1,5 +1,5 @@
+import { cn } from '@zeno/ui';
 import type { JSX } from 'react';
-import { cn } from '@/lib/utils';
 
 export function FollowingToggle({
   following,

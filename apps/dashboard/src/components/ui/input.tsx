@@ -1,5 +1,5 @@
+import { cn } from '@zeno/ui';
 import { forwardRef, type InputHTMLAttributes } from 'react';
-import { cn } from '@/lib/utils';
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement>;
 

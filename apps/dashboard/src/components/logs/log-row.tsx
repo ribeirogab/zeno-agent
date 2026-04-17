@@ -1,7 +1,7 @@
+import { cn } from '@zeno/ui';
 import { type JSX, useState } from 'react';
 import { LogJsonBlock } from '@/components/logs/log-json-block';
 import type { LogApi } from '@/lib/log-filters';
-import { cn } from '@/lib/utils';
 
 function levelLabel(level: number): { text: string; colorClass: string; dotClass: string } {
   if (level >= 50)

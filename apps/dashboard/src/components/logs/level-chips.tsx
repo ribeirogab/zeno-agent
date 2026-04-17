@@ -1,6 +1,6 @@
+import { cn } from '@zeno/ui';
 import type { JSX } from 'react';
 import type { LogFilters } from '@/lib/log-filters';
-import { cn } from '@/lib/utils';
 
 const CHIPS: Array<{ key: LogFilters['level']; label: string }> = [
   { key: 'all', label: 'All' },

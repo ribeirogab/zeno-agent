@@ -1,2 +1,6 @@
-// Real content lands in Task 2.1.
-export const __placeholder__ = true;
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export function cn(...inputs: ClassValue[]): string {
+  return twMerge(clsx(inputs));
+}

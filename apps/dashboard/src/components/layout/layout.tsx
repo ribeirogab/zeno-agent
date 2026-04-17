@@ -1,4 +1,3 @@
-import { Starburst } from '@zeno/ui';
 import { type JSX, type ReactNode, useState } from 'react';
 import { MobileDrawer } from '@/components/layout/mobile-drawer';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -35,7 +34,7 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
 
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border-subtle bg-sidebar px-4 py-3 md:hidden">
         <div className="flex items-center gap-2">
-          <Starburst size={18} className="text-accent" />
+          <span className="font-serif text-xl italic leading-none text-accent">Z</span>
           <span className="text-sm tracking-wide text-text-primary">zeno</span>
         </div>
         <button

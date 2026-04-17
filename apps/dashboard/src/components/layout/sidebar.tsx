@@ -1,5 +1,4 @@
 import { Link, useLocation } from '@tanstack/react-router';
-import { Starburst } from '@zeno/ui';
 import type { JSX } from 'react';
 import { type ServiceStatus, useHealth } from '@/lib/use-health';
 
@@ -48,7 +47,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}): JSX.Element {
   return (
     <aside className="flex h-full w-full shrink-0 flex-col gap-7 border-r border-border-subtle bg-sidebar px-5 py-6 md:h-screen md:w-60">
       <div className="flex items-center gap-2.5">
-        <Starburst size={20} className="text-accent" />
+        <span className="font-serif text-2xl italic leading-none text-accent">Z</span>
         <span className="text-sm tracking-wide text-text-primary">zeno</span>
       </div>
 

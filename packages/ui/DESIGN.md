@@ -77,6 +77,7 @@ scroll to the subsection (Crons · Home · Layout · Logs · Sessions · Setting
 | `/sessions/$threadId` | [Zeno · Session detail](https://app.paper.design/file/01KPA7BZ1AWQDRA79KQYGDA6V7/1-0/H1-0) | `apps/dashboard/src/routes/_authed/sessions/$threadId.tsx` |
 | `/settings` | [Zeno · Settings](https://app.paper.design/file/01KPA7BZ1AWQDRA79KQYGDA6V7/1-0/LP-0) | `apps/dashboard/src/routes/_authed/settings.tsx` |
 | `/logs` | [Zeno · Logs](https://app.paper.design/file/01KPA7BZ1AWQDRA79KQYGDA6V7/1-0/R9-0) | `apps/dashboard/src/routes/_authed/logs.tsx` |
+| _(states)_ | [Page states](https://app.paper.design/file/01KPA7BZ1AWQDRA79KQYGDA6V7/1-0/1X1-0) | Loading / empty / error variants for Crons, Sessions, Logs. Skeleton compositions under `apps/dashboard/src/components/skeletons/`. |
 
 ## Conventions
 

@@ -15,6 +15,7 @@ _(none yet)_
 ## `severity: important`
 
 - [[../rules/generated-files-location|Generated / temporary files go under `tmp/`]] — screenshots, scratch scripts, dumps, browser output. Never at repo root.
+- [[../rules/ui-in-paper|UI lives in Paper]] — every rendered `.tsx` must have a Paper frame registered in `packages/ui/DESIGN.md`.
 
 ## `severity: advisory`
 

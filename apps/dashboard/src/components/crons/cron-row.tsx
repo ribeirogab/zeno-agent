@@ -20,7 +20,7 @@ export function CronRow({ cron }: { cron: CronApi }): JSX.Element {
         )}
       </div>
       <span className="w-40 shrink-0 font-mono text-sm text-text-primary">{cron.schedule}</span>
-      <span className="w-24 shrink-0 rounded-full border border-border-subtle px-2 py-0.5 text-center text-[11px] uppercase tracking-wider text-text-secondary">
+      <span className="w-24 shrink-0 rounded-full border border-border-subtle px-2 py-0.5 text-center text-[11px] text-text-secondary">
         {cron.source}
       </span>
       <div className="w-24 shrink-0">

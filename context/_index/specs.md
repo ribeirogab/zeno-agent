@@ -18,7 +18,7 @@ _(none)_
 
 ## Active
 
-_(none)_
+- [[../specs/0020-cron-schedule-picker/spec|0020 — Cron Schedule Picker]] (2026-04-17) — preset-driven picker replaces raw cron input; humanized preview via `cronstrue`; custom stays as escape hatch.
 
 ## Design-only
 

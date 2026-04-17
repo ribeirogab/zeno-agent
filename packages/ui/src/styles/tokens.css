@@ -1,1 +1,24 @@
-/* Real content lands in Task 3.1. */
+/*
+ * Zeno design tokens.
+ *
+ * Tailwind v4 @theme block: maps CSS variables into Tailwind utilities
+ * (bg-canvas, text-text-primary, etc.). The @source directive tells the
+ * Tailwind content scanner to pick up classes used inside this package
+ * so consumer apps don't need to configure globs for @zeno/ui.
+ */
+
+@source "../components/**/*.{ts,tsx}";
+
+@theme {
+  --color-canvas: #1a1816;
+  --color-panel: #221f1c;
+  --color-sidebar: #16140f;
+  --color-border-subtle: #2c2823;
+  --color-text-primary: #ebe5da;
+  --color-text-secondary: #8c8579;
+  --color-text-tertiary: #5c574f;
+  --color-accent: #e66b3d;
+  --color-status-active: #4fa876;
+  --color-status-paused: #c7a85c;
+  --color-status-failed: #c75c5c;
+}

@@ -24,21 +24,41 @@ Specs 0015 (rename) and 0016 (extract `@zeno/ui`) normalize the code side. This 
 3. **Paper file is unorganized.** Spec 0008 built eight frames in Paper. They coexist without hierarchy: foundations, primitives, patterns, and pages mingle on one canvas.
 4. **No design → code traceability.** Given a component in the codebase, there's no pointer to "which Paper frame is this?". Given a Paper frame, no pointer to "which file is this?". Breakage is silent in both directions.
 
+## Reference material (Claude desktop app)
+
+The user provided fresh Claude desktop-app screenshots under `tmp/claude/`:
+
+- `tmp/claude/dark/*.png` — 8 screenshots of Claude in **dark mode** (Cowork surface): Home, Scheduled tasks, Create task dialog, Task detail, user menu popover.
+- `tmp/claude/light/*.png` — 8 screenshots of the same surfaces in **light mode**.
+
+**Every agent drawing frames in Paper must open these screenshots first** (via the Read tool, as the path is absolute) and reference them as the canonical visual language. The goal is "as close to Claude app as possible, while still being the Zeno dashboard". Specific elements to mirror:
+
+- Sidebar chrome: capitalized small-cap section labels, the Cowork-style sub-items (Scheduled / Dispatch / Pinned / Recents with colored dots), bottom-left user chip with avatar initials.
+- Page hero: Instrument Serif display headline with a coral starburst glyph adjacent to the copy (not the Z-glyph used in spec 0008 — replace the Z with the starburst mark to match the app).
+- Cards for `Scheduled tasks` list: 3-column grid, each card ~240×100, with title / description / status pill at the bottom. Paused = neutral pill; active = green clock + human-readable frequency.
+- Dialog pattern: "Create scheduled task" in the screenshots is the reference for our form Dialog — labeled fields with `*`, compact inline controls at the bottom, Cancel (ghost) + Save (filled) right-aligned.
+- User menu popover: bottom-left, above the user chip, with email header + Settings / Language / Get help / Log out items.
+
+Any deviation from these references must be justified in the frame's description (e.g., "Zeno has no Projects nav because it's single-surface"). Pure invention where the app has a pattern is a bug.
+
 ## Non-Goals
 
 1. **Writing a public design system site** (Storybook, Docusaurus). Paper *is* the design surface; `DESIGN.md` is the registry. If the system outgrows this, Storybook is a future spec.
 2. **Marketing / brand / logo work.** Zeno is single-user; no brand guidelines needed.
-3. **Light mode variants.** Dark-only matches spec 0008. Revisit only if the user adopts the dashboard publicly.
-4. **Mobile / responsive variants.** Desktop 1440 only.
+3. **Light-mode frames in Paper.** Code must support light mode; Paper only needs dark-mode frames. Tokens ship both palettes (`:root` dark by default, `.light` override) so switching is a runtime class toggle.
+4. **Mobile-dedicated Paper frames.** Paper frames stay at 1440 desktop width. The code must be responsive (see Constraints) but designers work from the desktop reference.
 5. **Inventing new components.** This spec catalogs existing UI; new primitives (alert-dialog, etc.) are added in spec 0018 and must be designed in Paper before landing in code.
 6. **Updating the eight existing page artboards to reference primitives by instance.** Paper's component-instancing workflow is manual; treat the page artboards as illustrations, not linked instances, for this first iteration.
 7. **Motion / animation specs.** Transitions implied by shadcn primitives are acceptable; not formally documented in Paper.
 8. **Producing design tokens as export artifacts** (JSON, figma-style tokens). Tokens live in code (`packages/ui/src/styles/tokens.css`) as the source of truth; Paper mirrors them visually.
+9. **Theme toggle UI.** Light/dark toggle switch in the dashboard is out of scope; this spec makes the code *capable* of both, not user-selectable. Adding the toggle is a small follow-up (backlog).
 
 ## Constraints
 
-- **Paper is the source of truth for visuals.** Code aligns to Paper, not the other way around. If code drifts, the drift is a bug — fix the code.
-- **Tokens are defined once** in `packages/ui/src/styles/tokens.css`. The Paper design system documents the *same* values in its Foundations page; when tokens change, both sides update in the same PR.
+- **Paper is the source of truth for visuals** (dark palette). Code aligns to Paper, not the other way around. If code drifts, the drift is a bug — fix the code.
+- **Tokens are defined once** in `packages/ui/src/styles/tokens.css`. The Paper design system documents the dark values in its Foundations page. Light-mode tokens live in the same CSS file under a `.light` selector; Paper does not illustrate the light scheme, but the palette row in Foundations records both hex values per token.
+- **Both themes must work in code.** The dashboard reads `html[data-theme="light"]` (or falls back to `.light` class on `<html>`/`<body>`) and swaps the palette via CSS variables. Every primitive must be visually correct under both modes. No theme-toggle UI in this spec — themes switch via CSS class that a future toggle will flip.
+- **Responsive in code (640 / 768 / 1280+ breakpoints).** Layouts collapse gracefully from desktop to mobile. Sidebar becomes a hamburger drawer below 768px. Tables degrade into stacked cards or horizontal scroll. No separate mobile Paper frames — desktop is the design reference, but code implements the responsive behavior using Tailwind's default breakpoints (`sm`, `md`, `lg`). Mobile behavior is validated by Playwright at 390×844 (iPhone-like) as part of the smoke.
 - **Registry is a plain Markdown file** (`packages/ui/DESIGN.md`) in the code repo. Each row: component name → Paper frame URL → brief description. Cheap to maintain, easy to review in PR diffs.
 - **Governance rule is project-level**, not per-PR enforcement. Added as a new entry in `context/rules/` with `severity: important`. Review catches violations.
 - **Paper file naming is stable.** The file is called "Hearty island" (established in spec 0008). This spec organizes inside it; does not create a new file.
@@ -104,10 +124,10 @@ Each page groups related frames. Within a page, frames carry the component's exa
 
 Four frames:
 
-1. **Palette** — color chips for every token in `tokens.css`. Each chip labeled with token name (`canvas`, `panel`, `sidebar`, `border-subtle`, `text-primary`, `text-secondary`, `text-tertiary`, `accent`, `status-active`, `status-paused`, `status-failed`) and hex value.
-2. **Typography** — one row per type role from spec 0008: Display headline (Instrument Serif 36/1.1), Page title (Inter SemiBold 22), Card title (Inter SemiBold 15), Body (Inter Regular 14/20), Muted small (Inter Regular 12), Section label (Inter Medium uppercase 11/0.08em), Mono (ui-monospace 13).
+1. **Palette** — color chips for every token in `tokens.css`. Each chip labeled with token name (`canvas`, `panel`, `sidebar`, `border-subtle`, `text-primary`, `text-secondary`, `text-tertiary`, `accent`, `status-active`, `status-paused`, `status-failed`) and **two hex values** side by side: dark (default) and light. Layout: each chip is a split rectangle — top half dark, bottom half light — so the designer + developer can eyeball both schemes in one glance. Values must match `packages/ui/src/styles/tokens.css` exactly.
+2. **Typography** — one row per type role: Display headline (Instrument Serif 36/1.1 — paired with the coral starburst glyph as seen in the Claude app screenshots, NOT the legacy Z-glyph), Page title (Inter SemiBold 22), Card title (Inter SemiBold 15), Body (Inter Regular 14/20), Muted small (Inter Regular 12), Section label (Inter Medium uppercase 11/0.08em), Mono (ui-monospace 13).
 3. **Spacing & radius** — stacked rectangles showing 4/8/12/16/24/32/48/64 spacing; 4/6/8/10/12 radii with labels.
-4. **Iconography** — the subset of `lucide-react` icons used (or planned to be used) with labels. Max 20.
+4. **Iconography** — the subset of `lucide-react` icons used (or planned to be used) with labels. Max 20. Match the stroke weight and size used in the Claude screenshots (1.5px stroke, 16–18px glyph).
 
 ### Primitives grid pattern
 
@@ -137,6 +157,60 @@ For every PascalCase component in `apps/dashboard/src/components/**` (post-0015 
 ### Pages
 
 Copied from existing spec 0008 artboards. Only change: ensure page name matches the label in `05. Pages` for registry lookup. Page artboards remain hand-drawn references; not enforced to be instances of primitives/patterns (that's a future upgrade if Paper's component linking matures).
+
+**Post-0008 visual realignment.** The existing eight artboards predate the Claude-app screenshot refresh in `tmp/claude/`. This spec repaints them to match the new reference:
+
+- **Home** (`Zeno · Home`) — replace the legacy Z-glyph hero with the coral starburst + Instrument Serif "Good evening, Operator." exact pattern from `tmp/claude/dark/Screenshot 2026-04-16 at 23.24.59.png`. Keep Zeno-specific content below (stats row, activity).
+- **Crons list** (`Zeno · Crons (list)`) — adopt the 3-column card grid from `Screenshot 2026-04-16 at 23.25.32.png` (Scheduled tasks). Each card shows title / description / status pill (Paused neutral / Active green-clock-with-frequency).
+- **Cron detail** — task-detail layout from `Screenshot 2026-04-16 at 23.25.46.png`: main column for metadata + instructions, right sidebar with run history stacked as timestamp cards, coral "Run now" button top-right.
+- **Cron create** (`crons.new`) — centered modal dialog matching `Screenshot 2026-04-16 at 23.25.37.png` (Create scheduled task): labeled fields with `*`, compact project + model selectors at the bottom, Cancel (ghost) + Save (filled neutral) right-aligned.
+- **User menu** — bottom-left popover above the user chip (see `Screenshot 2026-04-16 at 23.26.15.png`). New pattern to capture: popover with email header, menu items with leading icons, Log out at the bottom. Triggered from the avatar chip in every sidebar-bearing page.
+
+Redrawn artboards replace the existing ones (Paper frame name stays, content changes).
+
+### Code-only deliverables (no Paper frames)
+
+Two pieces of work in this spec exist only in code because they're not visual-authoring tasks:
+
+**Light-mode tokens.** Extend `packages/ui/src/styles/tokens.css`:
+
+```css
+:root {
+  /* existing dark tokens — unchanged */
+}
+
+[data-theme="light"],
+.light {
+  --color-canvas: #FAF7F2;        /* warm off-white */
+  --color-panel: #F2EEE6;         /* card surface */
+  --color-sidebar: #EFEAE0;       /* slightly darker than canvas */
+  --color-border-subtle: #E0D9CC;
+  --color-text-primary: #1E1B18;  /* warm near-black */
+  --color-text-secondary: #6F685E;
+  --color-text-tertiary: #A69F92;
+  --color-accent: #E66B3D;        /* same coral across modes */
+  --color-status-active: #3E8B5E;
+  --color-status-paused: #A6813F;
+  --color-status-failed: #B74A4A;
+}
+```
+
+(Exact hexes validated against the Claude light-mode screenshots — subject to small adjustment during implementation; the palette frame in Paper records the final values.) The `[data-theme="light"]` selector matches a future toggle; the `.light` class provides a CSS-only opt-in for now.
+
+**Responsive code.** Every rendered `.tsx` must respond to Tailwind breakpoints. Concrete requirements by route:
+
+| Route | Below 768px | 768–1280px | 1280+ |
+|---|---|---|---|
+| All | Sidebar collapses into a top `<header>` with hamburger toggle; on toggle, drawer slides in from the left | Sidebar always visible, 200px wide | Same as md |
+| `/` Home | Stats row stacks (1 column) | 3 columns | 3 columns |
+| `/crons` | Cards stack 1-col | 2 columns | 3 columns (match Claude app) |
+| `/crons/$id` | Metadata above run history (1 col) | Side-by-side 2-col | Same as md |
+| `/sessions` | Rows collapse to 2-line cards | Full row layout | Same as md |
+| `/sessions/$threadId` | Transcript full-width with reduced padding | Normal padding | Normal padding |
+| `/logs` | Filter bar wraps; rows truncate event column | Filter bar inline; full row | Same as md |
+| `/settings` | Sections stack; tables scroll horizontally | Normal layout | Same as md |
+
+Implementation uses Tailwind utilities (`md:`, `lg:`, `hidden md:flex`, etc.). No JS-driven responsive logic except the hamburger drawer (stateful). Mobile testing via Playwright at 390×844.
 
 ### `packages/ui/DESIGN.md` registry
 
@@ -228,15 +302,17 @@ New file `context/rules/ui-in-paper.md` with frontmatter `severity: important`. 
 ## Success Criteria
 
 1. "Hearty island" Paper file is reorganized into the five named pages above.
-2. Foundations page has 4 frames: Palette, Typography, Spacing & radius, Iconography.
+2. Foundations page has 4 frames: Palette (split dark/light chips), Typography (with coral starburst headline), Spacing & radius, Iconography.
 3. Primitives page has 4 variant-grid frames: Button, Input, Dialog, Toaster.
-4. Patterns page has ≥10 frames covering the motifs used across dashboard pages.
+4. Patterns page has ≥10 frames covering the motifs used across dashboard pages, visually aligned with Claude-app screenshots in `tmp/claude/dark/`.
 5. Feature components page has **one frame per component** rendered in the dashboard (24 frames post-0015; could grow if 0018 adds more, which this spec accepts — the registry grows with 0018).
-6. Pages page contains the 8 existing artboards from spec 0008 with names matching registry rows.
+6. Pages page: 8 artboards from spec 0008 **repainted** to match the Claude-app reference (Home hero = coral starburst + Instrument Serif; Crons list = 3-col card grid with status pills; Cron detail = main + right-sidebar layout; Cron create = centered dialog; user menu popover added).
 7. `packages/ui/DESIGN.md` exists at the package root, contains all five sections above, every row has a Paper frame URL.
 8. `context/rules/ui-in-paper.md` exists; `context/_index/rules.md` has a link to it.
-9. A spot-check on 3 random components (e.g. `LogRow`, `CronStatusPill`, `StatTile`): clicking the Paper URL in `DESIGN.md` opens the frame; the frame visually matches the rendered component in a running dashboard within reasonable tolerance (palette exact, typography exact, spacing ~4px tolerance).
-10. `pnpm run quality-gate` green — this spec is documentation-heavy, no code change beyond the new `DESIGN.md` and `rules/ui-in-paper.md`. Tests/lint are trivially unaffected.
+9. **Light mode works in code.** `packages/ui/src/styles/tokens.css` ships `[data-theme="light"] / .light` palette. Toggling `<html class="light">` via devtools swaps every primitive and every page visually; no hardcoded hex values remain in components. Validated via Playwright screenshots at both themes.
+10. **Responsive in code.** Playwright smoke at 390×844 shows: hamburger toggle in header; sidebar drawer opens/closes; Crons cards stack 1-col; Logs rows truncate cleanly; no horizontal scroll except on tables where explicitly allowed.
+11. A spot-check on 3 random components (e.g. `LogRow`, `CronStatusPill`, `StatTile`): clicking the Paper URL in `DESIGN.md` opens the frame; the frame visually matches the rendered component in a running dashboard within reasonable tolerance (palette exact, typography exact, spacing ~4px tolerance).
+12. `pnpm run quality-gate` green — code changes for this spec are limited to (a) `tokens.css` light palette, (b) responsive Tailwind classes on existing components, (c) hamburger-drawer component in the Layout. All new/edited code respects `no any` / `no biome-ignore`.
 
 ## Risks and Mitigations
 
@@ -250,6 +326,10 @@ New file `context/rules/ui-in-paper.md` with frontmatter `severity: important`. 
 | **"One accent moment per screen" rule from spec 0008** may not survive re-composition | Re-check the eight page artboards during this spec; if any screen now shows >1 coral element, fix the artboard. |
 | **User draws frames inconsistently** (different padding, different label placement) | Before drawing, establish a master template frame (e.g. "Primitive frame template" — 1440 wide, title at top-left, content in a centered container). Copy-paste it per frame. |
 | **Code-to-Paper slug mismatch** (registry row calls it `Button` but Paper frame is `Buttons`) | Registry entry copies the *frame name* exactly. If Paper frame is renamed, registry is updated in the same PR. |
+| **Light-mode hexes eyeballed from screenshots may drift from Anthropic's actual palette** | Acceptable — Zeno is not a Claude clone, just aesthetically aligned. The light palette in `tokens.css` is Zeno's, matching "Claude-esque warmth" by eye. Exact values locked in the Foundations Palette frame once implementation settles. |
+| **Responsive hamburger-drawer adds stateful UI where there was none** | Drawer uses `<Dialog>` primitive from `@zeno/ui` (already ships with focus-trap + overlay from Radix). Only new state is `isMenuOpen: boolean` in the Layout component. Low surface. |
+| **Responsive tests ignore intermediate widths** | Playwright smoke covers 390 (mobile), 800 (tablet), 1440 (desktop). Between breakpoints, Tailwind's defaults are trusted; no pixel-perfect per-width validation. |
+| **Claude-app screenshots eventually become stale** | Screenshots live under `tmp/claude/` which is gitignored. A comment in `DESIGN.md` Foundations section points at the current reference. When Anthropic ships a visual refresh, the user drops new screenshots and opens a follow-up spec; this spec doesn't attempt to be future-proof against Claude's evolution. |
 
 ## Open Questions
 

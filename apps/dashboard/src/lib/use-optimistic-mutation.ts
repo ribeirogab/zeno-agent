@@ -9,9 +9,21 @@ import { toast } from 'sonner';
 import { formatError } from '@/lib/format-error';
 import { invalidateSoon } from '@/lib/invalidate-soon';
 
-export interface OptimisticCacheChange<TData = unknown> {
+export interface OptimisticCacheChange {
   queryKey: QueryKey;
-  updater: (prev: TData | undefined) => TData | undefined;
+  updater: (prev: unknown) => unknown;
+}
+
+/**
+ * Type-safe factory for an `OptimisticCacheChange`. The generic narrows the
+ * `prev`/return types at the call site while the stored change widens to
+ * `unknown` so the primitive can hold a heterogeneous array.
+ */
+export function cacheChange<TData>(
+  queryKey: QueryKey,
+  updater: (prev: TData | undefined) => TData | undefined,
+): OptimisticCacheChange {
+  return { queryKey, updater: updater as (prev: unknown) => unknown };
 }
 
 export interface OptimisticMutationOptions<TVars, TResult> {
@@ -28,13 +40,8 @@ export interface OptimisticMutationOptions<TVars, TResult> {
   errorToast?: string | ((err: unknown, vars: TVars) => string);
 }
 
-interface Snapshot {
-  queryKey: QueryKey;
-  value: unknown;
-}
-
-interface MutationContext {
-  snapshots: Snapshot[];
+export interface OptimisticMutationContext {
+  snapshots: Array<{ queryKey: QueryKey; value: unknown }>;
 }
 
 /**
@@ -44,19 +51,20 @@ interface MutationContext {
  * `invalidateSoon` from `onSettled`, and success/error toasts. Each mutation
  * becomes a declarative config instead of ~35 lines of TanStack plumbing.
  *
- * See `context/conventions/code-style.md` and `context/learnings/optimistic-mutation-pattern.md`.
+ * See `context/conventions/code-style.md` and
+ * `context/learnings/optimistic-mutation-pattern.md`.
  */
 export function useOptimisticMutation<TVars, TResult = void>(
   opts: OptimisticMutationOptions<TVars, TResult>,
-): UseMutationResult<TResult, unknown, TVars, MutationContext> {
+): UseMutationResult<TResult, unknown, TVars, OptimisticMutationContext> {
   const qc = useQueryClient();
 
-  return useMutation<TResult, unknown, TVars, MutationContext>({
+  return useMutation<TResult, unknown, TVars, OptimisticMutationContext>({
     mutationFn: opts.mutationFn,
 
     onMutate: async (vars) => {
       const changes = opts.optimisticUpdate?.(vars, qc) ?? [];
-      const snapshots: Snapshot[] = [];
+      const snapshots: OptimisticMutationContext['snapshots'] = [];
 
       for (const change of changes) {
         await qc.cancelQueries({ queryKey: change.queryKey });

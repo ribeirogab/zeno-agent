@@ -1,5 +1,16 @@
 import { useNavigate } from '@tanstack/react-router';
-import { Button } from '@zeno/ui';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+  Button,
+} from '@zeno/ui';
 import type { JSX } from 'react';
 import { useDeleteCron, usePauseCron, useResumeCron, useRunNowCron } from '@/lib/mutations';
 import type { CronApi } from '@/lib/use-crons';
@@ -12,10 +23,6 @@ export function CronActions({ cron }: { cron: CronApi }): JSX.Element {
   const navigate = useNavigate();
 
   const onDelete = (): void => {
-    const confirmed = window.confirm(
-      `remover cron "${cron.name}"? essa ação não pode ser desfeita.`,
-    );
-    if (!confirmed) return;
     deleteCron.mutate(cron.id, {
       onSuccess: () => {
         void navigate({ to: '/crons' });
@@ -53,9 +60,31 @@ export function CronActions({ cron }: { cron: CronApi }): JSX.Element {
         </Button>
       )}
       {cron.source === 'chat' && (
-        <Button variant="ghost" size="sm" disabled={deleteCron.isPending} onClick={onDelete}>
-          Delete
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="sm" disabled={deleteCron.isPending}>
+              Delete
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>remover este cron?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {`"${cron.name}" será removido. essa ação não pode ser desfeita.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel asChild>
+                <Button variant="ghost">cancelar</Button>
+              </AlertDialogCancel>
+              <AlertDialogAction asChild>
+                <Button variant="accent" onClick={onDelete}>
+                  remover
+                </Button>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );

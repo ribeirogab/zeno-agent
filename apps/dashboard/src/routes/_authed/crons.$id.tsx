@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { EmptyState, ErrorState, Skeleton } from '@zeno/ui';
 import type { JSX } from 'react';
 import { CronActions } from '@/components/crons/cron-actions';
 import { CronRunHistoryRow } from '@/components/crons/cron-run-history-row';
@@ -13,9 +14,19 @@ function CronDetailPage(): JSX.Element {
   const { id } = Route.useParams();
   const query = useCron(id);
 
-  if (query.isLoading) return <span className="text-sm text-text-secondary">carregando…</span>;
-  if (query.isError || !query.data)
-    return <span className="text-sm text-status-failed">cron não encontrado</span>;
+  if (query.isLoading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-96" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
+  }
+  if (query.isError || !query.data) {
+    return <ErrorState onRetry={() => void query.refetch()} />;
+  }
 
   const { cron, recentRuns } = query.data;
 
@@ -61,12 +72,11 @@ function CronDetailPage(): JSX.Element {
 
       <section className="flex flex-col gap-4">
         <h2 className="text-base font-semibold text-text-primary">Run history</h2>
-        {recentRuns.length === 0 && (
-          <span className="text-sm text-text-secondary">ainda não rodou</span>
+        {recentRuns.length === 0 ? (
+          <EmptyState title="ainda não rodou" />
+        ) : (
+          recentRuns.map((run) => <CronRunHistoryRow key={run.id} run={run} />)
         )}
-        {recentRuns.map((run) => (
-          <CronRunHistoryRow key={run.id} run={run} />
-        ))}
       </section>
     </div>
   );

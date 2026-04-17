@@ -1,10 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { EmptyState, ErrorState } from '@zeno/ui';
 import { type JSX, useMemo, useState } from 'react';
 import { FollowingToggle } from '@/components/logs/following-toggle';
 import { LevelChips } from '@/components/logs/level-chips';
 import { LogRow } from '@/components/logs/log-row';
 import { LogSearchInput } from '@/components/logs/log-search-input';
 import { TimeRangeSelect } from '@/components/logs/time-range-select';
+import { LogListSkeleton } from '@/components/skeletons/log-list-skeleton';
 import { DEFAULT_FILTERS, type LogFilters } from '@/lib/log-filters';
 import { useLogs } from '@/lib/use-logs';
 import { useLogsStream } from '@/lib/use-logs-stream';
@@ -60,16 +62,12 @@ function LogsPage(): JSX.Element {
       </div>
 
       <section className="flex flex-col">
-        {!following && historical.isLoading && (
-          <span className="py-4 text-sm text-text-secondary">carregando…</span>
-        )}
+        {!following && historical.isLoading && <LogListSkeleton />}
         {!following && historical.isError && (
-          <span className="py-4 text-sm text-status-failed">falhou ao carregar</span>
+          <ErrorState onRetry={() => void historical.refetch()} />
         )}
-        {logs.length === 0 && !historical.isLoading && (
-          <span className="py-4 text-sm text-text-secondary">
-            sem resultados nos filtros atuais
-          </span>
+        {logs.length === 0 && !historical.isLoading && !historical.isError && (
+          <EmptyState title="sem resultados nos filtros atuais" />
         )}
         {logs.map((l) => (
           <LogRow key={l.id} log={l} />

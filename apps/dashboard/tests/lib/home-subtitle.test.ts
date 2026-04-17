@@ -4,8 +4,8 @@ import { homeSubtitle, relativeTime } from '@/lib/home-subtitle';
 const NOW = new Date('2026-04-16T12:00:00Z');
 
 describe('homeSubtitle', () => {
-  it('shows loading placeholder when stats undefined', () => {
-    expect(homeSubtitle({ stats: undefined, lastTickAt: null, now: NOW })).toBe('Carregando…');
+  it('returns empty string when stats undefined (caller renders Skeleton)', () => {
+    expect(homeSubtitle({ stats: undefined, lastTickAt: null, now: NOW })).toBe('');
   });
 
   it('shows silence copy when nothing is happening', () => {

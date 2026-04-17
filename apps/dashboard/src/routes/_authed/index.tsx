@@ -1,7 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { EmptyState, ErrorState, Skeleton } from '@zeno/ui';
 import type { JSX } from 'react';
 import { ActivityRow } from '@/components/home/activity-row';
 import { StatTile } from '@/components/home/stat-tile';
+import { HomeActivitySkeleton } from '@/components/skeletons/home-skeleton';
 import { greetingForHour } from '@/lib/greeting';
 import { homeSubtitle } from '@/lib/home-subtitle';
 import { useActivity } from '@/lib/use-activity';
@@ -38,7 +40,11 @@ function HomePage(): JSX.Element {
         <h1 className="font-serif text-3xl leading-tight text-text-primary sm:text-4xl">
           <span className="italic text-accent">{greeting.verb},</span> {greeting.name}.
         </h1>
-        <p className="max-w-[560px] text-sm leading-5 text-text-secondary">{subtitle}</p>
+        {subtitle ? (
+          <p className="max-w-[560px] text-sm leading-5 text-text-secondary">{subtitle}</p>
+        ) : (
+          <Skeleton className="h-4 w-80" />
+        )}
       </header>
 
       <section className="grid grid-cols-2 gap-6 border-b border-border-subtle pb-2 sm:gap-8 md:flex md:gap-16">
@@ -54,16 +60,18 @@ function HomePage(): JSX.Element {
           <span className="text-xs text-text-secondary">last 10 events</span>
         </div>
         <div className="flex flex-col">
-          {activity.isLoading && <span className="text-sm text-text-secondary">carregando…</span>}
-          {activity.isError && (
-            <span className="text-sm text-status-failed">falhou ao carregar</span>
+          {activity.isLoading ? (
+            <HomeActivitySkeleton />
+          ) : activity.isError ? (
+            <ErrorState
+              description="falhou ao carregar atividade recente."
+              onRetry={() => void activity.refetch()}
+            />
+          ) : activity.data?.length === 0 ? (
+            <EmptyState title="nada por aqui ainda" />
+          ) : (
+            activity.data?.map((a) => <ActivityRow key={a.id} activity={a} />)
           )}
-          {activity.data?.length === 0 && (
-            <span className="text-sm text-text-secondary">nada por aqui ainda</span>
-          )}
-          {activity.data?.map((a) => (
-            <ActivityRow key={a.id} activity={a} />
-          ))}
         </div>
       </section>
     </div>

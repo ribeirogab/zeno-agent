@@ -12,7 +12,7 @@ export interface SubtitleInput {
  */
 export function homeSubtitle(input: SubtitleInput): string {
   const { stats, lastTickAt, now } = input;
-  if (!stats) return 'Carregando…';
+  if (!stats) return '';
 
   const hasAnyActivity = stats.activeCrons > 0 || stats.sessions24h > 0 || stats.runsToday > 0;
   if (!hasAnyActivity && !lastTickAt) {

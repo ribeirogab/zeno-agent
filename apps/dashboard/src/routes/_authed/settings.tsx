@@ -1,9 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { EmptyState } from '@zeno/ui';
 import type { JSX } from 'react';
 import { McpServerRow } from '@/components/settings/mcp-server-row';
 import { ProfileFileRow } from '@/components/settings/profile-file-row';
 import { RestartDialog } from '@/components/settings/restart-dialog';
 import { ServiceStatus } from '@/components/settings/service-status';
+import { SettingsSkeleton } from '@/components/skeletons/settings-skeleton';
 import { useSettings } from '@/lib/use-settings';
 
 export const Route = createFileRoute('/_authed/settings')({
@@ -13,7 +15,7 @@ export const Route = createFileRoute('/_authed/settings')({
 function SettingsPage(): JSX.Element {
   const q = useSettings();
   if (q.isLoading || !q.data) {
-    return <span className="text-sm text-text-secondary">carregando…</span>;
+    return <SettingsSkeleton />;
   }
   const s = q.data;
   return (
@@ -41,12 +43,11 @@ function SettingsPage(): JSX.Element {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold text-text-primary">MCP servers</h2>
-        {s.mcpServers.length === 0 && (
-          <span className="text-sm text-text-secondary">nenhum server configurado</span>
+        {s.mcpServers.length === 0 ? (
+          <EmptyState title="nenhum server configurado" />
+        ) : (
+          s.mcpServers.map((m) => <McpServerRow key={m.name} server={m} />)
         )}
-        {s.mcpServers.map((m) => (
-          <McpServerRow key={m.name} server={m} />
-        ))}
       </section>
 
       <section className="flex flex-col gap-3">

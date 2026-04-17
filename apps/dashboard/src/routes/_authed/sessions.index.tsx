@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { EmptyState } from '@zeno/ui';
 import type { JSX } from 'react';
 import { SessionRow } from '@/components/sessions/session-row';
+import { SessionListSkeleton } from '@/components/skeletons/session-list-skeleton';
 import { useSessions } from '@/lib/use-sessions';
 
 export const Route = createFileRoute('/_authed/sessions/')({
@@ -21,13 +23,16 @@ function SessionsPage(): JSX.Element {
         </p>
       </header>
       <section className="flex flex-col">
-        {q.isLoading && <span className="py-4 text-sm text-text-secondary">carregando…</span>}
-        {q.data?.length === 0 && (
-          <span className="py-4 text-sm text-text-secondary">nenhuma sessão ainda</span>
+        {q.isLoading ? (
+          <SessionListSkeleton />
+        ) : q.data?.length === 0 ? (
+          <EmptyState
+            title="nenhuma sessão ainda"
+            description="converse com o Zeno pelo Slack para começar."
+          />
+        ) : (
+          q.data?.map((s) => <SessionRow key={s.threadId} session={s} />)
         )}
-        {q.data?.map((s) => (
-          <SessionRow key={s.threadId} session={s} />
-        ))}
       </section>
     </div>
   );

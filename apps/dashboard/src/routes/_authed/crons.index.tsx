@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Button } from '@zeno/ui';
+import { Button, EmptyState } from '@zeno/ui';
 import type { JSX } from 'react';
 import { CronRow } from '@/components/crons/cron-row';
+import { CronListSkeleton } from '@/components/skeletons/cron-list-skeleton';
 import { useCrons } from '@/lib/use-crons';
 
 export const Route = createFileRoute('/_authed/crons/')({
@@ -35,13 +36,23 @@ function CronsPage(): JSX.Element {
           <span className="hidden w-24 shrink-0 md:inline">Source</span>
           <span className="w-20 shrink-0 text-right sm:w-24 sm:text-left">Status</span>
         </div>
-        {crons.isLoading && <span className="py-4 text-sm text-text-secondary">carregando…</span>}
-        {crons.data?.length === 0 && (
-          <span className="py-4 text-sm text-text-secondary">nenhum cron ainda</span>
+        {crons.isLoading ? (
+          <CronListSkeleton />
+        ) : crons.data?.length === 0 ? (
+          <EmptyState
+            title="nenhum cron ainda"
+            description="crie seu primeiro agendamento para automatizar o Zeno."
+            action={
+              <Link to="/crons/new">
+                <Button variant="accent" size="sm">
+                  novo cron
+                </Button>
+              </Link>
+            }
+          />
+        ) : (
+          crons.data?.map((cron) => <CronRow key={cron.id} cron={cron} />)
         )}
-        {crons.data?.map((cron) => (
-          <CronRow key={cron.id} cron={cron} />
-        ))}
       </section>
     </div>
   );

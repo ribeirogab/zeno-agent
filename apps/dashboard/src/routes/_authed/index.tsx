@@ -1,7 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { EmptyState, ErrorState, Skeleton } from '@zeno/ui';
 import type { JSX } from 'react';
-import { ActivityRow } from '@/components/home/ActivityRow';
-import { StatTile } from '@/components/home/StatTile';
+import { ActivityRow } from '@/components/home/activity-row';
+import { StatTile } from '@/components/home/stat-tile';
+import { HomeActivitySkeleton } from '@/components/skeletons/home-skeleton';
 import { greetingForHour } from '@/lib/greeting';
 import { homeSubtitle } from '@/lib/home-subtitle';
 import { useActivity } from '@/lib/use-activity';
@@ -20,7 +22,7 @@ function HomePage(): JSX.Element {
   const activity = useActivity();
   const now = new Date();
   const dateLabel = now
-    .toLocaleDateString('pt-BR', { weekday: 'long', month: 'long', day: 'numeric' })
+    .toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     .replace(/^\w/, (c) => c.toUpperCase());
   const greeting = greetingForHour(now.getHours(), USER_NAME);
   const subtitle = homeSubtitle({
@@ -35,13 +37,17 @@ function HomePage(): JSX.Element {
         <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
           {dateLabel}
         </span>
-        <h1 className="font-serif text-4xl leading-tight text-text-primary">
+        <h1 className="font-serif text-3xl leading-tight text-text-primary sm:text-4xl">
           <span className="italic text-accent">{greeting.verb},</span> {greeting.name}.
         </h1>
-        <p className="max-w-[560px] text-sm leading-5 text-text-secondary">{subtitle}</p>
+        {subtitle ? (
+          <p className="max-w-[560px] text-sm leading-5 text-text-secondary">{subtitle}</p>
+        ) : (
+          <Skeleton className="h-4 w-80" />
+        )}
       </header>
 
-      <section className="flex gap-16 border-b border-border-subtle pb-2">
+      <section className="grid grid-cols-2 gap-6 border-b border-border-subtle pb-2 sm:gap-8 md:flex md:gap-16">
         <StatTile label="Active crons" value={stats.data?.activeCrons ?? 0} />
         <StatTile label="Sessions · 24h" value={stats.data?.sessions24h ?? 0} />
         <StatTile label="Runs · today" value={stats.data?.runsToday ?? 0} />
@@ -54,16 +60,18 @@ function HomePage(): JSX.Element {
           <span className="text-xs text-text-secondary">last 10 events</span>
         </div>
         <div className="flex flex-col">
-          {activity.isLoading && <span className="text-sm text-text-secondary">carregando…</span>}
-          {activity.isError && (
-            <span className="text-sm text-status-failed">falhou ao carregar</span>
+          {activity.isLoading ? (
+            <HomeActivitySkeleton />
+          ) : activity.isError ? (
+            <ErrorState
+              description="failed to load recent activity."
+              onRetry={() => void activity.refetch()}
+            />
+          ) : activity.data?.length === 0 ? (
+            <EmptyState title="nothing here yet" />
+          ) : (
+            activity.data?.map((a) => <ActivityRow key={a.id} activity={a} />)
           )}
-          {activity.data?.length === 0 && (
-            <span className="text-sm text-text-secondary">nada por aqui ainda</span>
-          )}
-          {activity.data?.map((a) => (
-            <ActivityRow key={a.id} activity={a} />
-          ))}
         </div>
       </section>
     </div>

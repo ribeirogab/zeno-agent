@@ -53,3 +53,34 @@ import { logger } from "../../logger.js"
 const e = parsed.data
 const m = parsed.error.issues.map(i => i.message).join("; ")
 ```
+
+## File naming
+
+All source files use **kebab-case** basenames with the standard extension.
+
+| Kind | Filename example | Exported name |
+|---|---|---|
+| React component | `message-block.tsx` | `MessageBlock` |
+| React hook | `use-logs.ts` | `useLogs` |
+| Utility / module | `api-client.ts`, `log-filters.ts` | `apiFetch`, `LogFilters` |
+| Route (TanStack Router) | `crons.$id.tsx`, `sessions.index.tsx` | `Route` |
+| Test | `sidebar.test.tsx`, `logs.test.ts` | n/a |
+
+**Exceptions — do not rename:**
+
+- TanStack Router conventions: `__root.tsx`, `_authed.tsx`, and the generated `route-tree.gen.ts`.
+- Config files owned by tooling: `vite.config.ts`, `tailwind.config.ts`, `biome.json`, `postcss.config.js`, etc.
+
+**macOS gotcha.** The default macOS filesystem is case-insensitive. A direct
+`git mv Foo.tsx foo.tsx` is a silent no-op — git does not register the rename
+and the file system holds both names ambiguously. Always use an intermediate
+name when changing case:
+
+```bash
+git mv Foo.tsx _foo.tsx
+git mv _foo.tsx foo.tsx
+```
+
+This rule is not enforced by Biome today (`useFilenamingConvention` is off to
+accommodate env-var patterns elsewhere). Review catches violations. If drift
+becomes a problem, re-evaluate enabling the rule with exceptions.

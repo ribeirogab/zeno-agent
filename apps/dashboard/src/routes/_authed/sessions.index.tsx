@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { EmptyState } from '@zeno/ui';
 import type { JSX } from 'react';
-import { SessionRow } from '@/components/sessions/SessionRow';
+import { SessionRow } from '@/components/sessions/session-row';
+import { SessionListSkeleton } from '@/components/skeletons/session-list-skeleton';
 import { useSessions } from '@/lib/use-sessions';
 
 export const Route = createFileRoute('/_authed/sessions/')({
@@ -17,17 +19,20 @@ function SessionsPage(): JSX.Element {
         </span>
         <h1 className="text-[22px] font-semibold tracking-tight text-text-primary">Sessions</h1>
         <p className="max-w-[560px] text-sm leading-5 text-text-secondary">
-          Threads de Slack mapeados pra sessões do SDK. Clica pra ver a conversa completa.
+          Slack threads mapped to SDK sessions. Click to see the full conversation.
         </p>
       </header>
       <section className="flex flex-col">
-        {q.isLoading && <span className="py-4 text-sm text-text-secondary">carregando…</span>}
-        {q.data?.length === 0 && (
-          <span className="py-4 text-sm text-text-secondary">nenhuma sessão ainda</span>
+        {q.isLoading ? (
+          <SessionListSkeleton />
+        ) : q.data?.length === 0 ? (
+          <EmptyState
+            title="no sessions yet"
+            description="chat with Zeno on Slack to get started."
+          />
+        ) : (
+          q.data?.map((s) => <SessionRow key={s.threadId} session={s} />)
         )}
-        {q.data?.map((s) => (
-          <SessionRow key={s.threadId} session={s} />
-        ))}
       </section>
     </div>
   );

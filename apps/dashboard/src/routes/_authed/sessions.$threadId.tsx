@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { ErrorState, Skeleton } from '@zeno/ui';
 import type { JSX } from 'react';
-import { MessageBlock } from '@/components/sessions/MessageBlock';
+import { MessageBlock } from '@/components/sessions/message-block';
 import { useSession } from '@/lib/use-session';
 
 export const Route = createFileRoute('/_authed/sessions/$threadId')({
@@ -11,9 +12,18 @@ function SessionDetailPage(): JSX.Element {
   const { threadId } = Route.useParams();
   const q = useSession(threadId);
 
-  if (q.isLoading) return <span className="text-sm text-text-secondary">carregando…</span>;
-  if (q.isError || !q.data)
-    return <span className="text-sm text-status-failed">sessão não encontrada</span>;
+  if (q.isLoading) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-7 w-80" />
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-20 w-full" />
+      </div>
+    );
+  }
+  if (q.isError || !q.data) {
+    return <ErrorState onRetry={() => void q.refetch()} />;
+  }
 
   const { session, messages } = q.data;
 
@@ -44,7 +54,7 @@ function SessionDetailPage(): JSX.Element {
 
       <section className="flex flex-col gap-4">
         {messages.length === 0 && (
-          <span className="text-sm text-text-secondary">[sem transcript disponível]</span>
+          <span className="text-sm text-text-secondary">[no transcript available]</span>
         )}
         {messages.map((m) => (
           <MessageBlock key={m.id} message={m} />

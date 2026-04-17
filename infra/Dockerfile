@@ -16,6 +16,7 @@ COPY apps/api/package.json ./apps/api/
 COPY apps/dashboard/package.json ./apps/dashboard/
 COPY packages/storage/package.json ./packages/storage/
 COPY packages/logger/package.json ./packages/logger/
+COPY packages/ui/package.json ./packages/ui/
 RUN pnpm install --frozen-lockfile
 
 # Stage 3: builder

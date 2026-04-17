@@ -1,8 +1,8 @@
 ---
-status: draft
+status: shipped
 feature: thread-sessions
 created: 2026-04-16
-shipped: null
+shipped: 2026-04-16
 ---
 # Thread Sessions — Spec
 

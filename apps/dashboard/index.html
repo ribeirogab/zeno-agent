@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,6 +12,20 @@
     />
   </head>
   <body>
+    <script>
+      // Pre-hydration theme apply to avoid FOUC. Mirrors apps/dashboard/src/lib/use-theme.ts.
+      (function () {
+        try {
+          var stored = window.localStorage.getItem('zeno-theme');
+          if (stored === 'light') {
+            document.documentElement.classList.add('light');
+            document.documentElement.setAttribute('data-theme', 'light');
+          } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
+        } catch (_) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

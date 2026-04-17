@@ -1,10 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { EmptyState, ErrorState } from '@zeno/ui';
 import { type JSX, useMemo, useState } from 'react';
-import { FollowingToggle } from '@/components/logs/FollowingToggle';
-import { LevelChips } from '@/components/logs/LevelChips';
-import { LogRow } from '@/components/logs/LogRow';
-import { LogSearchInput } from '@/components/logs/LogSearchInput';
-import { TimeRangeSelect } from '@/components/logs/TimeRangeSelect';
+import { FollowingToggle } from '@/components/logs/following-toggle';
+import { LevelChips } from '@/components/logs/level-chips';
+import { LogRow } from '@/components/logs/log-row';
+import { LogSearchInput } from '@/components/logs/log-search-input';
+import { TimeRangeSelect } from '@/components/logs/time-range-select';
+import { LogListSkeleton } from '@/components/skeletons/log-list-skeleton';
 import { DEFAULT_FILTERS, type LogFilters } from '@/lib/log-filters';
 import { useLogs } from '@/lib/use-logs';
 import { useLogsStream } from '@/lib/use-logs-stream';
@@ -27,15 +29,15 @@ function LogsPage(): JSX.Element {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex items-start justify-between gap-6">
+      <header className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:gap-6">
         <div className="flex flex-col gap-2">
           <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
             Observability
           </span>
           <h1 className="text-[22px] font-semibold tracking-tight text-text-primary">Logs</h1>
           <p className="max-w-[560px] text-sm leading-5 text-text-secondary">
-            Pino JSON logs do worker + api. Filtra, busca por event ou correlationId, expande
-            qualquer linha pra ver o payload inteiro.
+            Pino JSON logs from the worker + api. Filter, search by event or correlationId, expand
+            any row to see the full payload.
           </p>
         </div>
         <FollowingToggle
@@ -45,12 +47,12 @@ function LogsPage(): JSX.Element {
         />
       </header>
 
-      <div className="flex items-center gap-3 border-b border-border-subtle pb-4">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border-subtle pb-4">
         <LevelChips
           value={filters.level}
           onChange={(level) => setFilters((f) => ({ ...f, level }))}
         />
-        <div className="flex-1">
+        <div className="order-last w-full min-w-[200px] sm:order-none sm:w-auto sm:flex-1">
           <LogSearchInput value={filters.q} onChange={(q) => setFilters((f) => ({ ...f, q }))} />
         </div>
         <TimeRangeSelect
@@ -60,16 +62,12 @@ function LogsPage(): JSX.Element {
       </div>
 
       <section className="flex flex-col">
-        {!following && historical.isLoading && (
-          <span className="py-4 text-sm text-text-secondary">carregando…</span>
-        )}
+        {!following && historical.isLoading && <LogListSkeleton />}
         {!following && historical.isError && (
-          <span className="py-4 text-sm text-status-failed">falhou ao carregar</span>
+          <ErrorState onRetry={() => void historical.refetch()} />
         )}
-        {logs.length === 0 && !historical.isLoading && (
-          <span className="py-4 text-sm text-text-secondary">
-            sem resultados nos filtros atuais
-          </span>
+        {logs.length === 0 && !historical.isLoading && !historical.isError && (
+          <EmptyState title="no results for current filters" />
         )}
         {logs.map((l) => (
           <LogRow key={l.id} log={l} />

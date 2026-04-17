@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
-import { Layout } from '@/components/layout/Layout';
+import { Layout } from '@/components/layout/layout';
 import { ApiError, apiFetch } from '@/lib/api-client';
 
 export const Route = createFileRoute('/_authed')({

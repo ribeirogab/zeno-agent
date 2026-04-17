@@ -1,18 +1,7 @@
 @import "tailwindcss";
+@import "@zeno/ui/styles/tokens.css";
 
 @theme {
-  --color-canvas: #1a1816;
-  --color-panel: #221f1c;
-  --color-sidebar: #16140f;
-  --color-border-subtle: #2c2823;
-  --color-text-primary: #ebe5da;
-  --color-text-secondary: #8c8579;
-  --color-text-tertiary: #5c574f;
-  --color-accent: #e66b3d;
-  --color-status-active: #4fa876;
-  --color-status-paused: #c7a85c;
-  --color-status-failed: #c75c5c;
-
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-serif: 'Instrument Serif', serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;

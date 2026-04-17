@@ -24,6 +24,9 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/two-logger-bootstrap-pattern|Two-logger bootstrap pattern]] — boot logger (pre-DB, stdout only) + main logger (dbSink) inside `main()`.
 - [[../learnings/shadcn-copy-not-library|shadcn primitives are code you own]] — hand-write the shape, audit per-file, never run the CLI in this repo.
 - [[../learnings/structural-interface-across-packages|Structural interface across packages]] — declare minimal interface in consumer; producer satisfies by shape; no cross-package runtime dep.
+- [[../learnings/tailwind-v4-source-directive-cross-package|Tailwind v4 `@source` directive for cross-package components]] — workspace packages self-register their content globs in `tokens.css`.
+- [[../learnings/lowercase-pill-convention|Lowercase pill convention]] — status pills lowercase, kickers and filter chips uppercase.
+- [[../learnings/optimistic-mutation-pattern|Optimistic-mutation primitive over TanStack useMutation]] — declarative wrapper handles snapshot/restore/invalidate; each mutation becomes ~10 lines of config.
 
 ## `#reference` — Environment and commands
 
@@ -57,6 +60,8 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/logger-factory-dbsink-propagation|Module-level loggers skip the dbSink]] — pass the logger through constructors for events to reach the logs table.
 - [[../learnings/appdeps-growth-propagates-to-tests|AppDeps growth propagates to tests]] — a new field means sweeping all api test helpers; don't miss one.
 - [[../learnings/workspace-node-modules-in-docker|pnpm workspace node_modules in Docker]] — each workspace's `node_modules/` must be copied into the runtime image, not just the root.
+- [[../learnings/macos-case-insensitive-git-mv|macOS case-insensitive FS needs two-step `git mv`]] — case-only renames silently no-op; rename through an intermediate name.
+- [[../learnings/peer-react-in-workspace-ui-package|Peer React in workspace UI package]] — deps-level React causes two-instances hook errors; peer + dev is the fix.
 
 ## `#meta` — Workflow and process
 

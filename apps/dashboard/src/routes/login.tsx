@@ -1,8 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { Button, Input } from '@zeno/ui';
 import { type FormEvent, type JSX, useState } from 'react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ApiError, apiFetch } from '@/lib/api-client';
 
 export const Route = createFileRoute('/login')({
@@ -26,9 +25,9 @@ function LoginPage(): JSX.Element {
       await navigate({ to: '/' });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        toast.error('senha inválida');
+        toast.error('invalid password');
       } else {
-        toast.error('erro inesperado, tenta de novo');
+        toast.error('unexpected error, try again');
       }
     } finally {
       setSubmitting(false);
@@ -69,7 +68,7 @@ function LoginPage(): JSX.Element {
             />
           </div>
           <Button type="submit" disabled={submitting || password.length === 0}>
-            {submitting ? 'Entrando…' : 'Sign in'}
+            {submitting ? 'Signing in…' : 'Sign in'}
           </Button>
         </div>
       </form>

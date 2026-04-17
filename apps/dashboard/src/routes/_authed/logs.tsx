@@ -27,7 +27,7 @@ function LogsPage(): JSX.Element {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex items-start justify-between gap-6">
+      <header className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:gap-6">
         <div className="flex flex-col gap-2">
           <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
             Observability
@@ -45,12 +45,12 @@ function LogsPage(): JSX.Element {
         />
       </header>
 
-      <div className="flex items-center gap-3 border-b border-border-subtle pb-4">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border-subtle pb-4">
         <LevelChips
           value={filters.level}
           onChange={(level) => setFilters((f) => ({ ...f, level }))}
         />
-        <div className="flex-1">
+        <div className="order-last w-full min-w-[200px] sm:order-none sm:w-auto sm:flex-1">
           <LogSearchInput value={filters.q} onChange={(q) => setFilters((f) => ({ ...f, q }))} />
         </div>
         <TimeRangeSelect

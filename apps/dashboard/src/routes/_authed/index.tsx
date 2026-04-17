@@ -35,13 +35,13 @@ function HomePage(): JSX.Element {
         <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
           {dateLabel}
         </span>
-        <h1 className="font-serif text-4xl leading-tight text-text-primary">
+        <h1 className="font-serif text-3xl leading-tight text-text-primary sm:text-4xl">
           <span className="italic text-accent">{greeting.verb},</span> {greeting.name}.
         </h1>
         <p className="max-w-[560px] text-sm leading-5 text-text-secondary">{subtitle}</p>
       </header>
 
-      <section className="flex gap-16 border-b border-border-subtle pb-2">
+      <section className="grid grid-cols-2 gap-6 border-b border-border-subtle pb-2 sm:gap-8 md:flex md:gap-16">
         <StatTile label="Active crons" value={stats.data?.activeCrons ?? 0} />
         <StatTile label="Sessions · 24h" value={stats.data?.sessions24h ?? 0} />
         <StatTile label="Runs · today" value={stats.data?.runsToday ?? 0} />

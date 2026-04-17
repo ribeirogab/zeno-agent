@@ -35,7 +35,7 @@ export function LogRow({ log }: { log: LogApi }): JSX.Element {
         <span className="flex h-5 w-5 shrink-0 items-center justify-center">
           <span className={cn('h-1.5 w-1.5 rounded-full', level.dotClass)} />
         </span>
-        <span className="w-24 shrink-0 font-mono text-[11px] text-text-tertiary">
+        <span className="hidden w-24 shrink-0 font-mono text-[11px] text-text-tertiary sm:inline">
           {fmtTs(log.ts)}
         </span>
         <span
@@ -46,10 +46,10 @@ export function LogRow({ log }: { log: LogApi }): JSX.Element {
         >
           {level.text}
         </span>
-        <span className="w-48 shrink-0 truncate font-mono text-xs text-text-primary">
+        <span className="w-32 shrink-0 truncate font-mono text-xs text-text-primary sm:w-48">
           {log.event ?? '—'}
         </span>
-        <span className="flex-1 truncate text-xs text-text-secondary">
+        <span className="hidden flex-1 truncate text-xs text-text-secondary sm:inline">
           {log.message ?? '(no message)'}
         </span>
       </button>

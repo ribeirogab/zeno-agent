@@ -30,14 +30,16 @@ function CronDetailPage(): JSX.Element {
       </nav>
 
       <header className="flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-6">
-          <h1 className="font-serif text-4xl leading-tight text-text-primary">{cron.name}</h1>
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:gap-6">
+          <h1 className="font-serif text-3xl leading-tight text-text-primary sm:text-4xl">
+            {cron.name}
+          </h1>
           <CronActions cron={cron} />
         </div>
         {cron.description && (
           <p className="max-w-[640px] text-sm text-text-secondary">{cron.description}</p>
         )}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="rounded-full border border-border-subtle bg-panel px-2.5 py-1 font-mono text-xs text-text-primary">
             {cron.schedule}
           </span>

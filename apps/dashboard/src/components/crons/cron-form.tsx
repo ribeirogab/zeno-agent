@@ -1,5 +1,6 @@
 import { Button, Input } from '@zeno/ui';
 import { type FormEvent, type JSX, useId, useState } from 'react';
+import { SchedulePicker } from '@/components/crons/schedule-picker';
 import type { CreateCronInput } from '@/lib/mutations';
 
 export function CronForm({
@@ -64,20 +65,13 @@ export function CronForm({
         />
       </div>
       <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={scheduleId}
+        <span
+          id={scheduleId}
           className="text-xs font-medium uppercase tracking-wider text-text-secondary"
         >
           Schedule *
-        </label>
-        <Input
-          id={scheduleId}
-          value={schedule}
-          onChange={(event) => setSchedule(event.target.value)}
-          placeholder="0 9 * * 1-5"
-          required
-          className="font-mono"
-        />
+        </span>
+        <SchedulePicker value={schedule} onChange={setSchedule} />
       </div>
       <div className="flex flex-col gap-1.5">
         <label

@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: dashboard-optimistic-updates
 created: 2026-04-17
-shipped: null
+shipped: 2026-04-17
 ---
 # Dashboard Optimistic Updates — Spec
 
-**Status:** Draft
+**Status:** Shipped
 **Scope:** Introduce a reusable `useOptimisticMutation` primitive in `apps/dashboard/src/lib/` that declaratively handles cache snapshot + optimistic write + rollback + invalidate + toasts for every cacheable mutation in the dashboard. Migrate the five mutations that have a visible cache effect (`pause`, `resume`, `delete`, `create`, `run-now`) to the new primitive. The primitive becomes the project pattern — any future mutation added to `mutations.ts` adopts it by default.
 
 ## Context

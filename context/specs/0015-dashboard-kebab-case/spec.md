@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: dashboard-kebab-case
 created: 2026-04-16
-shipped: null
+shipped: 2026-04-17
 ---
 # Dashboard Kebab-Case Rename — Spec
 
-**Status:** Draft
+**Status:** Shipped
 **Scope:** Rename every PascalCase component file under `apps/dashboard/src/components/**` to kebab-case, update imports, codify the file-naming rule in `context/conventions/code-style.md`. Component export names stay PascalCase; only filenames change.
 
 ## Context

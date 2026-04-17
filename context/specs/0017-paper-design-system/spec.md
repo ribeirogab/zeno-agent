@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: paper-design-system
 created: 2026-04-16
-shipped: null
+shipped: 2026-04-17
 ---
 # Paper Design System — Spec
 
-**Status:** Draft
+**Status:** Shipped
 **Scope:** Build a complete design system inside Paper (paper.design) that catalogs every visual component and every screen rendered by the Zeno dashboard. Establish a `packages/ui/DESIGN.md` registry mapping each code-level component to its Paper frame. Codify the governance rule: **no UI on screen without a Paper entry**. The design system builds on top of spec 0008 (palette, type, spacing) and the primitives extracted in spec 0016.
 
 ## Context

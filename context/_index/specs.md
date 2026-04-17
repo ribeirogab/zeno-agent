@@ -14,10 +14,7 @@ Template: `[[../specs/_template/spec|_template/spec]]`
 
 ## Active
 
-- [[../specs/0015-dashboard-kebab-case/spec|0015 — Dashboard Kebab-Case Rename]] (2026-04-16) — normalize component filenames under `apps/dashboard/src/components/**` to kebab-case; codify rule in `conventions/code-style.md`.
-- [[../specs/0016-ui-package/spec|0016 — Extract @zeno/ui Package]] (2026-04-16) — move shadcn primitives to `packages/ui/`; source-consumed via Bundler resolution; tokens CSS ships with the package.
-- [[../specs/0017-paper-design-system/spec|0017 — Paper Design System]] (2026-04-16) — organize "Hearty island" Paper file (Foundations · Primitives · Patterns · Feature components · Pages) + `packages/ui/DESIGN.md` registry + governance rule.
-- [[../specs/0018-dashboard-ux-cleanup/spec|0018 — Dashboard UX Cleanup]] (2026-04-16) — replace `window.confirm` + raw "carregando…"; add `AlertDialog`, `Skeleton`, `EmptyState`, `ErrorState` primitives to `@zeno/ui`.
+_(none)_
 
 ## Drafted / created earlier (status frontmatter still `draft`)
 
@@ -38,4 +35,8 @@ _Note: many of the above were implemented and merged; the `status:` frontmatter 
 
 ## Shipped
 
+- [[../specs/0018-dashboard-ux-cleanup/spec|0018 — Dashboard UX Cleanup]] (2026-04-17) — `AlertDialog` / `Skeleton` / `EmptyState` / `ErrorState` primitives in `@zeno/ui`; `window.confirm` + raw "carregando…" removed.
+- [[../specs/0017-paper-design-system/spec|0017 — Paper Design System]] (2026-04-17) — "Hearty island" Paper file organized (Foundations · Primitives · Patterns · Feature components · Pages) + `packages/ui/DESIGN.md` registry + `ui-in-paper` governance rule.
+- [[../specs/0016-ui-package/spec|0016 — Extract @zeno/ui Package]] (2026-04-17) — shadcn primitives moved to `packages/ui/`; source-consumed via Bundler resolution; tokens CSS ships with the package.
+- [[../specs/0015-dashboard-kebab-case/spec|0015 — Dashboard Kebab-Case Rename]] (2026-04-17) — component filenames under `apps/dashboard/src/components/**` normalized to kebab-case; rule codified in `conventions/code-style.md`.
 - [[../specs/0001-slack-zeno-mvp/spec|0001 — Slack Zeno MVP]] (2026-04-15) — agente pessoal via Slack que consulta GitHub via Claude Code (OAuth) + `gh` CLI.

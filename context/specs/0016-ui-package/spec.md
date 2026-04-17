@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: ui-package
 created: 2026-04-16
-shipped: null
+shipped: 2026-04-17
 ---
 # Extract @zeno/ui Package — Spec
 
-**Status:** Draft
+**Status:** Shipped
 **Scope:** Extract the shadcn-style primitives from `apps/dashboard/src/components/ui/` into a new workspace package `@zeno/ui` at `packages/ui/`. Consume source directly (no build step) via `moduleResolution: "Bundler"` in the dashboard. Set up Tailwind content globs and TypeScript path aliases so the dashboard resolves imports transparently. Feature-level components (crons/, logs/, sessions/, etc.) stay in the dashboard.
 
 ## Context

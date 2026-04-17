@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: dashboard-ux-cleanup
 created: 2026-04-16
-shipped: null
+shipped: 2026-04-17
 ---
 # Dashboard UX Cleanup — Spec
 
-**Status:** Draft
+**Status:** Shipped
 **Scope:** Replace every native browser affordance and every ad-hoc loading/error text in the dashboard with proper primitives. Add the missing primitives (`AlertDialog`, `Skeleton`, `EmptyState`, `ErrorState`) to `@zeno/ui` and to the Paper design system. Remove `window.confirm`. Remove "carregando…" raw-span placeholders. Centralize empty and error states so they look intentional instead of accidental.
 
 ## Context

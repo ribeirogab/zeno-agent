@@ -1,6 +1,7 @@
 import { Link, useLocation } from '@tanstack/react-router';
 import type { JSX } from 'react';
 import { type ServiceStatus, useHealth } from '@/lib/use-health';
+import { useTheme } from '@/lib/use-theme';
 
 interface NavItem {
   label: string;
@@ -34,10 +35,49 @@ export interface SidebarProps {
   onNavigate?: () => void;
 }
 
+function SunIcon(): JSX.Element {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <title>sun</title>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </svg>
+  );
+}
+
+function MoonIcon(): JSX.Element {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <title>moon</title>
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
+
 export function Sidebar({ onNavigate }: SidebarProps = {}): JSX.Element {
   const location = useLocation();
   const currentPath = location.pathname;
   const health = useHealth();
+  const { theme, toggle: toggleTheme } = useTheme();
   const services = health.data?.services ?? {
     backend: 'unknown' as ServiceStatus,
     slack: 'unknown' as ServiceStatus,
@@ -106,7 +146,15 @@ export function Sidebar({ onNavigate }: SidebarProps = {}): JSX.Element {
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-border-subtle text-[11px] font-semibold text-text-primary">
           GR
         </div>
-        <span className="text-sm text-text-secondary">Operator</span>
+        <span className="flex-1 text-sm text-text-secondary">Operator</span>
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'switch to light theme' : 'switch to dark theme'}
+          className="rounded-md p-1.5 text-text-tertiary hover:bg-panel hover:text-text-primary"
+        >
+          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+        </button>
       </div>
     </aside>
   );

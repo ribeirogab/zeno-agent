@@ -1,8 +1,8 @@
 ---
-status: draft
+status: shipped
 feature: profile-hot-reload
 created: 2026-04-16
-shipped: null
+shipped: 2026-04-16
 ---
 # Profile Hot-Reload — Spec
 

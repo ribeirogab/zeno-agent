@@ -45,9 +45,30 @@
       "recommended": true,
       "suspicious": {
         "noExplicitAny": "warn"
+      },
+      "style": {
+        "useFilenamingConvention": {
+          "level": "error",
+          "options": {
+            "filenameCases": ["kebab-case"],
+            "requireAscii": true
+          }
+        }
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["apps/dashboard/src/routes/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useFilenamingConvention": "off"
+          }
+        }
+      }
+    }
+  ],
   "assist": {
     "enabled": true,
     "actions": {

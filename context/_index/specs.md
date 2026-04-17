@@ -16,22 +16,9 @@ Template: `[[../specs/_template/spec|_template/spec]]`
 
 _(none)_
 
-## Drafted / created earlier (status frontmatter still `draft`)
+## Design-only
 
-- [[../specs/0002-dev-workflow/spec|0002 — Dev Workflow]]
-- [[../specs/0003-thread-sessions/spec|0003 — Thread Sessions]]
-- [[../specs/0004-mcp-configuration/spec|0004 — MCP Configuration]]
-- [[../specs/0005-database-foundation/spec|0005 — Database Foundation]]
-- [[../specs/0006-session-persistence/spec|0006 — Session Persistence]]
-- [[../specs/0007-cron-scheduled-tasks/spec|0007 — Cron Scheduled Tasks]]
-- [[../specs/0008-dashboard-design/spec|0008 — Dashboard Design (Paper artboards)]]
-- [[../specs/0010-profile-hot-reload/spec|0010 — Profile Hot Reload]]
-- [[../specs/0011-mock-backend/spec|0011 — Mock Backend]]
-- [[../specs/0012-dashboard-foundation/spec|0012 — Dashboard Foundation (Phase A)]]
-- [[../specs/0013-dashboard-crud/spec|0013 — Dashboard CRUD (Phase B)]]
-- [[../specs/0014-dashboard-logs/spec|0014 — Dashboard Logs (Phase C)]]
-
-_Note: many of the above were implemented and merged; the `status:` frontmatter was never flipped to `shipped`. Treat `git log` as the source of truth for what is actually in `main` until the frontmatter is rebased._
+- [[../specs/0008-dashboard-design/spec|0008 — Dashboard Design (Paper artboards)]] — visual design, no code footprint.
 
 ## Shipped
 
@@ -39,4 +26,15 @@ _Note: many of the above were implemented and merged; the `status:` frontmatter 
 - [[../specs/0017-paper-design-system/spec|0017 — Paper Design System]] (2026-04-17) — "Hearty island" Paper file organized (Foundations · Primitives · Patterns · Feature components · Pages) + `packages/ui/DESIGN.md` registry + `ui-in-paper` governance rule.
 - [[../specs/0016-ui-package/spec|0016 — Extract @zeno/ui Package]] (2026-04-17) — shadcn primitives moved to `packages/ui/`; source-consumed via Bundler resolution; tokens CSS ships with the package.
 - [[../specs/0015-dashboard-kebab-case/spec|0015 — Dashboard Kebab-Case Rename]] (2026-04-17) — component filenames under `apps/dashboard/src/components/**` normalized to kebab-case; rule codified in `conventions/code-style.md`.
+- [[../specs/0014-dashboard-logs/spec|0014 — Dashboard Logs (Phase C)]] (2026-04-16) — `/logs` route with filters, SSE live-tail, expandable payload.
+- [[../specs/0013-dashboard-crud/spec|0013 — Dashboard CRUD (Phase B)]] (2026-04-16) — cron create/pause/resume/delete + run-now from the dashboard.
+- [[../specs/0012-dashboard-foundation/spec|0012 — Dashboard Foundation (Phase A)]] (2026-04-16) — Vite + TanStack + shadcn SPA served by the api.
+- [[../specs/0011-mock-backend/spec|0011 — Mock Backend]] (2026-04-16) — `ZENO_BACKEND=mock` for offline dev without OAuth.
+- [[../specs/0010-profile-hot-reload/spec|0010 — Profile Hot Reload]] (2026-04-16) — `profile/` watcher rebuilds the system prompt without restart.
+- [[../specs/0007-cron-scheduled-tasks/spec|0007 — Cron Scheduled Tasks]] (2026-04-16) — `profile/crons.yaml` + chat-source crons with fire-and-forget commands.
+- [[../specs/0006-session-persistence/spec|0006 — Session Persistence]] (2026-04-16) — Slack threadId ↔ Claude SDK sessionId mapping persisted in SQLite.
+- [[../specs/0005-database-foundation/spec|0005 — Database Foundation]] (2026-04-16) — SQLite via `better-sqlite3`; migrations in `packages/storage`.
+- [[../specs/0004-mcp-configuration/spec|0004 — MCP Configuration]] (2026-04-16) — `profile/mcp.json` loader with per-server enable/skip reasons.
+- [[../specs/0003-thread-sessions/spec|0003 — Thread Sessions]] (2026-04-16) — `thread_ts`-keyed session resumption via SDK.
+- [[../specs/0002-dev-workflow/spec|0002 — Dev Workflow]] (2026-04-16) — quality-gate + docker workflow + skill inventory.
 - [[../specs/0001-slack-zeno-mvp/spec|0001 — Slack Zeno MVP]] (2026-04-15) — agente pessoal via Slack que consulta GitHub via Claude Code (OAuth) + `gh` CLI.

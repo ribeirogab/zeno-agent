@@ -58,7 +58,7 @@ scroll to the subsection (Crons · Home · Layout · Logs · Sessions · Setting
 
 | Folder | Components |
 |---|---|
-| `components/crons/` | `cron-status-pill` · `cron-row` · `cron-actions` · `cron-form` · `cron-run-history-row` |
+| `components/crons/` | `cron-status-pill` · `cron-row` · `cron-actions` · `cron-form` · `cron-run-history-row` · [schedule-picker](https://app.paper.design/file/01KPA7BZ1AWQDRA79KQYGDA6V7/1-0/209-0) |
 | `components/home/` | `activity-row` · `stat-tile` |
 | `components/layout/` | `layout` · `sidebar` · `mobile-drawer` |
 | `components/logs/` | `level-chips` · `log-search-input` · `time-range-select` · `following-toggle` · `log-row` · `log-json-block` |

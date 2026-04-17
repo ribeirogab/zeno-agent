@@ -105,7 +105,7 @@ export function CronForm({
         />
       </div>
       <Button type="submit" disabled={submitting}>
-        {submitting ? 'criando…' : 'Criar cron'}
+        {submitting ? 'creating…' : 'Create cron'}
       </Button>
     </form>
   );

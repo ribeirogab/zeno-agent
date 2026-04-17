@@ -25,9 +25,9 @@ function LoginPage(): JSX.Element {
       await navigate({ to: '/' });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        toast.error('senha inválida');
+        toast.error('invalid password');
       } else {
-        toast.error('erro inesperado, tenta de novo');
+        toast.error('unexpected error, try again');
       }
     } finally {
       setSubmitting(false);
@@ -68,7 +68,7 @@ function LoginPage(): JSX.Element {
             />
           </div>
           <Button type="submit" disabled={submitting || password.length === 0}>
-            {submitting ? 'Entrando…' : 'Sign in'}
+            {submitting ? 'Signing in…' : 'Sign in'}
           </Button>
         </div>
       </form>

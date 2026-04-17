@@ -19,10 +19,10 @@ const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 
 function describe(cron: string): { text: string; valid: boolean } {
   try {
-    const text = cronstrue.toString(cron, { locale: 'pt_BR', use24HourTimeFormat: true });
+    const text = cronstrue.toString(cron, { locale: 'en', use24HourTimeFormat: true });
     return { text: text.toLowerCase(), valid: true };
   } catch {
-    return { text: 'expressão inválida', valid: false };
+    return { text: 'invalid expression', valid: false };
   }
 }
 
@@ -102,7 +102,7 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps): JSX.El
           >
             {HOURLY_MINUTE_STEPS.map((m) => (
               <option key={m} value={m}>
-                no minuto {pad(m)}
+                at minute {pad(m)}
               </option>
             ))}
           </select>
@@ -113,7 +113,7 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps): JSX.El
           state.preset === 'weekly' ||
           state.preset === 'monthly') && (
           <>
-            <span className="text-sm text-text-tertiary">às</span>
+            <span className="text-sm text-text-tertiary">at</span>
             <select
               aria-label="hour"
               className={selectClass}
@@ -166,7 +166,7 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps): JSX.El
           >
             {DAYS.map((d) => (
               <option key={d} value={d}>
-                dia {d}
+                day {d}
               </option>
             ))}
           </select>

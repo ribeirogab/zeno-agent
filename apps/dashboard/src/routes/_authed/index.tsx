@@ -22,7 +22,7 @@ function HomePage(): JSX.Element {
   const activity = useActivity();
   const now = new Date();
   const dateLabel = now
-    .toLocaleDateString('pt-BR', { weekday: 'long', month: 'long', day: 'numeric' })
+    .toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     .replace(/^\w/, (c) => c.toUpperCase());
   const greeting = greetingForHour(now.getHours(), USER_NAME);
   const subtitle = homeSubtitle({
@@ -64,11 +64,11 @@ function HomePage(): JSX.Element {
             <HomeActivitySkeleton />
           ) : activity.isError ? (
             <ErrorState
-              description="falhou ao carregar atividade recente."
+              description="failed to load recent activity."
               onRetry={() => void activity.refetch()}
             />
           ) : activity.data?.length === 0 ? (
-            <EmptyState title="nada por aqui ainda" />
+            <EmptyState title="nothing here yet" />
           ) : (
             activity.data?.map((a) => <ActivityRow key={a.id} activity={a} />)
           )}

@@ -9,7 +9,8 @@ const statusColor: Record<Activity['status'], string> = {
 };
 
 function fmt(timestamp: string): string {
-  return new Date(timestamp).toLocaleTimeString('pt-BR', {
+  return new Date(timestamp).toLocaleTimeString('en-US', {
+    hour12: false,
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',

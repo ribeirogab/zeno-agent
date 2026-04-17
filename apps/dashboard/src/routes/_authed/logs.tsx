@@ -36,8 +36,8 @@ function LogsPage(): JSX.Element {
           </span>
           <h1 className="text-[22px] font-semibold tracking-tight text-text-primary">Logs</h1>
           <p className="max-w-[560px] text-sm leading-5 text-text-secondary">
-            Pino JSON logs do worker + api. Filtra, busca por event ou correlationId, expande
-            qualquer linha pra ver o payload inteiro.
+            Pino JSON logs from the worker + api. Filter, search by event or correlationId, expand
+            any row to see the full payload.
           </p>
         </div>
         <FollowingToggle
@@ -67,7 +67,7 @@ function LogsPage(): JSX.Element {
           <ErrorState onRetry={() => void historical.refetch()} />
         )}
         {logs.length === 0 && !historical.isLoading && !historical.isError && (
-          <EmptyState title="sem resultados nos filtros atuais" />
+          <EmptyState title="no results for current filters" />
         )}
         {logs.map((l) => (
           <LogRow key={l.id} log={l} />

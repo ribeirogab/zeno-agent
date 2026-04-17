@@ -40,12 +40,12 @@ function CronsPage(): JSX.Element {
           <CronListSkeleton />
         ) : crons.data?.length === 0 ? (
           <EmptyState
-            title="nenhum cron ainda"
-            description="crie seu primeiro agendamento para automatizar o Zeno."
+            title="no crons yet"
+            description="create your first schedule to automate Zeno."
             action={
               <Link to="/crons/new">
                 <Button variant="accent" size="sm">
-                  novo cron
+                  new cron
                 </Button>
               </Link>
             }

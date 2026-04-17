@@ -46,22 +46,22 @@ export const HOURLY_MINUTE_STEPS: ReadonlyArray<number> = [
 ];
 
 export const DOW_LABELS: ReadonlyArray<{ value: 0 | 1 | 2 | 3 | 4 | 5 | 6; label: string }> = [
-  { value: 0, label: 'dom' },
-  { value: 1, label: 'seg' },
-  { value: 2, label: 'ter' },
-  { value: 3, label: 'qua' },
-  { value: 4, label: 'qui' },
-  { value: 5, label: 'sex' },
-  { value: 6, label: 'sáb' },
+  { value: 0, label: 'sun' },
+  { value: 1, label: 'mon' },
+  { value: 2, label: 'tue' },
+  { value: 3, label: 'wed' },
+  { value: 4, label: 'thu' },
+  { value: 5, label: 'fri' },
+  { value: 6, label: 'sat' },
 ];
 
 export const PRESET_LABELS: ReadonlyArray<{ value: PresetKind; label: string }> = [
-  { value: 'everyMinutes', label: 'a cada N min' },
-  { value: 'hourly', label: 'a cada hora' },
-  { value: 'daily', label: 'todo dia' },
-  { value: 'weekdays', label: 'dias úteis' },
-  { value: 'weekly', label: 'semanal' },
-  { value: 'monthly', label: 'mensal' },
+  { value: 'everyMinutes', label: 'every N min' },
+  { value: 'hourly', label: 'hourly' },
+  { value: 'daily', label: 'daily' },
+  { value: 'weekdays', label: 'weekdays' },
+  { value: 'weekly', label: 'weekly' },
+  { value: 'monthly', label: 'monthly' },
   { value: 'custom', label: 'custom' },
 ];
 

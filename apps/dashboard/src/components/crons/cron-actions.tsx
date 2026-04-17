@@ -68,18 +68,18 @@ export function CronActions({ cron }: { cron: CronApi }): JSX.Element {
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>remover este cron?</AlertDialogTitle>
+              <AlertDialogTitle>delete this cron?</AlertDialogTitle>
               <AlertDialogDescription>
-                {`"${cron.name}" será removido. essa ação não pode ser desfeita.`}
+                {`"${cron.name}" will be deleted. This action cannot be undone.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel asChild>
-                <Button variant="ghost">cancelar</Button>
+                <Button variant="ghost">cancel</Button>
               </AlertDialogCancel>
               <AlertDialogAction asChild>
                 <Button variant="accent" onClick={onDelete}>
-                  remover
+                  delete
                 </Button>
               </AlertDialogAction>
             </AlertDialogFooter>

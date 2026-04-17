@@ -30,7 +30,7 @@ export function usePauseCron() {
     mutationFn: (id) => apiFetch<void>(`/api/crons/${id}/pause`, { method: 'POST' }),
     optimisticUpdate: (id) => [setEnabledInList(id, false), setEnabledInDetail(id, false)],
     invalidateKeys: (id) => [['crons'], ['crons', id]],
-    successToast: 'cron pausado',
+    successToast: 'cron paused',
   });
 }
 
@@ -39,7 +39,7 @@ export function useResumeCron() {
     mutationFn: (id) => apiFetch<void>(`/api/crons/${id}/resume`, { method: 'POST' }),
     optimisticUpdate: (id) => [setEnabledInList(id, true), setEnabledInDetail(id, true)],
     invalidateKeys: (id) => [['crons'], ['crons', id]],
-    successToast: 'cron retomado',
+    successToast: 'cron resumed',
   });
 }
 
@@ -50,7 +50,7 @@ export function useDeleteCron() {
       cacheChange<CronApi[]>(['crons'], (prev) => prev?.filter((c) => c.id !== id)),
     ],
     invalidateKeys: () => [['crons']],
-    successToast: 'cron removido',
+    successToast: 'cron deleted',
   });
 }
 
@@ -74,7 +74,7 @@ export function useRunNowCron() {
     ],
     invalidateKeys: (id) => [['crons', id]],
     invalidateDelayMs: 5000,
-    successToast: 'execução iniciada',
+    successToast: 'run started',
   });
 }
 
@@ -114,7 +114,7 @@ export function useCreateCron() {
       }),
     ],
     invalidateKeys: () => [['crons']],
-    successToast: 'cron criado',
+    successToast: 'cron created',
   });
 }
 
@@ -122,7 +122,7 @@ export function useCreateCron() {
 export function useRestartWorker() {
   return useMutation({
     mutationFn: () => apiFetch<void>('/api/settings/restart', { method: 'POST' }),
-    onSuccess: () => toast.success('reiniciando worker…'),
+    onSuccess: () => toast.success('restarting worker…'),
     onError: (err) => toast.error(formatError(err)),
   });
 }

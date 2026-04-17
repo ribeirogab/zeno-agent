@@ -73,7 +73,7 @@ function CronDetailPage(): JSX.Element {
       <section className="flex flex-col gap-4">
         <h2 className="text-base font-semibold text-text-primary">Run history</h2>
         {recentRuns.length === 0 ? (
-          <EmptyState title="ainda não rodou" />
+          <EmptyState title="no runs yet" />
         ) : (
           recentRuns.map((run) => <CronRunHistoryRow key={run.id} run={run} />)
         )}

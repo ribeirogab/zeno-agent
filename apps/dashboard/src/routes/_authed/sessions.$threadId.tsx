@@ -54,7 +54,7 @@ function SessionDetailPage(): JSX.Element {
 
       <section className="flex flex-col gap-4">
         {messages.length === 0 && (
-          <span className="text-sm text-text-secondary">[sem transcript disponível]</span>
+          <span className="text-sm text-text-secondary">[no transcript available]</span>
         )}
         {messages.map((m) => (
           <MessageBlock key={m.id} message={m} />

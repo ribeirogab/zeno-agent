@@ -25,12 +25,13 @@ export function RestartDialog(): JSX.Element {
         <DialogHeader>
           <DialogTitle>Restart worker?</DialogTitle>
           <DialogDescription>
-            O processo do worker vai sair e o Docker vai subir de novo em ~3s. A API não é afetada.
+            The worker process will exit and Docker will bring it back up in ~3s. The API is not
+            affected.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>
-            Cancelar
+            Cancel
           </Button>
           <Button
             variant="accent"
@@ -40,7 +41,7 @@ export function RestartDialog(): JSX.Element {
               setOpen(false);
             }}
           >
-            {restart.isPending ? 'reiniciando…' : 'Restart'}
+            {restart.isPending ? 'restarting…' : 'Restart'}
           </Button>
         </DialogFooter>
       </DialogContent>

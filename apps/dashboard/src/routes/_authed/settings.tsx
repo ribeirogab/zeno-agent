@@ -44,7 +44,7 @@ function SettingsPage(): JSX.Element {
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold text-text-primary">MCP servers</h2>
         {s.mcpServers.length === 0 ? (
-          <EmptyState title="nenhum server configurado" />
+          <EmptyState title="no servers configured" />
         ) : (
           s.mcpServers.map((m) => <McpServerRow key={m.name} server={m} />)
         )}

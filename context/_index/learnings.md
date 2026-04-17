@@ -26,6 +26,7 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/structural-interface-across-packages|Structural interface across packages]] — declare minimal interface in consumer; producer satisfies by shape; no cross-package runtime dep.
 - [[../learnings/tailwind-v4-source-directive-cross-package|Tailwind v4 `@source` directive for cross-package components]] — workspace packages self-register their content globs in `tokens.css`.
 - [[../learnings/lowercase-pill-convention|Lowercase pill convention]] — status pills lowercase, kickers and filter chips uppercase.
+- [[../learnings/optimistic-mutation-pattern|Optimistic-mutation primitive over TanStack useMutation]] — declarative wrapper handles snapshot/restore/invalidate; each mutation becomes ~10 lines of config.
 
 ## `#reference` — Environment and commands
 

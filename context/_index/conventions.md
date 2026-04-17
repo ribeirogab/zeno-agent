@@ -9,3 +9,5 @@ Deliberate code style choices that all code in Zeno must follow. These are not s
 ## Code style
 
 - [[../conventions/code-style|TypeScript code style]] — single quotes, semicolons, trailing commas, no one-letter vars, organized imports. Enforced by Biome (`biome.json`).
+- [[../conventions/code-style#File naming|File naming]] — kebab-case for source, test, and route files. PascalCase only for React components exported from them.
+- [[../conventions/code-style#Dashboard mutations|Dashboard mutations]] — every mutation with a cache effect uses `useOptimisticMutation` + `cacheChange<T>()`.

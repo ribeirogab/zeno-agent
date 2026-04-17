@@ -16,6 +16,10 @@ Template: `[[../specs/_template/spec|_template/spec]]`
 
 _(none)_
 
+## Active
+
+- [[../specs/0019-dashboard-optimistic-updates/spec|0019 — Dashboard Optimistic Updates]] (2026-04-17) — pause/resume/delete cron mutations write the expected next state to the cache on click; `onError` rolls back; `invalidateSoon` stays as the server-reality safety net.
+
 ## Design-only
 
 - [[../specs/0008-dashboard-design/spec|0008 — Dashboard Design (Paper artboards)]] — visual design, no code footprint.

@@ -36,6 +36,10 @@ in `src/styles/tokens.css` (`[data-theme="light"]` / `.light`).
 | [Dialog](https://app.paper.design/file/01KPA7BZ1AWQDRA79KQYGDA6V7/1-0/1A9-0) | `src/components/dialog.tsx` |
 | [Toaster](https://app.paper.design/file/01KPA7BZ1AWQDRA79KQYGDA6V7/1-0/1B4-0) | `src/components/sonner.tsx` |
 | Drawer | Extends Dialog anatomy (side-slide). Covered in Dialog frame. Code: `src/components/drawer.tsx` |
+| [AlertDialog](https://app.paper.design/file/01KPA7BZ1AWQDRA79KQYGDA6V7/1-0/1US-0) | `src/components/alert-dialog.tsx` |
+| [Skeleton](https://app.paper.design/file/01KPA7BZ1AWQDRA79KQYGDA6V7/1-0/1UT-0) | `src/components/skeleton.tsx` |
+| [EmptyState](https://app.paper.design/file/01KPA7BZ1AWQDRA79KQYGDA6V7/1-0/1UU-0) | `src/components/empty-state.tsx` |
+| [ErrorState](https://app.paper.design/file/01KPA7BZ1AWQDRA79KQYGDA6V7/1-0/1UV-0) | `src/components/error-state.tsx` |
 
 ## 03 · Patterns
 

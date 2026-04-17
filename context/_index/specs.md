@@ -14,7 +14,27 @@ Template: `[[../specs/_template/spec|_template/spec]]`
 
 ## Active
 
-_No active specs._
+- [[../specs/0015-dashboard-kebab-case/spec|0015 — Dashboard Kebab-Case Rename]] (2026-04-16) — normalize component filenames under `apps/dashboard/src/components/**` to kebab-case; codify rule in `conventions/code-style.md`.
+- [[../specs/0016-ui-package/spec|0016 — Extract @zeno/ui Package]] (2026-04-16) — move shadcn primitives to `packages/ui/`; source-consumed via Bundler resolution; tokens CSS ships with the package.
+- [[../specs/0017-paper-design-system/spec|0017 — Paper Design System]] (2026-04-16) — organize "Hearty island" Paper file (Foundations · Primitives · Patterns · Feature components · Pages) + `packages/ui/DESIGN.md` registry + governance rule.
+- [[../specs/0018-dashboard-ux-cleanup/spec|0018 — Dashboard UX Cleanup]] (2026-04-16) — replace `window.confirm` + raw "carregando…"; add `AlertDialog`, `Skeleton`, `EmptyState`, `ErrorState` primitives to `@zeno/ui`.
+
+## Drafted / created earlier (status frontmatter still `draft`)
+
+- [[../specs/0002-dev-workflow/spec|0002 — Dev Workflow]]
+- [[../specs/0003-thread-sessions/spec|0003 — Thread Sessions]]
+- [[../specs/0004-mcp-configuration/spec|0004 — MCP Configuration]]
+- [[../specs/0005-database-foundation/spec|0005 — Database Foundation]]
+- [[../specs/0006-session-persistence/spec|0006 — Session Persistence]]
+- [[../specs/0007-cron-scheduled-tasks/spec|0007 — Cron Scheduled Tasks]]
+- [[../specs/0008-dashboard-design/spec|0008 — Dashboard Design (Paper artboards)]]
+- [[../specs/0010-profile-hot-reload/spec|0010 — Profile Hot Reload]]
+- [[../specs/0011-mock-backend/spec|0011 — Mock Backend]]
+- [[../specs/0012-dashboard-foundation/spec|0012 — Dashboard Foundation (Phase A)]]
+- [[../specs/0013-dashboard-crud/spec|0013 — Dashboard CRUD (Phase B)]]
+- [[../specs/0014-dashboard-logs/spec|0014 — Dashboard Logs (Phase C)]]
+
+_Note: many of the above were implemented and merged; the `status:` frontmatter was never flipped to `shipped`. Treat `git log` as the source of truth for what is actually in `main` until the frontmatter is rebased._
 
 ## Shipped
 

@@ -1,14 +1,17 @@
 import { Link } from '@tanstack/react-router';
 import type { JSX } from 'react';
 import { CronStatusPill } from '@/components/crons/cron-status-pill';
+import { isTempId } from '@/lib/temp-id';
 import type { CronApi } from '@/lib/use-crons';
 
 export function CronRow({ cron }: { cron: CronApi }): JSX.Element {
+  const pending = isTempId(cron.id);
   return (
     <Link
       to="/crons/$id"
       params={{ id: cron.id }}
-      className="flex items-center gap-4 border-b border-panel py-4 hover:bg-panel/40"
+      aria-disabled={pending}
+      className={`flex items-center gap-4 border-b border-panel py-4 hover:bg-panel/40 ${pending ? 'pointer-events-none opacity-60' : ''}`}
     >
       <div className="flex flex-1 flex-col gap-1 min-w-0">
         <span className="text-sm font-medium text-text-primary">{cron.name}</span>

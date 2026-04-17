@@ -1,4 +1,5 @@
 import type { JSX } from 'react';
+import { isTempId } from '@/lib/temp-id';
 import type { CronRunApi } from '@/lib/use-cron';
 
 const statusColor: Record<CronRunApi['status'], string> = {
@@ -15,8 +16,11 @@ function duration(run: CronRunApi): string {
 }
 
 export function CronRunHistoryRow({ run }: { run: CronRunApi }): JSX.Element {
+  const pending = isTempId(run.id);
   return (
-    <div className="flex items-center gap-4 border-b border-panel py-3">
+    <div
+      className={`flex items-center gap-4 border-b border-panel py-3 ${pending ? 'opacity-60' : ''}`}
+    >
       <span className="flex h-7 w-7 shrink-0 items-center justify-center">
         <span className={`h-1.5 w-1.5 rounded-full ${statusColor[run.status]}`} />
       </span>

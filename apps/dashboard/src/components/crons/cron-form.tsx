@@ -1,5 +1,5 @@
+import { Button } from '@zeno/ui';
 import { type FormEvent, type JSX, useId, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { CreateCronInput } from '@/lib/mutations';
 

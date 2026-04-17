@@ -1,6 +1,6 @@
 import { useNavigate } from '@tanstack/react-router';
+import { Button } from '@zeno/ui';
 import type { JSX } from 'react';
-import { Button } from '@/components/ui/button';
 import { useDeleteCron, usePauseCron, useResumeCron, useRunNowCron } from '@/lib/mutations';
 import type { CronApi } from '@/lib/use-crons';
 

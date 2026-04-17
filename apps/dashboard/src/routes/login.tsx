@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { Button } from '@zeno/ui';
 import { type FormEvent, type JSX, useState } from 'react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ApiError, apiFetch } from '@/lib/api-client';
 

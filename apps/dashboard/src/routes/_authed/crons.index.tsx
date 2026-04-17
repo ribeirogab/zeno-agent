@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { Button } from '@zeno/ui';
 import type { JSX } from 'react';
 import { CronRow } from '@/components/crons/cron-row';
-import { Button } from '@/components/ui/button';
 import { useCrons } from '@/lib/use-crons';
 
 export const Route = createFileRoute('/_authed/crons/')({

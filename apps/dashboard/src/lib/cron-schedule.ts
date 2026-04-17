@@ -41,7 +41,9 @@ export const EVERY_N_MINUTES: ReadonlyArray<5 | 10 | 15 | 30> = [5, 10, 15, 30];
 
 export const MINUTE_STEPS: ReadonlyArray<number> = [0, 15, 30, 45];
 
-export const HOURLY_MINUTE_STEPS: ReadonlyArray<number> = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+export const HOURLY_MINUTE_STEPS: ReadonlyArray<number> = [
+  0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55,
+];
 
 export const DOW_LABELS: ReadonlyArray<{ value: 0 | 1 | 2 | 3 | 4 | 5 | 6; label: string }> = [
   { value: 0, label: 'dom' },

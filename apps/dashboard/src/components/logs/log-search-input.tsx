@@ -1,5 +1,5 @@
+import { Input } from '@zeno/ui';
 import type { JSX } from 'react';
-import { Input } from '@/components/ui/input';
 
 export function LogSearchInput({
   value,

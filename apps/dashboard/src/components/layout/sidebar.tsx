@@ -1,4 +1,5 @@
 import { Link, useLocation } from '@tanstack/react-router';
+import { Starburst } from '@zeno/ui';
 import type { JSX } from 'react';
 import { type ServiceStatus, useHealth } from '@/lib/use-health';
 
@@ -30,7 +31,11 @@ const labelText: Record<ServiceStatus, string> = {
   unknown: 'unknown',
 };
 
-export function Sidebar(): JSX.Element {
+export interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ onNavigate }: SidebarProps = {}): JSX.Element {
   const location = useLocation();
   const currentPath = location.pathname;
   const health = useHealth();
@@ -41,9 +46,9 @@ export function Sidebar(): JSX.Element {
   };
 
   return (
-    <aside className="flex h-screen w-60 shrink-0 flex-col gap-7 border-r border-border-subtle bg-sidebar px-5 py-6">
+    <aside className="flex h-full w-full shrink-0 flex-col gap-7 border-r border-border-subtle bg-sidebar px-5 py-6 md:h-screen md:w-60">
       <div className="flex items-center gap-2.5">
-        <span className="font-serif text-2xl italic leading-none text-accent">Z</span>
+        <Starburst size={20} className="text-accent" />
         <span className="text-sm tracking-wide text-text-primary">zeno</span>
       </div>
 
@@ -65,6 +70,7 @@ export function Sidebar(): JSX.Element {
             <Link
               key={item.to}
               to={item.to}
+              onClick={onNavigate}
               className={
                 isActive
                   ? 'flex items-center gap-2.5 rounded-md bg-panel px-2.5 py-2 text-sm font-medium text-text-primary'

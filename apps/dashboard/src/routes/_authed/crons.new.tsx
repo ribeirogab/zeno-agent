@@ -1,13 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@zeno/ui';
 import type { JSX } from 'react';
 import { CronForm } from '@/components/crons/cron-form';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { useCreateCron } from '@/lib/mutations';
 
 export const Route = createFileRoute('/_authed/crons/new')({

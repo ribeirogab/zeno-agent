@@ -1,7 +1,5 @@
-import { Button } from '@zeno/ui';
-import type { JSX } from 'react';
-import { useState } from 'react';
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -9,7 +7,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
+} from '@zeno/ui';
+import type { JSX } from 'react';
+import { useState } from 'react';
 import { useRestartWorker } from '@/lib/mutations';
 
 export function RestartDialog(): JSX.Element {

@@ -72,6 +72,8 @@ Any deviation from these references must be justified in the frame's description
 New top-level structure in the "Hearty island" Paper file, using distinct named pages:
 
 ```
+00. Logo explorations (scratchpad — 6–8 brand-mark variants for user to pick one)
+
 01. Foundations
     ├── Palette
     ├── Typography

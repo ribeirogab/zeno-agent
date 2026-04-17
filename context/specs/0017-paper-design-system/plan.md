@@ -29,12 +29,15 @@ Open them via the `Read` tool (absolute paths). They are the canonical reference
 Seven phases. Paper work (phases 1–5) + code work (phases 6–7). Paper commits happen as docs-only; code commits stand on their own.
 
 1. **Prep** — load Paper MCP guide, **read all `tmp/claude/dark/*.png` screenshots**, inventory existing artboards, capture `FILE_ID`.
-2. **Foundations** — Palette (split dark/light chips), Typography (coral starburst hero), Spacing & radius, Iconography. Four frames. Commit partial registry.
+2. **Foundations** — Palette (split dark/light chips), Typography (brand headline — placeholder brand mark for now, finalized in Phase 4), Spacing & radius, Iconography. Four frames. Commit partial registry.
 3. **Primitives** — Button (variant grid), Input (states), Dialog (anatomy — repaint to match Create-scheduled-task dialog from Claude app), Toaster (4 levels). Four frames. Commit.
-4. **Patterns** — 10+ motifs (sidebar nav item matching Cowork sidebar, status pill matching Scheduled card, row, stat tile, empty state, form field group, filter chips, search input, time range, following toggle, transcript block, user-menu popover — NEW). Commit.
-5. **Feature components + Pages (repainted)** — 24 feature frames + 8 page frames **repainted to match Claude screenshots** (see spec Design section). Commit partial registry.
-6. **Light-mode tokens** — add `[data-theme="light"] / .light` block to `packages/ui/src/styles/tokens.css` with hexes derived from `tmp/claude/light/*.png`. Manual Playwright toggle test at both themes. Commit.
-7. **Responsive layout + governance rule** — hamburger drawer in `layout.tsx`, Tailwind breakpoint passes over every route per the spec's breakpoint table, Playwright smoke at 390×844 and 1440×900. Write `context/rules/ui-in-paper.md`, update `_index/rules.md`. Commit. PR.
+4. **Logo explorations** — NEW. One artboard titled `00. Logo explorations` with 6–8 distinct brand-mark directions (current italic Z, sans block Z, lowercase z, Z with dot, circled monogram, abstract geometric mark, etc.). Each variant labeled and sized consistently. Commit with a note in the PR asking the user to pick one.
+5. **CHECK-IN** — pause. User reviews tone of Foundations + Primitives + picks a logo. Only continue after the user approves and names the chosen variant.
+6. **Patterns** — 10+ motifs (sidebar nav item, status pill, row, stat tile, empty state, form field group, filter chips, search input, time range, following toggle, transcript block, user-menu popover). Commit.
+7. **Feature components + Pages (repainted)** — 24 feature frames + 8 page frames **repainted to match Claude screenshots + chosen brand mark**. Commit partial registry.
+8. **Light-mode tokens** — **already done** (commit `5a1b00e`).
+9. **Responsive layout** — **already done** (commits `566fc93`, `8973a7e`, `9abd6a9`) except the brand mark in Layout + Sidebar, which will be updated to the chosen variant after Phase 5 check-in.
+10. **Governance rule + DESIGN.md** — `context/rules/ui-in-paper.md`, update `_index/rules.md`, write full `packages/ui/DESIGN.md` with every frame URL. Commit. Update PR.
 
 ## File Structure
 

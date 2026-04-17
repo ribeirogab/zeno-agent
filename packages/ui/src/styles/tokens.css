@@ -5,6 +5,10 @@
  * (bg-canvas, text-text-primary, etc.). The @source directive tells the
  * Tailwind content scanner to pick up classes used inside this package
  * so consumer apps don't need to configure globs for @zeno/ui.
+ *
+ * Dark is the default. Apply `.light` (or `[data-theme="light"]`) on <html>
+ * to swap to the warm light palette — same token names, different values.
+ * Accent coral stays identical across modes: it's the brand moment.
  */
 
 @source "../components/**/*.{ts,tsx}";
@@ -21,4 +25,19 @@
   --color-status-active: #4fa876;
   --color-status-paused: #c7a85c;
   --color-status-failed: #c75c5c;
+}
+
+:root[data-theme="light"],
+.light {
+  --color-canvas: #faf7f2;
+  --color-panel: #f3f0eb;
+  --color-sidebar: #f0ece4;
+  --color-border-subtle: #e4dfd4;
+  --color-text-primary: #1f1d1a;
+  --color-text-secondary: #6f685e;
+  --color-text-tertiary: #a69f92;
+  --color-accent: #e66b3d;
+  --color-status-active: #2e7e52;
+  --color-status-paused: #8a6f30;
+  --color-status-failed: #b04141;
 }

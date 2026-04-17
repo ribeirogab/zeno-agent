@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { type JSX, useMemo, useState } from 'react';
-import { FollowingToggle } from '@/components/logs/FollowingToggle';
-import { LevelChips } from '@/components/logs/LevelChips';
-import { LogRow } from '@/components/logs/LogRow';
-import { LogSearchInput } from '@/components/logs/LogSearchInput';
-import { TimeRangeSelect } from '@/components/logs/TimeRangeSelect';
+import { FollowingToggle } from '@/components/logs/following-toggle';
+import { LevelChips } from '@/components/logs/level-chips';
+import { LogRow } from '@/components/logs/log-row';
+import { LogSearchInput } from '@/components/logs/log-search-input';
+import { TimeRangeSelect } from '@/components/logs/time-range-select';
 import { DEFAULT_FILTERS, type LogFilters } from '@/lib/log-filters';
 import { useLogs } from '@/lib/use-logs';
 import { useLogsStream } from '@/lib/use-logs-stream';

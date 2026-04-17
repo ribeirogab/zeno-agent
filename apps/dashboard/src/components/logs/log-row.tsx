@@ -1,5 +1,5 @@
 import { type JSX, useState } from 'react';
-import { LogJsonBlock } from '@/components/logs/LogJsonBlock';
+import { LogJsonBlock } from '@/components/logs/log-json-block';
 import type { LogApi } from '@/lib/log-filters';
 import { cn } from '@/lib/utils';
 

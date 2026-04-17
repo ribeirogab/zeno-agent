@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { JSX } from 'react';
-import { MessageBlock } from '@/components/sessions/MessageBlock';
+import { MessageBlock } from '@/components/sessions/message-block';
 import { useSession } from '@/lib/use-session';
 
 export const Route = createFileRoute('/_authed/sessions/$threadId')({

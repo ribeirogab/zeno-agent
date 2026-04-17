@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
 import type { JSX } from 'react';
-import { McpServerRow } from '@/components/settings/McpServerRow';
-import { ProfileFileRow } from '@/components/settings/ProfileFileRow';
-import { RestartDialog } from '@/components/settings/RestartDialog';
-import { ServiceStatus } from '@/components/settings/ServiceStatus';
+import { McpServerRow } from '@/components/settings/mcp-server-row';
+import { ProfileFileRow } from '@/components/settings/profile-file-row';
+import { RestartDialog } from '@/components/settings/restart-dialog';
+import { ServiceStatus } from '@/components/settings/service-status';
 import { useSettings } from '@/lib/use-settings';
 
 export const Route = createFileRoute('/_authed/settings')({

@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import type { JSX } from 'react';
-import { ActivityRow } from '@/components/home/ActivityRow';
-import { StatTile } from '@/components/home/StatTile';
+import { ActivityRow } from '@/components/home/activity-row';
+import { StatTile } from '@/components/home/stat-tile';
 import { greetingForHour } from '@/lib/greeting';
 import { homeSubtitle } from '@/lib/home-subtitle';
 import { useActivity } from '@/lib/use-activity';

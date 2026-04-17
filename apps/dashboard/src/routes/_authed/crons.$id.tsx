@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { JSX } from 'react';
-import { CronActions } from '@/components/crons/CronActions';
-import { CronRunHistoryRow } from '@/components/crons/CronRunHistoryRow';
-import { CronStatusPill } from '@/components/crons/CronStatusPill';
+import { CronActions } from '@/components/crons/cron-actions';
+import { CronRunHistoryRow } from '@/components/crons/cron-run-history-row';
+import { CronStatusPill } from '@/components/crons/cron-status-pill';
 import { useCron } from '@/lib/use-cron';
 
 export const Route = createFileRoute('/_authed/crons/$id')({

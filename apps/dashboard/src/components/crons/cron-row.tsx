@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import type { JSX } from 'react';
-import { CronStatusPill } from '@/components/crons/CronStatusPill';
+import { CronStatusPill } from '@/components/crons/cron-status-pill';
 import type { CronApi } from '@/lib/use-crons';
 
 export function CronRow({ cron }: { cron: CronApi }): JSX.Element {

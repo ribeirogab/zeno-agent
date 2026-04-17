@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { JSX } from 'react';
-import { CronRow } from '@/components/crons/CronRow';
+import { CronRow } from '@/components/crons/cron-row';
 import { Button } from '@/components/ui/button';
 import { useCrons } from '@/lib/use-crons';
 

@@ -1,5 +1,5 @@
 import type { JSX, ReactNode } from 'react';
-import { Sidebar } from '@/components/layout/Sidebar';
+import { Sidebar } from '@/components/layout/sidebar';
 
 export function Layout({ children }: { children: ReactNode }): JSX.Element {
   return (

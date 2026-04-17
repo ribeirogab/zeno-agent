@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import type { JSX } from 'react';
-import { SessionRow } from '@/components/sessions/SessionRow';
+import { SessionRow } from '@/components/sessions/session-row';
 import { useSessions } from '@/lib/use-sessions';
 
 export const Route = createFileRoute('/_authed/sessions/')({

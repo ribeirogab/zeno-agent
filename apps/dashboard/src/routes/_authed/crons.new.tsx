@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import type { JSX } from 'react';
-import { CronForm } from '@/components/crons/CronForm';
+import { CronForm } from '@/components/crons/cron-form';
 import {
   Dialog,
   DialogContent,

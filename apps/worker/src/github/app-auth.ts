@@ -73,10 +73,13 @@ export class GitHubAppAuth {
   }
 
   private async refreshAll(): Promise<void> {
+    let primaryToken: string | null = null;
+
     for (const installation of this.installations) {
       try {
         const token = await this.fetchToken(installation);
         process.env[installation.envVar] = token;
+        if (!primaryToken) primaryToken = token;
         logger.info(
           { event: 'github_app_token_refreshed', installation: installation.name },
           'installation token refreshed',
@@ -87,6 +90,13 @@ export class GitHubAppAuth {
           'failed to get installation token',
         );
       }
+    }
+
+    if (primaryToken) {
+      if (!process.env.GH_TOKEN_PERSONAL && process.env.GH_TOKEN) {
+        process.env.GH_TOKEN_PERSONAL = process.env.GH_TOKEN;
+      }
+      process.env.GH_TOKEN = primaryToken;
     }
   }
 

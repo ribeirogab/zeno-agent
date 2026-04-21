@@ -11,7 +11,7 @@ created: 2026-04-16
 
 Every file an agent produces that is **not part of the codebase** — screenshots, debug scripts, scratch notes, dumps, log captures, browser session output, manual test artifacts, anything the user didn't explicitly ask to commit — goes under `/Users/operator/www/agents/<redacted>/<redacted>/tmp/` (gitignored).
 
-Never drop temp files at the repo root or inside `src/`, `apps/`, `packages/`, `infra/`, `context/`, `profile/`, or `.claude/`.
+Never drop temp files at the repo root or inside `src/`, `apps/`, `packages/`, `infra/`, `context/`, `profiles/`, `agent/`, or `.claude/`.
 
 ## Why
 

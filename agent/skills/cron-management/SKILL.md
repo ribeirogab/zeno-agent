@@ -39,11 +39,12 @@ Examples:
 
 - **`source='chat'`** — crons created via conversation. Live in the database.
   Can be modified and deleted with the tools above.
-- **`source='static'`** — crons defined in `profile/crons.yaml`. Reloaded on
-  every boot. `cron_delete` refuses these — the user must edit the YAML by hand.
+- **`source='static'`** — crons defined in the profile's `config.yaml` (under
+  the `crons:` section). Reloaded on every boot. `cron_delete` refuses these —
+  the user must edit the YAML by hand.
 
 When the user asks to delete or modify a cron, check its `source` first. If
-static, explain and point to `profile/crons.yaml`.
+static, explain and point to the profile's `config.yaml`.
 
 ## Destructive operations
 

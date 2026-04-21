@@ -16,16 +16,14 @@ Template: `[[../specs/_template/spec|_template/spec]]`
 
 _(none)_
 
-## Active
-
-_(none)_
-
 ## Design-only
 
 - [[../specs/0008-dashboard-design/spec|0008 — Dashboard Design (Paper artboards)]] — visual design, no code footprint.
 
 ## Shipped
 
+- [[../specs/0022-multi-profile-isolation/spec|0022 — Multi-Profile Isolation]] (2026-04-21) — `profiles/<name>/` directories with isolated `.env`, skills, config, compose files; `docker.sh` wrapper; concurrent instances.
+- [[../specs/0021-agent-profile-split/spec|0021 — Agent / Profile Split]] (2026-04-21) — `agent/` (identity, committed) split from `profile/` (user config, gitignored); skills-first positioning; entrypoint symlinks; built-in Playwright skill + MCP.
 - [[../specs/0020-cron-schedule-picker/spec|0020 — Cron Schedule Picker]] (2026-04-17) — `SchedulePicker` replaces raw cron input; 7 presets + custom escape hatch; humanized preview via `cronstrue`.
 - [[../specs/0019-dashboard-optimistic-updates/spec|0019 — Dashboard Optimistic Updates]] (2026-04-17) — `useOptimisticMutation` primitive; five cron mutations migrated; instant-feedback UX with <50ms click-to-render, rollback on error, invalidate as server-reality safety net.
 - [[../specs/0018-dashboard-ux-cleanup/spec|0018 — Dashboard UX Cleanup]] (2026-04-17) — `AlertDialog` / `Skeleton` / `EmptyState` / `ErrorState` primitives in `@zeno/ui`; `window.confirm` + raw "carregando…" removed.

@@ -14,7 +14,7 @@ created: 2026-04-16
 
 ## Context
 
-Discovered during spec 0007 (cron tools). The chat-facing backend needed to merge config-driven MCP servers (from `profile/mcp.json`) with the in-process cron-tools server. TypeScript rejected `mcpServers: { ...config, zeno: cronMcp }` because the in-process value's `type` property included `'http'` (from our config shape) which doesn't satisfy `McpStdioServerConfig`.
+Discovered during spec 0007 (cron tools). The chat-facing backend needed to merge config-driven MCP servers (from `agent/mcp.json` + `profiles/<name>/mcp.json`) with the in-process cron-tools server. TypeScript rejected `mcpServers: { ...config, zeno: cronMcp }` because the in-process value's `type` property included `'http'` (from our config shape) which doesn't satisfy `McpStdioServerConfig`.
 
 ## How to Apply
 

@@ -10,12 +10,12 @@ If you are tempted to violate a rule here, stop and open a discussion first. Nev
 
 ## Why Zeno exists
 
-Zeno is a personal agent whose intelligence lives in the skills its owner authors. The owner is described in `profile/USER.md` (gitignored — see `profile/USER.example.md` for the template). This repository is Zeno's workspace — the place where its identity, configuration, and operating knowledge live.
+Zeno is a personal agent whose intelligence lives in the skills its owner authors. The owner is described in `profiles/<name>/USER.md` (gitignored — see `profiles/default/USER.example.md` for the template). This repository is Zeno's workspace — the place where its identity, configuration, and operating knowledge live.
 
 The architecture is intentionally layered:
 
 - **The core is small and stable.** A channel adapter, a reasoning backend, a cron runner, a dashboard. It should rarely change.
-- **The skills are the product.** Every capability Zeno has beyond "read a message and reply" comes from a skill the owner authored, following the [agentskills.io](https://agentskills.io) open standard. Skills are self-contained folders under `profile/skills/`, each free to carry whatever auxiliary files it needs (credentials, context, templates, scripts).
+- **The skills are the product.** Every capability Zeno has beyond "read a message and reply" comes from a skill the owner authored, following the [agentskills.io](https://agentskills.io) open standard. Skills are self-contained folders under `profiles/<name>/skills/` (user-specific) or `agent/skills/` (built-in), each free to carry whatever auxiliary files it needs (credentials, context, templates, scripts).
 - **Channels and backends are plugs.** Zeno is channel-agnostic and backend-agnostic by design: the core depends on the `Channel` and `AgentBackend` interfaces, never on concrete implementations. New channels (Discord, Telegram, email…) and new backends (alternative coding agents and reasoning engines) are added as adapters without touching the core.
 
 The goal is that adding a capability is always a matter of authoring a new skill, never of modifying the core. When in doubt between flexibility in the core and flexibility in the skill layer, the skill layer wins.
@@ -47,7 +47,7 @@ Principles that frame all of the above:
 
 - **Language:** TypeScript, strict mode.
 - **Runtime:** Node.js 24 LTS — see `[[learnings/node-lts-current]]`.
-- **Package manager:** npm.
+- **Package manager:** pnpm.
 - **Tests:** `vitest`. Unit tests for pure functions and well-mocked boundaries; smoke tests for integration.
 - **Lint + format:** `biome` (single tool replaces ESLint + Prettier). Style rules in `[[conventions/code-style]]`.
 - **Logging:** `pino`, structured JSON to stdout. Each log entry carries an `event` field and (for request-scoped events) a `correlationId`.

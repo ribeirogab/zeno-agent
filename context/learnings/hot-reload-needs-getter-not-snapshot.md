@@ -10,7 +10,7 @@ created: 2026-04-16
 ---
 # Long-lived components must read mutable state via a getter, not a captured snapshot
 
-`AgentCore` and `CronRunner` originally took `systemPrompt: string` in their constructor — a snapshot captured at boot. That snapshot was invisible to a later reload of `profile/SOUL.md`: the watcher could update a holder all it wanted, the snapshot in the closure never moved.
+`AgentCore` and `CronRunner` originally took `systemPrompt: string` in their constructor — a snapshot captured at boot. That snapshot was invisible to a later reload of `agent/SOUL.md`: the watcher could update a holder all it wanted, the snapshot in the closure never moved.
 
 Switching the option from `systemPrompt: string` to `getSystemPrompt: () => string` makes the dependency dynamic. Each turn (each cron fire) calls the getter and gets the current value — including any reloads that happened since boot.
 

@@ -1,6 +1,6 @@
 # Zeno — Agent Instructions
 
-Zeno is a personal agent. The person who owns this instance is described in `profile/USER.md` (gitignored — see `profile/USER.example.md` for the template). This repository is Zeno's workspace — the place where its identity, capabilities, configuration, and operating knowledge live.
+Zeno is a personal agent. The person who owns this instance is described in `profiles/<name>/USER.md` (gitignored — see `profiles/default/USER.example.md` for the template). This repository is Zeno's workspace — the place where its identity, capabilities, configuration, and operating knowledge live.
 
 ## Before starting any work
 

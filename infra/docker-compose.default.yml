@@ -1,25 +1,26 @@
-name: zeno-agent
+name: zeno-default
 
 services:
-  zeno-agent:
+  zeno:
     build:
       context: .
       dockerfile: infra/Dockerfile
     image: zeno-agent:dev
-    container_name: zeno-agent
-    env_file: .env
+    container_name: zeno-default
+    env_file: profiles/default/.env
     init: true
     ports:
       - "3000:3000"
     volumes:
-      - workspace:/workspace
+      - workspace-default:/workspace
       - claude_home:/home/node/.claude
       - ./agent:/app/agent:ro
-      - ./profile:/app/profile:ro
+      - ./profiles/default:/app/profile:ro
     restart: unless-stopped
     stdin_open: true
     tty: true
 
 volumes:
-  workspace:
+  workspace-default:
   claude_home:
+    external: true

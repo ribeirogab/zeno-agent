@@ -29,6 +29,9 @@ crons: []
 # github_app:
 #   app_id: "123456"
 #   private_key_file: path/to/app.pem  # relative to profile/
+#   git_identity:
+#     name: "my-app[bot]"
+#     email: "123456+my-app[bot]@users.noreply.github.com"
 #   installations:
 #     - name: MyOrg
 #       id: "12345678"

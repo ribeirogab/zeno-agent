@@ -29,4 +29,19 @@ for d in "$PROFILE_SKILLS"/*/; do
   ln -sfn "$d" "$DEST/$name"
 done
 
+# Git identity from profile/config.yaml (github_app.git_identity)
+CONFIG_FILE=""
+for candidate in /app/profile/config.yaml profile/config.yaml; do
+  [ -f "$candidate" ] && CONFIG_FILE="$candidate" && break
+done
+
+if [ -n "$CONFIG_FILE" ]; then
+  GIT_NAME=$(grep -A2 'git_identity:' "$CONFIG_FILE" | grep 'name:' | sed 's/.*name: *"\{0,1\}\([^"]*\)"\{0,1\}/\1/' | head -1)
+  GIT_EMAIL=$(grep -A3 'git_identity:' "$CONFIG_FILE" | grep 'email:' | sed 's/.*email: *"\{0,1\}\([^"]*\)"\{0,1\}/\1/' | head -1)
+  if [ -n "$GIT_NAME" ] && [ -n "$GIT_EMAIL" ]; then
+    git config --global user.name "$GIT_NAME"
+    git config --global user.email "$GIT_EMAIL"
+  fi
+fi
+
 exec "$@"

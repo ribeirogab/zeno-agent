@@ -3,6 +3,7 @@ import { createLogger } from '@zeno/logger';
 
 const logger = createLogger({ service: 'worker' });
 
+const AGENT_CANDIDATES = ['/app/agent', 'agent'];
 const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
 
 const DEFAULT_SOUL =
@@ -11,12 +12,8 @@ const DEFAULT_SOUL =
 const NO_USER_NOTE =
   '_USER.md not found — Zeno is operating without user-specific context. Address the user generically and ask for missing details (name, github username, preferences) when relevant._';
 
-/**
- * Load a file from the profile/ directory, trying container path first then dev path.
- * Returns null if not found in any candidate.
- */
-export function loadProfileFile(filename: string): string | null {
-  for (const base of PROFILE_CANDIDATES) {
+function loadFromCandidates(candidates: string[], filename: string): string | null {
+  for (const base of candidates) {
     try {
       const content = readFileSync(`${base}/${filename}`, 'utf8').trim();
       if (content.length > 0) return content;
@@ -28,8 +25,24 @@ export function loadProfileFile(filename: string): string | null {
 }
 
 /**
+ * Load a file from the agent/ directory (Zeno's identity: SOUL.md, etc).
+ * Returns null if not found in any candidate.
+ */
+export function loadAgentFile(filename: string): string | null {
+  return loadFromCandidates(AGENT_CANDIDATES, filename);
+}
+
+/**
+ * Load a file from the profile/ directory (user-specific: USER.md, etc).
+ * Returns null if not found in any candidate.
+ */
+export function loadProfileFile(filename: string): string | null {
+  return loadFromCandidates(PROFILE_CANDIDATES, filename);
+}
+
+/**
  * Build the full system prompt from SOUL.md (agent identity) + USER.md (user profile).
- * Both come from profile/. Pass null when either file is missing — sensible defaults are used.
+ * SOUL comes from agent/, USER from profile/. Pass null when either file is missing — sensible defaults are used.
  */
 export function buildSystemPrompt(
   soulMdContent: string | null,

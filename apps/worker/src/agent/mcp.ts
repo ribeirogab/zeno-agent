@@ -3,7 +3,10 @@ import { createLogger } from '@zeno/logger';
 
 const logger = createLogger({ service: 'worker' });
 
+const AGENT_CANDIDATES = ['/app/agent', 'agent'];
 const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
+
+type Layer = 'agent' | 'profile';
 
 /**
  * MCP server configuration as accepted by the Claude Agent SDK's `mcpServers` option.
@@ -62,26 +65,25 @@ function interpolateEnv(env: Record<string, string> | undefined): Record<string,
   return out;
 }
 
-function findProfileFile(filename: string): string | null {
-  for (const base of PROFILE_CANDIDATES) {
+function findFile(candidates: string[], filename: string): string | null {
+  for (const base of candidates) {
     const path = `${base}/${filename}`;
     if (existsSync(path)) return path;
   }
   return null;
 }
 
-/**
- * Load the MCP server config from profile/mcp.json.
- * Servers with `_disabled: true` are skipped.
- * Servers with unresolved env vars are skipped with a warning log.
- * Returns an object suitable for passing to the SDK's `mcpServers` option.
- */
-export function loadMcpConfig(): Record<string, McpServerConfig> {
-  const path = findProfileFile('mcp.json');
+/** Load and resolve one mcp.json file from the given candidate list. */
+function loadLayer(
+  layer: Layer,
+  candidates: string[],
+  filename: string,
+): Record<string, McpServerConfig> {
+  const path = findFile(candidates, filename);
   if (!path) {
     logger.info(
-      { event: 'mcp_config_missing' },
-      'profile/mcp.json not found, no MCP servers loaded',
+      { event: 'mcp_config_missing', layer },
+      `${layer}/${filename} not found, no MCP servers from this layer`,
     );
     return {};
   }
@@ -91,8 +93,8 @@ export function loadMcpConfig(): Record<string, McpServerConfig> {
     parsed = JSON.parse(readFileSync(path, 'utf8'));
   } catch (error) {
     logger.error(
-      { event: 'mcp_config_invalid', err: String(error), path },
-      'profile/mcp.json is malformed, skipping all MCP servers',
+      { event: 'mcp_config_invalid', layer, err: String(error), path },
+      `${layer}/${filename} is malformed, skipping all MCP servers from this layer`,
     );
     return {};
   }
@@ -100,20 +102,22 @@ export function loadMcpConfig(): Record<string, McpServerConfig> {
   const result: Record<string, McpServerConfig> = {};
   for (const [name, entry] of Object.entries(parsed.mcpServers ?? {})) {
     if (entry._disabled) {
-      logger.debug({ event: 'mcp_server_disabled', name }, 'mcp server marked _disabled, skipping');
+      logger.debug(
+        { event: 'mcp_server_disabled', name, layer },
+        'mcp server marked _disabled, skipping',
+      );
       continue;
     }
 
     const resolvedEnv = interpolateEnv(entry.env);
     if (resolvedEnv === null) {
       logger.warn(
-        { event: 'mcp_server_skipped', name, reason: 'unresolved_env' },
+        { event: 'mcp_server_skipped', name, layer, reason: 'unresolved_env' },
         'mcp server has unresolved env var, skipping',
       );
       continue;
     }
 
-    // Strip our convention fields before passing to SDK
     const { _comment, _disabled, ...sdkEntry } = entry;
     void _comment;
     void _disabled;
@@ -124,7 +128,28 @@ export function loadMcpConfig(): Record<string, McpServerConfig> {
     }
 
     result[name] = sdkEntry;
-    logger.info({ event: 'mcp_server_enabled', name }, 'mcp server loaded');
+    logger.info({ event: 'mcp_server_enabled', name, layer }, 'mcp server loaded');
   }
   return result;
+}
+
+/**
+ * Load the merged MCP server config from both agent/mcp.json (built-in) and
+ * profile/mcp.json (user). On name collision, the profile entry wins.
+ */
+export function loadMcpConfig(): Record<string, McpServerConfig> {
+  const agentServers = loadLayer('agent', AGENT_CANDIDATES, 'mcp.json');
+  const profileServers = loadLayer('profile', PROFILE_CANDIDATES, 'mcp.json');
+
+  const merged: Record<string, McpServerConfig> = { ...agentServers };
+  for (const [name, entry] of Object.entries(profileServers)) {
+    if (merged[name]) {
+      logger.info(
+        { event: 'mcp_server_override', name, winner: 'profile' },
+        'profile mcp server overrides agent built-in',
+      );
+    }
+    merged[name] = entry;
+  }
+  return merged;
 }

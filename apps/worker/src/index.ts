@@ -16,7 +16,7 @@ import { MockBackend } from '@/agent/backends/mock';
 import { loadMockFixtures } from '@/agent/backends/mock-fixtures';
 import { AgentCore } from '@/agent/core';
 import { loadMcpConfig, type McpServerConfig } from '@/agent/mcp';
-import { buildSystemPrompt, loadProfileFile } from '@/agent/system-prompt';
+import { buildSystemPrompt, loadAgentFile, loadProfileFile } from '@/agent/system-prompt';
 import type { AgentBackend } from '@/agent/types';
 import { SlackChannel } from '@/channels/slack/adapter';
 import { buildDispatcher } from '@/commands/dispatcher';
@@ -106,14 +106,14 @@ async function main(): Promise<void> {
     );
   }
 
-  // Load profile files (SOUL.md = agent identity, USER.md = user profile)
+  // Load identity files (SOUL.md from agent/, USER.md from profile/)
   const buildPromptNow = (): string => {
-    const soul = loadProfileFile('SOUL.md');
+    const soul = loadAgentFile('SOUL.md');
     const user = loadProfileFile('USER.md');
     return buildSystemPrompt(soul, user);
   };
 
-  const initialSoul = loadProfileFile('SOUL.md');
+  const initialSoul = loadAgentFile('SOUL.md');
   const initialUser = loadProfileFile('USER.md');
 
   const promptHolder = { value: buildSystemPrompt(initialSoul, initialUser) };
@@ -145,7 +145,7 @@ async function main(): Promise<void> {
     );
   }
 
-  // Static crons are the source of truth in profile/crons.yaml — replace on every boot.
+  // Static crons are the source of truth in profile/config.yaml — replace on every boot.
   const staticCrons = loadStaticCrons();
   crons.replaceStaticSet(staticCrons);
   logger.info({ event: 'cron_static_loaded', count: staticCrons.length }, 'static crons loaded');

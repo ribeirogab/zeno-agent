@@ -15,6 +15,7 @@ services:
       - workspace:/workspace
       - claude_home:/home/node/.claude
       - ./profile:/app/profile:ro
+      - ./profile/skills:/home/node/.claude/skills:ro
     restart: unless-stopped
     stdin_open: true
     tty: true

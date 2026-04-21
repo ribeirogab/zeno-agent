@@ -21,3 +21,15 @@
 #       conversation_id: C12345
 
 crons: []
+
+# GitHub App auth (optional). Generates installation tokens at boot and sets
+# the specified env vars so skills can use them for org-scoped git/gh operations.
+# Commits and PRs appear as "<app-name>[bot]" instead of your personal user.
+#
+# github_app:
+#   app_id: "123456"
+#   private_key_file: path/to/app.pem  # relative to profile/
+#   installations:
+#     - name: MyOrg
+#       id: "12345678"
+#       env_var: MY_ORG_GH_TOKEN

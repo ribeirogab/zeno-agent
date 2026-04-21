@@ -26,6 +26,7 @@ import { type Config, loadConfig } from '@/config';
 import { CronRunner } from '@/cron/runner';
 import { loadStaticCrons } from '@/cron/static-loader';
 import { buildCronMcpServer } from '@/cron/tools';
+import { loadGitHubAppConfig } from '@/github/app-auth';
 import { LogsRetention } from '@/logs/retention';
 import { ProfileWatcher } from '@/profile/watcher';
 
@@ -149,6 +150,17 @@ async function main(): Promise<void> {
   const staticCrons = loadStaticCrons();
   crons.replaceStaticSet(staticCrons);
   logger.info({ event: 'cron_static_loaded', count: staticCrons.length }, 'static crons loaded');
+
+  // GitHub App auth — generates installation tokens and sets env vars (ACME_GH_TOKEN, etc.)
+  const githubApp = loadGitHubAppConfig();
+  if (githubApp) {
+    await githubApp.bootstrap();
+  } else {
+    logger.info(
+      { event: 'github_app_skipped' },
+      'no github_app section in config.yaml, using GH_TOKEN only',
+    );
+  }
 
   const mcpServers = loadMcpConfig();
   logger.info(

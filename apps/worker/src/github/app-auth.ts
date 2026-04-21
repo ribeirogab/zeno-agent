@@ -1,7 +1,8 @@
 import { createSign } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createLogger } from '@zeno/logger';
+import { parse as parseYaml } from 'yaml';
 
 const logger = createLogger({ service: 'worker' });
 
@@ -145,10 +146,12 @@ interface RawGitHubAppConfig {
 
 export function loadGitHubAppConfig(): GitHubAppAuth | null {
   for (const base of PROFILE_CANDIDATES) {
+    const configPath = `${base}/config.yaml`;
+    if (!existsSync(configPath)) continue;
+
     try {
-      const { parse: parseYaml } = require('yaml') as typeof import('yaml');
-      const raw = readFileSync(`${base}/config.yaml`, 'utf8');
-      const parsed = parseYaml(raw);
+      const raw = readFileSync(configPath, 'utf8');
+      const parsed = parseYaml(raw) as Record<string, unknown> | null;
       if (!parsed?.github_app) return null;
 
       const config = parsed.github_app as RawGitHubAppConfig;

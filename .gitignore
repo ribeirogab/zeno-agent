@@ -7,22 +7,29 @@ context/.obsidian/plugins/*/data.json
 # OS
 .DS_Store
 
-# User profile (personal to whoever runs this Zeno instance)
-profile/*
-!profile/USER.example.md
-!profile/config.example.yaml
-!profile/mcp.example.json
-!profile/skills/
-profile/skills/*
-!profile/skills/.gitkeep
+# Profiles — only default's examples are committed
+profiles/*/
+!profiles/default/
+profiles/default/*
+!profiles/default/.env.example
+!profiles/default/USER.example.md
+!profiles/default/config.example.yaml
+!profiles/default/mcp.example.json
+!profiles/default/skills/
+profiles/default/skills/*
+!profiles/default/skills/.gitkeep
+
+# Profile-specific compose files (only default is committed)
+infra/docker-compose.*.yml
+!infra/docker-compose.default.yml
+
+# Root .env no longer used (each profile has its own)
+/.env
+/.env.*
 
 # Node
 node_modules/
 dist/
-
-# Secrets
-.env
-.env.local
 
 # Logs
 *.log
@@ -50,4 +57,3 @@ apps/dashboard/src/route-tree.gen.ts
 
 # Playwright MCP output (screenshots, snapshots, console logs from browser test sessions)
 .playwright-mcp/
-

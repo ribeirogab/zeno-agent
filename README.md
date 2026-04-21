@@ -16,45 +16,44 @@ zeno-agent/
 │   ├── SOUL.md               # agent personality and rules
 │   ├── mcp.json              # built-in MCP servers (Playwright, …)
 │   └── skills/               # built-in skills (dev-workflow, cron-management, playwright)
-├── profile/                  # gitignored except example templates
-│   ├── USER.md               # your personal profile
-│   ├── USER.example.md       # template for USER.md
-│   ├── config.yaml           # crons + user config
-│   ├── config.example.yaml   # template for config.yaml
-│   ├── mcp.json              # user-level MCP servers (with tokens)
-│   ├── mcp.example.json      # template for mcp.json
-│   └── skills/               # your personal skills (override agent/ on name collision)
+├── profiles/
+│   └── default/              # committed (examples only — real files gitignored)
+│       ├── .env.example      # env var template
+│       ├── USER.example.md   # user profile template
+│       ├── config.example.yaml # crons + config template
+│       ├── mcp.example.json  # user-level MCP servers template
+│       └── skills/           # your skills (override agent/ on name collision)
 ├── apps/                     # worker + api + dashboard
 ├── packages/                 # @zeno/storage + @zeno/logger + @zeno/ui
 ├── context/                  # maintainer knowledge vault (NOT in container)
-├── infra/                    # Dockerfile, docker-compose, entrypoint, Slack manifest
-└── .env.example              # env var template
+└── infra/                    # Dockerfile, docker-compose, entrypoint, docker.sh
 ```
 
-`agent/` is committed — it *is* Zeno. `profile/` is gitignored (only the three `*.example.*` files and an empty `skills/.gitkeep` live in git). When a skill or MCP server with the same name exists in both `agent/` and `profile/`, the `profile/` entry wins.
+`agent/` is committed — it *is* Zeno. `profiles/default/` ships with `.example` templates; your actual files are gitignored. Each profile is self-contained: `.env`, `USER.md`, `config.yaml`, `mcp.json`, and `skills/`.
 
 ## Prerequisites
 
 - Docker and Docker Compose
-- A Slack App with Socket Mode enabled (see `infra/slack-app-manifest.json` or create via `infra/README.md`)
-- A GitHub PAT with `repo` + `read:org`
+- A Slack App with Socket Mode enabled (see `infra/slack-app-manifest.json`)
+- A GitHub PAT with `repo` + `read:org` (or a GitHub App for bot identity)
 - A Claude Code account (Pro/Max plan)
 
 ## Setup
 
-1. **Env vars:**
+1. **Profile config:**
    ```bash
+   cd profiles/default
    cp .env.example .env
+   cp USER.example.md USER.md
+   cp config.example.yaml config.yaml
+   cp mcp.example.json mcp.json
    ```
-   Fill in `SLACK_APP_TOKEN`, `SLACK_BOT_TOKEN`, `GH_TOKEN`.
+   Fill `.env` (Slack tokens, GitHub token, Claude OAuth). Fill `USER.md` (name, GitHub username, preferences). `config.yaml` starts empty; `mcp.json` lists available MCP servers.
 
-2. **User profile + config:**
+2. **Shared volume** (first time only):
    ```bash
-   cp profile/USER.example.md profile/USER.md
-   cp profile/config.example.yaml profile/config.yaml
-   cp profile/mcp.example.json profile/mcp.json
+   docker volume create claude_home
    ```
-   Fill `USER.md` (name, GitHub username, Slack user ID, preferences). `config.yaml` starts empty; add crons here. `mcp.json` lists user-level MCP servers — disable what you don't use.
 
 3. **Build:**
    ```bash
@@ -65,7 +64,7 @@ zeno-agent/
    ```bash
    pnpm run docker:setup-token
    ```
-   Complete OAuth in browser, paste the printed token into `.env` as `CLAUDE_CODE_OAUTH_TOKEN`.
+   Complete OAuth in browser, paste the printed token into `profiles/default/.env` as `CLAUDE_CODE_OAUTH_TOKEN`.
 
 5. **Start:**
    ```bash
@@ -78,19 +77,46 @@ zeno-agent/
 
 Mention the bot in any channel where it's invited:
 
-> @zeno quais repos tem na octocat?
+> @zeno list open PRs in my-org
 
 Or DM it directly.
 
 ## Docker scripts
 
+All scripts default to the `default` profile. Use `PROFILE=<name>` to target a different profile:
+
 | Script | What it does |
 |---|---|
-| `pnpm run docker:build` | Build the container image |
-| `pnpm run docker:up` | Start in background |
+| `pnpm run docker:build` | Build the container image (shared across profiles) |
+| `pnpm run docker:up` | Start the default profile in background |
 | `pnpm run docker:down` | Stop |
 | `pnpm run docker:logs` | Tail logs |
+| `pnpm run docker:sh` | Open a shell inside the running container |
 | `pnpm run docker:setup-token` | Mint/refresh Claude OAuth token |
+| `PROFILE=work pnpm run docker:up` | Start a different profile |
+
+## Running multiple profiles
+
+Each profile runs as an isolated container with its own Slack app, credentials, skills, and workspace:
+
+```bash
+# Default profile (personal) — port 3000
+pnpm run docker:up
+
+# Work profile — port 3001 (or whatever the compose file specifies)
+PROFILE=work pnpm run docker:up
+```
+
+To create a new profile:
+
+1. `mkdir -p profiles/work/skills`
+2. Copy examples: `cp profiles/default/.env.example profiles/work/.env` (and USER, config, mcp)
+3. Fill in the profile-specific values (different Slack app, different tokens)
+4. Copy and adapt a compose file: `cp infra/docker-compose.default.yml infra/docker-compose.work.yml`
+5. Update container name, port, and profile path in the compose file
+6. `PROFILE=work pnpm run docker:up`
+
+Profiles are fully isolated — the work container cannot see personal skills/credentials, and vice versa. They share only the Docker image and the Claude OAuth token.
 
 ## Performance
 
@@ -100,19 +126,18 @@ Or DM it directly.
 
 | Symptom | Fix |
 |---|---|
-| "meu token Claude expirou" | Re-run `claude setup-token`, paste new token into `.env`, `pnpm run docker:up` again |
-| "Invalid environment" on boot | Check `.env` — all 4 tokens must be set |
-| Mount error for `profile/USER.md` | `cp profile/USER.example.md profile/USER.md` and fill in |
+| "Invalid environment" on boot | Check `profiles/<name>/.env` — all required tokens must be set |
 | Bot doesn't react to mentions | Check Slack Socket Mode config; look for `slack_connected` in logs |
 | "I don't have access to org X" | PAT needs `read:org`; for SSO orgs, authorize the token in GitHub settings |
+| `claude_home` volume not found | Run `docker volume create claude_home` (first-time setup) |
 
 ## Architecture
 
-- **Channels** (`src/channels/`) — pluggable message sources. Slack is MVP.
-- **Agent Core** (`src/agent/core.ts`) — wires channel to backend. Channel-agnostic, backend-agnostic.
-- **Agent Backends** (`src/agent/backends/`) — pluggable LLM engines. Claude Code (via `@anthropic-ai/claude-agent-sdk`) is MVP.
-- **Profile** (`profile/`) — `SOUL.md` (agent identity) + `USER.md` (who you are) + `skills/` (reusable capabilities). Mounted read-only into the container.
-- **Tools** — zero custom. Zeno uses Claude Code's built-in Bash/Read/Glob/Grep. GitHub queries go via `gh` CLI.
+- **Channels** (`apps/worker/src/channels/`) — pluggable message sources. Slack is MVP.
+- **Agent Core** (`apps/worker/src/agent/core.ts`) — wires channel to backend. Channel-agnostic, backend-agnostic.
+- **Agent Backends** (`apps/worker/src/agent/backends/`) — pluggable LLM engines. Claude Code (via `@anthropic-ai/claude-agent-sdk`) is MVP.
+- **Agent** (`agent/`) — `SOUL.md` (identity) + `mcp.json` (built-in MCPs) + `skills/` (built-in skills). Shared across all profiles.
+- **Profile** (`profiles/<name>/`) — `.env` + `USER.md` + `config.yaml` + `mcp.json` + `skills/`. One per context (personal, work, etc.), mounted read-only into the container.
 
 Full spec: `context/specs/0001-slack-zeno-mvp/`.
 
@@ -122,10 +147,8 @@ Zeno only runs inside Docker. Dev scripts below are for code validation, not for
 
 ```bash
 pnpm install
-pnpm run check      # biome format + lint + organize imports
-pnpm run typecheck  # tsc --noEmit
-pnpm test           # vitest
-pnpm run build      # tsc + tsc-alias (used by Dockerfile build stage)
+pnpm run quality-gate  # lint + typecheck + test (via turbo)
+pnpm run build         # tsc (used by Dockerfile build stage)
 ```
 
 ## Smoke test
@@ -133,7 +156,5 @@ pnpm run build      # tsc + tsc-alias (used by Dockerfile build stage)
 After setup, verify these in order:
 
 1. `pnpm run docker:up` → logs show `zeno_online`
-2. `@zeno oi` in Slack → eyes reaction → PT-BR reply → checkmark
-3. `@zeno quais repos tem na octocat?` → lists repos via `gh`
-4. DM the bot → reply in DM (no thread)
-5. Ask about an org you don't have access to → explains clearly, no raw stderr
+2. `@zeno hello` in Slack → eyes reaction → reply → checkmark
+3. DM the bot → reply in DM (no thread)

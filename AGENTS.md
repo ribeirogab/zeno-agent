@@ -29,8 +29,8 @@ The project is a Turborepo monorepo orchestrated by `pnpm` workspaces. **All run
 |---|---|
 | `pnpm run quality-gate` | Run lint + typecheck + tests across all workspaces (via `turbo run`). Fast, runs locally, gates every commit. |
 | `pnpm run lint` / `pnpm run typecheck` / `pnpm run test` / `pnpm run build` | Individual turbo passes; each fans out to all workspaces. |
-| `pnpm run docker:build` | Build the multi-stage container image. |
-| `pnpm run docker:up` / `pnpm run docker:down` | Start / stop the container in detached mode. |
+| `pnpm run docker:build` | Build the multi-stage container image (shared across profiles). |
+| `pnpm run docker:up` / `pnpm run docker:down` | Start / stop the default profile container. Use `PROFILE=<name>` for other profiles. |
 | `pnpm run docker:logs` | Tail container logs (`-f`). Output is prefixed `[worker]` / `[api]`. |
 | `pnpm run docker:sh` | Open an interactive shell inside the running container. |
 | `pnpm run docker:setup-token` | One-time helper to acquire the Claude OAuth token. |
@@ -45,8 +45,9 @@ apps/api/            Hono HTTP server + auth + read endpoints + serves dashboard
 apps/dashboard/      Vite + React + TanStack + shadcn SPA (built into static assets)
 packages/storage/    @zeno/storage — DB connection + migrations + repos + types
 packages/logger/     @zeno/logger — pino factory tipado
-infra/               Dockerfile + docker-compose.yml
-profile/             SOUL.md, USER.md, mcp.json, crons.yaml, skills/ (agent identity + config)
+infra/               Dockerfile + docker-compose.<profile>.yml + docker.sh + entrypoint.sh
+agent/               SOUL.md, mcp.json, skills/ (Zeno's identity — shared across profiles)
+profiles/default/    .env, USER.md, config.yaml, mcp.json, skills/ (user config per profile)
 context/             Specs, learnings, conventions, rules
 ```
 

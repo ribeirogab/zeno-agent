@@ -99,7 +99,7 @@ export class GitHubAppAuth {
         headers: {
           Authorization: `Bearer ${jwt}`,
           Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2025-11-28',
+          'X-GitHub-Api-Version': '2022-11-28',
         },
       },
     );

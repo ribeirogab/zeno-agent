@@ -12,23 +12,26 @@ This design is intentional. Adding a capability should not require changing the 
 
 ```
 zeno-agent/
-├── profile/                  # runtime: mounted into container (read-only)
+├── agent/                    # committed — Zeno's identity
 │   ├── SOUL.md               # agent personality and rules
-│   ├── USER.md (gitignored)  # your personal profile
+│   ├── mcp.json              # built-in MCP servers (Playwright, …)
+│   └── skills/               # built-in skills (dev-workflow, cron-management, playwright)
+├── profile/                  # gitignored except example templates
+│   ├── USER.md               # your personal profile
 │   ├── USER.example.md       # template for USER.md
-│   └── skills/               # SKILL.md bundles (agentskills.io)
-├── src/                      # TypeScript source
-│   ├── index.ts              # boot + composition root
-│   ├── config.ts             # env validation (zod)
-│   ├── logger.ts             # pino structured JSON
-│   ├── channels/             # message-source adapters (Slack, future Discord…)
-│   └── agent/                # core + backends + prompt loader
-├── tests/                    # vitest
+│   ├── config.yaml           # crons + user config
+│   ├── config.example.yaml   # template for config.yaml
+│   ├── mcp.json              # user-level MCP servers (with tokens)
+│   ├── mcp.example.json      # template for mcp.json
+│   └── skills/               # your personal skills (override agent/ on name collision)
+├── apps/                     # worker + api + dashboard
+├── packages/                 # @zeno/storage + @zeno/logger + @zeno/ui
 ├── context/                  # maintainer knowledge vault (NOT in container)
-├── infra/                    # Dockerfile, docker-compose, Slack manifest
-├── AGENTS.md                 # instructions for AI agents working on this code
+├── infra/                    # Dockerfile, docker-compose, entrypoint, Slack manifest
 └── .env.example              # env var template
 ```
+
+`agent/` is committed — it *is* Zeno. `profile/` is gitignored (only the three `*.example.*` files and an empty `skills/.gitkeep` live in git). When a skill or MCP server with the same name exists in both `agent/` and `profile/`, the `profile/` entry wins.
 
 ## Prerequisites
 
@@ -45,11 +48,13 @@ zeno-agent/
    ```
    Fill in `SLACK_APP_TOKEN`, `SLACK_BOT_TOKEN`, `GH_TOKEN`.
 
-2. **User profile:**
+2. **User profile + config:**
    ```bash
    cp profile/USER.example.md profile/USER.md
+   cp profile/config.example.yaml profile/config.yaml
+   cp profile/mcp.example.json profile/mcp.json
    ```
-   Fill in name, GitHub username, Slack user ID, preferences.
+   Fill `USER.md` (name, GitHub username, Slack user ID, preferences). `config.yaml` starts empty; add crons here. `mcp.json` lists user-level MCP servers — disable what you don't use.
 
 3. **Build:**
    ```bash

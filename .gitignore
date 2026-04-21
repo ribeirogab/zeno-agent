@@ -14,6 +14,7 @@ profile/USER.md
 # Only Zeno's own skills are committed via exceptions
 profile/skills/*
 !profile/skills/dev-workflow/
+!profile/skills/cron-management/
 
 # Node
 node_modules/

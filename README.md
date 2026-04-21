@@ -1,6 +1,12 @@
 # Zeno
 
-Personal agent. Runs in Docker on your machine, listens to Slack via Socket Mode, answers using Claude Code (OAuth subscription auth).
+> **A personal agent whose intelligence lives in the skills you author.**
+
+Zeno is a self-hosted personal agent. The core is deliberately small and stable: a channel listener, a reasoning backend, a cron runner, a dashboard. That is all it does. Everything Zeno *knows how to do* — open a pull request, review code, summarize your inbox, manage tasks in a specific tool, whatever matters to you — lives outside the core, as **skills** you write.
+
+A skill is a folder with a `SKILL.md` file (following the [agentskills.io](https://agentskills.io) open standard) plus whatever auxiliary files that skill needs: credentials, context, templates, scripts. Skills are self-contained, private to you by default, and loaded on demand. Zeno picks the right skill by matching your request against each skill's description — or you can invoke one explicitly.
+
+This design is intentional. Adding a capability should not require changing the codebase. Swapping the reasoning backend should not require rewriting your skills. Adding a new channel should not touch anything else. Zeno grows sideways, through the library of skills you maintain, not upwards through more code.
 
 ## Project structure
 

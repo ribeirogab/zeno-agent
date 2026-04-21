@@ -63,5 +63,11 @@ ENV PATH="/home/node/.local/bin:${PATH}"
 
 VOLUME ["/workspace"]
 
+COPY --chown=node:node infra/entrypoint.sh /usr/local/bin/zeno-entrypoint.sh
+USER root
+RUN chmod +x /usr/local/bin/zeno-entrypoint.sh
+USER node
+ENTRYPOINT ["/usr/local/bin/zeno-entrypoint.sh"]
+
 EXPOSE 3000
 CMD ["pnpm", "exec", "concurrently", "--kill-others-on-fail", "--prefix", "[{name}]", "--names", "worker,api", "node apps/worker/dist/index.js", "node apps/api/dist/index.js"]

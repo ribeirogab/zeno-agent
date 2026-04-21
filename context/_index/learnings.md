@@ -27,6 +27,9 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/tailwind-v4-source-directive-cross-package|Tailwind v4 `@source` directive for cross-package components]] — workspace packages self-register their content globs in `tokens.css`.
 - [[../learnings/lowercase-pill-convention|Lowercase pill convention]] — status pills lowercase, kickers and filter chips uppercase.
 - [[../learnings/optimistic-mutation-pattern|Optimistic-mutation primitive over TanStack useMutation]] — declarative wrapper handles snapshot/restore/invalidate; each mutation becomes ~10 lines of config.
+- [[../learnings/docker-multi-profile-via-compose|Multi-profile isolation via Docker Compose]] — same image, N compose files, N profile dirs; shared claude_home, isolated workspace volumes.
+- [[../learnings/skill-scoped-credentials-pattern|Skill-scoped credentials pattern]] — AWS keys, GitHub App private key, and Terraform all live inside the skill folder; referenced via env vars per-command.
+- [[../learnings/github-app-token-rotation|GitHub App token rotation]] — JWT → installation token exchange; per-org env vars; 55-min refresh loop; primary token overrides GH_TOKEN.
 
 ## `#reference` — Environment and commands
 
@@ -39,6 +42,7 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/claude-sdk-jsonl-transcript-shape|Claude Agent SDK JSONL transcript shape]] — where session transcripts live + parser strategy.
 - [[../learnings/claude-code-oauth-token|Claude Code OAuth token]] — `claude setup-token` workflow for `CLAUDE_CODE_OAUTH_TOKEN`.
 - [[../learnings/claude-code-cli-headless|Claude Code CLI — headless flags]] — `-p`, `--bare`, output formats.
+- [[../learnings/claude-sdk-settings-sources-skills|Claude Agent SDK settingSources for skill auto-discovery]] — SDK does NOT auto-load skills; `settingSources: ['user']` is required.
 - [[../learnings/slack-bolt-socket-mode|Slack Bolt Socket Mode]] — `@slack/bolt@4.7` minimal setup + scopes.
 - [[../learnings/gh-repo-list-json|gh repo list with --json]] — fields and auth via `GH_TOKEN`.
 - [[../learnings/node-lts-current|Node.js LTS status]] — Node 24 is current Active LTS (as of 2026-04).
@@ -62,6 +66,8 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/workspace-node-modules-in-docker|pnpm workspace node_modules in Docker]] — each workspace's `node_modules/` must be copied into the runtime image, not just the root.
 - [[../learnings/macos-case-insensitive-git-mv|macOS case-insensitive FS needs two-step `git mv`]] — case-only renames silently no-op; rename through an intermediate name.
 - [[../learnings/peer-react-in-workspace-ui-package|Peer React in workspace UI package]] — deps-level React causes two-instances hook errors; peer + dev is the fix.
+- [[../learnings/slack-mrkdwn-vs-markdown|Slack mrkdwn ≠ GitHub markdown]] — Claude emits `**bold**`, Slack needs `*bold*`; convert at the channel adapter, not the prompt.
+- [[../learnings/git-credential-helper-for-token-rotation|Git credential helper for token rotation]] — never embed tokens in clone URLs; use a helper that reads GH_TOKEN from env at runtime.
 
 ## `#meta` — Workflow and process
 

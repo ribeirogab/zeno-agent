@@ -1,5 +1,6 @@
 import { App, LogLevel } from '@slack/bolt';
 import { createLogger } from '@zeno/logger';
+import { toSlackMrkdwn } from '@/channels/slack/format';
 import { normalizeSlackEvent } from '@/channels/slack/normalize';
 import type { Channel, MessageHandler, MessageTarget } from '@/channels/types';
 
@@ -76,7 +77,7 @@ export class SlackChannel implements Channel {
       token: this.opts.botToken,
       channel: target.conversationId,
       thread_ts: target.threadId ?? undefined,
-      text,
+      text: toSlackMrkdwn(text),
     });
   }
 

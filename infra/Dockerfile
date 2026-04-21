@@ -3,8 +3,22 @@
 # Stage 1: base
 FROM node:24-slim AS base
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git python3 build-essential gh ca-certificates curl \
+    && apt-get install -y --no-install-recommends git python3 build-essential gh ca-certificates curl unzip \
     && rm -rf /var/lib/apt/lists/*
+
+# AWS CLI v2 (official installer — Debian package ships an outdated v1).
+# Multi-arch: amd64 → x86_64, arm64 → aarch64.
+RUN set -eux; \
+    arch=$(uname -m); \
+    case "$arch" in \
+      x86_64) aws_arch=x86_64 ;; \
+      aarch64) aws_arch=aarch64 ;; \
+      *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${aws_arch}.zip" -o /tmp/awscliv2.zip; \
+    unzip -q /tmp/awscliv2.zip -d /tmp; \
+    /tmp/aws/install; \
+    rm -rf /tmp/awscliv2.zip /tmp/aws
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /app
 

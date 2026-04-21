@@ -1,12 +1,11 @@
 name: zeno-default
 
 services:
-  zeno:
+  agent:
     build:
       context: .
       dockerfile: infra/Dockerfile
     image: zeno-agent:dev
-    container_name: zeno-default
     env_file: profiles/default/.env
     init: true
     ports:

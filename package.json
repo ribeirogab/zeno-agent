@@ -18,8 +18,8 @@
     "docker:up": "sh infra/docker.sh up -d",
     "docker:down": "sh infra/docker.sh down",
     "docker:logs": "sh infra/docker.sh logs -f",
-    "docker:setup-token": "sh infra/docker.sh run --rm zeno claude setup-token",
-    "docker:sh": "sh infra/docker.sh exec zeno bash"
+    "docker:setup-token": "sh infra/docker.sh run --rm agent claude setup-token",
+    "docker:sh": "sh infra/docker.sh exec agent bash"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",

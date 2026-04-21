@@ -33,25 +33,6 @@
       "env": {
         "SENTRY_AUTH_TOKEN": "${SENTRY_AUTH_TOKEN}"
       }
-    },
-    "cloudflare": {
-      "_comment": "EXAMPLE — Cloudflare Workers, D1, R2, etc. Set _disabled: false and add CLOUDFLARE_API_TOKEN to .env. Docs: https://github.com/cloudflare/mcp-server-cloudflare",
-      "_disabled": true,
-      "command": "npx",
-      "args": ["-y", "@cloudflare/mcp-server-cloudflare"],
-      "env": {
-        "CLOUDFLARE_API_TOKEN": "${CLOUDFLARE_API_TOKEN}",
-        "CLOUDFLARE_ACCOUNT_ID": "${CLOUDFLARE_ACCOUNT_ID}"
-      }
-    },
-    "vercel": {
-      "_comment": "EXAMPLE — Vercel deployments and projects. Set _disabled: false and add VERCEL_TOKEN to .env. Docs: https://vercel.com/docs/mcp",
-      "_disabled": true,
-      "command": "npx",
-      "args": ["-y", "@vercel/mcp-server"],
-      "env": {
-        "VERCEL_TOKEN": "${VERCEL_TOKEN}"
-      }
     }
   }
 }

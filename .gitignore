@@ -8,13 +8,13 @@ context/.obsidian/plugins/*/data.json
 .DS_Store
 
 # User profile (personal to whoever runs this Zeno instance)
-profile/USER.md
-
-# Skills — all gitignored by default (user-specific context)
-# Only Zeno's own skills are committed via exceptions
+profile/*
+!profile/USER.example.md
+!profile/config.example.yaml
+!profile/mcp.example.json
+!profile/skills/
 profile/skills/*
-!profile/skills/dev-workflow/
-!profile/skills/cron-management/
+!profile/skills/.gitkeep
 
 # Node
 node_modules/

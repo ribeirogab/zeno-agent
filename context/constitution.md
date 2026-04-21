@@ -10,9 +10,15 @@ If you are tempted to violate a rule here, stop and open a discussion first. Nev
 
 ## Why Zeno exists
 
-Zeno is a personal agent. The person who owns this instance is described in `USER.md` at the repo root (gitignored — see `USER.example.md` for the template). This repository is Zeno's workspace — the place where Zeno's identity, configuration, and operating knowledge live. It runs as a Dockerized Node/TypeScript process on the user's machine, connects to messaging channels (Slack first), and uses Claude Code (authenticated via OAuth) as its reasoning engine. The architecture is ports-and-adapters so additional channels (Discord, Telegram) and backends (Codex, Gemini) can be added without changing the core.
+Zeno is a personal agent whose intelligence lives in the skills its owner authors. The owner is described in `profile/USER.md` (gitignored — see `profile/USER.example.md` for the template). This repository is Zeno's workspace — the place where its identity, configuration, and operating knowledge live.
 
-The initial scope is deliberately minimal: one channel (Slack), one backend (Claude Code), zero custom tools. Beyond MVP, Zeno is intended to grow into a development agent — clone repos, edit code, open PRs — invoked from Slack threads.
+The architecture is intentionally layered:
+
+- **The core is small and stable.** A channel adapter, a reasoning backend, a cron runner, a dashboard. It should rarely change.
+- **The skills are the product.** Every capability Zeno has beyond "read a message and reply" comes from a skill the owner authored, following the [agentskills.io](https://agentskills.io) open standard. Skills are self-contained folders under `profile/skills/`, each free to carry whatever auxiliary files it needs (credentials, context, templates, scripts).
+- **Channels and backends are plugs.** Zeno is channel-agnostic and backend-agnostic by design: the core depends on the `Channel` and `AgentBackend` interfaces, never on concrete implementations. New channels (Discord, Telegram, email…) and new backends (alternative coding agents and reasoning engines) are added as adapters without touching the core.
+
+The goal is that adding a capability is always a matter of authoring a new skill, never of modifying the core. When in doubt between flexibility in the core and flexibility in the skill layer, the skill layer wins.
 
 ## Scope guardrails
 

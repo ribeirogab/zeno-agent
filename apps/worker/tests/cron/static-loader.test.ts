@@ -8,7 +8,7 @@ let workdir: string;
 const originalCwd = process.cwd();
 
 function writeYaml(content: string): void {
-  writeFileSync(join(workdir, 'profile', 'crons.yaml'), content, 'utf8');
+  writeFileSync(join(workdir, 'profile', 'config.yaml'), content, 'utf8');
 }
 
 beforeEach(() => {
@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe('loadStaticCrons', () => {
-  it('returns [] when crons.yaml is missing', () => {
+  it('returns [] when config.yaml is missing', () => {
     rmSync(join(workdir, 'profile'), { recursive: true });
     expect(loadStaticCrons()).toEqual([]);
   });

@@ -14,6 +14,7 @@ services:
     volumes:
       - workspace:/workspace
       - claude_home:/home/node/.claude
+      - ./agent:/app/agent:ro
       - ./profile:/app/profile:ro
     restart: unless-stopped
     stdin_open: true

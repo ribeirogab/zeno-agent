@@ -1,28 +1,37 @@
 # Zeno
 
-Personal agent. Runs in Docker on your machine, listens to Slack via Socket Mode, answers using Claude Code (OAuth subscription auth).
+> **A personal agent whose intelligence lives in the skills you author.**
+
+Zeno is a self-hosted personal agent. The core is deliberately small and stable: a channel listener, a reasoning backend, a cron runner, a dashboard. That is all it does. Everything Zeno *knows how to do* — open a pull request, review code, summarize your inbox, manage tasks in a specific tool, whatever matters to you — lives outside the core, as **skills** you write.
+
+A skill is a folder with a `SKILL.md` file (following the [agentskills.io](https://agentskills.io) open standard) plus whatever auxiliary files that skill needs: credentials, context, templates, scripts. Skills are self-contained, private to you by default, and loaded on demand. Zeno picks the right skill by matching your request against each skill's description — or you can invoke one explicitly.
+
+This design is intentional. Adding a capability should not require changing the codebase. Swapping the reasoning backend should not require rewriting your skills. Adding a new channel should not touch anything else. Zeno grows sideways, through the library of skills you maintain, not upwards through more code.
 
 ## Project structure
 
 ```
 zeno-agent/
-├── profile/                  # runtime: mounted into container (read-only)
+├── agent/                    # committed — Zeno's identity
 │   ├── SOUL.md               # agent personality and rules
-│   ├── USER.md (gitignored)  # your personal profile
+│   ├── mcp.json              # built-in MCP servers (Playwright, …)
+│   └── skills/               # built-in skills (dev-workflow, cron-management, playwright)
+├── profile/                  # gitignored except example templates
+│   ├── USER.md               # your personal profile
 │   ├── USER.example.md       # template for USER.md
-│   └── skills/               # SKILL.md bundles (agentskills.io)
-├── src/                      # TypeScript source
-│   ├── index.ts              # boot + composition root
-│   ├── config.ts             # env validation (zod)
-│   ├── logger.ts             # pino structured JSON
-│   ├── channels/             # message-source adapters (Slack, future Discord…)
-│   └── agent/                # core + backends + prompt loader
-├── tests/                    # vitest
+│   ├── config.yaml           # crons + user config
+│   ├── config.example.yaml   # template for config.yaml
+│   ├── mcp.json              # user-level MCP servers (with tokens)
+│   ├── mcp.example.json      # template for mcp.json
+│   └── skills/               # your personal skills (override agent/ on name collision)
+├── apps/                     # worker + api + dashboard
+├── packages/                 # @zeno/storage + @zeno/logger + @zeno/ui
 ├── context/                  # maintainer knowledge vault (NOT in container)
-├── infra/                    # Dockerfile, docker-compose, Slack manifest
-├── AGENTS.md                 # instructions for AI agents working on this code
+├── infra/                    # Dockerfile, docker-compose, entrypoint, Slack manifest
 └── .env.example              # env var template
 ```
+
+`agent/` is committed — it *is* Zeno. `profile/` is gitignored (only the three `*.example.*` files and an empty `skills/.gitkeep` live in git). When a skill or MCP server with the same name exists in both `agent/` and `profile/`, the `profile/` entry wins.
 
 ## Prerequisites
 
@@ -39,11 +48,13 @@ zeno-agent/
    ```
    Fill in `SLACK_APP_TOKEN`, `SLACK_BOT_TOKEN`, `GH_TOKEN`.
 
-2. **User profile:**
+2. **User profile + config:**
    ```bash
    cp profile/USER.example.md profile/USER.md
+   cp profile/config.example.yaml profile/config.yaml
+   cp profile/mcp.example.json profile/mcp.json
    ```
-   Fill in name, GitHub username, Slack user ID, preferences.
+   Fill `USER.md` (name, GitHub username, Slack user ID, preferences). `config.yaml` starts empty; add crons here. `mcp.json` lists user-level MCP servers — disable what you don't use.
 
 3. **Build:**
    ```bash

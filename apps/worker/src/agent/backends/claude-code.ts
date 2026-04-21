@@ -60,6 +60,7 @@ export class ClaudeCodeBackend implements AgentBackend {
           allowedTools: this.allowedTools,
           cwd: input.cwd,
           permissionMode: 'bypassPermissions',
+          settingSources: ['user'],
           abortController: controller,
           // biome-ignore lint/suspicious/noExplicitAny: SDK mcpServers union is stricter than our shape
           ...(this.buildMcpServers() as any),

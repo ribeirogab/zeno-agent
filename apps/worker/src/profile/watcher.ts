@@ -3,28 +3,32 @@ import { createLogger } from '@zeno/logger';
 
 const logger = createLogger({ service: 'worker' });
 
-/** Logical groupings of profile/ files. The watcher dispatches one group per debounce window. */
+/** Logical groupings of identity/config files. The watcher dispatches one group per debounce window. */
 type FileGroup = 'prompt' | 'crons' | 'mcp' | 'ignored';
 
+type SourceKind = 'agent' | 'profile';
+
+const AGENT_CANDIDATES = ['/app/agent', 'agent'];
 const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
 
 interface ProfileWatcherOptions {
-  /** Called when SOUL.md or USER.md changes. */
+  /** Called when SOUL.md (agent/) or USER.md (profile/) changes. */
   onPromptFilesChanged: () => void;
-  /** Called when crons.yaml changes. */
+  /** Called when profile/config.yaml changes. */
   onCronsChanged: () => void;
-  /** Called when mcp.json changes. */
+  /** Called when agent/mcp.json or profile/mcp.json changes. */
   onMcpChanged: () => void;
   /** Debounce window in ms. Defaults to 250 — enough to coalesce editor save bursts. */
   debounceMs?: number;
 }
 
 /**
- * Watches profile/ for hot-reloadable changes. Native fs.watch (recursive) — no extra deps.
- * Editor saves emit 5+ events; we coalesce per group with a trailing-edge debounce.
+ * Watches both agent/ and profile/ for hot-reloadable changes. Native fs.watch
+ * (recursive) — no extra deps. Editor saves emit 5+ events; we coalesce per
+ * group with a trailing-edge debounce.
  */
 export class ProfileWatcher {
-  private watcher: FSWatcher | null = null;
+  private readonly watchers: FSWatcher[] = [];
   private readonly timers = new Map<FileGroup, NodeJS.Timeout>();
   private readonly debounceMs: number;
 
@@ -33,28 +37,39 @@ export class ProfileWatcher {
   }
 
   start(): void {
-    const path = this.findProfileDir();
-    if (!path) {
-      logger.warn({ event: 'profile_watcher_no_dir' }, 'no profile/ directory found, watcher idle');
-      return;
+    if (this.watchers.length > 0) return;
+
+    const agentPath = findSourceDir(AGENT_CANDIDATES);
+    if (agentPath) {
+      this.watchers.push(this.openWatcher('agent', agentPath));
+      logger.info({ event: 'profile_watcher_started', source: 'agent', path: agentPath });
+    } else {
+      logger.warn({ event: 'profile_watcher_no_dir', source: 'agent' });
     }
-    if (this.watcher) return;
-    this.watcher = watch(path, { recursive: true }, (_eventType, filename) => {
-      if (!filename) return;
-      const group = classify(filename);
-      if (group === 'ignored') return;
-      this.schedule(group);
-    });
-    logger.info({ event: 'profile_watcher_started', path }, 'profile watcher started');
+
+    const profilePath = findSourceDir(PROFILE_CANDIDATES);
+    if (profilePath) {
+      this.watchers.push(this.openWatcher('profile', profilePath));
+      logger.info({ event: 'profile_watcher_started', source: 'profile', path: profilePath });
+    } else {
+      logger.warn({ event: 'profile_watcher_no_dir', source: 'profile' });
+    }
   }
 
   stop(): void {
-    if (this.watcher) {
-      this.watcher.close();
-      this.watcher = null;
-    }
+    for (const w of this.watchers) w.close();
+    this.watchers.length = 0;
     for (const timer of this.timers.values()) clearTimeout(timer);
     this.timers.clear();
+  }
+
+  private openWatcher(source: SourceKind, path: string): FSWatcher {
+    return watch(path, { recursive: true }, (_eventType, filename) => {
+      if (!filename) return;
+      const group = classify(source, filename);
+      if (group === 'ignored') return;
+      this.schedule(group);
+    });
   }
 
   private schedule(group: FileGroup): void {
@@ -87,24 +102,25 @@ export class ProfileWatcher {
       );
     }
   }
+}
 
-  private findProfileDir(): string | null {
-    for (const candidate of PROFILE_CANDIDATES) {
-      if (existsSync(candidate)) return candidate;
-    }
-    return null;
+function findSourceDir(candidates: string[]): string | null {
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
   }
+  return null;
 }
 
 /**
- * Map a filename (relative to profile/) to its reload group.
+ * Map a (source, filename) pair to its reload group.
  * Anything under skills/ is ignored — Zeno reads those on-demand via Read tool.
  */
-function classify(filename: string): FileGroup {
+export function classify(source: SourceKind, filename: string): FileGroup {
   const normalized = filename.replace(/\\/g, '/');
   if (normalized.startsWith('skills/') || normalized === 'skills') return 'ignored';
-  if (normalized === 'SOUL.md' || normalized === 'USER.md') return 'prompt';
-  if (normalized === 'crons.yaml') return 'crons';
+  if (source === 'agent' && normalized === 'SOUL.md') return 'prompt';
+  if (source === 'profile' && normalized === 'USER.md') return 'prompt';
+  if (source === 'profile' && normalized === 'config.yaml') return 'crons';
   if (normalized === 'mcp.json') return 'mcp';
   return 'ignored';
 }

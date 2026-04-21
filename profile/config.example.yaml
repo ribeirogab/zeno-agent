@@ -1,0 +1,23 @@
+# Zeno user config — crons + future sections.
+#
+# Cron entry schema:
+#   name: kebab-case identifier (required)
+#   description: human-readable (optional)
+#   schedule: 5-field cron expression (required)
+#   prompt: what Zeno should do when the cron fires (required)
+#   notify:
+#     conversation_id: Slack channel/DM id where output goes; if missing, the run is logged but not posted
+#     thread_id: optional Slack thread ts to reply inside
+#
+# Example:
+# crons:
+#   - name: morning-pr-summary
+#     description: Resumo de PRs abertos toda manhã às 9h
+#     schedule: "0 9 * * 1-5"
+#     prompt: |
+#       Lista PRs abertos em octocat/*.
+#       Pra cada um: título, autor, idade, status de CI. Bullets em PT-BR.
+#     notify:
+#       conversation_id: C12345
+
+crons: []

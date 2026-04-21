@@ -7,7 +7,11 @@ import { ProfileWatcher } from '@/profile/watcher';
 let workdir: string;
 const originalCwd = process.cwd();
 
-function touch(file: string, content = ''): void {
+function touchAgent(file: string, content = ''): void {
+  writeFileSync(join(workdir, 'agent', file), content, 'utf8');
+}
+
+function touchProfile(file: string, content = ''): void {
   writeFileSync(join(workdir, 'profile', file), content, 'utf8');
 }
 
@@ -18,6 +22,8 @@ function wait(ms: number): Promise<void> {
 beforeEach(() => {
   workdir = mkdtempSync(join(tmpdir(), 'zeno-watcher-'));
   process.chdir(workdir);
+  mkdirSync(join(workdir, 'agent'));
+  mkdirSync(join(workdir, 'agent', 'skills'));
   mkdirSync(join(workdir, 'profile'));
   mkdirSync(join(workdir, 'profile', 'skills'));
 });
@@ -28,7 +34,7 @@ afterEach(() => {
 });
 
 describe('ProfileWatcher', () => {
-  it('debounces rapid edits to SOUL.md into a single onPromptFilesChanged call', async () => {
+  it('debounces rapid edits to agent/SOUL.md into a single onPromptFilesChanged call', async () => {
     const onPromptFilesChanged = vi.fn();
     const watcher = new ProfileWatcher({
       onPromptFilesChanged,
@@ -40,9 +46,9 @@ describe('ProfileWatcher', () => {
     // give fs.watch a moment to attach (macOS can lose events otherwise)
     await wait(50);
 
-    touch('SOUL.md', 'v1');
-    touch('SOUL.md', 'v2');
-    touch('SOUL.md', 'v3');
+    touchAgent('SOUL.md', 'v1');
+    touchAgent('SOUL.md', 'v2');
+    touchAgent('SOUL.md', 'v3');
 
     await wait(150);
     watcher.stop();
@@ -50,7 +56,7 @@ describe('ProfileWatcher', () => {
     expect(onPromptFilesChanged).toHaveBeenCalledTimes(1);
   });
 
-  it('routes crons.yaml edits to onCronsChanged', async () => {
+  it('routes profile/config.yaml edits to onCronsChanged', async () => {
     const onCronsChanged = vi.fn();
     const watcher = new ProfileWatcher({
       onPromptFilesChanged: vi.fn(),
@@ -62,7 +68,7 @@ describe('ProfileWatcher', () => {
     // give fs.watch a moment to attach (macOS can lose events otherwise)
     await wait(50);
 
-    touch('crons.yaml', 'crons: []\n');
+    touchProfile('config.yaml', 'crons: []\n');
 
     await wait(150);
     watcher.stop();
@@ -70,7 +76,7 @@ describe('ProfileWatcher', () => {
     expect(onCronsChanged).toHaveBeenCalledTimes(1);
   });
 
-  it('routes mcp.json edits to onMcpChanged', async () => {
+  it('routes profile/mcp.json edits to onMcpChanged', async () => {
     const onMcpChanged = vi.fn();
     const watcher = new ProfileWatcher({
       onPromptFilesChanged: vi.fn(),
@@ -79,10 +85,9 @@ describe('ProfileWatcher', () => {
       debounceMs: 50,
     });
     watcher.start();
-    // give fs.watch a moment to attach (macOS can lose events otherwise)
     await wait(50);
 
-    touch('mcp.json', '{}');
+    touchProfile('mcp.json', '{}');
 
     await wait(150);
     watcher.stop();
@@ -90,7 +95,26 @@ describe('ProfileWatcher', () => {
     expect(onMcpChanged).toHaveBeenCalledTimes(1);
   });
 
-  it('ignores edits under skills/', async () => {
+  it('routes agent/mcp.json edits to onMcpChanged', async () => {
+    const onMcpChanged = vi.fn();
+    const watcher = new ProfileWatcher({
+      onPromptFilesChanged: vi.fn(),
+      onCronsChanged: vi.fn(),
+      onMcpChanged,
+      debounceMs: 50,
+    });
+    watcher.start();
+    await wait(50);
+
+    touchAgent('mcp.json', '{}');
+
+    await wait(150);
+    watcher.stop();
+
+    expect(onMcpChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores edits under skills/ from either source', async () => {
     const onPromptFilesChanged = vi.fn();
     const onCronsChanged = vi.fn();
     const onMcpChanged = vi.fn();
@@ -103,7 +127,8 @@ describe('ProfileWatcher', () => {
     watcher.start();
     await wait(50);
 
-    writeFileSync(join(workdir, 'profile', 'skills', 'foo.md'), 'hi', 'utf8');
+    writeFileSync(join(workdir, 'agent', 'skills', 'foo.md'), 'hi', 'utf8');
+    writeFileSync(join(workdir, 'profile', 'skills', 'bar.md'), 'hi', 'utf8');
 
     await wait(150);
     watcher.stop();
@@ -123,14 +148,13 @@ describe('ProfileWatcher', () => {
       debounceMs: 50,
     });
     watcher.start();
-    // give fs.watch a moment to attach (macOS can lose events otherwise)
     await wait(50);
 
-    touch('SOUL.md', 'v1');
+    touchAgent('SOUL.md', 'v1');
     await wait(150);
     watcher.stop();
 
-    // We just want to assert no unhandled rejection / no crash. Reaching this assertion is the proof.
+    // We just want to assert no unhandled rejection / no crash.
     expect(true).toBe(true);
   });
 });

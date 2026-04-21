@@ -104,7 +104,7 @@ Or DM it directly.
 | "Invalid environment" on boot | Check `.env` — all 4 tokens must be set |
 | Mount error for `profile/USER.md` | `cp profile/USER.example.md profile/USER.md` and fill in |
 | Bot doesn't react to mentions | Check Slack Socket Mode config; look for `slack_connected` in logs |
-| "não tenho acesso à org X" | PAT needs `read:org`; for SSO orgs, authorize the token in GitHub settings |
+| "I don't have access to org X" | PAT needs `read:org`; for SSO orgs, authorize the token in GitHub settings |
 
 ## Architecture
 

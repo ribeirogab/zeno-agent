@@ -131,7 +131,7 @@ PRBODY
 
 ## Cleaning up worktrees
 
-Only clean up when the user asks (e.g., `@zeno limpa os worktrees do my-app`).
+Only clean up when the user asks (e.g., `@zeno clean up worktrees for my-app`).
 
 ```bash
 # List all worktrees
@@ -154,7 +154,7 @@ git -C "${BARE}" worktree prune
 | Main worktree exists | Skip creation. Just `pull` to update. |
 | Branch `zeno/X` exists on remote | Use `zeno/X-2`, `zeno/X-3`, etc. |
 | Worktree dir exists, same branch | Reuse it — `cd` into it and continue. |
-| Worktree dir exists, different branch | Tell user there's a conflict. Suggest `@zeno limpa worktrees`. Stop. |
+| Worktree dir exists, different branch | Tell user there's a conflict. Suggest `@zeno clean up worktrees`. Stop. |
 | Repo uses `master` not `main` | Detected automatically via `gh repo view --json defaultBranchRef`. |
 | Clone fails (no access) | Explain clearly. Suggest checking PAT scopes or SSO authorization. |
 | User asks to push to existing branch | **Refuse.** Explain the rule. Offer to open a PR instead. |

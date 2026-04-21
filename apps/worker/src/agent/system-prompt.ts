@@ -7,7 +7,7 @@ const AGENT_CANDIDATES = ['/app/agent', 'agent'];
 const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
 
 const DEFAULT_SOUL =
-  'You are Zeno, a personal agent. Respond helpfully and concisely in Brazilian Portuguese.';
+  'You are Zeno, a personal agent. Respond helpfully and concisely in the language the user addresses you in.';
 
 const NO_USER_NOTE =
   '_USER.md not found — Zeno is operating without user-specific context. Address the user generically and ask for missing details (name, github username, preferences) when relevant._';

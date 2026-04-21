@@ -44,4 +44,10 @@ if [ -n "$CONFIG_FILE" ]; then
   fi
 fi
 
+# Credential helper: always read GH_TOKEN from env (supports token rotation,
+# avoids embedding tokens in clone URLs). Works for all github.com repos.
+git config --global credential.https://github.com.helper \
+  '!f() { echo "username=x-access-token"; echo "password=${GH_TOKEN}"; }; f'
+git config --global credential.https://github.com.useHttpPath true
+
 exec "$@"

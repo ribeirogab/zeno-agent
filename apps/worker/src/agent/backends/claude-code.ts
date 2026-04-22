@@ -1,4 +1,4 @@
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import { type HookCallback, query } from '@anthropic-ai/claude-agent-sdk';
 import { createLogger } from '@zeno/logger';
 import type { McpServerConfig } from '@/agent/mcp';
 import {
@@ -23,6 +23,12 @@ interface ClaudeCodeBackendOptions {
   mcpServers?: Record<string, McpServerConfig>;
   /** In-process MCP servers (e.g. cron tools) created via the SDK's createSdkMcpServer helper. */
   inProcessMcpServers?: Record<string, InProcessMcpServer>;
+  /**
+   * Optional pre-tool-use hook. When provided, it fires before every tool call
+   * via the SDK's `hooks.PreToolUse` mechanism and can allow or deny execution.
+   * `permissionMode` switches to `'default'` so the hook is honored.
+   */
+  preToolUseHook?: HookCallback;
 }
 
 export class ClaudeCodeBackend implements AgentBackend {
@@ -31,12 +37,14 @@ export class ClaudeCodeBackend implements AgentBackend {
   private readonly allowedTools: string[];
   private readonly mcpServers: Record<string, McpServerConfig>;
   private readonly inProcessMcpServers: Record<string, InProcessMcpServer>;
+  private readonly preToolUseHook?: HookCallback;
 
   constructor(opts: ClaudeCodeBackendOptions = {}) {
-    this.timeoutMs = opts.timeoutMs ?? 300_000;
+    this.timeoutMs = opts.timeoutMs ?? 3_600_000;
     this.allowedTools = opts.allowedTools ?? ['Bash', 'Read', 'Glob', 'Grep'];
     this.mcpServers = opts.mcpServers ?? {};
     this.inProcessMcpServers = opts.inProcessMcpServers ?? {};
+    this.preToolUseHook = opts.preToolUseHook;
   }
 
   async query(input: AgentInput): Promise<AgentOutput> {
@@ -59,7 +67,10 @@ export class ClaudeCodeBackend implements AgentBackend {
           systemPrompt: input.systemPrompt,
           allowedTools: this.allowedTools,
           cwd: input.cwd,
-          permissionMode: 'bypassPermissions',
+          permissionMode: this.preToolUseHook ? 'default' : 'bypassPermissions',
+          ...(this.preToolUseHook
+            ? { hooks: { PreToolUse: [{ hooks: [this.preToolUseHook] }] } }
+            : {}),
           settingSources: ['user'],
           abortController: controller,
           // biome-ignore lint/suspicious/noExplicitAny: SDK mcpServers union is stricter than our shape

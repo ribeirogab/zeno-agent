@@ -113,6 +113,35 @@ export interface CreateLogInput {
   payload: string;
 }
 
+export type ApprovalDecision = 'allow' | 'deny';
+
+export type PolicyThatGated =
+  | 'always_sensitive'
+  | 'read_only'
+  | 'classifier'
+  | 'auto_allow'
+  | 'timeout'
+  | 'classifier_unavailable'
+  | 'approver_channel_error';
+
+export interface ApprovalsLogEntry {
+  id: number;
+  profile: string;
+  correlationId: string;
+  threadId: string | null;
+  requesterUserId: string;
+  deciderUserId: string | null;
+  toolName: string;
+  toolInput: string;
+  policyThatGated: PolicyThatGated;
+  classifierReason: string | null;
+  decision: ApprovalDecision;
+  decisionReason: string;
+  createdAt: string;
+}
+
+export type CreateApprovalsLogEntry = Omit<ApprovalsLogEntry, 'id' | 'createdAt'>;
+
 export interface LogFilter {
   level?: LogLevel;
   q?: string;

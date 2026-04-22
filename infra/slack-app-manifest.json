@@ -3,6 +3,11 @@
     "name": "zeno-agent"
   },
   "features": {
+    "app_home": {
+      "home_tab_enabled": false,
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": false
+    },
     "bot_user": {
       "display_name": "zeno-agent",
       "always_online": false
@@ -15,6 +20,8 @@
         "app_mentions:read",
         "im:history",
         "im:read",
+        "im:write",
+        "reactions:read",
         "reactions:write",
         "users:read"
       ]
@@ -23,7 +30,7 @@
   },
   "settings": {
     "event_subscriptions": {
-      "bot_events": ["app_mention", "message.im"]
+      "bot_events": ["app_mention", "message.im", "reaction_added"]
     },
     "interactivity": {
       "is_enabled": true

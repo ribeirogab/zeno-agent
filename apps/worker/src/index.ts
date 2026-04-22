@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { createLogger, type Logger } from '@zeno/logger';
 import {
+  ApprovalsLogRepo,
   CommandRepo,
   CronRepo,
   CronRunRepo,
@@ -27,6 +28,16 @@ import { CronRunner } from '@/cron/runner';
 import { loadStaticCrons } from '@/cron/static-loader';
 import { buildCronMcpServer } from '@/cron/tools';
 import { loadGitHubAppConfig } from '@/github/app-auth';
+import { SlackApprover } from '@/guardrails/approver/slack-approver';
+import { HaikuClassifier } from '@/guardrails/classifier/haiku';
+import { loadApprovalsConfig } from '@/guardrails/config';
+import { GuardedBackend } from '@/guardrails/guarded-backend';
+import { makeAlwaysSensitivePolicy } from '@/guardrails/policies/always-sensitive';
+import { makeAuditLogger } from '@/guardrails/policies/audit';
+import { makeClassifierGatePolicy } from '@/guardrails/policies/classifier-gate';
+import { makeReadOnlySkillPolicy } from '@/guardrails/policies/read-only-skill';
+import { loadSkillRegistry } from '@/guardrails/skill-registry';
+import type { PolicyMiddleware } from '@/guardrails/types';
 import { LogsRetention } from '@/logs/retention';
 import { ProfileWatcher } from '@/profile/watcher';
 
@@ -129,6 +140,7 @@ async function main(): Promise<void> {
   const cronRuns = new CronRunRepo(db);
   const commands = new CommandRepo(db);
   const logs = new LogRepo(db);
+  const approvalsLog = new ApprovalsLogRepo(db);
 
   // Real logger now that the sink is available. Every log from here on is
   // persisted for the dashboard Logs page.
@@ -172,7 +184,11 @@ async function main(): Promise<void> {
     'mcp servers loaded',
   );
 
-  const slack = new SlackChannel(config.slack);
+  const approvalsConfig = loadApprovalsConfig();
+  const slack = new SlackChannel({
+    ...config.slack,
+    dmOwnerUserId: approvalsConfig?.dm_owner_only !== false ? approvalsConfig?.owner_slack_user_id : undefined,
+  });
   const defaultCronChannel = process.env.ZENO_CRON_DEFAULT_CHANNEL ?? null;
 
   // Build runner first so its `runOnce` is bound to the cron tools
@@ -202,14 +218,79 @@ async function main(): Promise<void> {
     logger,
   });
 
-  // The chat-facing backend gets the in-process MCP server with cron CRUD tools wired to repos + runner
+  // The chat-facing backend gets the in-process MCP server with cron CRUD tools wired to repos + runner.
+  // Crons run UNGUARDED for MVP (their `userMessage` carries no Slack context to identify a requester);
+  // only this user-facing backend is wrapped with the guardrails policy pipeline.
   const cronMcp = buildCronMcpServer({ crons, cronRuns, runner });
-  const backend = buildBackend(logger, {
-    mcpServers,
-    inProcessMcpServers: { zeno: cronMcp },
-  });
+  const isClaudeBackend = (process.env.ZENO_BACKEND ?? 'claude-code') === 'claude-code';
+
+  let chatBackend: AgentBackend;
+  if (approvalsConfig && isClaudeBackend) {
+    const skillRegistry = loadSkillRegistry();
+    const classifier = new HaikuClassifier({ model: approvalsConfig.classifier_model });
+    const approver = new SlackApprover(
+      slack,
+      approvalsConfig.owner_slack_user_id,
+      approvalsConfig.approval_timeout_sec * 1000,
+    );
+    const audit = makeAuditLogger(approvalsLog);
+    const policies: PolicyMiddleware[] = [
+      makeAlwaysSensitivePolicy(approvalsConfig.always_sensitive),
+      makeReadOnlySkillPolicy(),
+      makeClassifierGatePolicy(classifier),
+    ];
+    const guardedDeps = {
+      policies,
+      audit,
+      approver,
+      skillRegistry,
+      ownerUserId: approvalsConfig.owner_slack_user_id,
+      profile: process.env.PROFILE ?? 'default',
+    };
+    // Two-phase construction: the SDK's PreToolUse hook is a constructor option
+    // on `ClaudeCodeBackend`, but the hook is owned by `GuardedBackend`. Build a
+    // throwaway wrapper to obtain the hook, construct the real inner backend
+    // with it, then build the final wrapper around it.
+    const tempInner = new ClaudeCodeBackend({
+      mcpServers,
+      inProcessMcpServers: { zeno: cronMcp },
+    });
+    const preToolUseHook = new GuardedBackend(tempInner, guardedDeps).buildPreToolUseHook();
+    const guardedInner = new ClaudeCodeBackend({
+      mcpServers,
+      inProcessMcpServers: { zeno: cronMcp },
+      preToolUseHook,
+    });
+    chatBackend = new GuardedBackend(guardedInner, guardedDeps);
+    logger.info(
+      {
+        event: 'guardrails_enabled',
+        ownerUserId: approvalsConfig.owner_slack_user_id,
+        alwaysSensitive: approvalsConfig.always_sensitive.length,
+        timeoutSec: approvalsConfig.approval_timeout_sec,
+      },
+      'guardrails enabled',
+    );
+  } else {
+    chatBackend = buildBackend(logger, {
+      mcpServers,
+      inProcessMcpServers: { zeno: cronMcp },
+    });
+    if (approvalsConfig && !isClaudeBackend) {
+      logger.warn(
+        { event: 'guardrails_skipped_non_claude_backend' },
+        'guardrails skipped: backend is not claude-code',
+      );
+    } else {
+      logger.warn(
+        { event: 'guardrails_disabled' },
+        'approvals section missing in config — running unguarded',
+      );
+    }
+  }
+
   const core = new AgentCore({
-    backend,
+    backend: chatBackend,
     workspaceDir: config.workspaceDir,
     getSystemPrompt: () => promptHolder.value,
     sessions,

@@ -98,6 +98,29 @@ CREATE INDEX commands_pending_idx ON commands(status, created_at) WHERE status =
     CREATE INDEX logs_correlation_idx ON logs(correlation_id);
   `,
   },
+  {
+    id: 4,
+    name: 'approvals_log',
+    sql: `
+CREATE TABLE approvals_log (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  profile            TEXT NOT NULL,
+  correlation_id     TEXT NOT NULL,
+  thread_id          TEXT,
+  requester_user_id  TEXT NOT NULL,
+  decider_user_id    TEXT,
+  tool_name          TEXT NOT NULL,
+  tool_input         TEXT NOT NULL,
+  policy_that_gated  TEXT NOT NULL,
+  classifier_reason  TEXT,
+  decision           TEXT NOT NULL CHECK (decision IN ('allow','deny')),
+  decision_reason    TEXT NOT NULL,
+  created_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX idx_approvals_log_profile_created ON approvals_log(profile, created_at DESC);
+CREATE INDEX idx_approvals_log_correlation ON approvals_log(correlation_id);
+`,
+  },
 ];
 
 /**

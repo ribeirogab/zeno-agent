@@ -2,13 +2,21 @@ import { App, LogLevel } from '@slack/bolt';
 import { createLogger } from '@zeno/logger';
 import { toSlackMrkdwn } from '@/channels/slack/format';
 import { normalizeSlackEvent } from '@/channels/slack/normalize';
-import type { Channel, MessageHandler, MessageTarget } from '@/channels/types';
+import type { Channel, MessageHandler, MessageTarget, ReactionEvent } from '@/channels/types';
+
+interface ReactionAddedEvent {
+  item?: { ts?: string; channel?: string };
+  reaction?: string;
+  user?: string;
+}
 
 const logger = createLogger({ service: 'worker' });
 
 interface SlackChannelOptions {
   appToken: string;
   botToken: string;
+  /** When set, only this user can DM the bot. Other DMs are silently ignored. */
+  dmOwnerUserId?: string;
 }
 
 export class SlackChannel implements Channel {
@@ -39,6 +47,17 @@ export class SlackChannel implements Channel {
     const dispatch = async ({ event }: { event: any }) => {
       const message = normalizeSlackEvent(event, this.botUserId as string);
       if (!message || !this.handler) return;
+      if (
+        this.opts.dmOwnerUserId &&
+        event.channel_type === 'im' &&
+        message.userId !== this.opts.dmOwnerUserId
+      ) {
+        logger.info(
+          { event: 'dm_ignored_non_owner', userId: message.userId },
+          'DM from non-owner ignored',
+        );
+        return;
+      }
       logger.info(
         {
           event: 'message_received',
@@ -69,15 +88,61 @@ export class SlackChannel implements Channel {
     logger.info({ event: 'slack_connected', botUserId: this.botUserId }, 'Slack connected');
   }
 
-  async send(target: MessageTarget, text: string): Promise<void> {
+  async send(target: MessageTarget, text: string): Promise<{ messageRef: string }> {
     if (target.platform !== 'slack') {
       throw new Error(`Unsupported platform: ${target.platform}`);
     }
-    await this.app.client.chat.postMessage({
+    const result = await this.app.client.chat.postMessage({
       token: this.opts.botToken,
       channel: target.conversationId,
       thread_ts: target.threadId ?? undefined,
       text: toSlackMrkdwn(text),
+    });
+    if (!result.ts) {
+      throw new Error('chat.postMessage returned no ts');
+    }
+    return { messageRef: String(result.ts) };
+  }
+
+  async openDm(userId: string): Promise<string> {
+    const result = await this.app.client.conversations.open({
+      token: this.opts.botToken,
+      users: userId,
+    });
+    const id = result.channel?.id;
+    if (!id) throw new Error('conversations.open returned no channel id');
+    return id;
+  }
+
+  async waitForReaction(
+    target: MessageTarget,
+    emojis: string[],
+    timeoutMs: number,
+    expectedUserId?: string,
+  ): Promise<ReactionEvent | null> {
+    if (!target.messageRef) return null;
+    return new Promise((resolve) => {
+      let settled = false;
+      const settle = (value: ReactionEvent | null): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      };
+      const listener = async ({ event }: { event: unknown }): Promise<void> => {
+        if (settled) return;
+        const reactionEvent = event as ReactionAddedEvent;
+        if (reactionEvent.item?.ts !== target.messageRef) return;
+        if (reactionEvent.item?.channel !== target.conversationId) return;
+        const reaction = reactionEvent.reaction;
+        if (!reaction || !emojis.includes(reaction)) return;
+        const user = reactionEvent.user;
+        if (expectedUserId && user !== expectedUserId) return;
+        if (!user) return;
+        settle({ emoji: reaction, userId: user });
+      };
+      this.app.event('reaction_added', listener);
+      const timer = setTimeout(() => settle(null), timeoutMs);
     });
   }
 

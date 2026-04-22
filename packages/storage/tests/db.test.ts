@@ -13,8 +13,8 @@ describe('storage/db + migrations', () => {
   it('runs migrations on a fresh DB and reports applied', () => {
     const db = openDatabase(':memory:');
     const result = runMigrations(db);
-    expect(result.applied).toEqual([1, 2, 3]);
-    expect(result.current).toBe(3);
+    expect(result.applied).toEqual([1, 2, 3, 4]);
+    expect(result.current).toBe(4);
 
     // Tables exist
     const tables = db
@@ -36,7 +36,7 @@ describe('storage/db + migrations', () => {
     runMigrations(db);
     const second = runMigrations(db);
     expect(second.applied).toEqual([]);
-    expect(second.current).toBe(3);
+    expect(second.current).toBe(4);
     closeDatabase(db);
   });
 });

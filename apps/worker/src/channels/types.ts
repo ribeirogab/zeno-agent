@@ -5,10 +5,23 @@
 export interface Channel {
   readonly name: string;
   start(onMessage: MessageHandler): Promise<void>;
-  send(target: MessageTarget, text: string): Promise<void>;
+  send(target: MessageTarget, text: string): Promise<{ messageRef: string }>;
   react(target: MessageTarget, emoji: string): Promise<void>;
   unreact(target: MessageTarget, emoji: string): Promise<void>;
+  waitForReaction(
+    target: MessageTarget,
+    emojis: string[],
+    timeoutMs: number,
+    expectedUserId?: string,
+  ): Promise<ReactionEvent | null>;
+  /** Open (or fetch) the IM conversation with `userId`; returns the conversation id. */
+  openDm(userId: string): Promise<string>;
   stop(): Promise<void>;
+}
+
+export interface ReactionEvent {
+  emoji: string;
+  userId: string;
 }
 
 export type MessageHandler = (msg: IncomingMessage) => Promise<void>;

@@ -1,7 +1,7 @@
 import { CronRepo, CronRunRepo, type DB, openDatabase, runMigrations } from '@zeno/storage';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentBackend } from '@/agent/types';
-import type { Channel, MessageHandler, MessageTarget } from '@/channels/types';
+import type { Channel, MessageHandler, MessageTarget, ReactionEvent } from '@/channels/types';
 import { CronRunner } from '@/cron/runner';
 
 class StubChannel implements Channel {
@@ -10,15 +10,21 @@ class StubChannel implements Channel {
   start(_onMessage: MessageHandler): Promise<void> {
     return Promise.resolve();
   }
-  send(target: MessageTarget, text: string): Promise<void> {
+  send(target: MessageTarget, text: string): Promise<{ messageRef: string }> {
     this.sent.push({ target, text });
-    return Promise.resolve();
+    return Promise.resolve({ messageRef: 'stub' });
   }
   react(): Promise<void> {
     return Promise.resolve();
   }
   unreact(): Promise<void> {
     return Promise.resolve();
+  }
+  waitForReaction(): Promise<ReactionEvent | null> {
+    return Promise.resolve(null);
+  }
+  openDm(): Promise<string> {
+    return Promise.resolve('stub-dm');
   }
   stop(): Promise<void> {
     return Promise.resolve();

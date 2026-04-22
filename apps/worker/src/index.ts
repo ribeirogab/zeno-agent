@@ -28,6 +28,7 @@ import { CronRunner } from '@/cron/runner';
 import { loadStaticCrons } from '@/cron/static-loader';
 import { buildCronMcpServer } from '@/cron/tools';
 import { loadGitHubAppConfig } from '@/github/app-auth';
+import { buildGitEnv, resolveGitIdentity } from '@/github/git-identity';
 import { SlackApprover } from '@/guardrails/approver/slack-approver';
 import { HaikuClassifier } from '@/guardrails/classifier/haiku';
 import { loadApprovalsConfig } from '@/guardrails/config';
@@ -66,6 +67,7 @@ interface BackendBuildOptions {
   mcpServers: Record<string, McpServerConfig>;
   // biome-ignore lint/suspicious/noExplicitAny: in-process MCP server type is not exported
   inProcessMcpServers?: Record<string, any>;
+  env?: Record<string, string | undefined>;
 }
 
 /**
@@ -184,6 +186,9 @@ async function main(): Promise<void> {
     'mcp servers loaded',
   );
 
+  const gitIdentity = resolveGitIdentity();
+  const gitEnv = gitIdentity ? buildGitEnv(gitIdentity) : undefined;
+
   const approvalsConfig = loadApprovalsConfig();
   const slack = new SlackChannel({
     ...config.slack,
@@ -192,7 +197,7 @@ async function main(): Promise<void> {
   const defaultCronChannel = process.env.ZENO_CRON_DEFAULT_CHANNEL ?? null;
 
   // Build runner first so its `runOnce` is bound to the cron tools
-  const backendForRunner = buildBackend(logger, { mcpServers });
+  const backendForRunner = buildBackend(logger, { mcpServers, env: gitEnv });
   const runner = new CronRunner({
     crons,
     cronRuns,
@@ -260,6 +265,7 @@ async function main(): Promise<void> {
       mcpServers,
       inProcessMcpServers: { zeno: cronMcp },
       preToolUseHook,
+      env: gitEnv,
     });
     chatBackend = new GuardedBackend(guardedInner, guardedDeps);
     logger.info(

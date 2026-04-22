@@ -29,6 +29,8 @@ interface ClaudeCodeBackendOptions {
    * `permissionMode` switches to `'default'` so the hook is honored.
    */
   preToolUseHook?: HookCallback;
+  /** Environment variables for the SDK subprocess. Overrides process.env when set. */
+  env?: Record<string, string | undefined>;
 }
 
 export class ClaudeCodeBackend implements AgentBackend {
@@ -38,6 +40,7 @@ export class ClaudeCodeBackend implements AgentBackend {
   private readonly mcpServers: Record<string, McpServerConfig>;
   private readonly inProcessMcpServers: Record<string, InProcessMcpServer>;
   private readonly preToolUseHook?: HookCallback;
+  private readonly env?: Record<string, string | undefined>;
 
   constructor(opts: ClaudeCodeBackendOptions = {}) {
     this.timeoutMs = opts.timeoutMs ?? 3_600_000;
@@ -45,6 +48,7 @@ export class ClaudeCodeBackend implements AgentBackend {
     this.mcpServers = opts.mcpServers ?? {};
     this.inProcessMcpServers = opts.inProcessMcpServers ?? {};
     this.preToolUseHook = opts.preToolUseHook;
+    this.env = opts.env;
   }
 
   async query(input: AgentInput): Promise<AgentOutput> {
@@ -71,6 +75,7 @@ export class ClaudeCodeBackend implements AgentBackend {
           ...(this.preToolUseHook
             ? { hooks: { PreToolUse: [{ hooks: [this.preToolUseHook] }] } }
             : {}),
+          ...(this.env ? { env: this.env } : {}),
           settingSources: ['user'],
           abortController: controller,
           // biome-ignore lint/suspicious/noExplicitAny: SDK mcpServers union is stricter than our shape

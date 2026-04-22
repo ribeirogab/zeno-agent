@@ -40,12 +40,30 @@ function buildContext(overrides: Partial<PolicyContext> = {}): PolicyContext {
 }
 
 describe('classifierGatePolicy', () => {
-  it('auto-allows when classifier returns sensitive=false', async () => {
+  it('skips classifier and auto-allows for owner', async () => {
+    const classifier = stubClassifier({
+      classify: vi.fn(async () => ({ sensitive: true, reason: 'mutates state' })),
+    });
+    const policy = makeClassifierGatePolicy(classifier);
+    const ctx = buildContext({ isOwner: true });
+
+    const decision = await policy.check(ctx);
+
+    expect(decision).toEqual({
+      allow: true,
+      reason: 'owner: classifier skipped',
+      policyThatGated: 'auto_allow',
+    });
+    expect(classifier.classify).not.toHaveBeenCalled();
+    expect(ctx.requestApproval).not.toHaveBeenCalled();
+  });
+
+  it('auto-allows non-owner when classifier returns sensitive=false', async () => {
     const classifier = stubClassifier({
       classify: vi.fn(async () => ({ sensitive: false, reason: 'read-only' })),
     });
     const policy = makeClassifierGatePolicy(classifier);
-    const ctx = buildContext();
+    const ctx = buildContext({ isOwner: false, requesterUserId: 'U_OTHER' });
 
     const decision = await policy.check(ctx);
 
@@ -58,12 +76,12 @@ describe('classifierGatePolicy', () => {
     expect(ctx.requestApproval).not.toHaveBeenCalled();
   });
 
-  it('forwards to the approver and tags policyThatGated="classifier" on sensitive=true', async () => {
+  it('forwards non-owner to the approver on sensitive=true', async () => {
     const classifier = stubClassifier({
       classify: vi.fn(async () => ({ sensitive: true, reason: 'mutates state' })),
     });
     const policy = makeClassifierGatePolicy(classifier);
-    const ctx = buildContext();
+    const ctx = buildContext({ isOwner: false, requesterUserId: 'U_OTHER' });
 
     const decision = await policy.check(ctx);
 
@@ -77,14 +95,14 @@ describe('classifierGatePolicy', () => {
     });
   });
 
-  it('returns a fail-safe deny when the classifier throws', async () => {
+  it('returns a fail-safe deny for non-owner when the classifier throws', async () => {
     const classifier = stubClassifier({
       classify: vi.fn(async () => {
         throw new Error('network down');
       }),
     });
     const policy = makeClassifierGatePolicy(classifier);
-    const ctx = buildContext();
+    const ctx = buildContext({ isOwner: false, requesterUserId: 'U_OTHER' });
 
     const decision = await policy.check(ctx);
 

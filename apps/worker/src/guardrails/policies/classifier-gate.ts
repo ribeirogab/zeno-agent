@@ -11,6 +11,9 @@ export function makeClassifierGatePolicy(classifier: HaikuClassifier): PolicyMid
   return {
     name: 'classifier_gate',
     async check(ctx) {
+      if (ctx.isOwner) {
+        return { allow: true, reason: 'owner: classifier skipped', policyThatGated: 'auto_allow' };
+      }
       let result: ClassifierResult;
       try {
         result = await classifier.classify(ctx.toolName, ctx.toolInput);

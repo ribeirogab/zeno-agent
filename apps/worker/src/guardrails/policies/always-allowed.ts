@@ -31,17 +31,7 @@ export function makeAlwaysAllowedPolicy(opts: AlwaysAllowedOptions): PolicyMiddl
       if (ctx.toolName === 'Bash' && opts.commands.length > 0) {
         const command = (ctx.toolInput as Record<string, unknown>).command;
         if (typeof command === 'string') {
-          const subcommands = command.split(/&&|;|\|/).map((s) => s.trim());
-          const isPassthrough = (sub: string): boolean =>
-            sub === '' ||
-            sub.startsWith('export ') ||
-            sub.startsWith('cd ') ||
-            sub.startsWith('echo ') ||
-            sub === 'true';
-          const matchesAllowed = (sub: string): boolean =>
-            opts.commands.some((pattern) => matchesPattern(sub, pattern));
-          const allSafe = subcommands.every((sub) => isPassthrough(sub) || matchesAllowed(sub));
-          if (allSafe && subcommands.some(matchesAllowed)) {
+          if (opts.commands.some((pattern) => matchesPattern(command, pattern))) {
             return {
               allow: true,
               reason: 'command matches always_allowed pattern',

@@ -17,13 +17,19 @@ import { MockBackend } from '@/agent/backends/mock';
 import { loadMockFixtures } from '@/agent/backends/mock-fixtures';
 import { AgentCore } from '@/agent/core';
 import { loadMcpConfig, type McpServerConfig } from '@/agent/mcp';
-import { buildSystemPrompt, loadAgentFile, loadProfileFile } from '@/agent/system-prompt';
+import {
+  buildSystemPrompt,
+  loadAgentFile,
+  loadAlwaysActiveSkills,
+  loadProfileFile,
+} from '@/agent/system-prompt';
 import type { AgentBackend } from '@/agent/types';
 import { SlackChannel } from '@/channels/slack/adapter';
 import { buildDispatcher } from '@/commands/dispatcher';
 import { buildHandlerMap } from '@/commands/handlers';
 import { CommandsPoller } from '@/commands/poller';
 import { type Config, loadConfig } from '@/config';
+import { loadAlwaysActiveSkillNames } from '@/config/always-active-skills';
 import { CronRunner } from '@/cron/runner';
 import { loadStaticCrons } from '@/cron/static-loader';
 import { buildCronMcpServer } from '@/cron/tools';
@@ -121,16 +127,20 @@ async function main(): Promise<void> {
   }
 
   // Load identity files (SOUL.md from agent/, USER.md from profile/)
+  // + always-active skills from config
+  const alwaysActiveNames = loadAlwaysActiveSkillNames();
+  const alwaysActiveContents = loadAlwaysActiveSkills(alwaysActiveNames);
+
   const buildPromptNow = (): string => {
     const soul = loadAgentFile('SOUL.md');
     const user = loadProfileFile('USER.md');
-    return buildSystemPrompt(soul, user);
+    return buildSystemPrompt(soul, user, alwaysActiveContents);
   };
 
   const initialSoul = loadAgentFile('SOUL.md');
   const initialUser = loadProfileFile('USER.md');
 
-  const promptHolder = { value: buildSystemPrompt(initialSoul, initialUser) };
+  const promptHolder = { value: buildSystemPrompt(initialSoul, initialUser, alwaysActiveContents) };
 
   const dbPath = join(config.workspaceDir, 'zeno.db');
   const db = openDatabase(dbPath);

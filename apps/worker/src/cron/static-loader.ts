@@ -8,7 +8,7 @@ import { nextRunAfter, validateSchedule } from '@/cron/parser';
 const logger = createLogger({ service: 'worker' });
 
 const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
-const KNOWN_SECTIONS = new Set(['crons', 'approvals', 'github_app']);
+const KNOWN_SECTIONS = new Set(['crons', 'approvals', 'github_app', 'always_active_skills']);
 
 const NotifySchema = z
   .object({

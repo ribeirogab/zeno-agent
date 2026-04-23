@@ -6,10 +6,18 @@ interface AlwaysAllowedOptions {
 }
 
 function matchesPattern(value: string, pattern: string): boolean {
-  if (pattern.endsWith('*')) {
-    return value.startsWith(pattern.slice(0, -1));
+  if (!pattern.includes('*')) return value === pattern;
+  const parts = pattern.split('*');
+  let pos = 0;
+  for (const part of parts) {
+    if (part === '') continue;
+    const idx = value.indexOf(part, pos);
+    if (idx === -1) return false;
+    pos = idx + part.length;
   }
-  return value === pattern;
+  if (!pattern.endsWith('*') && pos !== value.length) return false;
+  if (!pattern.startsWith('*') && !value.startsWith(parts[0] ?? '')) return false;
+  return true;
 }
 
 export function makeAlwaysAllowedPolicy(opts: AlwaysAllowedOptions): PolicyMiddleware {
@@ -24,14 +32,16 @@ export function makeAlwaysAllowedPolicy(opts: AlwaysAllowedOptions): PolicyMiddl
         const command = (ctx.toolInput as Record<string, unknown>).command;
         if (typeof command === 'string') {
           const subcommands = command.split(/&&|;|\|/).map((s) => s.trim());
-          const allMatch = subcommands.every(
-            (sub) =>
-              sub === '' ||
-              sub.startsWith('export ') ||
-              sub.startsWith('cd ') ||
-              opts.commands.some((pattern) => matchesPattern(sub, pattern)),
-          );
-          if (allMatch && subcommands.some((sub) => opts.commands.some((p) => matchesPattern(sub, p)))) {
+          const isPassthrough = (sub: string): boolean =>
+            sub === '' ||
+            sub.startsWith('export ') ||
+            sub.startsWith('cd ') ||
+            sub.startsWith('echo ') ||
+            sub === 'true';
+          const matchesAllowed = (sub: string): boolean =>
+            opts.commands.some((pattern) => matchesPattern(sub, pattern));
+          const allSafe = subcommands.every((sub) => isPassthrough(sub) || matchesAllowed(sub));
+          if (allSafe && subcommands.some(matchesAllowed)) {
             return {
               allow: true,
               reason: 'command matches always_allowed pattern',

@@ -11,6 +11,8 @@ const ApprovalsSchema = z
   .object({
     owner_slack_user_id: z.string().regex(/^U[A-Z0-9]+$/),
     always_sensitive: z.array(z.string()).default([]),
+    always_allowed_tools: z.array(z.string()).default(['Read', 'Glob', 'Grep']),
+    always_allowed_commands: z.array(z.string()).default([]),
     approval_timeout_sec: z.number().int().min(10).max(3600).default(600),
     classifier_model: z.string().default('claude-haiku-4-5'),
     dm_owner_only: z.boolean().default(true),

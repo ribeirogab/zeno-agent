@@ -39,6 +39,7 @@ import { SlackApprover } from '@/guardrails/approver/slack-approver';
 import { HaikuClassifier } from '@/guardrails/classifier/haiku';
 import { loadApprovalsConfig } from '@/guardrails/config';
 import { GuardedBackend } from '@/guardrails/guarded-backend';
+import { makeAlwaysAllowedPolicy } from '@/guardrails/policies/always-allowed';
 import { makeAlwaysSensitivePolicy } from '@/guardrails/policies/always-sensitive';
 import { makeAuditLogger } from '@/guardrails/policies/audit';
 import { makeClassifierGatePolicy } from '@/guardrails/policies/classifier-gate';
@@ -253,6 +254,10 @@ async function main(): Promise<void> {
     const audit = makeAuditLogger(approvalsLog);
     const policies: PolicyMiddleware[] = [
       makeAlwaysSensitivePolicy(approvalsConfig.always_sensitive),
+      makeAlwaysAllowedPolicy({
+        tools: approvalsConfig.always_allowed_tools,
+        commands: approvalsConfig.always_allowed_commands,
+      }),
       makeReadOnlySkillPolicy(),
       makeClassifierGatePolicy(classifier),
     ];

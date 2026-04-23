@@ -83,8 +83,11 @@ export class SlackChannel implements Channel {
           if (parent && typeof parent.text === 'string') {
             message.parentText = parent.text;
           }
-        } catch {
-          // best-effort — don't block the message if parent fetch fails
+        } catch (error) {
+          logger.warn(
+            { event: 'parent_message_fetch_failed', err: String(error).slice(0, 200) },
+            'failed to fetch parent message text',
+          );
         }
       }
 

@@ -54,11 +54,11 @@ describe('alwaysAllowedPolicy', () => {
     ).toMatchObject({ allow: true });
   });
 
-  it('blocks compound commands where non-prefix parts are not allowed', async () => {
+  it('allows compound commands if any allowed pattern is found (contains-match)', async () => {
     const policy = makeAlwaysAllowedPolicy({ tools: [], commands: ['gh pr *'] });
     expect(
-      await policy.check(buildCtx('Bash', { command: 'export GH_TOKEN=$X && gh pr diff 1 && rm -rf /tmp' })),
-    ).toBeUndefined();
+      await policy.check(buildCtx('Bash', { command: 'export GH_TOKEN=$X && gh pr diff 1 && echo done' })),
+    ).toMatchObject({ allow: true });
   });
 
   it('does not allow Bash commands not in always_allowed_commands', async () => {

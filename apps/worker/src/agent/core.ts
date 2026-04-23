@@ -156,6 +156,13 @@ export function wrapWithSlackContext(message: IncomingMessage): string {
     '[/slack_context]',
   ];
 
+  if (message.parentText) {
+    lines.push('');
+    lines.push('[parent_message]');
+    lines.push(message.parentText);
+    lines.push('[/parent_message]');
+  }
+
   if (message.attachments?.length) {
     lines.push('');
     lines.push('[attached_files]');

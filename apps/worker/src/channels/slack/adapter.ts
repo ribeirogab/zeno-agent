@@ -15,6 +15,8 @@ const logger = createLogger({ service: 'worker' });
 
 interface SlackEventPayload {
   channel_type?: string;
+  thread_ts?: string;
+  channel?: string;
   files?: SlackFile[];
 }
 
@@ -65,6 +67,25 @@ export class SlackChannel implements Channel {
           'DM from non-owner ignored',
         );
         return;
+      }
+
+      // Fetch parent message text when this is a thread reply
+      if (slackEvent.thread_ts && slackEvent.channel) {
+        try {
+          const replies = await this.app.client.conversations.replies({
+            token: this.opts.botToken,
+            channel: slackEvent.channel,
+            ts: slackEvent.thread_ts,
+            limit: 1,
+            inclusive: true,
+          });
+          const parent = replies.messages?.[0];
+          if (parent && typeof parent.text === 'string') {
+            message.parentText = parent.text;
+          }
+        } catch {
+          // best-effort — don't block the message if parent fetch fails
+        }
       }
 
       // Download file attachments when present

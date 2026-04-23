@@ -41,6 +41,8 @@ export interface IncomingMessage {
   correlationId: string;
   /** Opaque reference to the original event, so adapters can reply to it */
   messageRef: string;
+  /** Text of the parent message when this is a thread reply */
+  parentText?: string;
   /** Platform-specific raw event payload, for debugging only */
   raw: unknown;
   /** Files attached to the message, downloaded to local disk */

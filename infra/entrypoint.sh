@@ -29,10 +29,13 @@ for d in "$PROFILE_SKILLS"/*/; do
   ln -sfn "$d" "$DEST/$name"
 done
 
-# Git identity from profile/config.yaml (github_app.git_identity)
+# Git identity from config.yaml (github_app.git_identity) — profile first, agent fallback
 CONFIG_FILE=""
-for candidate in /app/profile/config.yaml profile/config.yaml; do
-  [ -f "$candidate" ] && CONFIG_FILE="$candidate" && break
+for candidate in /app/profile/config.yaml profile/config.yaml /app/agent/config.yaml agent/config.yaml; do
+  if [ -f "$candidate" ] && grep -q 'git_identity:' "$candidate" 2>/dev/null; then
+    CONFIG_FILE="$candidate"
+    break
+  fi
 done
 
 if [ -n "$CONFIG_FILE" ]; then

@@ -192,7 +192,9 @@ async function main(): Promise<void> {
   const approvalsConfig = loadApprovalsConfig();
   const slack = new SlackChannel({
     ...config.slack,
-    dmOwnerUserId: approvalsConfig?.dm_owner_only !== false ? approvalsConfig?.owner_slack_user_id : undefined,
+    dmOwnerUserId:
+      approvalsConfig?.dm_owner_only !== false ? approvalsConfig?.owner_slack_user_id : undefined,
+    workspaceDir: config.workspaceDir,
   });
   const defaultCronChannel = process.env.ZENO_CRON_DEFAULT_CHANNEL ?? null;
 

@@ -134,7 +134,9 @@ describe('GuardedBackend.buildPreToolUseHook', () => {
       tool_name: toolName,
       tool_input: toolInput,
       tool_use_id: 'tu-1',
-    }) as unknown as Parameters<typeof import('@/guardrails/guarded-backend').GuardedBackend.prototype.buildPreToolUseHook>[0];
+    }) as unknown as Parameters<
+      typeof import('@/guardrails/guarded-backend').GuardedBackend.prototype.buildPreToolUseHook
+    >[0];
 
   it('returns allow when the pipeline allows', async () => {
     const allow: Decision = { allow: true, reason: 'ok', policyThatGated: 'auto_allow' };
@@ -155,11 +157,9 @@ describe('GuardedBackend.buildPreToolUseHook', () => {
         correlationId: 'cid-1',
       },
       () =>
-        hook(
-          hookInput('Bash', { command: 'ls' }),
-          'tu-1',
-          { signal: new AbortController().signal },
-        ),
+        hook(hookInput('Bash', { command: 'ls' }), 'tu-1', {
+          signal: new AbortController().signal,
+        }),
     );
 
     expect(result).toMatchObject({
@@ -191,11 +191,9 @@ describe('GuardedBackend.buildPreToolUseHook', () => {
         correlationId: 'cid-1',
       },
       () =>
-        hook(
-          hookInput('mcp__github__merge_pull_request', { pr: 1 }),
-          'tu-1',
-          { signal: new AbortController().signal },
-        ),
+        hook(hookInput('mcp__github__merge_pull_request', { pr: 1 }), 'tu-1', {
+          signal: new AbortController().signal,
+        }),
     );
 
     expect(result).toMatchObject({
@@ -211,11 +209,9 @@ describe('GuardedBackend.buildPreToolUseHook', () => {
     const guarded = new GuardedBackend(asInner(inner), buildDeps());
     const hook = guarded.buildPreToolUseHook();
 
-    const result = await hook(
-      hookInput('Bash', { command: 'ls' }),
-      'tu-1',
-      { signal: new AbortController().signal },
-    );
+    const result = await hook(hookInput('Bash', { command: 'ls' }), 'tu-1', {
+      signal: new AbortController().signal,
+    });
 
     expect(result).toMatchObject({
       hookSpecificOutput: {

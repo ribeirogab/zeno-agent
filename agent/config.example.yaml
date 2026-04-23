@@ -1,0 +1,9 @@
+# Shared GitHub App config — base identity for all profiles.
+# Profiles add their own `installations` and `private_key_file` in profile/config.yaml.
+# Copy this file to config.yaml and fill in your app details.
+
+github_app:
+  app_id: "123456"
+  git_identity:
+    name: "my-bot[bot]"
+    email: "123456+my-bot[bot]@users.noreply.github.com"

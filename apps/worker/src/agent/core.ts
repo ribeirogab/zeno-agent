@@ -144,7 +144,8 @@ export class AgentCore {
  * (notify_conversation_id, notify_thread_id) to the current Slack target.
  * Concatenated into the user message — NOT into the system prompt — to keep the prompt cache valid.
  */
-function wrapWithSlackContext(message: IncomingMessage): string {
+/** @internal Exported for testing only. */
+export function wrapWithSlackContext(message: IncomingMessage): string {
   if (message.platform !== 'slack') return message.text;
   const lines = [
     '[slack_context]',
@@ -153,9 +154,20 @@ function wrapWithSlackContext(message: IncomingMessage): string {
     `user_id: ${message.userId}`,
     `current_time: ${new Date().toISOString()}`,
     '[/slack_context]',
-    '',
-    message.text,
   ];
+
+  if (message.attachments?.length) {
+    lines.push('');
+    lines.push('[attached_files]');
+    for (const attachment of message.attachments) {
+      lines.push(`- ${attachment.localPath} (${attachment.mimetype}, ${attachment.name})`);
+    }
+    lines.push('[/attached_files]');
+    lines.push('Read the attached files before responding.');
+  }
+
+  lines.push('');
+  lines.push(message.text);
   return lines.join('\n');
 }
 

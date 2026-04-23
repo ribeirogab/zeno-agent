@@ -1,5 +1,6 @@
 import { App, LogLevel } from '@slack/bolt';
 import { createLogger } from '@zeno/logger';
+import { downloadSlackFiles, type SlackFile } from '@/channels/slack/files';
 import { toSlackMrkdwn } from '@/channels/slack/format';
 import { normalizeSlackEvent } from '@/channels/slack/normalize';
 import type { Channel, MessageHandler, MessageTarget, ReactionEvent } from '@/channels/types';
@@ -12,11 +13,18 @@ interface ReactionAddedEvent {
 
 const logger = createLogger({ service: 'worker' });
 
+interface SlackEventPayload {
+  channel_type?: string;
+  files?: SlackFile[];
+}
+
 interface SlackChannelOptions {
   appToken: string;
   botToken: string;
   /** When set, only this user can DM the bot. Other DMs are silently ignored. */
   dmOwnerUserId?: string;
+  /** Root directory for the workspace; file attachments are saved under `<workspaceDir>/uploads/`. Defaults to `/workspace`. */
+  workspaceDir?: string;
 }
 
 export class SlackChannel implements Channel {
@@ -43,13 +51,13 @@ export class SlackChannel implements Channel {
       throw new Error('Slack auth.test did not return user_id');
     }
 
-    // biome-ignore lint/suspicious/noExplicitAny: Bolt event payloads are loosely typed
-    const dispatch = async ({ event }: { event: any }) => {
+    const dispatch = async ({ event }: { event: unknown }) => {
+      const slackEvent = event as SlackEventPayload;
       const message = normalizeSlackEvent(event, this.botUserId as string);
       if (!message || !this.handler) return;
       if (
         this.opts.dmOwnerUserId &&
-        event.channel_type === 'im' &&
+        slackEvent.channel_type === 'im' &&
         message.userId !== this.opts.dmOwnerUserId
       ) {
         logger.info(
@@ -58,12 +66,25 @@ export class SlackChannel implements Channel {
         );
         return;
       }
+
+      // Download file attachments when present
+      if (Array.isArray(slackEvent.files) && slackEvent.files.length > 0) {
+        const workspaceDir = this.opts.workspaceDir ?? '/workspace';
+        message.attachments = await downloadSlackFiles(
+          slackEvent.files,
+          this.opts.botToken,
+          message.correlationId,
+          workspaceDir,
+        );
+      }
+
       logger.info(
         {
           event: 'message_received',
           platform: 'slack',
           userId: message.userId,
           correlationId: message.correlationId,
+          attachments: message.attachments?.length ?? 0,
         },
         'slack message received',
       );
@@ -156,9 +177,7 @@ export class SlackChannel implements Channel {
         name: emoji,
       });
     } catch (error) {
-      // biome-ignore lint/suspicious/noExplicitAny: Slack errors carry data via .data.error
-      const errorCode = (error as any)?.data?.error;
-      if (errorCode === 'already_reacted') return;
+      if (isSlackErrorCode(error, 'already_reacted')) return;
       throw error;
     }
   }
@@ -173,9 +192,7 @@ export class SlackChannel implements Channel {
         name: emoji,
       });
     } catch (error) {
-      // biome-ignore lint/suspicious/noExplicitAny: Slack errors carry data via .data.error
-      const errorCode = (error as any)?.data?.error;
-      if (errorCode === 'no_reaction') return;
+      if (isSlackErrorCode(error, 'no_reaction')) return;
       throw error;
     }
   }
@@ -184,4 +201,12 @@ export class SlackChannel implements Channel {
     await this.app.stop();
     logger.info({ event: 'slack_disconnected' }, 'Slack disconnected');
   }
+}
+
+/** Narrow a Slack API error to check its `.data.error` code without using `any`. */
+function isSlackErrorCode(error: unknown, code: string): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const data = (error as Record<string, unknown>).data;
+  if (typeof data !== 'object' || data === null) return false;
+  return (data as Record<string, unknown>).error === code;
 }

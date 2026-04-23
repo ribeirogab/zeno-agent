@@ -43,6 +43,19 @@ export interface IncomingMessage {
   messageRef: string;
   /** Platform-specific raw event payload, for debugging only */
   raw: unknown;
+  /** Files attached to the message, downloaded to local disk */
+  attachments?: Attachment[];
+}
+
+export interface Attachment {
+  /** Original file name */
+  name: string;
+  /** MIME type (e.g. image/png, application/pdf) */
+  mimetype: string;
+  /** Absolute path to the downloaded file on local disk */
+  localPath: string;
+  /** File size in bytes */
+  sizeBytes: number;
 }
 
 export interface MessageTarget {

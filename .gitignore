@@ -27,6 +27,9 @@ infra/docker-compose.*.yml
 /.env
 /.env.*
 
+# Agent config (only example is committed)
+agent/config.yaml
+
 # Node
 node_modules/
 dist/

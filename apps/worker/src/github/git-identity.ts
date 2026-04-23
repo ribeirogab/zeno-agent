@@ -10,9 +10,11 @@ export interface GitIdentity {
   email: string;
 }
 
-const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
+const DEFAULT_CANDIDATES = ['/app/profile', 'profile', '/app/agent', 'agent'];
 
-export function parseGitIdentityFromConfig(candidates: string[] = PROFILE_CANDIDATES): GitIdentity | null {
+export function parseGitIdentityFromConfig(
+  candidates: string[] = DEFAULT_CANDIDATES,
+): GitIdentity | null {
   for (const base of candidates) {
     const path = `${base}/config.yaml`;
     if (!existsSync(path)) continue;
@@ -25,7 +27,7 @@ export function parseGitIdentityFromConfig(candidates: string[] = PROFILE_CANDID
         return { name: identity.name, email: identity.email };
       }
     } catch {
-      continue;
+      /* parse failed, try next candidate */
     }
   }
   return null;
@@ -33,7 +35,7 @@ export function parseGitIdentityFromConfig(candidates: string[] = PROFILE_CANDID
 
 export function resolveGitIdentityFromGhCli(): GitIdentity | null {
   try {
-    const output = execSync('gh api /user --jq \'.login,.id,.name,.email\'', {
+    const output = execSync("gh api /user --jq '.login,.id,.name,.email'", {
       encoding: 'utf8',
       timeout: 10_000,
       env: process.env,
@@ -41,9 +43,7 @@ export function resolveGitIdentityFromGhCli(): GitIdentity | null {
     const [login, id, name, email] = output.split('\n');
     const effectiveName = name && name !== 'null' ? name : (login ?? 'unknown');
     const effectiveEmail =
-      email && email !== 'null' && email !== ''
-        ? email
-        : `${id}+${login}@users.noreply.github.com`;
+      email && email !== 'null' && email !== '' ? email : `${id}+${login}@users.noreply.github.com`;
     return { name: effectiveName, email: effectiveEmail };
   } catch (error) {
     logger.warn(
@@ -85,5 +85,6 @@ export function buildGitEnv(identity: GitIdentity): Record<string, string | unde
     GIT_COMMITTER_NAME: identity.name,
     GIT_AUTHOR_EMAIL: identity.email,
     GIT_COMMITTER_EMAIL: identity.email,
+    GH_TOKEN_PERSONAL: undefined,
   };
 }

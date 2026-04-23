@@ -93,9 +93,6 @@ export class GitHubAppAuth {
     }
 
     if (primaryToken) {
-      if (!process.env.GH_TOKEN_PERSONAL && process.env.GH_TOKEN) {
-        process.env.GH_TOKEN_PERSONAL = process.env.GH_TOKEN;
-      }
       process.env.GH_TOKEN = primaryToken;
     }
   }
@@ -146,47 +143,92 @@ export class GitHubAppAuth {
   }
 }
 
+const AGENT_CANDIDATES = ['/app/agent', 'agent'];
 const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
 
 interface RawGitHubAppConfig {
-  app_id: string;
-  private_key_file: string;
-  installations: { name: string; id: string; env_var: string }[];
+  app_id?: string;
+  private_key_file?: string;
+  git_identity?: { name?: string; email?: string };
+  installations?: { name: string; id: string; env_var: string }[];
 }
 
-export function loadGitHubAppConfig(): GitHubAppAuth | null {
-  for (const base of PROFILE_CANDIDATES) {
+interface RawInstallation {
+  name: string;
+  id: string;
+  env_var: string;
+}
+
+function loadGitHubAppLayer(
+  candidates: string[],
+): { base: string; config: RawGitHubAppConfig } | null {
+  for (const base of candidates) {
     const configPath = `${base}/config.yaml`;
     if (!existsSync(configPath)) continue;
-
     try {
       const raw = readFileSync(configPath, 'utf8');
       const parsed = parseYaml(raw) as Record<string, unknown> | null;
-      if (!parsed?.github_app) return null;
-
-      const config = parsed.github_app as RawGitHubAppConfig;
-      if (!config.app_id || !config.private_key_file || !config.installations?.length) {
-        logger.warn(
-          { event: 'github_app_config_incomplete' },
-          'github_app section in config.yaml is incomplete, skipping',
-        );
-        return null;
-      }
-
-      const privateKeyPath = resolve(base, config.private_key_file);
-
-      return new GitHubAppAuth({
-        appId: config.app_id,
-        privateKeyPath,
-        installations: config.installations.map((inst) => ({
-          name: inst.name,
-          id: inst.id,
-          envVar: inst.env_var,
-        })),
-      });
+      if (!parsed?.github_app) continue;
+      return { base, config: parsed.github_app as RawGitHubAppConfig };
     } catch {
       continue;
     }
   }
   return null;
+}
+
+/**
+ * Load GitHub App config from agent/ (shared base: app_id, key, git_identity)
+ * and profile/ (installations). Profile fields override agent fields when both
+ * are present. Paths (private_key_file) resolve relative to the layer that
+ * provides them.
+ */
+export function loadGitHubAppConfig(): GitHubAppAuth | null {
+  const agentLayer = loadGitHubAppLayer(AGENT_CANDIDATES);
+  const profileLayer = loadGitHubAppLayer(PROFILE_CANDIDATES);
+
+  if (!agentLayer && !profileLayer) return null;
+
+  const agentCfg = agentLayer?.config ?? {};
+  const profileCfg = profileLayer?.config ?? {};
+
+  const appId = profileCfg.app_id ?? agentCfg.app_id;
+  const privateKeyFile = profileCfg.private_key_file ?? agentCfg.private_key_file;
+  const keyBase = profileCfg.private_key_file
+    ? profileLayer?.base
+    : agentLayer?.base;
+  const installations: RawInstallation[] = [
+    ...(agentCfg.installations ?? []),
+    ...(profileCfg.installations ?? []),
+  ];
+
+  if (!appId || !privateKeyFile || installations.length === 0) {
+    logger.warn(
+      { event: 'github_app_config_incomplete' },
+      'github_app section missing app_id, private_key_file, or installations across agent + profile configs',
+    );
+    return null;
+  }
+
+  const privateKeyPath = resolve(keyBase ?? '.', privateKeyFile);
+
+  logger.info(
+    {
+      event: 'github_app_config_merged',
+      agentLayer: !!agentLayer,
+      profileLayer: !!profileLayer,
+      installations: installations.length,
+    },
+    'github_app config loaded',
+  );
+
+  return new GitHubAppAuth({
+    appId,
+    privateKeyPath,
+    installations: installations.map((inst) => ({
+      name: inst.name,
+      id: inst.id,
+      envVar: inst.env_var,
+    })),
+  });
 }

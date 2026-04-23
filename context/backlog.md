@@ -1,7 +1,7 @@
 ---
 status: living
 created: 2026-04-16
-updated: 2026-04-21
+updated: 2026-04-23
 ---
 # Backlog — ideas, not specs
 
@@ -11,44 +11,32 @@ Don't build from this file directly. Use it to remember what was discussed and w
 
 ---
 
-## Tier 1 — Foundation (unblocks everything else)
+## Tier 0 — Pre-release (mandatory before open-source)
 
-| # | Feature | Why first | Complexity | Trigger to promote |
-|---|---|---|---|---|
-| 1 | **Guardrails + approval flow** | Without this, nothing sensitive can be done safely. Blocks worker mode (company Slack) entirely. | Medium | Ready now — worker mode is insecure without it |
-| 2 | **File reading** (all channels) | Base for audio, images, documents. Slack already has file upload API. | Small | First time a user sends a file and Zeno ignores it |
-
-### Guardrails — design sketch
-
-- `canUseTool`-style callback in the SDK: before executing a destructive command, Zeno posts "Can I run `X`? 👍/👎" and waits for a reaction.
-- **Two approval modes:**
-  - **Owner mode** (personal Slack): approval goes to the same thread.
-  - **Worker mode** (company Slack): approval goes to the **owner** via DM, not to the employee who asked.
-- Configurable in `config.yaml`:
-  ```yaml
-  approvals:
-    mode: worker  # owner | worker
-    owner_slack_user_id: U0ABC123
-    sensitive_patterns:
-      - "aws .* (delete|terminate|stop|modify|create|put)"
-      - "gh pr merge"
-      - "git push --force"
-      - "rm -rf"
-  ```
-- A skill can declare `read_only: true` in its frontmatter to bypass approval for all its commands (e.g., `acme` is already read-only by IAM policy + skill rules).
-- DM pairing / allowlist (inspired by OpenClaw): control which Slack users can talk to Zeno in a shared workspace. Unknown users get ignored or get a "not authorized" reply.
+| # | Feature | Complexity | Notes |
+|---|---|---|---|
+| 1 | **Dashboard testing + improvements** | Medium | Dashboard isn't well tested. Increase coverage, make it actually useful day-to-day. |
+| 2 | **Cron testing** | Small-medium | Crons were implemented but need thorough testing to confirm reliability. |
+| 3 | **Full regression test** | Medium | Test everything end-to-end. Guardrails, file reading, sessions, crons, dashboard, approvals — make sure nothing is broken. |
+| 4 | **Rebranding** | Medium | Current design is based on Claude Code with zero personality. Needs original identity — colors, typography, logo, dashboard look & feel. |
+| 5 | **Documentation site (`apps/docs`)** | Medium | Create a docs app with how to install, configure, create profiles, write skills, use the dashboard. |
+| 6 | **Onboarding / setup experience** | Small | Interactive `scripts/setup.sh` that guides first-time users through Docker, tokens, profile, Slack manifest. |
+| 7 | **Error resilience** | Medium | What happens when Slack disconnects mid-session? SDK crash? Container restart? Test and ensure graceful recovery. |
+| 8 | **README de qualidade** | Small | GIF/video demo, badges, "why Zeno?", quick-start in 3 steps. Must sell the project. |
+| 9 | **CI on GitHub** | Small | `.github/workflows/quality-gate.yml` running lint + typecheck + test on every PR. |
+| 10 | **Open-source essentials** | Small | LICENSE (MIT), CONTRIBUTING.md, CODE_OF_CONDUCT.md, issue/PR templates, scrub internal references from specs/learnings. |
 
 ---
 
-## Tier 2 — Multichannel + media
+## Tier 1 — Multichannel + media
 
 | # | Feature | Dependency | Complexity | Notes |
 |---|---|---|---|---|
-| 3 | **Telegram channel** | None (ports & adapters ready) | Medium | Bot API is clean; second easiest channel after Slack. Implement the `Channel` interface. |
-| 4 | **WhatsApp channel** | None (but needs a provider: Meta Cloud API, Evolution API, or Twilio) | Medium-high | Webhook-based (needs a public URL or tunnel). Consider Evolution API for self-hosted. |
-| 5 | **Audio reading** (all channels) | #2 (file reading) + speech-to-text (Whisper API or similar) | Medium | Killer feature for mobile. User sends voice note → Zeno transcribes → processes as text. |
-| 6 | **Audio sending** (all channels) | Text-to-speech (OpenAI TTS, ElevenLabs, etc.) | Medium | Closes the voice loop. Zeno replies with audio when the user sent audio. |
-| 7 | **Image generation** | Prompt → image API (DALL-E, Flux, etc.) | Small | High visual impact. Could be a built-in skill or MCP server. |
+| 11 | **Telegram channel** | None (ports & adapters ready) | Medium | Bot API is clean; second easiest channel after Slack. Implement the `Channel` interface. |
+| 12 | **WhatsApp channel** | None (but needs a provider: Meta Cloud API, Evolution API, or Twilio) | Medium-high | Webhook-based (needs a public URL or tunnel). Consider Evolution API for self-hosted. |
+| 13 | **Audio reading** (all channels) | File reading (shipped) + speech-to-text (Whisper API or similar) | Medium | Killer feature for mobile. User sends voice note → Zeno transcribes → processes as text. |
+| 14 | **Audio sending** (all channels) | Text-to-speech (OpenAI TTS, ElevenLabs, etc.) | Medium | Closes the voice loop. Zeno replies with audio when the user sent audio. |
+| 15 | **Image generation** | Prompt → image API (DALL-E, Flux, etc.) | Small | High visual impact. Could be a built-in skill or MCP server. |
 
 ### Multichannel design notes
 
@@ -58,26 +46,26 @@ Don't build from this file directly. Use it to remember what was discussed and w
 
 ---
 
-## Tier 3 — Intelligence and memory
+## Tier 2 — Intelligence and memory
 
 | # | Feature | Inspiration | Complexity | Notes |
 |---|---|---|---|---|
-| 8 | **Session memory (cross-turn search)** | Hermes (FTS5 + session search) | Medium | "What did I ask Zeno last week about the deploy?" — requires full-text index on session messages. |
-| 9 | **User modeling** | Hermes (Honcho — dialectic model of who the user is) | High | Zeno builds an evolving understanding of the user's preferences, projects, schedule. Goes beyond static `USER.md`. |
-| 10 | **Assisted skill authoring** | Hermes (agent observes → generalizes → proposes skill) | Medium | "Zeno, I keep doing X manually" → Zeno proposes a skill draft. Not auto-creation (anti-goal) — always user-initiated, always proposed for approval. |
-| 11 | **Cron intelligence** | OpenClaw (crons that suggest themselves) | Low-medium | "You ask about PRs every morning at 9. Want me to create a cron for that?" Pattern detection over conversation history. |
+| 16 | **Session memory (cross-turn search)** | Hermes (FTS5 + session search) | Medium | "What did I ask Zeno last week about the deploy?" — requires full-text index on session messages. |
+| 17 | **User modeling** | Hermes (Honcho — dialectic model of who the user is) | High | Zeno builds an evolving understanding of the user's preferences, projects, schedule. Goes beyond static `USER.md`. |
+| 18 | **Assisted skill authoring** | Hermes (agent observes → generalizes → proposes skill) | Medium | "Zeno, I keep doing X manually" → Zeno proposes a skill draft. Not auto-creation (anti-goal) — always user-initiated, always proposed for approval. |
+| 19 | **Cron intelligence** | OpenClaw (crons that suggest themselves) | Low-medium | "You ask about PRs every morning at 9. Want me to create a cron for that?" Pattern detection over conversation history. |
 
 ---
 
-## Tier 4 — Operations and observability
+## Tier 3 — Operations and observability
 
 | # | Feature | Complexity | Notes |
 |---|---|---|---|
-| 12 | **Dashboard: skills viewer** | Small | List installed skills per profile, show descriptions, last-invoked timestamp. |
-| 13 | **Dashboard: profile switcher** | Small | Switch between profile dashboards (different ports today; could be unified). |
-| 14 | **Cost tracking** | Medium | Token usage per session/cron/skill. Inspired by Hermes's iteration budget. Surface in dashboard. |
-| 15 | **Audit log** | Medium | Who asked what, when, which tools ran, what was the outcome. Critical for worker mode (company Slack). |
-| 16 | **Dashboard chat** | Medium-high | Talk to Zeno from the browser, not just Slack. Requires IPC between API and worker + a `WebChannel` adapter. |
+| 20 | **Dashboard: skills viewer** | Small | List installed skills per profile, show descriptions, last-invoked timestamp. |
+| 21 | **Dashboard: profile switcher** | Small | Switch between profile dashboards (different ports today; could be unified). |
+| 22 | **Cost tracking** | Medium | Token usage per session/cron/skill. Inspired by Hermes's iteration budget. Surface in dashboard. |
+| 23 | **Audit log viewer** | Medium | Who asked what, when, which tools ran, what was the outcome. Critical for worker mode (company Slack). |
+| 24 | **Dashboard chat** | Medium-high | Talk to Zeno from the browser, not just Slack. Requires IPC between API and worker + a `WebChannel` adapter. |
 
 ---
 
@@ -87,27 +75,10 @@ Don't build from this file directly. Use it to remember what was discussed and w
 |---|---|---|---|
 | ACP adapter (VS Code / Cursor / JetBrains) | Hermes | Talk to Zeno from the IDE | When "Zeno as dev agent" is the primary use case |
 | Context compression | Hermes | Long sessions get expensive; compress while keeping relevant info | When cost becomes painful |
-| Notification routing | OpenClaw | "Send on Telegram if I don't reply on Slack in 5min" | When tier 2 channels are stable |
+| Notification routing | OpenClaw | "Send on Telegram if I don't reply on Slack in 5min" | When tier 1 channels are stable |
 | Scheduled visual reports | — | Crons that generate interactive HTML dashboards (via Playwright) | When Playwright skill is battle-tested |
 | Multi-backend (Codex, Gemini) | Constitution (ports & adapters) | Alternative reasoning engines | When a concrete use case appears (cost, capability, availability) |
 | Plugin system | OpenClaw (ClawHub) | Third-party skill distribution | When the skill ecosystem is mature enough to share |
-
----
-
-## Recommended execution order
-
-```
-1. Guardrails + approval flow     ← gates worker mode safety
-2. File reading                   ← unblocks audio/docs/screenshots
-3. Telegram channel               ← second channel, clean API
-4. Audio reading                  ← killer feature for mobile
-5. WhatsApp channel               ← third channel, more complex
-6. Audio sending                  ← closes voice loop
-7. Image generation               ← simple, high impact
-8+ Memory / modeling / audit       ← when the basics are solid
-```
-
-Guardrails is the gating item — without it, scaling to a company Slack is insecure.
 
 ---
 

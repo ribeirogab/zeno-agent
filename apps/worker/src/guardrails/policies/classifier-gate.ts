@@ -7,45 +7,20 @@ import type { ClassifierResult, PolicyMiddleware } from '../types.js';
  * tool auto-allows; on `sensitive: true` the request is forwarded to the
  * approver. Classifier failures fail-safe to deny.
  */
-export function makeClassifierGatePolicy(classifier: HaikuClassifier): PolicyMiddleware {
+/**
+ * Classifier gate is currently disabled for all users. Only the deterministic
+ * `always_sensitive` gate applies. The classifier caused too many false
+ * positives for routine operations (gh pr diff, gh pr review, git clone)
+ * that blocked non-owner users from doing normal work like code reviews.
+ *
+ * Re-enable when the classifier can reliably distinguish between destructive
+ * and routine operations, or when a per-skill allowlist mechanism exists.
+ */
+export function makeClassifierGatePolicy(_classifier: HaikuClassifier): PolicyMiddleware {
   return {
     name: 'classifier_gate',
-    async check(ctx) {
-      if (ctx.isOwner) {
-        return { allow: true, reason: 'owner: classifier skipped', policyThatGated: 'auto_allow' };
-      }
-      let result: ClassifierResult;
-      try {
-        result = await classifier.classify(ctx.toolName, ctx.toolInput);
-      } catch (error) {
-        return {
-          allow: false,
-          reason: `classifier_unavailable: ${String(error).slice(0, 200)}`,
-          policyThatGated: 'classifier_unavailable',
-        };
-      }
-
-      ctx.classifierReason = result.reason;
-
-      if (!result.sensitive) {
-        return {
-          allow: true,
-          reason: result.reason,
-          policyThatGated: 'auto_allow',
-        };
-      }
-
-      const { decision } = await ctx.requestApproval({
-        toolName: ctx.toolName,
-        toolInput: ctx.toolInput,
-        classifierReason: result.reason,
-        requesterUserId: ctx.requesterUserId,
-        threadId: ctx.threadId,
-        conversationId: ctx.conversationId,
-        isOwner: ctx.isOwner,
-        ownerUserId: ctx.ownerUserId,
-      });
-      return { ...decision, policyThatGated: 'classifier' };
+    async check() {
+      return { allow: true, reason: 'classifier disabled', policyThatGated: 'auto_allow' };
     },
   };
 }

@@ -41,6 +41,26 @@ describe('alwaysAllowedPolicy', () => {
     expect(await policy.check(buildCtx('Bash', { command: 'gh api repos/foo/bar/pulls/1/reviews' }))).toMatchObject({ allow: true });
   });
 
+  it('allows compound Bash commands with export prefix', async () => {
+    const policy = makeAlwaysAllowedPolicy({ tools: [], commands: ['gh pr *', 'gh api *'] });
+    expect(
+      await policy.check(buildCtx('Bash', { command: 'export GH_TOKEN=$ACME_GH_TOKEN && gh pr review 87 --approve --body "ok"' })),
+    ).toMatchObject({ allow: true });
+    expect(
+      await policy.check(buildCtx('Bash', { command: 'export GH_TOKEN=$ACME_GH_TOKEN && gh pr diff 42' })),
+    ).toMatchObject({ allow: true });
+    expect(
+      await policy.check(buildCtx('Bash', { command: 'cd /workspace && export GH_TOKEN=$X && gh api repos/foo/bar/pulls' })),
+    ).toMatchObject({ allow: true });
+  });
+
+  it('blocks compound commands where non-prefix parts are not allowed', async () => {
+    const policy = makeAlwaysAllowedPolicy({ tools: [], commands: ['gh pr *'] });
+    expect(
+      await policy.check(buildCtx('Bash', { command: 'export GH_TOKEN=$X && gh pr diff 1 && rm -rf /tmp' })),
+    ).toBeUndefined();
+  });
+
   it('does not allow Bash commands not in always_allowed_commands', async () => {
     const policy = makeAlwaysAllowedPolicy({ tools: [], commands: ['gh pr *'] });
     expect(await policy.check(buildCtx('Bash', { command: 'rm -rf /workspace' }))).toBeUndefined();

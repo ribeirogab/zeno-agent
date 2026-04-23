@@ -23,10 +23,18 @@ export function makeAlwaysAllowedPolicy(opts: AlwaysAllowedOptions): PolicyMiddl
       if (ctx.toolName === 'Bash' && opts.commands.length > 0) {
         const command = (ctx.toolInput as Record<string, unknown>).command;
         if (typeof command === 'string') {
-          if (opts.commands.some((pattern) => matchesPattern(command, pattern))) {
+          const subcommands = command.split(/&&|;|\|/).map((s) => s.trim());
+          const allMatch = subcommands.every(
+            (sub) =>
+              sub === '' ||
+              sub.startsWith('export ') ||
+              sub.startsWith('cd ') ||
+              opts.commands.some((pattern) => matchesPattern(sub, pattern)),
+          );
+          if (allMatch && subcommands.some((sub) => opts.commands.some((p) => matchesPattern(sub, p)))) {
             return {
               allow: true,
-              reason: `command matches always_allowed pattern`,
+              reason: 'command matches always_allowed pattern',
               policyThatGated: 'auto_allow',
             };
           }

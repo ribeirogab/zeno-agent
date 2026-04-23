@@ -286,7 +286,6 @@ async function main(): Promise<void> {
       mcpServers,
       inProcessMcpServers: { zeno: cronMcp },
       preToolUseHook,
-      env: gitEnv,
     });
     chatBackend = new GuardedBackend(guardedInner, guardedDeps);
     logger.info(

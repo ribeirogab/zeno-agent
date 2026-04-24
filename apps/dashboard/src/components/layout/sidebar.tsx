@@ -9,17 +9,15 @@ interface NavItem {
   id: string;
   label: string;
   to: string;
-  key: string;
   Ico: ComponentType<{ size?: number; className?: string }>;
-  badge?: number;
 }
 
 const navItems: ReadonlyArray<NavItem> = [
-  { id: 'home', label: 'home', to: '/', key: 'H', Ico: IcoHome },
-  { id: 'crons', label: 'crons', to: '/crons', key: 'C', Ico: IcoCron },
-  { id: 'sessions', label: 'sessions', to: '/sessions', key: 'S', Ico: IcoSessions },
-  { id: 'logs', label: 'logs', to: '/logs', key: 'L', Ico: IcoLogs },
-  { id: 'settings', label: 'settings', to: '/settings', key: ',', Ico: IcoSettings },
+  { id: 'home', label: 'home', to: '/', Ico: IcoHome },
+  { id: 'crons', label: 'crons', to: '/crons', Ico: IcoCron },
+  { id: 'sessions', label: 'sessions', to: '/sessions', Ico: IcoSessions },
+  { id: 'logs', label: 'logs', to: '/logs', Ico: IcoLogs },
+  { id: 'settings', label: 'settings', to: '/settings', Ico: IcoSettings },
 ];
 
 const statusToDot: Record<ServiceStatus, DotTone> = {
@@ -85,14 +83,7 @@ export function Sidebar(): JSX.Element {
                 <item.Ico size={14} />
               </span>
               <span>{item.label}</span>
-              {item.badge ? (
-                <span className="zen-nav-badge">{item.badge}</span>
-              ) : (
-                <span className="zen-nav-key">
-                  {'⌘'}
-                  {item.key}
-                </span>
-              )}
+              <span className="zen-nav-key" />
             </Link>
           );
         })}

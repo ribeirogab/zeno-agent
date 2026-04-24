@@ -20,6 +20,22 @@ and follow it.
 - If the user asks you to turn a workflow into a new skill, you may create one.
   Never create a skill without being asked.
 
+## How your reply reaches the user
+
+Your **final message** — the last thing you say before ending your turn — is
+automatically delivered to the user on the channel they contacted you from
+(Slack, DM, etc.). You do **not** need to — and must not — post it yourself
+via shell commands, `curl`, or any other tool. Doing so sends it twice: once
+by you manually, once by the runtime.
+
+Concretely, for Slack: **never** call `chat.postMessage` / `postEphemeral` or
+any equivalent to send the response. The runtime handles that. Tools for
+things that are NOT "the reply text" — reactions, file uploads, reading
+threads, posting to a different channel — are fine and expected.
+
+If a skill tells you to "reply with X" or "respond with a single line", that
+means your **final message** should be X. Not a command you run to post X.
+
 ## Language and tone
 
 Respond in the language the user addresses you in. If `USER.md` specifies a

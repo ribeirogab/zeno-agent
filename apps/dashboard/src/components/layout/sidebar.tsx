@@ -18,7 +18,7 @@ const navItems: ReadonlyArray<NavItem> = [
   { id: 'home', label: 'home', to: '/', key: 'H', Ico: IcoHome },
   { id: 'crons', label: 'crons', to: '/crons', key: 'C', Ico: IcoCron },
   { id: 'sessions', label: 'sessions', to: '/sessions', key: 'S', Ico: IcoSessions },
-  { id: 'logs', label: 'logs', to: '/logs', key: 'L', Ico: IcoLogs, badge: 1 },
+  { id: 'logs', label: 'logs', to: '/logs', key: 'L', Ico: IcoLogs },
   { id: 'settings', label: 'settings', to: '/settings', key: ',', Ico: IcoSettings },
 ];
 

@@ -1,10 +1,11 @@
+import { Chip } from '@zeno/ui';
 import type { JSX } from 'react';
 import type { TimeRangePreset } from '@/lib/log-filters';
 
 const OPTIONS: Array<{ value: TimeRangePreset; label: string }> = [
-  { value: '1h', label: 'Last 1h' },
-  { value: '24h', label: 'Last 24h' },
-  { value: '7d', label: 'Last 7d' },
+  { value: '1h', label: 'LAST 1H' },
+  { value: '24h', label: 'LAST 24H' },
+  { value: '7d', label: 'LAST 7D' },
 ];
 
 export function TimeRangeSelect({
@@ -15,16 +16,12 @@ export function TimeRangeSelect({
   onChange: (v: TimeRangePreset) => void;
 }): JSX.Element {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as TimeRangePreset)}
-      className="h-8 rounded-md border border-border-subtle bg-panel px-3 text-xs text-text-primary"
-    >
+    <div className="flex items-center gap-1">
       {OPTIONS.map((o) => (
-        <option key={o.value} value={o.value}>
+        <Chip key={o.value} active={value === o.value} onClick={() => onChange(o.value)}>
           {o.label}
-        </option>
+        </Chip>
       ))}
-    </select>
+    </div>
   );
 }

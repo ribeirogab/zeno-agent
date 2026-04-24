@@ -1,4 +1,4 @@
-import { cn } from '@zeno/ui';
+import { Dot, cn } from '@zeno/ui';
 import type { JSX } from 'react';
 
 export function FollowingToggle({
@@ -10,20 +10,24 @@ export function FollowingToggle({
   connected: boolean;
   onChange: (v: boolean) => void;
 }): JSX.Element {
-  const dot = following && connected ? 'bg-status-active' : 'bg-text-tertiary';
+  const isActive = following && connected;
+
   return (
     <button
       type="button"
       onClick={() => onChange(!following)}
       className={cn(
-        'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors',
-        following
-          ? 'border-border-subtle bg-panel text-text-primary'
-          : 'border-border-subtle bg-transparent text-text-secondary',
+        'flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.12em] transition-all duration-[120ms]',
+        isActive
+          ? 'border-status-active bg-status-active/10 text-status-active'
+          : 'border-border-subtle bg-transparent text-text-secondary hover:border-text-tertiary hover:text-text-primary',
       )}
     >
-      <span className={cn('h-1.5 w-1.5 rounded-full', dot)} />
-      <span>{following ? 'Following' : 'Follow'}</span>
+      <Dot
+        tone={isActive ? 'active' : 'idle'}
+        pulse={isActive}
+      />
+      <span>{following ? 'following' : 'paused'}</span>
     </button>
   );
 }

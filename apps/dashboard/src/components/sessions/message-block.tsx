@@ -1,31 +1,31 @@
 import type { JSX } from 'react';
 import type { SessionMessageApi } from '@/lib/use-session';
+import { ToolCallBlock } from './tool-call-block';
 
 export function MessageBlock({ message }: { message: SessionMessageApi }): JSX.Element {
-  const authorColor = message.role === 'assistant' ? 'text-gold' : 'text-text-primary';
+  const isUser = message.role === 'user';
+  const roleColor = isUser ? 'text-status-info' : 'text-gold';
+  const borderColor = isUser ? 'border-l-status-info' : 'border-l-gold';
+
   return (
-    <div className="flex flex-col gap-2 py-3">
-      <div className="flex items-baseline gap-2">
-        <span className={`font-mono text-xs font-medium ${authorColor}`}>{message.author}</span>
-        <span className="text-[11px] text-text-tertiary">{message.timestamp}</span>
+    <div className="grid grid-cols-[80px_1fr] gap-0">
+      <div className={`flex flex-col gap-0.5 pt-3 ${roleColor}`}>
+        <span className="text-xs font-bold">{message.author}</span>
+        <span className="font-mono text-[10px] text-text-tertiary">{message.timestamp}</span>
       </div>
-      <div className="whitespace-pre-wrap text-sm leading-6 text-text-primary">{message.text}</div>
-      {message.toolCalls.length > 0 && (
-        <div className="flex flex-col gap-1 pt-1">
-          {message.toolCalls.map((tc) => {
+      <div>
+        <div
+          className={`border-l-2 ${borderColor} bg-panel-2 p-3 whitespace-pre-wrap text-sm leading-6 text-text-primary`}
+        >
+          {message.text}
+        </div>
+        {message.toolCalls.length > 0 &&
+          message.toolCalls.map((tc) => {
             const inputText =
               typeof tc.input === 'object' ? JSON.stringify(tc.input) : String(tc.input);
-            return (
-              <span
-                key={`${tc.tool}:${inputText}`}
-                className="font-mono text-[11px] text-text-tertiary"
-              >
-                → {tc.tool}({inputText})
-              </span>
-            );
+            return <ToolCallBlock key={`${tc.tool}:${inputText}`} toolCall={tc} />;
           })}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

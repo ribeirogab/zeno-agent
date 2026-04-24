@@ -44,3 +44,29 @@ body {
   border: 2px solid var(--color-canvas);
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-gold-deep); }
+
+@keyframes word-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes log-new-entry {
+  0% {
+    background-color: var(--color-gold-soft);
+    transform: translateX(-4px);
+  }
+  100% {
+    background-color: transparent;
+    transform: translateX(0);
+  }
+}
+
+.animate-log-new {
+  animation: log-new-entry 360ms ease-out;
+}

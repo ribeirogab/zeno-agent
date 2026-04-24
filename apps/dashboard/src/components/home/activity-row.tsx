@@ -1,11 +1,13 @@
 import type { JSX } from 'react';
+import { Dot } from '@zeno/ui';
+import type { DotTone } from '@zeno/ui';
 import type { Activity } from '@/lib/use-activity';
 
-const statusColor: Record<Activity['status'], string> = {
-  running: 'bg-status-active',
-  success: 'bg-status-active',
-  failed: 'bg-status-failed',
-  skipped: 'bg-text-tertiary',
+const statusTone: Record<Activity['status'], DotTone> = {
+  running: 'active',
+  success: 'active',
+  failed: 'failed',
+  skipped: 'idle',
 };
 
 function fmt(timestamp: string): string {
@@ -19,17 +21,17 @@ function fmt(timestamp: string): string {
 
 export function ActivityRow({ activity }: { activity: Activity }): JSX.Element {
   return (
-    <div className="flex items-center gap-4 border-b border-panel py-3.5">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center">
-        <span className={`h-1.5 w-1.5 rounded-full ${statusColor[activity.status]}`} />
-      </span>
-      <span className="w-24 shrink-0 font-mono text-xs text-text-tertiary">
+    <div className="flex items-center gap-3 border-b border-border-subtle px-4 py-3">
+      <Dot tone={statusTone[activity.status]} />
+      <span className="w-[78px] shrink-0 font-mono text-[11px] text-text-tertiary">
         {fmt(activity.timestamp)}
       </span>
-      <span className="w-32 shrink-0 text-xs font-medium uppercase tracking-wider text-text-secondary">
+      <span className="w-[150px] shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-gold">
         {activity.kind.replace('_', ' · ')}
       </span>
-      <span className="flex-1 text-sm text-text-primary">{activity.summary}</span>
+      <span className="flex-1 truncate font-mono text-[12px] text-text-secondary">
+        {activity.summary}
+      </span>
     </div>
   );
 }

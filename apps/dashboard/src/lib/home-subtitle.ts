@@ -55,7 +55,9 @@ export function homeSubtitle(input: SubtitleInput): string {
   const fragments: string[] = [];
 
   if (stats.activeCrons > 0) {
-    fragments.push(`${toWord(stats.activeCrons).charAt(0).toUpperCase()}${toWord(stats.activeCrons).slice(1)} ${stats.activeCrons === 1 ? 'cron' : 'crons'} scheduled`);
+    fragments.push(
+      `${toWord(stats.activeCrons).charAt(0).toUpperCase()}${toWord(stats.activeCrons).slice(1)} ${stats.activeCrons === 1 ? 'cron' : 'crons'} scheduled`,
+    );
   } else {
     fragments.push('No crons scheduled');
   }

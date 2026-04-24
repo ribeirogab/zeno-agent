@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import type { DotTone } from '@zeno/ui';
 import { OutlinePill, Pill } from '@zeno/ui';
+import cronstrue from 'cronstrue';
 import type { JSX } from 'react';
 import { CronRowActions } from '@/components/crons/cron-row-actions';
 import { isTempId } from '@/lib/temp-id';
@@ -9,6 +10,36 @@ import type { CronApi } from '@/lib/use-crons';
 function cronTone(cron: CronApi): DotTone {
   if (!cron.enabled) return 'paused';
   return 'active';
+}
+
+function humanSchedule(schedule: string): string {
+  try {
+    return cronstrue.toString(schedule, { use24HourTimeFormat: true }).toLowerCase();
+  } catch {
+    return schedule;
+  }
+}
+
+function formatRelativeDay(date: Date): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayDiff = Math.round((dateStart.getTime() - todayStart.getTime()) / 86_400_000);
+
+  if (dayDiff === 0) return `today · ${time}`;
+  if (dayDiff === 1) return `tomorrow · ${time}`;
+
+  const formatted = date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return formatted;
 }
 
 function formatNextRun(cron: CronApi): { primary: string; secondary: string } {
@@ -21,13 +52,7 @@ function formatNextRun(cron: CronApi): { primary: string; secondary: string } {
   const hours = Math.floor(diffMin / 60);
   const mins = diffMin % 60;
   const primary = hours > 0 ? `in ${hours}h ${mins}m` : `in ${mins}m`;
-  const secondary = next.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
+  const secondary = formatRelativeDay(next);
   return { primary, secondary };
 }
 
@@ -56,6 +81,9 @@ export function CronRow({ cron }: { cron: CronApi }): JSX.Element {
 
       <div className="flex w-40 shrink-0 flex-col gap-0.5">
         <span className="font-mono text-xs text-gold">{cron.schedule}</span>
+        <span className="font-mono text-[10px] tracking-[0.04em] text-text-tertiary">
+          {humanSchedule(cron.schedule)}
+        </span>
       </div>
 
       <div className="flex w-[140px] shrink-0 flex-col gap-0.5">

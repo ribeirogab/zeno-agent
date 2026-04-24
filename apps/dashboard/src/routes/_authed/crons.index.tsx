@@ -1,21 +1,52 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Button, EmptyState, Kicker } from '@zeno/ui';
 import type { JSX } from 'react';
+import { useEffect, useState } from 'react';
 import { CronRow } from '@/components/crons/cron-row';
 import { IcoPlus } from '@/components/icons';
 import { CronListSkeleton } from '@/components/skeletons/cron-list-skeleton';
 import { useCrons } from '@/lib/use-crons';
+import { useHealth } from '@/lib/use-health';
 
 export const Route = createFileRoute('/_authed/crons/')({
   component: CronsPage,
 });
 
+const TICK_INTERVAL_S = 60;
+
+function useNextTickCountdown(lastTickAt: string | null | undefined): string {
+  const [label, setLabel] = useState('');
+
+  useEffect(() => {
+    if (!lastTickAt) {
+      setLabel('');
+      return;
+    }
+
+    function compute() {
+      const lastTick = new Date(lastTickAt as string).getTime();
+      const nextTick = lastTick + TICK_INTERVAL_S * 1000;
+      const remaining = Math.max(0, Math.round((nextTick - Date.now()) / 1000));
+      setLabel(`next tick in ${remaining}s`);
+    }
+
+    compute();
+    const id = setInterval(compute, 1000);
+    return () => clearInterval(id);
+  }, [lastTickAt]);
+
+  return label;
+}
+
 function CronsPage(): JSX.Element {
   const crons = useCrons();
+  const health = useHealth();
 
   const activeCount = crons.data?.filter((c) => c.enabled).length ?? 0;
   const pausedCount = crons.data?.filter((c) => !c.enabled).length ?? 0;
+  const failingCount = 0;
   const totalCount = crons.data?.length ?? 0;
+  const nextTickLabel = useNextTickCountdown(health.data?.lastTickAt);
 
   return (
     <div className="mx-auto flex max-w-[1080px] flex-col gap-10 px-12 pb-[120px] pt-10">
@@ -81,10 +112,11 @@ function CronsPage(): JSX.Element {
       {crons.data && crons.data.length > 0 && (
         <div className="flex justify-between px-0.5">
           <span className="font-mono text-[10px] tracking-[0.04em] text-text-tertiary">
-            {totalCount} crons · {activeCount} active · {pausedCount} paused
+            {totalCount} crons · {activeCount} active · {pausedCount} paused · {failingCount}{' '}
+            failing
           </span>
           <span className="font-mono text-[10px] tracking-[0.04em] text-text-tertiary">
-            runner · ticking
+            runner · ticking{nextTickLabel ? ` · ${nextTickLabel}` : ''}
           </span>
         </div>
       )}

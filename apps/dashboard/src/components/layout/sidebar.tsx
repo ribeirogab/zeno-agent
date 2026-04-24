@@ -63,7 +63,9 @@ export function Sidebar(): JSX.Element {
     <aside className="zen-sidebar">
       {/* Brand */}
       <div className="zen-brand">
-        <span className="text-gold"><Crest size={22} /></span>
+        <span className="text-gold">
+          <Crest size={22} />
+        </span>
         <span className="zen-brand-word">zeno</span>
         <span className="zen-brand-hex">v0.3.1</span>
       </div>

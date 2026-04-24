@@ -22,7 +22,7 @@ function SessionDetailPage(): JSX.Element {
 
   if (q.isLoading) {
     return (
-      <div className="mx-auto flex max-w-[1080px] flex-col gap-10 px-12 pt-10 pb-30">
+      <div className="zen-page">
         <Skeleton className="h-4 w-48" />
         <Skeleton className="h-8 w-80" />
         <Skeleton className="h-4 w-96" />
@@ -32,13 +32,17 @@ function SessionDetailPage(): JSX.Element {
     );
   }
   if (q.isError || !q.data) {
-    return <ErrorState onRetry={() => void q.refetch()} />;
+    return (
+      <div className="zen-page">
+        <ErrorState onRetry={() => void q.refetch()} />
+      </div>
+    );
   }
 
   const { session, messages } = q.data;
 
   return (
-    <div className="mx-auto flex max-w-[1080px] flex-col gap-10 px-12 pt-10 pb-30">
+    <div className="zen-page">
       <nav className="flex items-center gap-2 font-mono text-[11px] tracking-[0.06em]">
         <Link
           to="/sessions"

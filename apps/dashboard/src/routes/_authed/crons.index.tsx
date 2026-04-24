@@ -49,7 +49,7 @@ function CronsPage(): JSX.Element {
   const nextTickLabel = useNextTickCountdown(health.data?.lastTickAt);
 
   return (
-    <div className="mx-auto flex max-w-[1080px] flex-col gap-10 px-12 pb-[120px] pt-10">
+    <div className="zen-page">
       <header className="flex items-end justify-between gap-6 border-b border-border-subtle pb-6">
         <div>
           <Kicker>scheduled tasks</Kicker>

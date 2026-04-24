@@ -33,7 +33,7 @@ function SettingsPage(): JSX.Element {
   const uptime = health.data?.uptime;
 
   return (
-    <div className="mx-auto flex max-w-[1080px] flex-col gap-10 px-12 pt-10 pb-30">
+    <div className="zen-page">
       <header className="flex items-end justify-between gap-6 border-b border-border-subtle pb-6">
         <div>
           <Kicker>system</Kicker>

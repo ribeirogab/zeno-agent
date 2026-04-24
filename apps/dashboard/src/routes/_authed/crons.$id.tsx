@@ -27,7 +27,7 @@ function CronDetailPage(): JSX.Element {
 
   if (query.isLoading) {
     return (
-      <div className="mx-auto flex max-w-[1080px] flex-col gap-10 px-12 pb-[120px] pt-10">
+      <div className="zen-page">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-96" />
         <Skeleton className="h-24 w-full" />
@@ -38,7 +38,7 @@ function CronDetailPage(): JSX.Element {
 
   if (query.isError || !query.data) {
     return (
-      <div className="mx-auto max-w-[1080px] px-12 pb-[120px] pt-10">
+      <div className="zen-page">
         <ErrorState onRetry={() => void query.refetch()} />
       </div>
     );
@@ -48,7 +48,7 @@ function CronDetailPage(): JSX.Element {
   const tone = cronTone(cron);
 
   return (
-    <div className="mx-auto flex max-w-[1080px] flex-col gap-10 px-12 pb-[120px] pt-10">
+    <div className="zen-page">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 font-mono text-[11px] tracking-[0.06em]">
         <Link

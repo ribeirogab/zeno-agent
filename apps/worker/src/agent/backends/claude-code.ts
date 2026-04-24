@@ -117,10 +117,11 @@ export class ClaudeCodeBackend implements AgentBackend {
           for (const block of message.message.content) {
             if (block.type === 'tool_use') {
               toolCalls.push({ tool: block.name, input: block.input });
-              logger.debug(
+              logger.info(
                 {
                   event: 'backend_tool_call',
                   tool: block.name,
+                  input: truncateToolInput(block.input),
                   correlationId: input.correlationId,
                 },
                 'tool call',
@@ -173,6 +174,23 @@ export class ClaudeCodeBackend implements AgentBackend {
     if (Object.keys(merged).length === 0) return {};
     return { mcpServers: merged };
   }
+}
+
+/**
+ * Truncate each string field in a tool input to keep log lines bounded.
+ * Keeps enough of the value (e.g. a command) to identify what the tool did.
+ */
+function truncateToolInput(input: unknown): unknown {
+  if (!input || typeof input !== 'object') return input;
+  const truncated: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    if (typeof value === 'string' && value.length > 500) {
+      truncated[key] = `${value.slice(0, 500)}…(${value.length} chars)`;
+    } else {
+      truncated[key] = value;
+    }
+  }
+  return truncated;
 }
 
 function classifyError(error: unknown, timeoutMs: number, aborted: boolean): AgentBackendError {

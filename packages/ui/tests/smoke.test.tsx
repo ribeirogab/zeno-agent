@@ -14,8 +14,8 @@ describe('@zeno/ui smoke', () => {
   });
 
   it('applies variant classes', () => {
-    render(<Button variant="accent">go</Button>);
+    render(<Button variant="primary">go</Button>);
     const btn = screen.getByRole('button', { name: 'go' });
-    expect(btn.className).toContain('bg-accent');
+    expect(btn.className).toContain('bg-gold');
   });
 });

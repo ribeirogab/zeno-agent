@@ -33,7 +33,7 @@ export function CronActions({ cron }: { cron: CronApi }): JSX.Element {
   return (
     <div className="flex items-center gap-2">
       <Button
-        variant="accent"
+        variant="primary"
         size="sm"
         disabled={runNow.isPending || !cron.enabled}
         onClick={() => runNow.mutate(cron.id)}
@@ -78,7 +78,7 @@ export function CronActions({ cron }: { cron: CronApi }): JSX.Element {
                 <Button variant="ghost">cancel</Button>
               </AlertDialogCancel>
               <AlertDialogAction asChild>
-                <Button variant="accent" onClick={onDelete}>
+                <Button variant="primary" onClick={onDelete}>
                   delete
                 </Button>
               </AlertDialogAction>

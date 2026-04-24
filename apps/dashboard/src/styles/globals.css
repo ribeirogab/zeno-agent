@@ -2,9 +2,9 @@
 @import "@zeno/ui/styles/tokens.css";
 
 @theme {
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-serif: 'Instrument Serif', serif;
-  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
 
 html, body, #root {
@@ -12,6 +12,35 @@ html, body, #root {
   background-color: var(--color-canvas);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+body {
+  background:
+    radial-gradient(ellipse 1200px 700px at 80% -20%, rgba(217, 179, 98, 0.04), transparent 60%),
+    radial-gradient(ellipse 900px 600px at -10% 110%, rgba(122, 166, 232, 0.025), transparent 60%),
+    var(--color-canvas);
+}
+
+::selection {
+  background: var(--color-gold);
+  color: var(--color-text-ink);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-canvas), 0 0 0 4px var(--color-gold-ring);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--color-canvas); }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 999px;
+  border: 2px solid var(--color-canvas);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-gold-deep); }

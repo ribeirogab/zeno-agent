@@ -44,7 +44,7 @@ function CronsPage(): JSX.Element {
             description="create your first schedule to automate Zeno."
             action={
               <Link to="/crons/new">
-                <Button variant="accent" size="sm">
+                <Button variant="primary" size="sm">
                   new cron
                 </Button>
               </Link>

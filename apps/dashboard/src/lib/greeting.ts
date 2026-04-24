@@ -1,5 +1,5 @@
 export interface Greeting {
-  /** The salutation verb — e.g. "Good afternoon" — styled as the single coral accent on Home. */
+  /** The salutation verb — e.g. "Good afternoon" — styled as the single gold accent on Home. */
   verb: string;
   /** The person being addressed. */
   name: string;

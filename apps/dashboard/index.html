@@ -7,25 +7,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400;1,9..144,600&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
-    <script>
-      // Pre-hydration theme apply to avoid FOUC. Mirrors apps/dashboard/src/lib/use-theme.ts.
-      (function () {
-        try {
-          var stored = window.localStorage.getItem('zeno-theme');
-          if (stored === 'light') {
-            document.documentElement.classList.add('light');
-            document.documentElement.setAttribute('data-theme', 'light');
-          } else {
-            document.documentElement.setAttribute('data-theme', 'dark');
-          }
-        } catch (_) {}
-      })();
-    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

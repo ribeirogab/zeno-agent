@@ -41,7 +41,7 @@ function LoginPage(): JSX.Element {
         className="flex w-[420px] flex-col gap-7 rounded-xl border border-border-subtle bg-panel p-10"
       >
         <div className="flex items-center gap-2.5">
-          <span className="font-serif text-3xl italic leading-none text-accent">Z</span>
+          <span className="font-serif text-3xl italic leading-none text-gold">Z</span>
           <span className="text-sm tracking-wide text-text-secondary">zeno</span>
         </div>
         <div className="flex flex-col gap-2">

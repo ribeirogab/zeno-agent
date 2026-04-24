@@ -2,7 +2,7 @@ import type { JSX } from 'react';
 import type { SessionMessageApi } from '@/lib/use-session';
 
 export function MessageBlock({ message }: { message: SessionMessageApi }): JSX.Element {
-  const authorColor = message.role === 'assistant' ? 'text-accent' : 'text-text-primary';
+  const authorColor = message.role === 'assistant' ? 'text-gold' : 'text-text-primary';
   return (
     <div className="flex flex-col gap-2 py-3">
       <div className="flex items-baseline gap-2">

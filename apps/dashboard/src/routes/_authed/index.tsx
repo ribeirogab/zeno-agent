@@ -38,7 +38,7 @@ function HomePage(): JSX.Element {
           {dateLabel}
         </span>
         <h1 className="font-serif text-3xl leading-tight text-text-primary sm:text-4xl">
-          <span className="italic text-accent">{greeting.verb},</span> {greeting.name}.
+          <span className="italic text-gold">{greeting.verb},</span> {greeting.name}.
         </h1>
         {subtitle ? (
           <p className="max-w-[560px] text-sm leading-5 text-text-secondary">{subtitle}</p>

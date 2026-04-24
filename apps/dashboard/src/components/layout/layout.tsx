@@ -34,7 +34,7 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
 
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border-subtle bg-sidebar px-4 py-3 md:hidden">
         <div className="flex items-center gap-2">
-          <span className="font-serif text-xl italic leading-none text-accent">Z</span>
+          <span className="font-serif text-xl italic leading-none text-gold">Z</span>
           <span className="text-sm tracking-wide text-text-primary">zeno</span>
         </div>
         <button

@@ -34,7 +34,7 @@ export function RestartDialog(): JSX.Element {
             Cancel
           </Button>
           <Button
-            variant="accent"
+            variant="primary"
             disabled={restart.isPending}
             onClick={() => {
               restart.mutate();

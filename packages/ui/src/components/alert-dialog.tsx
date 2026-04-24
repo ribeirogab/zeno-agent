@@ -16,7 +16,7 @@ export const AlertDialogOverlay = forwardRef<
   return (
     <AlertDialogPrimitive.Overlay
       ref={ref}
-      className={cn('fixed inset-0 z-40 bg-black/60 backdrop-blur-sm', className)}
+      className={cn('fixed inset-0 z-40 bg-overlay animate-[fade-in_200ms_ease-out]', className)}
       {...props}
     />
   );
@@ -32,7 +32,7 @@ export const AlertDialogContent = forwardRef<
       <AlertDialogPrimitive.Content
         ref={ref}
         className={cn(
-          'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 rounded-xl border border-border-subtle bg-panel p-8 shadow-lg',
+          'fixed left-1/2 top-1/2 z-50 w-[480px] max-w-[calc(100vw-48px)] max-h-[calc(100vh-48px)] -translate-x-1/2 -translate-y-1/2 overflow-auto border border-border-subtle bg-panel shadow-float relative animate-[dialog-in_240ms_ease-out]',
           className,
         )}
         {...props}
@@ -44,7 +44,11 @@ export const AlertDialogContent = forwardRef<
 });
 
 export function AlertDialogHeader({ children }: { children: ReactNode }): JSX.Element {
-  return <div className="flex flex-col gap-1.5">{children}</div>;
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-7 pb-3.5 pt-5.5">
+      {children}
+    </div>
+  );
 }
 
 export const AlertDialogTitle = forwardRef<
@@ -54,7 +58,7 @@ export const AlertDialogTitle = forwardRef<
   return (
     <AlertDialogPrimitive.Title
       ref={ref}
-      className={cn('font-serif text-2xl leading-tight text-text-primary', className)}
+      className={cn('font-serif text-[22px] font-normal tracking-[-0.015em] text-text-primary', className)}
       {...props}
     />
   );
@@ -74,5 +78,9 @@ export const AlertDialogDescription = forwardRef<
 });
 
 export function AlertDialogFooter({ children }: { children: ReactNode }): JSX.Element {
-  return <div className="flex justify-end gap-3">{children}</div>;
+  return (
+    <div className="flex justify-end gap-2.5 border-t border-border-subtle bg-sidebar px-7 py-4">
+      {children}
+    </div>
+  );
 }

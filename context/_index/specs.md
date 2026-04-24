@@ -14,7 +14,11 @@ Template: `[[../specs/_template/spec|_template/spec]]`
 
 ## Active
 
-- [[../specs/0026-imperial-terminal-rebranding/spec|0026 — Imperial Terminal Rebranding]] — full visual rebuild: tokens, fonts, primitives, all 8 screens, 2 API endpoints. Based on `tmp/rebranding/zeno/` prototype.
+- [[../specs/0027-documentation-platform/spec|0027 — Documentation Platform]] (draft) — Fumadocs + llms.txt for agent-friendly docs site in `apps/docs/`.
+
+## Shipped
+
+- [[../specs/0026-imperial-terminal-rebranding/spec|0026 — Imperial Terminal Rebranding]] (2026-04-24) — full visual rebuild: tokens, fonts, primitives, all 8 screens, 2 API endpoints. Based on `tmp/rebranding/zeno/` prototype.
 
 ## Design-only
 

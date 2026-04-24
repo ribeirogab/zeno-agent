@@ -15,6 +15,7 @@ Template: `[[../specs/_template/spec|_template/spec]]`
 ## Active
 
 - [[../specs/0027-documentation-platform/spec|0027 — Documentation Platform]] (draft) — Fumadocs + llms.txt for agent-friendly docs site in `apps/docs/`.
+- [[../specs/0028-skill-final-reaction/spec|0028 — Skill-controlled Final Reaction]] (draft) — in-process MCP (`set_final_reaction`, `slack_react`, `slack_unreact`) + optional `AgentOutput.finalReaction` so skills can override the core's default ✅.
 
 ## Shipped
 

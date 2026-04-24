@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { Dot, EmptyState, ErrorState, Kicker, Skeleton } from '@zeno/ui';
+import cronstrue from 'cronstrue';
 import type { JSX } from 'react';
 import { ActivityRow } from '@/components/home/activity-row';
 import { NextCronItem } from '@/components/home/next-cron-item';
@@ -29,13 +30,29 @@ function formatCountdown(nextRunAt: string, now: Date): string {
   return `in ${minutes}m`;
 }
 
-function formatCronMeta(nextRunAt: string, schedule: string): string {
+function humanSchedule(cron: string): string {
+  try {
+    const raw = cronstrue.toString(cron, { use24HourTimeFormat: true });
+    return raw
+      .replace(/^At /, '')
+      .replace(/ hours?/gi, 'h')
+      .replace(/ minutes?/gi, 'm')
+      .replace(/ seconds?/gi, 's')
+      .replace(/Every /gi, 'every ')
+      .toLowerCase();
+  } catch {
+    return cron;
+  }
+}
+
+function formatCronMeta(nextRunAt: string, schedule: string, channel?: string): string {
   const d = new Date(nextRunAt);
   const today = new Date();
   const isToday = d.toDateString() === today.toDateString();
   const dayLabel = isToday ? 'today' : 'tomorrow';
   const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  return `${dayLabel} · ${time} · ${schedule}`;
+  const scheduleLabel = channel ? `#${channel}` : humanSchedule(schedule);
+  return `${dayLabel} · ${time} · ${scheduleLabel}`;
 }
 
 function formatDateKicker(now: Date): string {
@@ -85,7 +102,7 @@ function HomePage(): JSX.Element {
       <header className="zen-home-hero">
         <Kicker>{formatDateKicker(now)}</Kicker>
         <h1 className="zen-display">
-          <WordRise text={greeting.verb} delay={0} />{' '}
+          <WordRise text={greeting.verb} delay={0} />
           <em
             className="inline-block animate-[word-rise_0.52s_cubic-bezier(0.2,0.8,0.2,1)_both]"
             style={{ animationDelay: '140ms' }}

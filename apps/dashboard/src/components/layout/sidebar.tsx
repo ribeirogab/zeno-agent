@@ -11,13 +11,14 @@ interface NavItem {
   to: string;
   key: string;
   Ico: ComponentType<{ size?: number; className?: string }>;
+  badge?: number;
 }
 
 const navItems: ReadonlyArray<NavItem> = [
   { id: 'home', label: 'home', to: '/', key: 'H', Ico: IcoHome },
   { id: 'crons', label: 'crons', to: '/crons', key: 'C', Ico: IcoCron },
   { id: 'sessions', label: 'sessions', to: '/sessions', key: 'S', Ico: IcoSessions },
-  { id: 'logs', label: 'logs', to: '/logs', key: 'L', Ico: IcoLogs },
+  { id: 'logs', label: 'logs', to: '/logs', key: 'L', Ico: IcoLogs, badge: 1 },
   { id: 'settings', label: 'settings', to: '/settings', key: ',', Ico: IcoSettings },
 ];
 
@@ -82,10 +83,14 @@ export function Sidebar(): JSX.Element {
                 <item.Ico size={14} />
               </span>
               <span>{item.label}</span>
-              <span className="zen-nav-key">
-                {'⌘'}
-                {item.key}
-              </span>
+              {item.badge ? (
+                <span className="zen-nav-badge">{item.badge}</span>
+              ) : (
+                <span className="zen-nav-key">
+                  {'⌘'}
+                  {item.key}
+                </span>
+              )}
             </Link>
           );
         })}

@@ -105,7 +105,7 @@ function LoginPage(): JSX.Element {
         <CornerBrackets />
 
         {/* Crest */}
-        <div className="flex justify-center" style={{ padding: '4px 0 0' }}>
+        <div className="flex justify-center text-gold" style={{ padding: '4px 0 0' }}>
           <Crest size={56} ornate />
         </div>
 

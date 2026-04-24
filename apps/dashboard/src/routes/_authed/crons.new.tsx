@@ -41,7 +41,7 @@ function NewCronPage(): JSX.Element {
           <DialogClose asChild>
             <button
               type="button"
-              className="text-text-tertiary transition-colors hover:text-text-primary"
+              className="grid h-7 w-7 place-items-center border border-border-subtle bg-transparent text-text-secondary transition-all duration-[120ms] hover:border-gold-line hover:text-gold"
             >
               <IcoX size={12} />
             </button>

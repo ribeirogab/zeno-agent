@@ -8,9 +8,9 @@ function stop(event: MouseEvent): void {
 }
 
 const actionBase =
-  'font-mono text-[11px] tracking-[0.04em] text-text-tertiary hover:text-text-primary transition-colors';
+  'border border-border-subtle bg-transparent px-2 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-secondary transition-all duration-[120ms] hover:border-gold-line hover:bg-gold-soft hover:text-gold';
 const actionDanger =
-  'font-mono text-[11px] tracking-[0.04em] text-text-tertiary hover:text-status-failed transition-colors';
+  'border border-border-subtle bg-transparent px-2 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-secondary transition-all duration-[120ms] hover:border-status-failed/30 hover:bg-status-failed/[0.06] hover:text-status-failed';
 
 export function CronRowActions({ cron }: { cron: CronApi }): JSX.Element {
   const pause = usePauseCron();
@@ -19,7 +19,7 @@ export function CronRowActions({ cron }: { cron: CronApi }): JSX.Element {
   const deleteCron = useDeleteCron();
 
   return (
-    <span className="flex items-center gap-3">
+    <span className="inline-flex gap-1 opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100">
       <button
         type="button"
         className={actionBase}

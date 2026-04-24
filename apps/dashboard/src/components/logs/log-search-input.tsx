@@ -8,7 +8,7 @@ export function LogSearchInput({
   onChange: (q: string) => void;
 }): JSX.Element {
   return (
-    <div className="flex items-center gap-2 rounded border border-border-subtle bg-panel-2 px-3 py-1.5 focus-within:ring-2 focus-within:ring-gold-ring">
+    <div className="flex flex-1 items-center gap-2 border border-border-subtle bg-panel-2 px-3 py-2 focus-within:border-gold focus-within:shadow-[0_0_0_3px_var(--color-gold-ring)]">
       <span className="font-mono text-[11px] text-text-tertiary">⌕</span>
       <input
         type="text"

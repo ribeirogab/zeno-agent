@@ -4,18 +4,18 @@ import { ToolCallBlock } from './tool-call-block';
 
 export function MessageBlock({ message }: { message: SessionMessageApi }): JSX.Element {
   const isUser = message.role === 'user';
-  const roleColor = isUser ? 'text-status-info' : 'text-gold';
+  const gutterBoldColor = isUser ? 'text-status-info' : 'text-gold';
   const borderColor = isUser ? 'border-l-status-info' : 'border-l-gold';
 
   return (
-    <div className="grid grid-cols-[80px_1fr] gap-0">
-      <div className={`flex flex-col gap-0.5 pt-3 ${roleColor}`}>
-        <span className="text-xs font-bold">{message.author}</span>
-        <span className="font-mono text-[10px] text-text-tertiary">{message.timestamp}</span>
+    <div className="grid grid-cols-[80px_1fr] gap-4">
+      <div className="pt-1 text-right font-mono text-[10px] uppercase tracking-[0.12em] text-text-tertiary">
+        <b className={`mb-0.5 block font-medium ${gutterBoldColor}`}>{message.author}</b>
+        <span>{message.timestamp}</span>
       </div>
       <div>
         <div
-          className={`border-l-2 ${borderColor} bg-panel-2 p-3 whitespace-pre-wrap text-sm leading-6 text-text-primary`}
+          className={`border border-border-subtle border-l-2 ${borderColor} bg-panel-2 px-3.5 py-2.5 font-mono text-[13px] leading-[1.6] whitespace-pre-wrap text-text-primary`}
         >
           {message.text}
         </div>

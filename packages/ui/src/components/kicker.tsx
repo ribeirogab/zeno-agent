@@ -11,8 +11,10 @@ export function Kicker({ mute = false, children, className }: KickerProps): JSX.
   return (
     <span
       className={cn(
-        'font-mono text-[11px] font-medium uppercase tracking-[0.18em]',
-        mute ? 'text-text-tertiary' : 'text-gold',
+        'font-mono font-medium uppercase',
+        mute
+          ? 'text-[10px] tracking-[0.2em] text-text-tertiary'
+          : 'text-[11px] tracking-[0.18em] text-gold',
         className,
       )}
     >

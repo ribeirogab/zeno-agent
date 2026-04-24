@@ -38,24 +38,24 @@ export function LogRow({ log, isNew = false }: { log: LogApi; isNew?: boolean })
   const level = levelLabel(log.level);
 
   return (
-    <div className="flex flex-col border-b border-border-subtle">
+    <>
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
         className={cn(
-          'flex items-center gap-3 py-2.5 text-left transition-colors hover:bg-panel/40',
+          'flex cursor-pointer items-center gap-4 px-5 py-2.5 font-mono text-xs transition-colors hover:bg-panel-2',
           isNew && 'animate-log-new',
         )}
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+        <span className="flex w-1.5 shrink-0 justify-center">
           <Dot tone={level.dotTone} />
         </span>
-        <span className="w-[100px] shrink-0 font-mono text-[11px] text-text-tertiary">
+        <span className="w-[100px] shrink-0 font-mono text-xs text-text-tertiary">
           {fmtTs(log.ts)}
         </span>
         <span
           className={cn(
-            'w-[50px] shrink-0 font-mono text-[10px] font-bold uppercase',
+            'w-[50px] shrink-0 font-mono text-[10px] font-semibold uppercase tracking-[0.15em]',
             level.colorClass,
           )}
         >
@@ -67,15 +67,15 @@ export function LogRow({ log, isNew = false }: { log: LogApi; isNew?: boolean })
         <span className="flex-1 truncate font-mono text-xs text-text-primary">
           {log.message ?? '(no message)'}
         </span>
-        <span className="hidden w-[120px] shrink-0 text-right font-mono text-[11px] text-text-tertiary sm:inline">
+        <span className="w-[120px] shrink-0 text-right font-mono text-[10px] tracking-[0.04em] text-text-tertiary">
           {log.correlationId ?? '—'}
         </span>
       </button>
       {expanded && (
-        <div className="pb-4 pl-12">
+        <div className="mx-5 mb-2.5">
           <LogJsonBlock payload={log.payload} levelTone={dotToneToLevelTone(level.dotTone)} />
         </div>
       )}
-    </div>
+    </>
   );
 }

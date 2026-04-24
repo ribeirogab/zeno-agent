@@ -15,17 +15,16 @@ export function NextCronItem({
   highlight = false,
 }: NextCronItemProps): JSX.Element {
   return (
-    <div className="flex items-center gap-3 py-2.5">
-      <span className="min-w-[62px] shrink-0 font-serif text-[20px] italic text-gold">
-        {countdown}
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+    <div className="zen-next-item">
+      <span className="zen-next-countdown">{countdown}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
         <span
-          className={`font-mono text-[13px] font-medium ${highlight ? 'text-gold' : 'text-text-primary'}`}
+          className="zen-card-title"
+          style={{ color: highlight ? 'var(--color-gold)' : 'var(--color-text-primary)' }}
         >
           {name}
         </span>
-        <span className="font-mono text-[10px] text-text-tertiary">{meta}</span>
+        <span className="zen-mono-sm">{meta}</span>
       </div>
       <Losango />
     </div>

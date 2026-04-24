@@ -27,7 +27,7 @@ function CronDetailPage(): JSX.Element {
 
   if (query.isLoading) {
     return (
-      <div className="mx-auto flex max-w-[1080px] flex-col gap-6 px-12 py-10">
+      <div className="mx-auto flex max-w-[1080px] flex-col gap-10 px-12 pb-[120px] pt-10">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-96" />
         <Skeleton className="h-24 w-full" />
@@ -38,7 +38,7 @@ function CronDetailPage(): JSX.Element {
 
   if (query.isError || !query.data) {
     return (
-      <div className="mx-auto max-w-[1080px] px-12 py-10">
+      <div className="mx-auto max-w-[1080px] px-12 pb-[120px] pt-10">
         <ErrorState onRetry={() => void query.refetch()} />
       </div>
     );
@@ -48,37 +48,44 @@ function CronDetailPage(): JSX.Element {
   const tone = cronTone(cron);
 
   return (
-    <div className="mx-auto flex max-w-[1080px] flex-col gap-10 px-12 py-10">
-      <nav className="flex items-center gap-1.5 font-mono text-[11px]">
-        <Link to="/crons" className="text-text-tertiary transition-colors hover:text-text-primary">
+    <div className="mx-auto flex max-w-[1080px] flex-col gap-10 px-12 pb-[120px] pt-10">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-2 font-mono text-[11px] tracking-[0.06em]">
+        <Link
+          to="/crons"
+          className="border-0 bg-transparent p-0 font-mono text-[11px] uppercase tracking-[0.06em] text-text-tertiary transition-colors hover:text-text-primary"
+        >
           crons
         </Link>
         <span className="text-text-tertiary">/</span>
-        <span className="text-gold">{cron.name}</span>
+        <span className="uppercase text-gold">{cron.name}</span>
       </nav>
 
-      <header className="flex items-start justify-between gap-8">
-        <div className="flex flex-col gap-3">
+      {/* Page header */}
+      <header className="flex items-end justify-between gap-6 border-b border-border-subtle pb-6">
+        <div>
           <h1 className="font-mono text-[28px] font-medium leading-tight tracking-[0.02em] text-text-primary">
             {cron.name}
           </h1>
           {cron.description && (
-            <p className="max-w-[620px] text-sm leading-relaxed text-text-secondary">
+            <p className="mt-3 max-w-[620px] text-sm leading-relaxed text-text-secondary">
               {cron.description}
             </p>
           )}
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="border border-gold-line bg-gold-soft px-2.5 py-1 font-mono text-xs text-gold">
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <span className="border border-gold-line bg-panel-2 px-2.5 py-1 font-mono text-[13px] text-gold">
               {cron.schedule}
             </span>
+            <span className="text-text-tertiary">·</span>
             <Pill tone={tone}>{tone === 'paused' ? 'paused' : 'active'}</Pill>
-            <span className="text-xs text-text-secondary">
+            <span className="text-text-tertiary">·</span>
+            <span className="text-[13px] text-text-secondary">
               source <span className="text-text-primary">{cron.source}</span>
             </span>
             {cron.nextRunAt && cron.enabled && (
               <>
                 <span className="text-text-tertiary">·</span>
-                <span className="text-xs text-text-secondary">
+                <span className="text-[13px] text-text-secondary">
                   next{' '}
                   <span className="text-text-primary">
                     {new Date(cron.nextRunAt).toLocaleString('en-US', {
@@ -129,17 +136,16 @@ function CronDetailPage(): JSX.Element {
         </div>
       </header>
 
+      {/* Prompt block */}
       {cron.prompt && (
-        <section className="relative">
-          <span className="absolute -top-2 left-4 bg-canvas px-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
-            prompt
-          </span>
-          <pre className="whitespace-pre-wrap border-l-2 border-gold bg-panel p-5 font-mono text-[13px] leading-relaxed text-text-primary">
+        <section>
+          <pre className="relative mt-3 whitespace-pre-wrap border border-border-subtle border-l-2 border-l-gold bg-panel px-6 py-[22px] font-mono text-[13px] leading-[1.75] text-text-primary before:absolute before:-top-2 before:left-3 before:bg-canvas before:px-2 before:font-mono before:text-[9px] before:uppercase before:tracking-[0.2em] before:text-gold before:content-['PROMPT']">
             {cron.prompt}
           </pre>
         </section>
       )}
 
+      {/* Stats */}
       <section className="grid grid-cols-4 gap-px border border-border-subtle bg-border-subtle">
         <StatCell label="total runs" value={String(recentRuns.length)} sub="lifetime" />
         <StatCell label="success rate" value={successRate(recentRuns)} sub="last 30d" gold />
@@ -151,15 +157,18 @@ function CronDetailPage(): JSX.Element {
         />
       </section>
 
+      {/* Run history */}
       <section className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-base font-semibold text-text-primary">run history</h2>
+        <div className="flex items-baseline justify-between border-b border-dashed border-border-subtle pb-2.5">
+          <h2 className="font-sans text-lg font-medium tracking-[-0.005em] text-text-primary">
+            run history
+          </h2>
           <Kicker mute>{recentRuns.length} runs · click to expand</Kicker>
         </div>
         {recentRuns.length === 0 ? (
           <EmptyState title="no runs yet" />
         ) : (
-          <div className="flex flex-col">
+          <div className="flex flex-col border border-border-subtle bg-panel py-1">
             {recentRuns.map((run) => (
               <CronRunHistoryRow key={run.id} run={run} />
             ))}
@@ -182,14 +191,17 @@ function StatCell({
   gold?: boolean;
 }): JSX.Element {
   return (
-    <div className="flex flex-col items-center gap-1 bg-panel px-4 py-5">
-      <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
+    <div className="flex flex-col gap-2 overflow-hidden bg-panel px-5 py-5 transition-colors hover:bg-panel-2">
+      <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
         {label}
       </span>
-      <span className={`text-2xl font-medium ${gold ? 'text-gold' : 'text-text-primary'}`}>
+      <span
+        className={`font-serif text-[44px] font-normal leading-none tracking-[-0.02em] ${gold ? 'text-gold' : 'text-text-primary'}`}
+        style={{ fontFeatureSettings: "'tnum' on, 'lnum' on" }}
+      >
         {value}
       </span>
-      <span className="font-mono text-[10px] text-text-tertiary">{sub}</span>
+      <span className="font-mono text-[10px] tracking-[0.06em] text-text-tertiary">{sub}</span>
     </div>
   );
 }

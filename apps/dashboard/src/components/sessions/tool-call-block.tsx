@@ -13,26 +13,17 @@ export function ToolCallBlock({ toolCall }: { toolCall: ToolCallData }): JSX.Ele
     typeof toolCall.input === 'object' ? JSON.stringify(toolCall.input) : String(toolCall.input);
 
   return (
-    <div className="mt-2 border border-border-subtle bg-panel p-3">
-      <div className="flex items-center gap-2">
-        <Losango size={4} color="var(--gold)" />
-        <span className="font-mono text-[9px] font-medium uppercase tracking-[0.1em] text-gold">
-          tool · {toolCall.tool}
-        </span>
+    <div className="mt-2.5 flex flex-col gap-1 border border-border-subtle bg-canvas px-3.5 py-2.5 font-mono text-[11px]">
+      <div className="flex items-center gap-2 text-[9px] uppercase tracking-[0.15em] text-gold">
+        <Losango size={4} color="var(--color-gold)" />
+        <span>tool · {toolCall.tool}</span>
         {toolCall.duration && (
-          <>
-            <span className="flex-1" />
-            <span className="font-mono text-[9px] text-text-tertiary">{toolCall.duration}</span>
-          </>
+          <span className="ml-auto text-text-tertiary">{toolCall.duration}</span>
         )}
       </div>
-      <div className="mt-2 whitespace-pre-wrap font-mono text-xs text-text-primary">
-        $ {inputText}
-      </div>
+      <div className="whitespace-pre-wrap text-text-primary">$ {inputText}</div>
       {toolCall.output && (
-        <div className="mt-1 whitespace-pre-wrap font-mono text-xs text-status-active">
-          ↳ {toolCall.output}
-        </div>
+        <div className="whitespace-pre-wrap text-status-active">↳ {toolCall.output}</div>
       )}
     </div>
   );

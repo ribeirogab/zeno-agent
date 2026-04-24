@@ -40,10 +40,10 @@ export function CronRunHistoryRow({ run }: { run: CronRunApi }): JSX.Element {
     <>
       <button
         type="button"
-        className={`flex w-full items-center gap-4 border-b border-border-subtle px-2 py-3 text-left transition-colors hover:bg-panel-2 ${pending ? 'opacity-60' : ''}`}
+        className={`relative flex w-full items-center gap-4 px-5 py-2.5 text-left font-mono text-xs transition-colors hover:bg-panel-2 ${pending ? 'opacity-60' : ''}`}
         onClick={() => setExpanded((prev) => !prev)}
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+        <span className="flex w-1.5 shrink-0 justify-center">
           <Dot tone={tone} pulse={run.status === 'running'} />
         </span>
         <span className="w-[170px] shrink-0 font-mono text-xs text-text-secondary">
@@ -55,17 +55,19 @@ export function CronRunHistoryRow({ run }: { run: CronRunApi }): JSX.Element {
           {duration(run)}
         </span>
         <span
-          className={`flex-1 truncate font-mono text-xs ${isFailed ? 'text-status-failed' : 'text-text-primary'}`}
+          className={`min-w-0 flex-1 truncate font-mono text-xs ${isFailed ? 'text-status-failed' : 'text-text-primary'}`}
         >
           {output ?? '(no output)'}
         </span>
-        <span className="shrink-0 font-mono text-[11px] text-text-tertiary">
+        <span
+          className={`shrink-0 font-mono text-[10px] tracking-[0.04em] ${expanded ? 'text-gold' : 'text-text-tertiary'}`}
+        >
           {expanded ? '▾ close' : '▸ view'}
         </span>
       </button>
       {expanded && output && (
         <div
-          className={`whitespace-pre-wrap border-b border-l-2 bg-panel px-6 py-4 font-mono text-xs leading-relaxed text-text-secondary ${isFailed ? 'border-l-status-failed' : 'border-l-gold'}`}
+          className={`mx-5 mb-2.5 overflow-x-auto whitespace-pre border border-border-subtle border-l-2 bg-canvas px-[18px] py-3.5 font-mono text-[11px] leading-[1.7] text-text-primary ${isFailed ? 'border-l-status-failed' : 'border-l-gold'}`}
         >
           {output}
         </div>

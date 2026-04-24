@@ -47,7 +47,7 @@ export function CronForm({
   return (
     <form onSubmit={handle} className="flex flex-col">
       <div className="flex flex-col gap-4.5 px-7 py-5.5">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <label
             htmlFor={nameId}
             className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold"
@@ -61,12 +61,12 @@ export function CronForm({
             required
             pattern="[a-z0-9][a-z0-9-]*"
           />
-          <span className="font-mono text-[10px] text-text-tertiary">
+          <span className="font-mono text-[11px] text-text-tertiary">
             kebab-case · becomes the cronId everywhere
           </span>
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <label
             htmlFor={descriptionId}
             className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold"
@@ -80,7 +80,7 @@ export function CronForm({
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <label
             htmlFor={scheduleId}
             className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold"
@@ -102,7 +102,7 @@ export function CronForm({
           </div>
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <label
             htmlFor={promptId}
             className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold"
@@ -115,11 +115,11 @@ export function CronForm({
             onChange={(event) => setPrompt(event.target.value)}
             required
             rows={5}
-            className="w-full border border-border-subtle bg-panel-2 px-3 py-2.5 font-mono text-[13px] text-text-primary transition-all duration-[120ms] placeholder:text-text-tertiary focus:border-gold focus:outline-none focus:ring-3 focus:ring-gold-ring"
+            className="min-h-24 w-full resize-y border border-border-subtle bg-panel-2 px-3 py-2.5 font-mono text-[13px] leading-relaxed text-text-primary transition-all duration-[120ms] placeholder:text-text-tertiary focus:border-gold focus:outline-none focus:ring-3 focus:ring-gold-ring"
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <label
             htmlFor={notifyId}
             className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold"

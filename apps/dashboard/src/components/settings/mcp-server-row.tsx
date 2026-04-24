@@ -15,8 +15,10 @@ export function McpServerRow({ server }: { server: McpServer }): JSX.Element {
   const isActive = server.status === 'enabled';
 
   return (
-    <div className="flex items-center gap-3 border-b border-border-subtle px-4 py-2.5 last:border-b-0">
-      <Dot tone={tone} />
+    <div className="flex items-center gap-4 border-b border-border-subtle px-5 py-3 last:border-b-0">
+      <span className="flex w-1.5 shrink-0 justify-center">
+        <Dot tone={tone} />
+      </span>
       <span className="w-[170px] shrink-0 font-mono text-xs text-text-primary">{server.name}</span>
       <span className="flex-1 font-mono text-[11px] text-text-secondary">
         {server.reason ?? server.status}

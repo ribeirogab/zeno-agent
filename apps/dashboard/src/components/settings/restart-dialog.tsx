@@ -66,14 +66,14 @@ export function RestartDialog(): JSX.Element {
             The Node worker will disconnect from Slack, flush its queue, reload SOUL.md + MCP
             servers, and reconnect.
           </AlertDialogDescription>
-          <ul className="flex flex-col gap-1.5 p-0">
-            <li className="font-mono text-xs text-text-secondary">
+          <ul className="flex list-none flex-col gap-1.5 p-0">
+            <li className="font-mono text-[10px] tracking-[0.04em] text-text-secondary">
               · in-flight cron runs will be interrupted
             </li>
-            <li className="font-mono text-xs text-text-secondary">
+            <li className="font-mono text-[10px] tracking-[0.04em] text-text-secondary">
               · Slack threads will reconnect within ~4s
             </li>
-            <li className="font-mono text-xs text-text-secondary">
+            <li className="font-mono text-[10px] tracking-[0.04em] text-text-secondary">
               · cached SDK sessions are preserved on disk
             </li>
           </ul>

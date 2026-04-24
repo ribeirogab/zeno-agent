@@ -83,7 +83,7 @@ export function LogJsonBlock({
 
   return (
     <pre
-      className={`whitespace-pre-wrap border border-border-subtle border-l-2 bg-canvas p-3 font-mono text-[11px] leading-[1.7] text-text-secondary ${LEVEL_BORDER_COLOR[levelTone]}`}
+      className={`overflow-x-auto whitespace-pre border border-border-subtle border-l-2 bg-canvas px-[18px] py-3.5 font-mono text-[11px] leading-[1.7] text-text-primary ${LEVEL_BORDER_COLOR[levelTone]}`}
     >
       {renderTokens(tokens)}
     </pre>

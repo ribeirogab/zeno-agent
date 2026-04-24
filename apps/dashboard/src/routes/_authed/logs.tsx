@@ -35,12 +35,14 @@ function LogsPage(): JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-2">
+    <div className="mx-auto flex max-w-[1080px] flex-col gap-10 px-12 pt-10 pb-30">
+      <header className="flex items-end justify-between gap-6 border-b border-border-subtle pb-6">
+        <div>
           <Kicker>observability</Kicker>
-          <h1 className="mt-1 text-[22px] font-semibold tracking-tight text-text-primary">logs</h1>
-          <p className="mt-1 max-w-[640px] text-sm leading-5 text-text-secondary">
+          <h1 className="mt-2 font-sans text-[32px] font-medium tracking-[-0.015em] text-text-primary">
+            logs
+          </h1>
+          <p className="mt-2.5 max-w-[640px] text-sm leading-relaxed text-text-secondary">
             Pino structured logs from the running container. Filter by level, search by event or
             correlation id, expand to see the full JSON payload.
           </p>
@@ -52,21 +54,19 @@ function LogsPage(): JSX.Element {
         />
       </header>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <LevelChips
           value={filters.level}
           onChange={(level) => setFilters((f) => ({ ...f, level }))}
         />
-        <div className="order-last w-full min-w-[200px] sm:order-none sm:w-auto sm:flex-1">
-          <LogSearchInput value={filters.q} onChange={(q) => setFilters((f) => ({ ...f, q }))} />
-        </div>
+        <LogSearchInput value={filters.q} onChange={(q) => setFilters((f) => ({ ...f, q }))} />
         <TimeRangeSelect
           value={filters.timeRange}
           onChange={(timeRange) => setFilters((f) => ({ ...f, timeRange }))}
         />
       </div>
 
-      <section className="flex flex-col rounded border border-border-subtle bg-panel">
+      <section className="flex flex-col border border-border-subtle bg-panel py-1">
         {!following && historical.isLoading && <LogListSkeleton />}
         {!following && historical.isError && (
           <ErrorState onRetry={() => void historical.refetch()} />
@@ -80,10 +80,11 @@ function LogsPage(): JSX.Element {
       </section>
 
       <div className="flex items-center justify-between px-0.5">
-        <span className="font-mono text-[11px] text-text-tertiary">
-          {logs.length} log lines · filter · <span className="text-gold">{filters.level}</span>
+        <span className="font-mono text-[10px] tracking-[0.04em] text-text-tertiary">
+          {logs.length} of {logs.length} log lines · filter ·{' '}
+          <span className="text-gold">{filters.level}</span>
         </span>
-        <span className="font-mono text-[11px] text-text-tertiary">
+        <span className="font-mono text-[10px] tracking-[0.04em] text-text-tertiary">
           sse · /api/logs/stream · {following ? 'connected' : 'paused'}
         </span>
       </div>

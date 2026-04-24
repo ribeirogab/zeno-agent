@@ -18,18 +18,27 @@ function CronsPage(): JSX.Element {
   const totalCount = crons.data?.length ?? 0;
 
   return (
-    <div className="mx-auto flex max-w-[1080px] flex-col gap-10 px-12 py-10">
-      <header className="flex items-start justify-between gap-8">
-        <div className="flex flex-col gap-2">
+    <div className="mx-auto flex max-w-[1080px] flex-col gap-10 px-12 pb-[120px] pt-10">
+      <header className="flex items-end justify-between gap-6 border-b border-border-subtle pb-6">
+        <div>
           <Kicker>scheduled tasks</Kicker>
-          <h1 className="mt-1 font-sans text-[32px] font-medium leading-tight text-text-primary">
+          <h1 className="mt-2 font-sans text-[32px] font-medium leading-tight tracking-[-0.015em] text-text-primary">
             crons
           </h1>
-          <p className="mt-1 max-w-[620px] text-sm leading-relaxed text-text-secondary">
-            Recurring tasks. <span className="font-mono text-xs text-text-primary">static</span>{' '}
-            lives in <span className="font-mono text-xs text-text-primary">profile/crons.yaml</span>
-            ; <span className="font-mono text-xs text-text-primary">chat</span> crons came from
-            Slack.
+          <p className="mt-2.5 max-w-[620px] text-sm leading-relaxed text-text-secondary">
+            Recurring tasks.{' '}
+            <span className="border border-border-subtle bg-panel-2 px-1.5 py-px font-mono text-xs text-gold">
+              static
+            </span>{' '}
+            lives in{' '}
+            <span className="border border-border-subtle bg-panel-2 px-1.5 py-px font-mono text-xs text-gold">
+              profile/crons.yaml
+            </span>
+            ;{' '}
+            <span className="border border-border-subtle bg-panel-2 px-1.5 py-px font-mono text-xs text-gold">
+              chat
+            </span>{' '}
+            crons came from Slack.
           </p>
         </div>
         <Link to="/crons/new" className="shrink-0">
@@ -40,8 +49,8 @@ function CronsPage(): JSX.Element {
         </Link>
       </header>
 
-      <div className="overflow-hidden border border-border-subtle bg-panel">
-        <div className="flex items-center bg-sidebar px-5 py-3 font-mono text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
+      <div className="overflow-x-auto border border-border-subtle bg-panel">
+        <div className="flex min-w-[840px] items-center gap-4 border-b border-border-subtle bg-sidebar px-5 py-3 font-mono text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
           <span className="flex-1">name</span>
           <span className="w-40 shrink-0">schedule</span>
           <span className="w-[140px] shrink-0">next run</span>
@@ -71,10 +80,12 @@ function CronsPage(): JSX.Element {
 
       {crons.data && crons.data.length > 0 && (
         <div className="flex justify-between px-0.5">
-          <span className="font-mono text-[11px] text-text-tertiary">
+          <span className="font-mono text-[10px] tracking-[0.04em] text-text-tertiary">
             {totalCount} crons · {activeCount} active · {pausedCount} paused
           </span>
-          <span className="font-mono text-[11px] text-text-tertiary">runner · ticking</span>
+          <span className="font-mono text-[10px] tracking-[0.04em] text-text-tertiary">
+            runner · ticking
+          </span>
         </div>
       )}
     </div>

@@ -70,8 +70,12 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/peer-react-in-workspace-ui-package|Peer React in workspace UI package]] — deps-level React causes two-instances hook errors; peer + dev is the fix.
 - [[../learnings/slack-mrkdwn-vs-markdown|Slack mrkdwn ≠ GitHub markdown]] — Claude emits `**bold**`, Slack needs `*bold*`; convert at the channel adapter, not the prompt.
 - [[../learnings/git-credential-helper-for-token-rotation|Git credential helper for token rotation]] — never embed tokens in clone URLs; use a helper that reads GH_TOKEN from env at runtime.
+- [[../learnings/tailwind-merge-position-conflict|tailwind-merge silently resolves position conflicts]] — `fixed` + `relative` in the same `cn()` string: merge keeps the last one, dialog renders invisible.
+- [[../learnings/css-keyframes-must-exist-for-animations|CSS animations referencing missing @keyframes fail silently]] — `animate-[name]` without a `@keyframes name` block: no error, element stays at initial state.
 
 ## `#meta` — Workflow and process
+
+- [[../learnings/prototype-as-pixel-spec|Treating an HTML prototype as a pixel-perfect spec]] — port CSS class-by-class, use semantic classes for complex components, verify with side-by-side screenshots.
 
 - [[../learnings/spec-review-loop-catches-real-bugs|Spec review loop catches real design bugs]] — the `spec-document-reviewer` subagent finds what I miss; don't skip it.
 - [[../learnings/subagent-driven-implementation-patterns|Subagent-driven implementation patterns]] — briefing templates, review loops, when to go inline instead.

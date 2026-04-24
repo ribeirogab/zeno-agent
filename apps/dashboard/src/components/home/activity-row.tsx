@@ -1,11 +1,13 @@
+import type { DotTone } from '@zeno/ui';
+import { Dot } from '@zeno/ui';
 import type { JSX } from 'react';
 import type { Activity } from '@/lib/use-activity';
 
-const statusColor: Record<Activity['status'], string> = {
-  running: 'bg-status-active',
-  success: 'bg-status-active',
-  failed: 'bg-status-failed',
-  skipped: 'bg-text-tertiary',
+const statusTone: Record<Activity['status'], DotTone> = {
+  running: 'active',
+  success: 'active',
+  failed: 'failed',
+  skipped: 'idle',
 };
 
 function fmt(timestamp: string): string {
@@ -19,17 +21,13 @@ function fmt(timestamp: string): string {
 
 export function ActivityRow({ activity }: { activity: Activity }): JSX.Element {
   return (
-    <div className="flex items-center gap-4 border-b border-panel py-3.5">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center">
-        <span className={`h-1.5 w-1.5 rounded-full ${statusColor[activity.status]}`} />
+    <div className="zen-activity-row">
+      <span className="zen-activity-dot">
+        <Dot tone={statusTone[activity.status]} />
       </span>
-      <span className="w-24 shrink-0 font-mono text-xs text-text-tertiary">
-        {fmt(activity.timestamp)}
-      </span>
-      <span className="w-32 shrink-0 text-xs font-medium uppercase tracking-wider text-text-secondary">
-        {activity.kind.replace('_', ' · ')}
-      </span>
-      <span className="flex-1 text-sm text-text-primary">{activity.summary}</span>
+      <span className="zen-ts">{fmt(activity.timestamp)}</span>
+      <span className="zen-event">{activity.kind.replace('_', ' · ')}</span>
+      <span className="zen-activity-summary">{activity.summary}</span>
     </div>
   );
 }

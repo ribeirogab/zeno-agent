@@ -1,160 +1,139 @@
 import { Link, useLocation } from '@tanstack/react-router';
-import type { JSX } from 'react';
+import type { DotTone } from '@zeno/ui';
+import { Crest, Dot } from '@zeno/ui';
+import type { ComponentType, JSX } from 'react';
+import { IcoCron, IcoHome, IcoLogs, IcoSessions, IcoSettings } from '@/components/icons';
 import { type ServiceStatus, useHealth } from '@/lib/use-health';
-import { useTheme } from '@/lib/use-theme';
 
 interface NavItem {
+  id: string;
   label: string;
   to: string;
-  enabled: boolean;
+  key: string;
+  Ico: ComponentType<{ size?: number; className?: string }>;
+  badge?: number;
 }
 
 const navItems: ReadonlyArray<NavItem> = [
-  { label: 'Home', to: '/', enabled: true },
-  { label: 'Crons', to: '/crons', enabled: true },
-  { label: 'Sessions', to: '/sessions', enabled: true },
-  { label: 'Settings', to: '/settings', enabled: true },
-  { label: 'Logs', to: '/logs', enabled: true },
+  { id: 'home', label: 'home', to: '/', key: 'H', Ico: IcoHome },
+  { id: 'crons', label: 'crons', to: '/crons', key: 'C', Ico: IcoCron },
+  { id: 'sessions', label: 'sessions', to: '/sessions', key: 'S', Ico: IcoSessions },
+  { id: 'logs', label: 'logs', to: '/logs', key: 'L', Ico: IcoLogs, badge: 1 },
+  { id: 'settings', label: 'settings', to: '/settings', key: ',', Ico: IcoSettings },
 ];
 
-const dotColor: Record<ServiceStatus, string> = {
-  ticking: 'bg-status-active',
-  idle: 'bg-text-tertiary',
-  stale: 'bg-status-paused',
-  unknown: 'bg-text-tertiary',
+const statusToDot: Record<ServiceStatus, DotTone> = {
+  ticking: 'active',
+  idle: 'idle',
+  stale: 'paused',
+  unknown: 'idle',
 };
 
-const labelText: Record<ServiceStatus, string> = {
+const statusLabel: Record<ServiceStatus, string> = {
   ticking: 'ticking',
   idle: 'idle',
   stale: 'stale',
   unknown: 'unknown',
 };
 
-export interface SidebarProps {
-  onNavigate?: () => void;
+function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
 }
 
-function SunIcon(): JSX.Element {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <title>sun</title>
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-    </svg>
-  );
+function isActive(itemTo: string, currentPath: string): boolean {
+  if (itemTo === '/') return currentPath === '/';
+  return currentPath.startsWith(itemTo);
 }
 
-function MoonIcon(): JSX.Element {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <title>moon</title>
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-    </svg>
-  );
-}
-
-export function Sidebar({ onNavigate }: SidebarProps = {}): JSX.Element {
+export function Sidebar(): JSX.Element {
   const location = useLocation();
   const currentPath = location.pathname;
   const health = useHealth();
-  const { theme, toggle: toggleTheme } = useTheme();
   const services = health.data?.services ?? {
     backend: 'unknown' as ServiceStatus,
     slack: 'unknown' as ServiceStatus,
     runner: 'unknown' as ServiceStatus,
   };
+  const uptime = health.data?.uptime ?? 0;
 
   return (
-    <aside className="flex h-full w-full shrink-0 flex-col gap-7 border-r border-border-subtle bg-sidebar px-5 py-6 md:h-screen md:w-60">
-      <div className="flex items-center gap-2.5">
-        <span className="font-serif text-2xl italic leading-none text-accent">Z</span>
-        <span className="text-sm tracking-wide text-text-primary">zeno</span>
+    <aside className="zen-sidebar">
+      {/* Brand */}
+      <div className="zen-brand">
+        <span className="text-gold">
+          <Crest size={22} />
+        </span>
+        <span className="zen-brand-word">zeno</span>
+        <span className="zen-brand-hex">v0.3.1</span>
       </div>
 
-      <nav className="flex flex-col gap-0.5">
+      {/* Nav */}
+      <nav className="zen-nav">
+        <div className="zen-nav-group-label">console</div>
         {navItems.map((item) => {
-          const isActive = item.to === currentPath;
-          if (!item.enabled) {
-            return (
-              <span
-                key={item.to}
-                className="flex cursor-not-allowed items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-text-tertiary"
-                title="em breve"
-              >
-                {item.label}
-              </span>
-            );
-          }
+          const active = isActive(item.to, currentPath);
           return (
             <Link
-              key={item.to}
+              key={item.id}
               to={item.to}
-              onClick={onNavigate}
-              className={
-                isActive
-                  ? 'flex items-center gap-2.5 rounded-md bg-panel px-2.5 py-2 text-sm font-medium text-text-primary'
-                  : 'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-text-secondary hover:text-text-primary'
-              }
+              className={active ? 'zen-nav-item active' : 'zen-nav-item'}
             >
-              {item.label}
+              <span className="zen-nav-icon">
+                <item.Ico size={14} />
+              </span>
+              <span>{item.label}</span>
+              {item.badge ? (
+                <span className="zen-nav-badge">{item.badge}</span>
+              ) : (
+                <span className="zen-nav-key">
+                  {'⌘'}
+                  {item.key}
+                </span>
+              )}
             </Link>
           );
         })}
       </nav>
 
-      <div className="flex flex-col gap-3">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-text-tertiary">
-          Status
-        </span>
-        <div className="flex items-center gap-2">
-          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColor[services.backend]}`} />
-          <span className="text-xs text-text-secondary">
-            backend · {labelText[services.backend]}
+      {/* Status panel */}
+      <div className="zen-status-panel">
+        <span className="zen-status-label">runtime</span>
+        <div className="zen-status-row">
+          <Dot tone={statusToDot[services.backend]} pulse={services.backend === 'ticking'} />
+          <span>
+            backend {'·'} <span style={{ color: 'var(--color-gold)' }}>claude-code</span>
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColor[services.slack]}`} />
-          <span className="text-xs text-text-secondary">slack · {labelText[services.slack]}</span>
+        <div className="zen-status-row">
+          <Dot tone={statusToDot[services.slack]} />
+          <span>
+            slack {'·'} {statusLabel[services.slack]}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColor[services.runner]}`} />
-          <span className="text-xs text-text-secondary">runner · {labelText[services.runner]}</span>
+        <div className="zen-status-row">
+          <Dot tone={statusToDot[services.runner]} />
+          <span>
+            runner {'·'} {statusLabel[services.runner]}
+          </span>
+        </div>
+        <div className="zen-status-row zen-status-row--muted">
+          uptime {'·'} {formatUptime(uptime)}
         </div>
       </div>
 
-      <div className="mt-auto flex items-center gap-2.5 border-t border-border-subtle pt-3">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-border-subtle text-[11px] font-semibold text-text-primary">
-          GR
+      {/* User */}
+      <div className="zen-user">
+        <div className="zen-avatar">GR</div>
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+          <span className="zen-user-name">operator</span>
+          <span className="zen-user-meta">single-owner {'·'} hmac</span>
         </div>
-        <span className="flex-1 text-sm text-text-secondary">Operator</span>
-        <button
-          type="button"
-          onClick={toggleTheme}
-          aria-label={theme === 'dark' ? 'switch to light theme' : 'switch to dark theme'}
-          className="rounded-md p-1.5 text-text-tertiary hover:bg-panel hover:text-text-primary"
-        >
-          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-        </button>
+        <Link to="/login" className="zen-user-logout">
+          exit
+        </Link>
       </div>
     </aside>
   );

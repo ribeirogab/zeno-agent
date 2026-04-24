@@ -3,22 +3,26 @@ import { type ButtonHTMLAttributes, forwardRef } from 'react';
 import { cn } from '../utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-secondary disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center gap-2 whitespace-nowrap font-mono text-xs font-medium uppercase tracking-[0.06em] transition-all duration-[120ms] disabled:pointer-events-none disabled:opacity-40',
   {
     variants: {
       variant: {
-        primary: 'bg-text-primary text-canvas hover:opacity-90',
-        outline: 'border border-border-subtle bg-transparent text-text-primary hover:bg-panel',
-        ghost: 'bg-transparent text-text-secondary hover:text-text-primary hover:bg-panel',
-        accent: 'bg-accent text-canvas hover:opacity-90',
+        default:
+          'border border-border-strong bg-transparent text-text-primary hover:border-text-tertiary',
+        primary:
+          'border border-gold bg-gold text-text-ink font-semibold hover:bg-gold-bright hover:border-gold-bright',
+        ghost:
+          'border border-transparent bg-transparent text-text-secondary hover:text-gold hover:border-gold-line hover:bg-gold-soft',
+        outline: 'border border-gold-line text-gold hover:border-gold hover:bg-gold-soft',
+        danger:
+          'border border-status-failed/30 text-status-failed hover:bg-status-failed/[0.08] hover:border-status-failed',
       },
       size: {
-        sm: 'h-8 px-3',
-        md: 'h-10 px-4',
-        lg: 'h-11 px-6',
+        sm: 'px-2.5 py-1 text-[10px] tracking-[0.1em]',
+        md: 'px-3.5 py-2',
       },
     },
-    defaultVariants: { variant: 'primary', size: 'md' },
+    defaultVariants: { variant: 'default', size: 'md' },
   },
 );
 

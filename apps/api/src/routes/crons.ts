@@ -50,6 +50,20 @@ export function buildCronsRoute(deps: CronsRouteDeps): Hono {
     return c.json(deps.crons.list(filter));
   });
 
+  route.get('/next', (c) => {
+    const limit = Number(c.req.query('limit') ?? '3') || 3;
+    const crons = deps.crons.next(limit);
+    return c.json(
+      crons.map((cron) => ({
+        id: cron.id,
+        name: cron.name,
+        schedule: cron.schedule,
+        nextRunAt: cron.nextRunAt,
+        notifyConversationId: cron.notifyConversationId ?? undefined,
+      })),
+    );
+  });
+
   route.get('/:id', (c) => {
     const id = c.req.param('id');
     const cron = deps.crons.get(id);

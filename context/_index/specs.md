@@ -14,7 +14,7 @@ Template: `[[../specs/_template/spec|_template/spec]]`
 
 ## Active
 
-_(none)_
+- [[../specs/0026-imperial-terminal-rebranding/spec|0026 — Imperial Terminal Rebranding]] — full visual rebuild: tokens, fonts, primitives, all 8 screens, 2 API endpoints. Based on `tmp/rebranding/zeno/` prototype.
 
 ## Design-only
 

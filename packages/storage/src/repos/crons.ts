@@ -166,6 +166,19 @@ export class CronRepo {
       .run(lastRun.toISOString(), nextRun ? nextRun.toISOString() : null, id);
   }
 
+  next(limit = 3): Array<Cron> {
+    return (
+      this.db
+        .prepare(
+          `SELECT * FROM crons
+         WHERE enabled = 1 AND next_run_at IS NOT NULL
+         ORDER BY next_run_at ASC
+         LIMIT ?`,
+        )
+        .all(limit) as CronRow[]
+    ).map(rowToCron);
+  }
+
   /** Replace the static-source cron set atomically (used when reloading crons.yaml). */
   replaceStaticSet(crons: CreateCronInput[]): void {
     const tx = this.db.transaction((items: CreateCronInput[]) => {

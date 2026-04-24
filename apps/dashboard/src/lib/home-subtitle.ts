@@ -6,9 +6,34 @@ export interface SubtitleInput {
   now: Date;
 }
 
+const WORD_NUMBERS: ReadonlyArray<string> = [
+  'zero',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'eleven',
+  'twelve',
+];
+
+function toWord(n: number): string {
+  if (n >= 0 && n < WORD_NUMBERS.length) return WORD_NUMBERS[n] as string;
+  return String(n);
+}
+
+function plural(n: number, singular: string, pluralForm: string): string {
+  return n === 1 ? `${toWord(n)} ${singular}` : `${toWord(n)} ${pluralForm}`;
+}
+
 /**
  * Narrative subtitle shown under the Home greeting. Reads from the stats + health
- * heartbeat to produce one line summarising the state of Zeno.
+ * heartbeat to produce literary English prose summarising the state of Zeno.
  */
 export function homeSubtitle(input: SubtitleInput): string {
   const { stats, lastTickAt, now } = input;
@@ -19,28 +44,45 @@ export function homeSubtitle(input: SubtitleInput): string {
     return 'All quiet. Nothing scheduled yet.';
   }
 
-  const parts: string[] = [];
+  const sentences: string[] = [];
 
-  if (stats.activeCrons === 0) parts.push('No active crons');
-  else if (stats.activeCrons === 1) parts.push('1 scheduled cron');
-  else parts.push(`${stats.activeCrons} scheduled crons`);
-
-  if (stats.sessions24h === 1) parts.push('1 session in the last 24h');
-  else if (stats.sessions24h > 1) parts.push(`${stats.sessions24h} sessions in the last 24h`);
-
-  if (lastTickAt) {
-    parts.push(`last tick ${relativeTime(new Date(`${lastTickAt}Z`), now)}`);
+  // Opening tone
+  if (stats.failures24h === 0 && stats.activeCrons > 0) {
+    sentences.push('Quiet so far.');
   }
 
-  if (stats.failures24h > 0) {
-    parts.push(
-      stats.failures24h === 1
-        ? '1 failure in the last 24h'
-        : `${stats.failures24h} failures in the last 24h`,
+  // Main summary sentence
+  const fragments: string[] = [];
+
+  if (stats.activeCrons > 0) {
+    fragments.push(
+      `${toWord(stats.activeCrons).charAt(0).toUpperCase()}${toWord(stats.activeCrons).slice(1)} ${stats.activeCrons === 1 ? 'cron' : 'crons'} scheduled`,
+    );
+  } else {
+    fragments.push('No crons scheduled');
+  }
+
+  if (stats.sessions24h > 0) {
+    fragments.push(`${plural(stats.sessions24h, 'session', 'sessions')} today`);
+  }
+
+  if (lastTickAt) {
+    const elapsed = relativeTime(new Date(`${lastTickAt}Z`), now);
+    fragments.push(`last tick fired ${elapsed}`);
+  }
+
+  sentences.push(`${fragments.join(', ')}.`);
+
+  // Closing reassurance
+  if (stats.failures24h === 0) {
+    sentences.push('Nothing demands your attention.');
+  } else {
+    sentences.push(
+      `${toWord(stats.failures24h).charAt(0).toUpperCase()}${toWord(stats.failures24h).slice(1)} ${stats.failures24h === 1 ? 'failure' : 'failures'} logged — worth a look.`,
     );
   }
 
-  return `${parts.join(' · ')}.`;
+  return sentences.join(' ');
 }
 
 /**

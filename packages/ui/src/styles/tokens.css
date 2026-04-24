@@ -1,43 +1,72 @@
 /*
- * Zeno design tokens.
+ * Zeno design tokens — "Imperial Terminal"
  *
- * Tailwind v4 @theme block: maps CSS variables into Tailwind utilities
- * (bg-canvas, text-text-primary, etc.). The @source directive tells the
- * Tailwind content scanner to pick up classes used inside this package
- * so consumer apps don't need to configure globs for @zeno/ui.
+ * Ink-blue surfaces, imperial gold accent, mono-first typography.
+ * Dark is the ONLY mode. No light palette.
  *
- * Dark is the default. Apply `.light` (or `[data-theme="light"]`) on <html>
- * to swap to the warm light palette — same token names, different values.
- * Accent coral stays identical across modes: it's the brand moment.
+ * Tailwind v4 @theme block maps CSS variables into utilities
+ * (bg-canvas, text-gold, border-border-subtle, etc.).
  */
 
 @source "../components/**/*.{ts,tsx}";
 
 @theme {
-  --color-canvas: #1a1816;
-  --color-panel: #221f1c;
-  --color-sidebar: #16140f;
-  --color-border-subtle: #2c2823;
-  --color-text-primary: #ebe5da;
-  --color-text-secondary: #8c8579;
-  --color-text-tertiary: #5c574f;
-  --color-accent: #e66b3d;
-  --color-status-active: #4fa876;
-  --color-status-paused: #c7a85c;
-  --color-status-failed: #c75c5c;
+  /* Surfaces */
+  --color-canvas: #0A0A10;
+  --color-panel: #0f1119;
+  --color-panel-2: #151824;
+  --color-sidebar: #050610;
+
+  /* Borders */
+  --color-border-subtle: #1e2131;
+  --color-border-strong: #2a2e44;
+  --color-hairline: rgba(255, 230, 170, 0.06);
+
+  /* Text */
+  --color-text-primary: #e8eaf5;
+  --color-text-secondary: #8a8fab;
+  --color-text-tertiary: #4b4f66;
+  --color-text-ink: #0a0b12;
+
+  /* Imperial gold — THE accent */
+  --color-gold: #d9b362;
+  --color-gold-bright: #f0cc7a;
+  --color-gold-deep: #8a6d2e;
+  --color-gold-soft: rgba(217, 179, 98, 0.10);
+  --color-gold-ring: rgba(217, 179, 98, 0.28);
+  --color-gold-line: rgba(217, 179, 98, 0.18);
+
+  /* Status */
+  --color-status-active: #6bd3a3;
+  --color-status-paused: #d9b362;
+  --color-status-failed: #e8617a;
+  --color-status-info: #7aa6e8;
+
+  /* Overlay */
+  --color-overlay: rgba(5, 6, 16, 0.80);
+
+  /* Shadows */
+  --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.02) inset, 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-float: 0 24px 48px -16px rgba(0, 0, 0, 0.8), 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-gold-glow: 0 0 0 1px rgba(217, 179, 98, 0.18), 0 0 24px -6px rgba(217, 179, 98, 0.3);
+
+  /* Pulse animations */
+  --animate-pulse-jade: pulse-jade 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  --animate-pulse-carmine: pulse-carmine 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  --animate-pulse-gold: pulse-gold 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-:root[data-theme="light"],
-.light {
-  --color-canvas: #faf7f2;
-  --color-panel: #f3f0eb;
-  --color-sidebar: #f0ece4;
-  --color-border-subtle: #e4dfd4;
-  --color-text-primary: #1f1d1a;
-  --color-text-secondary: #6f685e;
-  --color-text-tertiary: #a69f92;
-  --color-accent: #e66b3d;
-  --color-status-active: #2e7e52;
-  --color-status-paused: #8a6f30;
-  --color-status-failed: #b04141;
+@keyframes pulse-jade {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(107, 211, 163, 0.45); }
+  50% { box-shadow: 0 0 0 5px rgba(107, 211, 163, 0); }
+}
+
+@keyframes pulse-carmine {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 97, 122, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(232, 97, 122, 0); }
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 179, 98, 0.45); }
+  50% { box-shadow: 0 0 0 5px rgba(217, 179, 98, 0); }
 }

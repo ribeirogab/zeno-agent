@@ -41,7 +41,15 @@ export function createApp(deps: AppDeps): Hono {
     }),
   );
   app.use('/api/stats', requireAuth({ secret: deps.config.sessionSecret, secure }));
-  app.route('/api/stats', buildStatsRoute(deps.db));
+  app.use('/api/stats/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
+  app.route(
+    '/api/stats',
+    buildStatsRoute({
+      db: deps.db,
+      cronRuns: deps.cronRunRepo,
+      sessions: new SessionRepo(deps.db),
+    }),
+  );
   app.use('/api/activity', requireAuth({ secret: deps.config.sessionSecret, secure }));
   app.route('/api/activity', buildActivityRoute(deps.db));
   app.use('/api/crons', requireAuth({ secret: deps.config.sessionSecret, secure }));

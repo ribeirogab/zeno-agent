@@ -1,16 +1,19 @@
-import { cn } from '@zeno/ui';
+import { cn, Dot } from '@zeno/ui';
 import { type JSX, useState } from 'react';
 import { LogJsonBlock } from '@/components/logs/log-json-block';
 import type { LogApi } from '@/lib/log-filters';
 
-function levelLabel(level: number): { text: string; colorClass: string; dotClass: string } {
-  if (level >= 50)
-    return { text: 'ERROR', colorClass: 'text-status-failed', dotClass: 'bg-status-failed' };
-  if (level >= 40)
-    return { text: 'WARN', colorClass: 'text-status-paused', dotClass: 'bg-status-paused' };
-  if (level >= 30)
-    return { text: 'INFO', colorClass: 'text-status-active', dotClass: 'bg-status-active' };
-  return { text: 'DEBUG', colorClass: 'text-text-tertiary', dotClass: 'bg-text-tertiary' };
+type LevelMeta = {
+  text: string;
+  colorClass: string;
+  dotTone: 'active' | 'paused' | 'failed' | 'idle';
+};
+
+function levelLabel(level: number): LevelMeta {
+  if (level >= 50) return { text: 'ERROR', colorClass: 'text-status-failed', dotTone: 'failed' };
+  if (level >= 40) return { text: 'WARN', colorClass: 'text-status-paused', dotTone: 'paused' };
+  if (level >= 30) return { text: 'INFO', colorClass: 'text-status-active', dotTone: 'active' };
+  return { text: 'DEBUG', colorClass: 'text-text-tertiary', dotTone: 'idle' };
 }
 
 function fmtTs(iso: string): string {
@@ -22,42 +25,57 @@ function fmtTs(iso: string): string {
   return `${hh}:${mm}:${ss}.${ms}`;
 }
 
-export function LogRow({ log }: { log: LogApi }): JSX.Element {
-  const [expanded, setExpanded] = useState<boolean>(false);
+function dotToneToLevelTone(
+  tone: 'active' | 'paused' | 'failed' | 'idle',
+): 'active' | 'paused' | 'failed' {
+  if (tone === 'failed') return 'failed';
+  if (tone === 'paused') return 'paused';
+  return 'active';
+}
+
+export function LogRow({ log, isNew = false }: { log: LogApi; isNew?: boolean }): JSX.Element {
+  const [expanded, setExpanded] = useState(false);
   const level = levelLabel(log.level);
+
   return (
-    <div className="flex flex-col border-b border-panel">
+    <>
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
-        className="flex items-start gap-4 py-2.5 text-left hover:bg-panel/40"
+        className={cn(
+          'flex cursor-pointer items-center gap-4 px-5 py-2.5 font-mono text-xs transition-colors hover:bg-panel-2',
+          isNew && 'animate-log-new',
+        )}
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center">
-          <span className={cn('h-1.5 w-1.5 rounded-full', level.dotClass)} />
+        <span className="flex w-1.5 shrink-0 justify-center">
+          <Dot tone={level.dotTone} />
         </span>
-        <span className="hidden w-24 shrink-0 font-mono text-[11px] text-text-tertiary sm:inline">
+        <span className="w-[100px] shrink-0 font-mono text-xs text-text-tertiary">
           {fmtTs(log.ts)}
         </span>
         <span
           className={cn(
-            'w-14 shrink-0 text-[11px] font-medium uppercase tracking-wider',
+            'w-[50px] shrink-0 font-mono text-[10px] font-semibold uppercase tracking-[0.15em]',
             level.colorClass,
           )}
         >
           {level.text}
         </span>
-        <span className="w-32 shrink-0 truncate font-mono text-xs text-text-primary sm:w-48">
+        <span className="w-[210px] shrink-0 truncate font-mono text-[11px] text-gold">
           {log.event ?? '—'}
         </span>
-        <span className="hidden flex-1 truncate text-xs text-text-secondary sm:inline">
+        <span className="flex-1 truncate font-mono text-xs text-text-primary">
           {log.message ?? '(no message)'}
+        </span>
+        <span className="w-[120px] shrink-0 text-right font-mono text-[10px] tracking-[0.04em] text-text-tertiary">
+          {log.correlationId ?? '—'}
         </span>
       </button>
       {expanded && (
-        <div className="pb-4 pl-12">
-          <LogJsonBlock payload={log.payload} />
+        <div className="mx-5 mb-2.5">
+          <LogJsonBlock payload={log.payload} levelTone={dotToneToLevelTone(level.dotTone)} />
         </div>
       )}
-    </div>
+    </>
   );
 }

@@ -1,5 +1,5 @@
-import type { JSX } from 'react';
 import { Losango } from '@zeno/ui';
+import type { JSX } from 'react';
 
 interface NextCronItemProps {
   countdown: string;

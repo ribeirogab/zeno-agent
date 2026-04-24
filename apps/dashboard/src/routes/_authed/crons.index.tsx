@@ -26,10 +26,9 @@ function CronsPage(): JSX.Element {
             crons
           </h1>
           <p className="mt-1 max-w-[620px] text-sm leading-relaxed text-text-secondary">
-            Recurring tasks.{' '}
-            <span className="font-mono text-xs text-text-primary">static</span> lives in{' '}
-            <span className="font-mono text-xs text-text-primary">profile/crons.yaml</span>;{' '}
-            <span className="font-mono text-xs text-text-primary">chat</span> crons came from
+            Recurring tasks. <span className="font-mono text-xs text-text-primary">static</span>{' '}
+            lives in <span className="font-mono text-xs text-text-primary">profile/crons.yaml</span>
+            ; <span className="font-mono text-xs text-text-primary">chat</span> crons came from
             Slack.
           </p>
         </div>
@@ -75,9 +74,7 @@ function CronsPage(): JSX.Element {
           <span className="font-mono text-[11px] text-text-tertiary">
             {totalCount} crons · {activeCount} active · {pausedCount} paused
           </span>
-          <span className="font-mono text-[11px] text-text-tertiary">
-            runner · ticking
-          </span>
+          <span className="font-mono text-[11px] text-text-tertiary">runner · ticking</span>
         </div>
       )}
     </div>

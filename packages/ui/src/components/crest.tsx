@@ -9,9 +9,21 @@ export function Crest({ size = 28, ornate = false }: CrestProps): JSX.Element {
   return (
     <svg width={size} height={size} viewBox="0 0 120 120" fill="none" aria-hidden="true">
       <path d="M60 6 L114 60 L60 114 L6 60 Z" stroke="currentColor" strokeWidth="2.5" fill="none" />
-      <path d="M60 14 L106 60 L60 106 L14 60 Z" stroke="currentColor" strokeWidth="1" strokeOpacity="0.4" fill="none" />
+      <path
+        d="M60 14 L106 60 L60 106 L14 60 Z"
+        stroke="currentColor"
+        strokeWidth="1"
+        strokeOpacity="0.4"
+        fill="none"
+      />
       {ornate && (
-        <path d="M60 22 L98 60 L60 98 L22 60 Z" stroke="currentColor" strokeWidth="0.75" strokeOpacity="0.2" fill="none" />
+        <path
+          d="M60 22 L98 60 L60 98 L22 60 Z"
+          stroke="currentColor"
+          strokeWidth="0.75"
+          strokeOpacity="0.2"
+          fill="none"
+        />
       )}
       <g fill="currentColor">
         <rect x="36" y="42" width="48" height="8" />

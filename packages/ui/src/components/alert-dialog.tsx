@@ -58,7 +58,10 @@ export const AlertDialogTitle = forwardRef<
   return (
     <AlertDialogPrimitive.Title
       ref={ref}
-      className={cn('font-serif text-[22px] font-normal tracking-[-0.015em] text-text-primary', className)}
+      className={cn(
+        'font-serif text-[22px] font-normal tracking-[-0.015em] text-text-primary',
+        className,
+      )}
       {...props}
     />
   );

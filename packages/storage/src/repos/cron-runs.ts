@@ -65,4 +65,28 @@ export class CronRunRepo {
       .all(cronId, limit) as CronRunRow[];
     return rows.map(rowToCronRun);
   }
+
+  sparkline(metric: 'runs' | 'failures', hours = 24): Array<{ hour: string; count: number }> {
+    const since = new Date(Date.now() - hours * 3600_000).toISOString();
+    const condition = metric === 'failures' ? " AND status = 'failed'" : '';
+    const rows = this.db
+      .prepare(
+        `SELECT strftime('%Y-%m-%dT%H:00:00Z', started_at) AS hour, COUNT(*) AS count
+         FROM cron_runs
+         WHERE started_at >= ?${condition}
+         GROUP BY hour
+         ORDER BY hour ASC`,
+      )
+      .all(since) as Array<{ hour: string; count: number }>;
+
+    const buckets = new Map(rows.map((r) => [r.hour, r.count]));
+    const result: Array<{ hour: string; count: number }> = [];
+    const now = new Date();
+    for (let i = hours - 1; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 3600_000);
+      const key = `${d.toISOString().slice(0, 13)}:00:00Z`;
+      result.push({ hour: key, count: buckets.get(key) ?? 0 });
+    }
+    return result;
+  }
 }

@@ -6,10 +6,11 @@ import { NextCronItem } from '@/components/home/next-cron-item';
 import { StatTile } from '@/components/home/stat-tile';
 import { HomeActivitySkeleton } from '@/components/skeletons/home-skeleton';
 import { greetingForHour } from '@/lib/greeting';
-import { homeSubtitle } from '@/lib/home-subtitle';
+import { homeSubtitle, relativeTime } from '@/lib/home-subtitle';
 import { useActivity } from '@/lib/use-activity';
 import { useHealth } from '@/lib/use-health';
-import { relativeTime } from '@/lib/home-subtitle';
+import { useNextCrons } from '@/lib/use-next-crons';
+import { useSparkline } from '@/lib/use-sparkline';
 import { useStats } from '@/lib/use-stats';
 
 export const Route = createFileRoute('/_authed/')({
@@ -18,15 +19,24 @@ export const Route = createFileRoute('/_authed/')({
 
 const USER_NAME = 'Operator';
 
-const SPARK_SESSIONS = [1, 0, 0, 0, 0, 0, 1, 2, 3, 2, 4, 3, 2, 1, 2, 3, 5, 4, 3, 2, 1, 2, 3, 4];
-const SPARK_RUNS = [2, 2, 2, 2, 2, 2, 3, 3, 3, 2, 3, 3, 2, 2, 2, 3, 3, 3, 3, 2, 2, 2, 2, 3];
-const SPARK_FAILS = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+function formatCountdown(nextRunAt: string, now: Date): string {
+  const diff = new Date(nextRunAt).getTime() - now.getTime();
+  if (diff <= 0) return 'now';
+  const totalMinutes = Math.floor(diff / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return `in ${hours}h ${minutes}m`;
+  return `in ${minutes}m`;
+}
 
-const NEXT_CRONS = [
-  { countdown: 'in 23m', name: 'evening-standup', meta: 'today · 21:00 · #zeno' },
-  { countdown: 'in 1h 23m', name: 'health-check', meta: 'today · 22:00 · every 2h' },
-  { countdown: 'in 9h 12m', name: 'morning-pr-summary', meta: 'tomorrow · 09:00 · #zeno' },
-];
+function formatCronMeta(nextRunAt: string, schedule: string): string {
+  const d = new Date(nextRunAt);
+  const today = new Date();
+  const isToday = d.toDateString() === today.toDateString();
+  const dayLabel = isToday ? 'today' : 'tomorrow';
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${dayLabel} · ${time} · ${schedule}`;
+}
 
 function formatDateKicker(now: Date): string {
   const weekday = now.toLocaleDateString('pt-BR', { weekday: 'long' });
@@ -52,6 +62,10 @@ function HomePage(): JSX.Element {
   const stats = useStats();
   const health = useHealth();
   const activity = useActivity(6);
+  const sparkSessions = useSparkline('sessions');
+  const sparkRuns = useSparkline('runs');
+  const sparkFailures = useSparkline('failures');
+  const nextCrons = useNextCrons(3);
   const now = new Date();
   const greeting = greetingForHour(now.getHours(), USER_NAME);
   const subtitle = homeSubtitle({
@@ -72,7 +86,10 @@ function HomePage(): JSX.Element {
         <Kicker>{formatDateKicker(now)}</Kicker>
         <h1 className="font-serif text-[56px] leading-[1.05] text-text-primary">
           <WordRise text={greeting.verb} delay={0} />{' '}
-          <em className="inline-block animate-[word-rise_0.5s_ease-out_both] text-gold" style={{ animationDelay: '140ms' }}>
+          <em
+            className="inline-block animate-[word-rise_0.5s_ease-out_both] text-gold"
+            style={{ animationDelay: '140ms' }}
+          >
             {greeting.name}
           </em>
           <WordRise text="." delay={260} />
@@ -102,21 +119,21 @@ function HomePage(): JSX.Element {
           label="sessions · 24h"
           value={stats.data?.sessions24h ?? 0}
           delta="+3 since yesterday"
-          spark={SPARK_SESSIONS}
+          spark={sparkSessions.data ?? []}
           sparkColor="var(--color-status-info)"
         />
         <StatTile
           label="runs · today"
           value={stats.data?.runsToday ?? 0}
           delta="avg 4.1s"
-          spark={SPARK_RUNS}
+          spark={sparkRuns.data ?? []}
           sparkColor="var(--color-status-active)"
         />
         <StatTile
           label="failures · 24h"
           value={stats.data?.failures24h ?? 0}
           delta="↳ 100% success"
-          spark={SPARK_FAILS}
+          spark={sparkFailures.data ?? []}
           sparkColor="var(--color-status-failed)"
         />
       </section>
@@ -149,12 +166,12 @@ function HomePage(): JSX.Element {
             <Kicker mute>scheduled upcoming</Kicker>
           </div>
           <div className="overflow-hidden rounded border border-border-subtle border-l-2 border-l-gold bg-panel px-5 py-3">
-            {NEXT_CRONS.map((cron, index) => (
+            {nextCrons.data?.map((cron, index) => (
               <NextCronItem
-                key={cron.name}
-                countdown={cron.countdown}
+                key={cron.id}
+                countdown={formatCountdown(cron.nextRunAt, now)}
                 name={cron.name}
-                meta={cron.meta}
+                meta={formatCronMeta(cron.nextRunAt, cron.schedule)}
                 highlight={index === 0}
               />
             ))}

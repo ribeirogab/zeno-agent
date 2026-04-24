@@ -49,9 +49,7 @@ function SessionDetailPage(): JSX.Element {
 
       <header className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-6">
-          <h1 className="font-mono text-2xl font-medium text-text-primary">
-            {session.threadId}
-          </h1>
+          <h1 className="font-mono text-2xl font-medium text-text-primary">{session.threadId}</h1>
           <div className="flex shrink-0 gap-2">
             <Button variant="ghost">open in slack ↗</Button>
             <Button variant="outline">view jsonl</Button>
@@ -63,8 +61,7 @@ function SessionDetailPage(): JSX.Element {
           </span>
           <span className="text-text-tertiary">·</span>
           <span>
-            session{' '}
-            <span className="font-mono text-gold">{session.sessionId}</span>
+            session <span className="font-mono text-gold">{session.sessionId}</span>
           </span>
           <span className="text-text-tertiary">·</span>
           <span>{messages.length} messages</span>

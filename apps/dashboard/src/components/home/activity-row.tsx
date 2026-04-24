@@ -1,6 +1,6 @@
-import type { JSX } from 'react';
-import { Dot } from '@zeno/ui';
 import type { DotTone } from '@zeno/ui';
+import { Dot } from '@zeno/ui';
+import type { JSX } from 'react';
 import type { Activity } from '@/lib/use-activity';
 
 const statusTone: Record<Activity['status'], DotTone> = {

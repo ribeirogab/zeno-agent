@@ -1,4 +1,4 @@
-import { Dot, cn } from '@zeno/ui';
+import { cn, Dot } from '@zeno/ui';
 import { type JSX, useState } from 'react';
 import { LogJsonBlock } from '@/components/logs/log-json-block';
 import type { LogApi } from '@/lib/log-filters';
@@ -10,12 +10,9 @@ type LevelMeta = {
 };
 
 function levelLabel(level: number): LevelMeta {
-  if (level >= 50)
-    return { text: 'ERROR', colorClass: 'text-status-failed', dotTone: 'failed' };
-  if (level >= 40)
-    return { text: 'WARN', colorClass: 'text-status-paused', dotTone: 'paused' };
-  if (level >= 30)
-    return { text: 'INFO', colorClass: 'text-status-active', dotTone: 'active' };
+  if (level >= 50) return { text: 'ERROR', colorClass: 'text-status-failed', dotTone: 'failed' };
+  if (level >= 40) return { text: 'WARN', colorClass: 'text-status-paused', dotTone: 'paused' };
+  if (level >= 30) return { text: 'INFO', colorClass: 'text-status-active', dotTone: 'active' };
   return { text: 'DEBUG', colorClass: 'text-text-tertiary', dotTone: 'idle' };
 }
 
@@ -28,19 +25,15 @@ function fmtTs(iso: string): string {
   return `${hh}:${mm}:${ss}.${ms}`;
 }
 
-function dotToneToLevelTone(tone: 'active' | 'paused' | 'failed' | 'idle'): 'active' | 'paused' | 'failed' {
+function dotToneToLevelTone(
+  tone: 'active' | 'paused' | 'failed' | 'idle',
+): 'active' | 'paused' | 'failed' {
   if (tone === 'failed') return 'failed';
   if (tone === 'paused') return 'paused';
   return 'active';
 }
 
-export function LogRow({
-  log,
-  isNew = false,
-}: {
-  log: LogApi;
-  isNew?: boolean;
-}): JSX.Element {
+export function LogRow({ log, isNew = false }: { log: LogApi; isNew?: boolean }): JSX.Element {
   const [expanded, setExpanded] = useState(false);
   const level = levelLabel(log.level);
 

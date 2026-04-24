@@ -1,5 +1,5 @@
-import { Dot } from '@zeno/ui';
 import type { DotTone } from '@zeno/ui';
+import { Dot } from '@zeno/ui';
 import { type JSX, useState } from 'react';
 import { isTempId } from '@/lib/temp-id';
 import type { CronRunApi } from '@/lib/use-cron';

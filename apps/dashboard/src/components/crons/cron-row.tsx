@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router';
-import { OutlinePill, Pill } from '@zeno/ui';
 import type { DotTone } from '@zeno/ui';
+import { OutlinePill, Pill } from '@zeno/ui';
 import type { JSX } from 'react';
 import { useState } from 'react';
 import { CronRowActions } from '@/components/crons/cron-row-actions';
@@ -65,9 +65,7 @@ export function CronRow({ cron }: { cron: CronApi }): JSX.Element {
       </span>
 
       <span className="flex w-[150px] shrink-0 justify-end">
-        {hovered && !pending && (
-          <CronRowActions cron={cron} />
-        )}
+        {hovered && !pending && <CronRowActions cron={cron} />}
       </span>
     </Link>
   );

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Button, EmptyState, ErrorState, Kicker, Pill, Skeleton } from '@zeno/ui';
 import type { DotTone } from '@zeno/ui';
+import { Button, EmptyState, ErrorState, Kicker, Pill, Skeleton } from '@zeno/ui';
 import type { JSX } from 'react';
 import { CronRunHistoryRow } from '@/components/crons/cron-run-history-row';
 import { IcoPlay } from '@/components/icons';
@@ -142,22 +142,19 @@ function CronDetailPage(): JSX.Element {
 
       <section className="grid grid-cols-4 gap-px border border-border-subtle bg-border-subtle">
         <StatCell label="total runs" value={String(recentRuns.length)} sub="lifetime" />
-        <StatCell
-          label="success rate"
-          value={successRate(recentRuns)}
-          sub="last 30d"
-          gold
-        />
+        <StatCell label="success rate" value={successRate(recentRuns)} sub="last 30d" gold />
         <StatCell label="avg duration" value={avgDuration(recentRuns)} sub="recent runs" />
-        <StatCell label="source" value={cron.source} sub={cron.source === 'chat' ? 'from slack' : 'config file'} />
+        <StatCell
+          label="source"
+          value={cron.source}
+          sub={cron.source === 'chat' ? 'from slack' : 'config file'}
+        />
       </section>
 
       <section className="flex flex-col gap-4">
         <div className="flex items-baseline justify-between">
           <h2 className="text-base font-semibold text-text-primary">run history</h2>
-          <Kicker mute>
-            {recentRuns.length} runs · click to expand
-          </Kicker>
+          <Kicker mute>{recentRuns.length} runs · click to expand</Kicker>
         </div>
         {recentRuns.length === 0 ? (
           <EmptyState title="no runs yet" />
@@ -189,9 +186,7 @@ function StatCell({
       <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
         {label}
       </span>
-      <span
-        className={`text-2xl font-medium ${gold ? 'text-gold' : 'text-text-primary'}`}
-      >
+      <span className={`text-2xl font-medium ${gold ? 'text-gold' : 'text-text-primary'}`}>
         {value}
       </span>
       <span className="font-mono text-[10px] text-text-tertiary">{sub}</span>
@@ -209,7 +204,7 @@ function avgDuration(runs: Array<{ startedAt: string; finishedAt: string | null 
   const finished = runs.filter((r) => r.finishedAt);
   if (finished.length === 0) return '—';
   const total = finished.reduce((acc, r) => {
-    return acc + (new Date(r.finishedAt!).getTime() - new Date(r.startedAt).getTime());
+    return acc + (new Date(r.finishedAt as string).getTime() - new Date(r.startedAt).getTime());
   }, 0);
   return `${(total / finished.length / 1000).toFixed(1)}s`;
 }

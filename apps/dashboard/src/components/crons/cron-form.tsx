@@ -95,11 +95,7 @@ export function CronForm({
           />
           <div className="flex flex-wrap gap-1.5">
             {PRESETS.map(([label, value]) => (
-              <Chip
-                key={value}
-                active={schedule === value}
-                onClick={() => setSchedule(value)}
-              >
+              <Chip key={value} active={schedule === value} onClick={() => setSchedule(value)}>
                 {label}
               </Chip>
             ))}

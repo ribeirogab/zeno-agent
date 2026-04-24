@@ -7,11 +7,15 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'border border-border-strong bg-transparent text-text-primary hover:border-text-tertiary',
-        primary: 'border border-gold bg-gold text-text-ink font-semibold hover:bg-gold-bright hover:border-gold-bright',
-        ghost: 'border border-transparent bg-transparent text-text-secondary hover:text-gold hover:border-gold-line hover:bg-gold-soft',
+        default:
+          'border border-border-strong bg-transparent text-text-primary hover:border-text-tertiary',
+        primary:
+          'border border-gold bg-gold text-text-ink font-semibold hover:bg-gold-bright hover:border-gold-bright',
+        ghost:
+          'border border-transparent bg-transparent text-text-secondary hover:text-gold hover:border-gold-line hover:bg-gold-soft',
         outline: 'border border-gold-line text-gold hover:border-gold hover:bg-gold-soft',
-        danger: 'border border-status-failed/30 text-status-failed hover:bg-status-failed/[0.08] hover:border-status-failed',
+        danger:
+          'border border-status-failed/30 text-status-failed hover:bg-status-failed/[0.08] hover:border-status-failed',
       },
       size: {
         sm: 'px-2.5 py-1 text-[10px] tracking-[0.1em]',

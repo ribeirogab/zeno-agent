@@ -38,10 +38,13 @@ export function RestartDialog(): JSX.Element {
   }, [countdown, restart, reset]);
 
   return (
-    <AlertDialog open={open} onOpenChange={(next) => {
-      if (!next) reset();
-      else setOpen(true);
-    }}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) reset();
+        else setOpen(true);
+      }}
+    >
       <AlertDialogTrigger asChild>
         <Button variant="danger">
           <IcoRefresh size={12} />

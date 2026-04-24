@@ -58,15 +58,29 @@ export const DialogTitle = forwardRef<
   return (
     <DialogPrimitive.Title
       ref={ref}
-      className={cn('font-serif text-[22px] font-normal tracking-[-0.015em] text-text-primary', className)}
+      className={cn(
+        'font-serif text-[22px] font-normal tracking-[-0.015em] text-text-primary',
+        className,
+      )}
       {...props}
     />
   );
 });
 
-export function DialogSubtitle({ children, className }: { children: ReactNode; className?: string }): JSX.Element {
+export function DialogSubtitle({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}): JSX.Element {
   return (
-    <span className={cn('mt-1 block font-mono text-[10px] uppercase tracking-[0.2em] text-gold', className)}>
+    <span
+      className={cn(
+        'mt-1 block font-mono text-[10px] uppercase tracking-[0.2em] text-gold',
+        className,
+      )}
+    >
       {children}
     </span>
   );

@@ -75,11 +75,7 @@ function LogsPage(): JSX.Element {
           <EmptyState title="no results for current filters" />
         )}
         {logs.map((l, idx) => (
-          <LogRow
-            key={l.id}
-            log={l}
-            isNew={isNewArrival && idx === 0 && l.id === newestId}
-          />
+          <LogRow key={l.id} log={l} isNew={isNewArrival && idx === 0 && l.id === newestId} />
         ))}
       </section>
 

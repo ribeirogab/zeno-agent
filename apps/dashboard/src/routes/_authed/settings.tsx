@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Button, EmptyState, Kicker } from '@zeno/ui';
+import { EmptyState, Kicker } from '@zeno/ui';
 import type { JSX } from 'react';
-import { IcoRefresh } from '@/components/icons';
 import { AboutRow } from '@/components/settings/about-row';
 import { BackendCard } from '@/components/settings/backend-card';
 import { McpServerRow } from '@/components/settings/mcp-server-row';

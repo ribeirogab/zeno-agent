@@ -9,8 +9,8 @@ import {
   DialogTitle,
 } from '@zeno/ui';
 import type { JSX } from 'react';
-import { IcoX } from '@/components/icons';
 import { CronForm } from '@/components/crons/cron-form';
+import { IcoX } from '@/components/icons';
 import { useCreateCron } from '@/lib/mutations';
 
 export const Route = createFileRoute('/_authed/crons/new')({
@@ -39,7 +39,10 @@ function NewCronPage(): JSX.Element {
             <DialogTitle>Commission a new cron.</DialogTitle>
           </div>
           <DialogClose asChild>
-            <button type="button" className="text-text-tertiary transition-colors hover:text-text-primary">
+            <button
+              type="button"
+              className="text-text-tertiary transition-colors hover:text-text-primary"
+            >
               <IcoX size={12} />
             </button>
           </DialogClose>

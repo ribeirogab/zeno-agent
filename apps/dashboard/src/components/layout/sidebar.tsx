@@ -1,8 +1,8 @@
 import { Link, useLocation } from '@tanstack/react-router';
-import type { ComponentType, JSX } from 'react';
-import { Crest, Dot } from '@zeno/ui';
 import type { DotTone } from '@zeno/ui';
-import { IcoHome, IcoCron, IcoSessions, IcoLogs, IcoSettings } from '@/components/icons';
+import { Crest, Dot } from '@zeno/ui';
+import type { ComponentType, JSX } from 'react';
+import { IcoCron, IcoHome, IcoLogs, IcoSessions, IcoSettings } from '@/components/icons';
 import { type ServiceStatus, useHealth } from '@/lib/use-health';
 
 interface NavItem {
@@ -68,11 +68,7 @@ export function Sidebar(): JSX.Element {
         >
           zeno
         </span>
-        <span
-          className="ml-auto font-mono text-[9px] text-text-tertiary"
-        >
-          v0.3.1
-        </span>
+        <span className="ml-auto font-mono text-[9px] text-text-tertiary">v0.3.1</span>
       </div>
       <div className="relative mx-5 border-b border-border-subtle">
         <div className="absolute bottom-0 left-0 h-px w-7 bg-gold" />
@@ -101,15 +97,11 @@ export function Sidebar(): JSX.Element {
               {active && (
                 <span className="absolute left-0 top-1/2 h-[18px] w-[3px] -translate-y-1/2 rounded-r-sm bg-gold" />
               )}
-              <item.Ico
-                size={14}
-                className={active ? 'text-gold' : 'text-text-tertiary'}
-              />
+              <item.Ico size={14} className={active ? 'text-gold' : 'text-text-tertiary'} />
               <span>{item.label}</span>
-              <span
-                className="ml-auto font-mono text-[10px] text-text-tertiary"
-              >
-                {'⌘'}{item.key}
+              <span className="ml-auto font-mono text-[10px] text-text-tertiary">
+                {'⌘'}
+                {item.key}
               </span>
             </Link>
           );
@@ -132,16 +124,17 @@ export function Sidebar(): JSX.Element {
           </div>
           <div className="flex items-center gap-2 font-mono text-[11px] text-text-secondary">
             <Dot tone={statusToDot[services.slack]} />
-            <span>slack {'·'} {statusLabel[services.slack]}</span>
+            <span>
+              slack {'·'} {statusLabel[services.slack]}
+            </span>
           </div>
           <div className="flex items-center gap-2 font-mono text-[11px] text-text-secondary">
             <Dot tone={statusToDot[services.runner]} />
-            <span>runner {'·'} {statusLabel[services.runner]}</span>
+            <span>
+              runner {'·'} {statusLabel[services.runner]}
+            </span>
           </div>
-          <div
-            className="font-mono text-[11px] text-text-tertiary"
-            style={{ paddingLeft: 14 }}
-          >
+          <div className="font-mono text-[11px] text-text-tertiary" style={{ paddingLeft: 14 }}>
             uptime {'·'} {formatUptime(uptime)}
           </div>
         </div>

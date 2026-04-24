@@ -19,7 +19,7 @@ export function CronRowActions({ cron }: { cron: CronApi }): JSX.Element {
   const deleteCron = useDeleteCron();
 
   return (
-    <span className="flex items-center gap-3" onClick={stop}>
+    <span className="flex items-center gap-3">
       <button
         type="button"
         className={actionBase}

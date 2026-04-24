@@ -1,4 +1,4 @@
-import type { JSX } from 'react';
+import type { JSX, ReactNode } from 'react';
 
 type LevelTone = 'active' | 'paused' | 'failed';
 
@@ -17,24 +17,58 @@ function prettyPrint(payload: string): string {
   }
 }
 
-function colorizeJson(raw: string): string {
-  return raw
-    .replace(
-      /"([^"]+)":/g,
-      '<span class="text-gold">"$1"</span>:',
-    )
-    .replace(
-      /: "([^"]*)"/g,
-      ': <span style="color:#a5b8e8">"$1"</span>',
-    )
-    .replace(
-      /: (\d+(\.\d+)?)/g,
-      ': <span style="color:#b57aea">$1</span>',
-    )
-    .replace(
-      /: (true|false|null)/g,
-      ': <span class="text-status-active">$1</span>',
-    );
+interface Token {
+  text: string;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+function tokenizeJson(raw: string): Token[] {
+  const tokens: Token[] = [];
+  const regex = /"([^"]+)":|: "([^"]*)"|: (\d+(?:\.\d+)?)|: (true|false|null)|([^":\d]+)/g;
+  let lastIndex = 0;
+
+  for (const match of raw.matchAll(regex)) {
+    if (match.index > lastIndex) {
+      tokens.push({ text: raw.slice(lastIndex, match.index) });
+    }
+
+    if (match[1] !== undefined) {
+      tokens.push({ text: `"${match[1]}":`, className: 'text-gold' });
+    } else if (match[2] !== undefined) {
+      tokens.push({ text: ': ' });
+      tokens.push({ text: `"${match[2]}"`, style: { color: '#a5b8e8' } });
+    } else if (match[3] !== undefined) {
+      tokens.push({ text: ': ' });
+      tokens.push({ text: match[3], style: { color: '#b57aea' } });
+    } else if (match[4] !== undefined) {
+      tokens.push({ text: ': ' });
+      tokens.push({ text: match[4], className: 'text-status-active' });
+    } else if (match[5] !== undefined) {
+      tokens.push({ text: match[5] });
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < raw.length) {
+    tokens.push({ text: raw.slice(lastIndex) });
+  }
+
+  return tokens;
+}
+
+function renderTokens(tokens: Token[]): ReactNode[] {
+  return tokens.map((token) => {
+    if (token.className || token.style) {
+      return (
+        <span key={token.text} className={token.className} style={token.style}>
+          {token.text}
+        </span>
+      );
+    }
+    return token.text;
+  });
 }
 
 export function LogJsonBlock({
@@ -45,12 +79,13 @@ export function LogJsonBlock({
   levelTone?: LevelTone;
 }): JSX.Element {
   const formatted = prettyPrint(payload);
-  const highlighted = colorizeJson(formatted);
+  const tokens = tokenizeJson(formatted);
 
   return (
     <pre
-      className={`whitespace-pre-wrap rounded border border-border-subtle border-l-2 bg-canvas p-3 font-mono text-[11px] leading-[1.7] text-text-secondary ${LEVEL_BORDER_COLOR[levelTone]}`}
-      dangerouslySetInnerHTML={{ __html: highlighted }}
-    />
+      className={`whitespace-pre-wrap border border-border-subtle border-l-2 bg-canvas p-3 font-mono text-[11px] leading-[1.7] text-text-secondary ${LEVEL_BORDER_COLOR[levelTone]}`}
+    >
+      {renderTokens(tokens)}
+    </pre>
   );
 }

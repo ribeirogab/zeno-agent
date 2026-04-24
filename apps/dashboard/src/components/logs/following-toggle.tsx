@@ -1,4 +1,4 @@
-import { Dot, cn } from '@zeno/ui';
+import { cn, Dot } from '@zeno/ui';
 import type { JSX } from 'react';
 
 export function FollowingToggle({
@@ -23,10 +23,7 @@ export function FollowingToggle({
           : 'border-border-subtle bg-transparent text-text-secondary hover:border-text-tertiary hover:text-text-primary',
       )}
     >
-      <Dot
-        tone={isActive ? 'active' : 'idle'}
-        pulse={isActive}
-      />
+      <Dot tone={isActive ? 'active' : 'idle'} pulse={isActive} />
       <span>{following ? 'following' : 'paused'}</span>
     </button>
   );

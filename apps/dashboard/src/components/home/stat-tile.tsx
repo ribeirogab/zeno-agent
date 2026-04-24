@@ -1,5 +1,5 @@
-import type { JSX } from 'react';
 import { Spark } from '@zeno/ui';
+import type { JSX } from 'react';
 
 interface StatTileProps {
   label: string;
@@ -33,9 +33,7 @@ export function StatTile({
       >
         {value}
       </span>
-      {delta && (
-        <span className="font-mono text-[10px] text-text-tertiary">{delta}</span>
-      )}
+      {delta && <span className="font-mono text-[10px] text-text-tertiary">{delta}</span>}
       {spark && (
         <span className="absolute right-3 bottom-3 opacity-45">
           <Spark data={spark} color={sparkColor ?? 'var(--color-gold)'} />

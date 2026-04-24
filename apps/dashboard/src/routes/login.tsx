@@ -137,9 +137,7 @@ function LoginPage(): JSX.Element {
         <div className="flex items-center gap-2 border border-border-subtle bg-canvas px-3 py-2 font-mono text-[11px] text-text-secondary">
           <span className="text-text-tertiary">$</span>
           <span>
-            {submitting
-              ? TERMINAL_MESSAGES[seq % TERMINAL_MESSAGES.length]
-              : 'awaiting passphrase'}
+            {submitting ? TERMINAL_MESSAGES[seq % TERMINAL_MESSAGES.length] : 'awaiting passphrase'}
           </span>
           <span
             className="ml-auto inline-block shrink-0 bg-gold"

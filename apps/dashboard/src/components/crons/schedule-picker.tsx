@@ -27,11 +27,7 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps): JSX.El
       />
       <div className="flex flex-wrap gap-1.5">
         {PRESETS.map(([label, preset]) => (
-          <Chip
-            key={preset}
-            active={value === preset}
-            onClick={() => onChange(preset)}
-          >
+          <Chip key={preset} active={value === preset} onClick={() => onChange(preset)}>
             {label}
           </Chip>
         ))}

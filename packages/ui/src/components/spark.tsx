@@ -7,7 +7,12 @@ export interface SparkProps {
   color?: string;
 }
 
-export function Spark({ data, width = 60, height = 18, color = 'var(--color-gold)' }: SparkProps): JSX.Element {
+export function Spark({
+  data,
+  width = 60,
+  height = 18,
+  color = 'var(--color-gold)',
+}: SparkProps): JSX.Element {
   const max = Math.max(...data, 1);
   const step = width / (data.length - 1);
   const pts = data

@@ -28,9 +28,7 @@ export function SessionRow({ session }: { session: SessionApi }): JSX.Element {
       className="flex items-center border-b border-panel py-4 hover:bg-panel/40"
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="truncate text-sm font-medium text-text-primary">
-          {session.threadId}
-        </span>
+        <span className="truncate text-sm font-medium text-text-primary">{session.threadId}</span>
         <span className="font-mono text-[11px] text-text-tertiary">
           session · {session.sessionId}
         </span>

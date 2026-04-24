@@ -1,5 +1,5 @@
-import { Pill } from '@zeno/ui';
 import type { DotTone } from '@zeno/ui';
+import { Pill } from '@zeno/ui';
 import type { JSX } from 'react';
 import type { CronApi } from '@/lib/use-crons';
 

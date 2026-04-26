@@ -34,9 +34,9 @@ describe('<DashboardSidebar>', () => {
     expect(screen.getByText('settings')).toBeDefined();
   });
 
-  it('omits a "connectors" nav item', () => {
+  it('renders a "connectors" nav item', () => {
     render(<DashboardSidebar />);
-    expect(screen.queryByText('connectors')).toBeNull();
+    expect(screen.getByText('connectors')).toBeDefined();
   });
 
   it('renders the user as "alex"', () => {

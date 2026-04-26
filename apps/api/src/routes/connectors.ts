@@ -224,6 +224,44 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     });
   });
 
+  // POST /catalog/:id/test (resolves transportConfig server-side; for catalog installs)
+  route.post('/catalog/:id/test', async (c) => {
+    const id = c.req.param('id');
+    const entry = findCatalogEntry(id);
+    if (!entry) return c.json({ error: 'catalog_entry_not_found' }, 404);
+    const body = (await c.req.json().catch(() => ({}))) as {
+      secrets?: Array<{ key: string; value: string }>;
+    };
+    const transient: Connector = {
+      id: 'transient',
+      slug: id,
+      displayName: entry.name,
+      description: entry.description,
+      source: 'catalog',
+      catalogId: id,
+      transport: entry.transport,
+      command: entry.transportConfig.command ?? null,
+      args: entry.transportConfig.args ?? null,
+      url: entry.transportConfig.url ?? null,
+      status: 'pending',
+      lastError: null,
+      lastErrorAt: null,
+      lastVerifiedAt: null,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const secrets: ConnectorSecret[] = (body.secrets ?? []).map((s) => ({
+      connectorId: 'transient',
+      key: s.key,
+      value: s.value,
+    }));
+    const result = await discoverTools(transient, secrets);
+    if ('error' in result) {
+      return c.json({ ok: false, errorKind: result.errorKind, error: result.error });
+    }
+    return c.json({ ok: true, tools: result.tools, durationMs: result.durationMs });
+  });
+
   // POST /test (transient — not yet saved)
   route.post('/test', zValidator('json', testConnectionSchema), async (c) => {
     const body = c.req.valid('json');

@@ -68,9 +68,7 @@ describe('GET /api/connectors', () => {
       transport: 'stdio',
       command: 'node',
       secrets: [{ key: 'TOKEN', value: 'xyz' }],
-      tools: [
-        { toolName: 't1', description: null, category: 'read', permission: 'always_allow' },
-      ],
+      tools: [{ toolName: 't1', description: null, category: 'read', permission: 'always_allow' }],
     });
     const res = await makeApp(db).request('/api/connectors', { headers: authed() });
     const body = (await res.json()) as Array<Record<string, unknown>>;
@@ -188,14 +186,11 @@ describe('PATCH /api/connectors/:id/tools/:toolName/permission', () => {
       secrets: [],
       tools: [{ toolName: 't1', description: null, category: 'read', permission: 'ask' }],
     });
-    const res = await makeApp(db).request(
-      `/api/connectors/${created.id}/tools/t1/permission`,
-      {
-        method: 'PATCH',
-        headers: { ...authed(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ permission: 'always_allow' }),
-      },
-    );
+    const res = await makeApp(db).request(`/api/connectors/${created.id}/tools/t1/permission`, {
+      method: 'PATCH',
+      headers: { ...authed(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ permission: 'always_allow' }),
+    });
     expect(res.status).toBe(204);
     expect(repo.getTools(created.id)[0]?.permission).toBe('always_allow');
   });
@@ -239,14 +234,11 @@ describe('PATCH /api/connectors/:id/tools/permissions/bulk', () => {
         { toolName: 'w1', description: null, category: 'write', permission: 'ask' },
       ],
     });
-    const res = await makeApp(db).request(
-      `/api/connectors/${created.id}/tools/permissions/bulk`,
-      {
-        method: 'PATCH',
-        headers: { ...authed(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category: 'read', permission: 'always_allow' }),
-      },
-    );
+    const res = await makeApp(db).request(`/api/connectors/${created.id}/tools/permissions/bulk`, {
+      method: 'PATCH',
+      headers: { ...authed(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: 'read', permission: 'always_allow' }),
+    });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { rowsAffected: number };
     expect(body.rowsAffected).toBe(2);
@@ -326,10 +318,9 @@ describe('GET /api/connectors/:id/secrets/:key/reveal', () => {
       secrets: [{ key: 'TOKEN', value: 'lin_test_xyz' }],
       tools: [],
     });
-    const res = await makeApp(db).request(
-      `/api/connectors/${created.id}/secrets/TOKEN/reveal`,
-      { headers: authed() },
-    );
+    const res = await makeApp(db).request(`/api/connectors/${created.id}/secrets/TOKEN/reveal`, {
+      headers: authed(),
+    });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ value: 'lin_test_xyz' });
   });

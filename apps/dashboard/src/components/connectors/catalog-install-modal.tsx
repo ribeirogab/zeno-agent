@@ -5,7 +5,7 @@ import {
   type DiscoveredToolApi,
   type TestConnectionResponse,
   useCreateCatalogConnector,
-  useTestConnection,
+  useTestCatalogConnection,
 } from '@/lib/connector-mutations';
 import { type CatalogEntryApi, useCatalog } from '@/lib/use-catalog';
 
@@ -20,7 +20,7 @@ export function CatalogInstallModal({
 }: CatalogInstallModalProps): JSX.Element | null {
   const catalog = useCatalog();
   const entry: CatalogEntryApi | undefined = catalog.data?.find((e) => e.id === catalogId);
-  const test = useTestConnection();
+  const test = useTestCatalogConnection();
   const create = useCreateCatalogConnector();
 
   const [secrets, setSecrets] = useState<Record<string, string>>({});
@@ -40,26 +40,13 @@ export function CatalogInstallModal({
     if (!entry) return;
     setTestResult(null);
     setDirtySinceTest(false);
-    const body = {
-      transport: entry.transport,
-      ...(entry.transport === 'stdio' ? { command: 'npx' } : {}),
-      // The catalog's transportConfig is on the server side; the test endpoint
-      // accepts the same fields the connector uses, so we replay what the
-      // catalog declares. To avoid duplicating that config here, the test
-      // endpoint also accepts a "minimal" transport+secrets — for stdio we
-      // pass the catalog's command/args via the create payload only, and the
-      // test happens via the connector_create handler's internal test on
-      // first install. So here we just go straight to create.
-      // (Implementation note: the synchronous /api/connectors/test endpoint
-      // is most useful for custom adds; catalog adds rely on the create-time test.)
+    // The catalog flow uses /api/connectors/catalog/:id/test — the server
+    // resolves transportConfig from the catalog entry so the dashboard only
+    // needs to send the secrets.
+    const result = await test.mutateAsync({
+      catalogId: entry.id,
       secrets: Object.entries(secrets).map(([key, value]) => ({ key, value })),
-    };
-    // For catalog adds we let the worker's create handler do the test.
-    // We still call /test here for symmetry with the design (and to give
-    // the operator early feedback) — passing the catalog's transport.
-    // The result might be 'not enough info' for stdio when command is missing;
-    // we ignore those soft errors and let create proceed.
-    const result = await test.mutateAsync(body);
+    });
     setTestResult(result);
   };
 

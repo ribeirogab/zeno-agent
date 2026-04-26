@@ -117,12 +117,28 @@ export type TestConnectionResponse =
   | { ok: true; tools: DiscoveredToolApi[]; durationMs: number }
   | { ok: false; errorKind: 'auth' | 'network' | 'timeout' | 'spawn' | 'unknown'; error: string };
 
+/** Custom Add flow — full transport details come from the form. */
 export function useTestConnection() {
   return useMutation<TestConnectionResponse, Error, TestConnectionRequest>({
     mutationFn: (body) =>
       apiFetch<TestConnectionResponse>('/api/connectors/test', {
         method: 'POST',
         body: JSON.stringify(body),
+      }),
+  });
+}
+
+/** Catalog Add flow — server resolves transportConfig from the catalog entry. */
+export function useTestCatalogConnection() {
+  return useMutation<
+    TestConnectionResponse,
+    Error,
+    { catalogId: string; secrets: Array<{ key: string; value: string }> }
+  >({
+    mutationFn: ({ catalogId, secrets }) =>
+      apiFetch<TestConnectionResponse>(`/api/connectors/catalog/${catalogId}/test`, {
+        method: 'POST',
+        body: JSON.stringify({ secrets }),
       }),
   });
 }

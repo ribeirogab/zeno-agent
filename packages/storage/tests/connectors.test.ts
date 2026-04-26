@@ -247,7 +247,9 @@ describe('ConnectorRepo — setToolPermission / setBulkPermission', () => {
     });
     expect(repo.setBulkPermission(created.id, 'read', 'always_allow')).toBe(2);
     const tools = repo.getTools(created.id);
-    expect(tools.filter((t) => t.category === 'read').every((t) => t.permission === 'always_allow')).toBe(true);
+    expect(
+      tools.filter((t) => t.category === 'read').every((t) => t.permission === 'always_allow'),
+    ).toBe(true);
     expect(tools.find((t) => t.toolName === 'w1')?.permission).toBe('ask');
   });
 });
@@ -338,7 +340,9 @@ describe('ConnectorRepo — invocations', () => {
       durationMs: 1,
     });
     expect(repo.countInvocationsSince(created.id, before)).toBe(1);
-    expect(repo.countInvocationsSince(created.id, new Date(Date.now() + 60_000).toISOString())).toBe(0);
+    expect(
+      repo.countInvocationsSince(created.id, new Date(Date.now() + 60_000).toISOString()),
+    ).toBe(0);
     closeDatabase(db);
   });
 });

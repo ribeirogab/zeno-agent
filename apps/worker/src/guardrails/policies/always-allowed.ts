@@ -29,7 +29,11 @@ export function makeAlwaysAllowedPolicy(opts: AlwaysAllowedOptions): PolicyMiddl
     name: 'always_allowed',
     async check(ctx) {
       if (opts.tools.some((pattern) => matchesToolPattern(ctx.toolName, pattern))) {
-        return { allow: true, reason: 'tool in always_allowed_tools', policyThatGated: 'auto_allow' };
+        return {
+          allow: true,
+          reason: 'tool in always_allowed_tools',
+          policyThatGated: 'auto_allow',
+        };
       }
 
       if (ctx.toolName === 'Bash' && opts.commands.length > 0) {

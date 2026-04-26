@@ -66,9 +66,7 @@ const SLUG_REGEX = /^[a-z0-9][a-z0-9-]*$/;
 
 function assertSlug(slug: string): void {
   if (!SLUG_REGEX.test(slug)) {
-    throw new Error(
-      `invalid slug ${JSON.stringify(slug)} — must match /^[a-z0-9][a-z0-9-]*$/`,
-    );
+    throw new Error(`invalid slug ${JSON.stringify(slug)} — must match /^[a-z0-9][a-z0-9-]*$/`);
   }
 }
 
@@ -228,13 +226,7 @@ export class ConnectorRepo {
          VALUES (?, ?, ?, ?, ?)`,
       );
       for (const tool of input.tools) {
-        insertTool.run(
-          id,
-          tool.toolName,
-          tool.description,
-          tool.category,
-          tool.permission,
-        );
+        insertTool.run(id, tool.toolName, tool.description, tool.category, tool.permission);
       }
     });
     insert();

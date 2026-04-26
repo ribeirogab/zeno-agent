@@ -4,6 +4,7 @@ import { createLogger, type Logger } from '@zeno/logger';
 import {
   ApprovalsLogRepo,
   CommandRepo,
+  ConnectorRepo,
   CronRepo,
   CronRunRepo,
   closeDatabase,
@@ -12,11 +13,13 @@ import {
   runMigrations,
   SessionRepo,
 } from '@zeno/storage';
-import { ClaudeCodeBackend } from '@/agent/backends/claude-code';
+import { ClaudeCodeBackend, type InvocationEvent } from '@/agent/backends/claude-code';
 import { MockBackend } from '@/agent/backends/mock';
 import { loadMockFixtures } from '@/agent/backends/mock-fixtures';
 import { AgentCore } from '@/agent/core';
-import { loadMcpConfig, type McpServerConfig } from '@/agent/mcp';
+import type { McpServerConfig } from '@/agent/mcp';
+import { buildMcpServersMap } from '@/agent/mcp-build';
+import { warnIfMcpJsonExists } from '@/agent/mcp-cutover';
 import {
   buildSystemPrompt,
   loadAgentFile,
@@ -43,6 +46,7 @@ import { makeAlwaysAllowedPolicy } from '@/guardrails/policies/always-allowed';
 import { makeAlwaysSensitivePolicy } from '@/guardrails/policies/always-sensitive';
 import { makeAuditLogger } from '@/guardrails/policies/audit';
 import { makeClassifierGatePolicy } from '@/guardrails/policies/classifier-gate';
+import { makeConnectorPermissionPolicy } from '@/guardrails/policies/connector-permission';
 import { makeReadOnlySkillPolicy } from '@/guardrails/policies/read-only-skill';
 import { loadSkillRegistry } from '@/guardrails/skill-registry';
 import type { PolicyMiddleware } from '@/guardrails/types';
@@ -71,9 +75,10 @@ async function run(cmd: string, args: string[], env?: NodeJS.ProcessEnv): Promis
 }
 
 interface BackendBuildOptions {
-  mcpServers: Record<string, McpServerConfig>;
+  getMcpServers: () => Record<string, McpServerConfig>;
   // biome-ignore lint/suspicious/noExplicitAny: in-process MCP server type is not exported
   inProcessMcpServers?: Record<string, any>;
+  onInvocation?: (event: InvocationEvent) => void;
 }
 
 /**
@@ -153,6 +158,7 @@ async function main(): Promise<void> {
   const commands = new CommandRepo(db);
   const logs = new LogRepo(db);
   const approvalsLog = new ApprovalsLogRepo(db);
+  const connectors = new ConnectorRepo(db);
 
   // Real logger now that the sink is available. Every log from here on is
   // persisted for the dashboard Logs page.
@@ -186,15 +192,63 @@ async function main(): Promise<void> {
     );
   }
 
-  const mcpServers = loadMcpConfig();
+  // Cutover warning for any pre-existing profile/mcp.json (spec 0032).
+  warnIfMcpJsonExists(logger);
+
+  // The MCP map is built per agent turn from the DB so connector edits land
+  // without restart. We resolve once at boot just for the log line.
+  const getMcpServers = () => buildMcpServersMap({ connectorRepo: connectors, logger });
+  const initialServers = getMcpServers();
   logger.info(
     {
       event: 'mcp_loaded',
-      count: Object.keys(mcpServers).length,
-      servers: Object.keys(mcpServers),
+      count: Object.keys(initialServers).length,
+      servers: Object.keys(initialServers),
     },
     'mcp servers loaded',
   );
+
+  // onInvocation handler — called from ClaudeCodeBackend after every tool
+  // result. Records into connector_invocations + bumps last_verified_at on
+  // success / last_error on transport failure. Spec 0032 P5.
+  const onInvocation = (event: InvocationEvent): void => {
+    try {
+      const match = event.toolName.match(/^mcp__([a-z0-9][a-z0-9-]*)__/);
+      if (!match) return;
+      const slug = match[1];
+      if (!slug) return;
+      const connector = connectors.getBySlug(slug);
+      if (!connector) return;
+      const bareTool = event.toolName.slice(`mcp__${slug}__`.length);
+      const now = new Date().toISOString();
+      connectors.recordInvocation({
+        connectorId: connector.id,
+        toolName: bareTool,
+        threadId: event.threadId,
+        correlationId: event.correlationId,
+        result: event.result,
+        durationMs: event.durationMs,
+        errorMessage: event.errorMessage,
+      });
+      if (event.result === 'ok') {
+        connectors.update(connector.id, {
+          lastVerifiedAt: now,
+          lastError: null,
+          lastErrorAt: null,
+        });
+      } else {
+        connectors.update(connector.id, {
+          lastError: (event.errorMessage ?? 'unknown error').slice(0, 500),
+          lastErrorAt: now,
+        });
+      }
+    } catch (err) {
+      logger.error(
+        { event: 'invocation_record_failed', err: String(err) },
+        'failed to record connector invocation',
+      );
+    }
+  };
 
   const gitIdentity = resolveGitIdentity();
   if (gitIdentity) {
@@ -214,7 +268,7 @@ async function main(): Promise<void> {
   const defaultCronChannel = process.env.ZENO_CRON_DEFAULT_CHANNEL ?? null;
 
   // Build runner first so its `runOnce` is bound to the cron tools
-  const backendForRunner = buildBackend(logger, { mcpServers });
+  const backendForRunner = buildBackend(logger, { getMcpServers, onInvocation });
   const runner = new CronRunner({
     crons,
     cronRuns,
@@ -263,6 +317,7 @@ async function main(): Promise<void> {
         commands: approvalsConfig.always_allowed_commands,
       }),
       makeReadOnlySkillPolicy(),
+      makeConnectorPermissionPolicy({ connectorRepo: connectors }),
       makeClassifierGatePolicy(classifier),
     ];
     const guardedDeps = {
@@ -278,14 +333,15 @@ async function main(): Promise<void> {
     // throwaway wrapper to obtain the hook, construct the real inner backend
     // with it, then build the final wrapper around it.
     const tempInner = new ClaudeCodeBackend({
-      mcpServers,
+      getMcpServers,
       inProcessMcpServers: { zeno: cronMcp },
     });
     const preToolUseHook = new GuardedBackend(tempInner, guardedDeps).buildPreToolUseHook();
     const guardedInner = new ClaudeCodeBackend({
-      mcpServers,
+      getMcpServers,
       inProcessMcpServers: { zeno: cronMcp },
       preToolUseHook,
+      onInvocation,
     });
     chatBackend = new GuardedBackend(guardedInner, guardedDeps);
     logger.info(
@@ -299,8 +355,9 @@ async function main(): Promise<void> {
     );
   } else {
     chatBackend = buildBackend(logger, {
-      mcpServers,
+      getMcpServers,
       inProcessMcpServers: { zeno: cronMcp },
+      onInvocation,
     });
     if (approvalsConfig && !isClaudeBackend) {
       logger.warn(
@@ -334,12 +391,6 @@ async function main(): Promise<void> {
       const next = loadStaticCrons();
       crons.replaceStaticSet(next);
       logger.info({ event: 'static_crons_reloaded', count: next.length }, 'static crons reloaded');
-    },
-    onMcpChanged: () => {
-      logger.warn(
-        { event: 'mcp_change_requires_restart' },
-        'profile/mcp.json changed — restart Zeno to apply',
-      );
     },
   });
 

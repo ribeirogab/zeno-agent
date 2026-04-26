@@ -1,8 +1,8 @@
 ---
-status: draft
+status: shipped
 feature: remote-mcp-runtime
 created: 2026-04-26
-shipped: null
+shipped: 2026-04-26
 ---
 # Remote MCP Runtime — Spec
 

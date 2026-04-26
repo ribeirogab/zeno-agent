@@ -1,5 +1,5 @@
 ---
-status: draft
+status: deferred
 feature: connectors-e2e
 created: 2026-04-26
 shipped: null

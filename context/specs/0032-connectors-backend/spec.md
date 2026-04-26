@@ -1,8 +1,8 @@
 ---
-status: draft
+status: shipped
 feature: connectors-backend
 created: 2026-04-26
-shipped: null
+shipped: 2026-04-26
 ---
 # Connectors Backend Foundation — Spec
 

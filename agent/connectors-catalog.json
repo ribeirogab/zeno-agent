@@ -92,9 +92,9 @@
       },
       "secrets": [
         {
-          "key": "SENTRY_AUTH_TOKEN",
-          "label": "Auth Token",
-          "help": "Create at sentry.io/settings/account/api/auth-tokens. Recommended scopes: org:read, project:read, event:read, member:read, alerts:read.",
+          "key": "SENTRY_ACCESS_TOKEN",
+          "label": "Access Token",
+          "help": "User Auth Token from sentry.io/settings/account/api/auth-tokens. Recommended scopes: org:read, project:read, event:read, member:read, alerts:read. (The package reads this env as `SENTRY_ACCESS_TOKEN` — different from SENTRY_AUTH_TOKEN used by other Sentry SDKs.)",
           "required": true
         },
         {

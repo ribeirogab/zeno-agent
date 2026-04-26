@@ -64,6 +64,22 @@ Channel = input ↔ output do operador. Connector = tool surface do agente. Conf
 - **Adicionar uma SaaS de produtividade** (Linear, Notion, Granola): só Connector. Não tem input do usuário ali.
 - **Slack-shaped** plataformas (Discord futuramente): provavelmente vai ser ambos.
 
+## Direção futura — unificação (decisão do operador, 2026-04-26)
+
+O operador quer **fundir Channel e Connector** num único conceito. A ideia: toda integração externa é um Connector; alguns Connectors têm uma "category" extra que diz se também aceitam input do usuário (tipo `channel`). Isso permite gerenciar Slack, Telegram, WhatsApp, email — tudo pelo mesmo dashboard, com a mesma UX de install/secrets/tools.
+
+Por que ainda não foi feito:
+- A interface `Channel` hoje é richer que MCP (postar mensagem, reagir, atualizar mensagem, esperar reaction como aprovação). Mapear isso pra MCP tools é viável mas não é trivial — algumas dessas operações precisam acontecer fora de uma turn do agente (ex.: aprovação durante uma turn em andamento).
+- O input loop (Slack Socket Mode → AgentCore) tem uma série de hooks (slack_context preamble, correlation id, thread state) que estão hardcoded ao Channel hoje.
+- Os tokens do Slack hoje carregam dois papéis: app-level (Socket Mode WebSocket) e bot (REST API). Connector só precisa do bot. O dashboard precisaria aceitar os dois.
+
+Quando puxar:
+- Spec proposta: `00XX-channels-as-connectors`. Adiciona uma coluna `category: 'channel' | 'tool'` (ou `is_channel: bool`) na tabela `connectors`. UI ganha um filtro/agrupamento "Channels" vs "Tools".
+- Bonus: cada Channel-connector também ganha as tools do MCP server correspondente (Slack post_message etc.) sem ser configurado duas vezes.
+- Pré-requisito: extrair a interface `Channel` pra um shape que possa ser instanciada a partir de um connector row + secrets.
+
+Deixar nesta nota: o operador disse "não precisa ser feito agora, deixe anotado em algum lugar pra gente puxar logo em seguida".
+
 ## Referências
 
 - Constitution §Why Zeno exists e §Architecture principles.

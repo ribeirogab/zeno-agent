@@ -78,6 +78,83 @@
         }
       ],
       "tags": ["communication", "team"]
+    },
+    {
+      "id": "sentry",
+      "name": "Sentry",
+      "description": "Errors, releases, issues across your projects.",
+      "icon": "sentry.svg",
+      "docsUrl": "https://docs.sentry.io/product/sentry-mcp/",
+      "transport": "stdio",
+      "transportConfig": {
+        "command": "npx",
+        "args": ["-y", "@sentry/mcp-server"]
+      },
+      "secrets": [
+        {
+          "key": "SENTRY_AUTH_TOKEN",
+          "label": "Auth Token",
+          "help": "Create at sentry.io/settings/account/api/auth-tokens. Recommended scopes: org:read, project:read, event:read, member:read, alerts:read.",
+          "required": true
+        },
+        {
+          "key": "SENTRY_HOST",
+          "label": "Host",
+          "help": "Defaults to sentry.io for the SaaS. Self-hosted Sentry: set to your domain (e.g. sentry.example.com).",
+          "required": false
+        }
+      ],
+      "tools": [
+        {
+          "name": "list_organizations",
+          "description": "List Sentry organizations the auth token can access.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_projects",
+          "description": "List projects in an organization.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_issues",
+          "description": "List recent issues filtered by org/project/query.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_issue",
+          "description": "Fetch a single issue by short-ID or URL.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "search_errors",
+          "description": "Search error events with Sentry's query syntax.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_releases",
+          "description": "List releases for an organization or project.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "resolve_issue",
+          "description": "Mark an issue as resolved.",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "assign_issue",
+          "description": "Assign an issue to a user or team.",
+          "category": "write",
+          "defaultPermission": "ask"
+        }
+      ],
+      "tags": ["observability", "errors"]
     }
   ]
 }

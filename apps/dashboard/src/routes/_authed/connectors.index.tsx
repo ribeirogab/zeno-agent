@@ -183,17 +183,10 @@ function Row({ c, last }: { c: ConnectorListItem; last: boolean }): JSX.Element 
 function Icon({ connector }: { connector: ConnectorListItem }): JSX.Element {
   const initial = connector.displayName.slice(0, 1).toUpperCase();
   if (connector.iconUrl) {
-    // Brand SVGs are self-contained app-icon tiles (their own bg + rounded
-    // corners + logo). Render the image at full tile size so the brand
-    // background fills the visible 32x32 area.
     return (
-      <img
-        src={connector.iconUrl}
-        alt={connector.displayName}
-        width={32}
-        height={32}
-        className="shrink-0 w-8 h-8 block"
-      />
+      <span className="shrink-0 w-8 h-8 inline-flex items-center justify-center bg-text-primary border border-gold-line">
+        <img src={connector.iconUrl} alt={connector.displayName} width={18} height={18} />
+      </span>
     );
   }
   const dashed = connector.status === 'pending';
@@ -317,13 +310,9 @@ function CatalogCard({
       }`}
     >
       <div className="flex items-center gap-3 w-full">
-        <img
-          src={item.iconUrl}
-          alt={item.name}
-          width={32}
-          height={32}
-          className="shrink-0 w-8 h-8 block"
-        />
+        <span className="shrink-0 w-8 h-8 inline-flex items-center justify-center bg-text-primary border border-gold-line">
+          <img src={item.iconUrl} alt={item.name} width={18} height={18} />
+        </span>
         <span className="flex-1 min-w-0 font-mono text-[13px] font-medium tracking-[0.02em] leading-4 text-text-primary truncate">
           {item.name}
         </span>

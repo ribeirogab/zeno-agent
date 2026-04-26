@@ -186,23 +186,19 @@ function Header({
   return (
     <header className="flex items-start justify-between gap-6 border-b border-border-subtle pb-6">
       <div className="flex items-start gap-4 flex-1 min-w-0">
-        {connector.iconUrl ? (
-          <img
-            src={connector.iconUrl}
-            alt={connector.displayName}
-            width={48}
-            height={48}
-            className={`shrink-0 w-12 h-12 block ${enabled ? '' : 'opacity-60'}`}
-          />
-        ) : (
-          <span
-            className={`shrink-0 w-12 h-12 inline-flex items-center justify-center bg-panel-2 border border-gold-line text-gold font-mono text-xl font-semibold leading-6 ${
-              enabled ? '' : 'opacity-60'
-            }`}
-          >
-            {connector.displayName.slice(0, 1).toUpperCase()}
-          </span>
-        )}
+        <span
+          className={`shrink-0 w-12 h-12 inline-flex items-center justify-center border border-gold-line ${
+            connector.iconUrl ? 'bg-text-primary' : 'bg-panel-2 text-gold'
+          } ${enabled ? '' : 'opacity-60'}`}
+        >
+          {connector.iconUrl ? (
+            <img src={connector.iconUrl} alt={connector.displayName} width={24} height={24} />
+          ) : (
+            <span className="font-mono text-xl font-semibold leading-6">
+              {connector.displayName.slice(0, 1).toUpperCase()}
+            </span>
+          )}
+        </span>
         <div className="flex-1 min-w-0 flex flex-col gap-2">
           <h1 className="m-0 font-mono text-2xl font-medium tracking-[0.02em] leading-[30px] text-text-primary">
             {connector.displayName}

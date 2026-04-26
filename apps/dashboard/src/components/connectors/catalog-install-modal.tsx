@@ -140,13 +140,9 @@ function Header({ entry }: { entry: CatalogEntryApi }): JSX.Element {
           )}
         </div>
       </div>
-      <img
-        src={entry.iconUrl}
-        alt={entry.name}
-        width={48}
-        height={48}
-        className="shrink-0 w-12 h-12 block"
-      />
+      <span className="shrink-0 w-12 h-12 inline-flex items-center justify-center bg-text-primary border border-gold-line">
+        <img src={entry.iconUrl} alt={entry.name} width={24} height={24} />
+      </span>
     </div>
   );
 }

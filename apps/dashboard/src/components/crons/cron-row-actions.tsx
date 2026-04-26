@@ -1,61 +1,94 @@
-import type { JSX, MouseEvent } from 'react';
+import type { JSX, MouseEvent, ReactNode } from 'react';
+import type { CronTableRow } from '@/components/crons/cron-row';
 import { useDeleteCron, usePauseCron, useResumeCron, useRunNowCron } from '@/lib/mutations';
-import type { CronApi } from '@/lib/use-crons';
 
 function stop(event: MouseEvent): void {
   event.preventDefault();
   event.stopPropagation();
 }
 
-const actionBase =
-  'border border-border-subtle bg-transparent px-2 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-secondary transition-all duration-[120ms] hover:border-gold-line hover:bg-gold-soft hover:text-gold';
-const actionDanger =
-  'border border-border-subtle bg-transparent px-2 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-secondary transition-all duration-[120ms] hover:border-status-failed/30 hover:bg-status-failed/[0.06] hover:text-status-failed';
-
-export function CronRowActions({ cron }: { cron: CronApi }): JSX.Element {
+/**
+ * Inline action cluster shown at the right of each cron row. Visual reference:
+ * `apps/design/src/routes/dashboard/crons/index.tsx` — `<Actions>`.
+ *
+ * This is the "live" variant that fires real mutations (pause/resume/run-now/
+ * delete). The list page also passes a `requestDelete` callback when it wants
+ * to surface a confirmation modal first; pass that via `onDelete`.
+ */
+export function CronRowActions({
+  row,
+  onDelete,
+}: {
+  row: CronTableRow;
+  onDelete?: (row: CronTableRow) => void;
+}): JSX.Element {
   const pause = usePauseCron();
   const resume = useResumeCron();
   const runNow = useRunNowCron();
   const deleteCron = useDeleteCron();
 
+  const isPaused = row.status === 'paused';
+  const running = row.running ?? false;
+
   return (
-    <span className="inline-flex gap-1 opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100">
-      <button
-        type="button"
-        className={actionBase}
-        onClick={(event) => {
-          stop(event);
-          runNow.mutate(cron.id);
+    <span className="inline-flex gap-1">
+      <ActionButton
+        disabled={running}
+        onClick={(e) => {
+          stop(e);
+          if (!running) runNow.mutate(row.id);
         }}
       >
-        ▶ run
-      </button>
-      <button
-        type="button"
-        className={actionBase}
-        onClick={(event) => {
-          stop(event);
-          if (cron.enabled) {
-            pause.mutate(cron.id);
-          } else {
-            resume.mutate(cron.id);
-          }
+        {running ? '… running' : '▶ run'}
+      </ActionButton>
+      <ActionButton
+        onClick={(e) => {
+          stop(e);
+          if (isPaused) resume.mutate(row.id);
+          else pause.mutate(row.id);
         }}
       >
-        {cron.enabled ? 'pause' : 'resume'}
-      </button>
-      {cron.source === 'chat' && (
-        <button
-          type="button"
-          className={actionDanger}
-          onClick={(event) => {
-            stop(event);
-            deleteCron.mutate(cron.id);
-          }}
-        >
-          del
-        </button>
-      )}
+        {isPaused ? 'resume' : 'pause'}
+      </ActionButton>
+      <ActionButton
+        danger
+        onClick={(e) => {
+          stop(e);
+          if (onDelete) onDelete(row);
+          else deleteCron.mutate(row.id);
+        }}
+      >
+        del
+      </ActionButton>
     </span>
+  );
+}
+
+function ActionButton({
+  children,
+  danger,
+  onClick,
+  disabled = false,
+}: {
+  children: ReactNode;
+  danger?: boolean;
+  onClick: (e: MouseEvent) => void;
+  disabled?: boolean;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`px-1.5 py-1 border border-border-subtle font-mono text-[9px] tracking-[0.06em] uppercase whitespace-nowrap transition-colors duration-[120ms] ${
+        disabled
+          ? 'text-gold border-gold-line bg-gold-soft cursor-default'
+          : danger
+            ? 'text-text-secondary hover:text-status-failed hover:border-status-failed/30 hover:bg-status-failed/[0.06] cursor-pointer'
+            : 'text-text-secondary hover:text-gold hover:border-gold-line hover:bg-gold-soft cursor-pointer'
+      }`}
+    >
+      {children}
+    </button>
   );
 }

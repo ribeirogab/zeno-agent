@@ -1,6 +1,7 @@
 export * from './components/alert-dialog';
 export * from './components/button';
 export * from './components/chip';
+export * from './components/command';
 export * from './components/corner-brackets';
 export * from './components/crest';
 export * from './components/dialog';

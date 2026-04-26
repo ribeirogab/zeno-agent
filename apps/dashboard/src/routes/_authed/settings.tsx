@@ -1,17 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { EmptyState, Kicker } from '@zeno/ui';
-import type { JSX } from 'react';
+import { type JSX, type ReactNode, useState } from 'react';
+import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
+import { RestartWorkerModal } from '@/components/modals/restart-worker-modal';
 import { AboutRow } from '@/components/settings/about-row';
 import { BackendCard } from '@/components/settings/backend-card';
 import { McpServerRow } from '@/components/settings/mcp-server-row';
 import { ProfileFileRow } from '@/components/settings/profile-file-row';
-import { RestartDialog } from '@/components/settings/restart-dialog';
-import { SettingsSkeleton } from '@/components/skeletons/settings-skeleton';
+import { SettingsSectionSkeleton } from '@/components/skeletons/settings-section-skeleton';
+import { useRestartWorker } from '@/lib/mutations';
 import { useHealth } from '@/lib/use-health';
-import { useSettings } from '@/lib/use-settings';
+import { type SettingsSnapshot, useSettings } from '@/lib/use-settings';
 
 export const Route = createFileRoute('/_authed/settings')({
-  component: SettingsPage,
+  component: SettingsScreen,
 });
 
 function formatUptime(seconds: number): string {
@@ -21,93 +22,207 @@ function formatUptime(seconds: number): string {
   return `${d}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m`;
 }
 
-function SettingsPage(): JSX.Element {
+function SettingsScreen(): JSX.Element {
   const q = useSettings();
   const health = useHealth();
-
-  if (q.isLoading || !q.data) {
-    return <SettingsSkeleton />;
-  }
-
-  const s = q.data;
-  const uptime = health.data?.uptime;
+  const restartWorker = useRestartWorker();
+  const [showRestart, setShowRestart] = useState(false);
 
   return (
-    <div className="zen-page">
-      <header className="flex items-end justify-between gap-6 border-b border-border-subtle pb-6">
-        <div>
-          <Kicker>system</Kicker>
-          <h1 className="mt-2 font-sans text-[32px] font-medium tracking-[-0.015em] text-text-primary">
-            settings
-          </h1>
-          <p className="mt-2.5 max-w-[640px] text-sm leading-relaxed text-text-secondary">
-            Read-only view. Most knobs live in{' '}
-            <span className="border border-border-subtle bg-panel-2 px-1.5 py-px font-mono text-xs text-gold">
-              .env
-            </span>{' '}
-            and{' '}
-            <span className="border border-border-subtle bg-panel-2 px-1.5 py-px font-mono text-xs text-gold">
-              profile/
-            </span>
-            ; edit there and Zeno hot-reloads.
-          </p>
-        </div>
-        <RestartDialog />
-      </header>
+    <>
+      <DashboardTopstrip crumbs={[{ label: 'settings', current: true }]} />
+      <div className="max-w-[1080px] w-full mx-auto px-12 pt-10 pb-30 flex flex-col gap-10 min-w-0">
+        <Header onRestart={() => setShowRestart(true)} />
+        {q.isLoading || !q.data ? (
+          <>
+            <SettingsSectionSkeleton title="backend" rows={1} />
+            <SettingsSectionSkeleton title="mcp servers" rows={5} />
+            <SettingsSectionSkeleton title="profile files" rows={5} />
+            <SettingsSectionSkeleton title="about" rows={3} />
+          </>
+        ) : (
+          <>
+            <BackendSection backend={q.data.backend} />
+            <McpSection servers={q.data.mcpServers} />
+            <ProfileFilesSection files={q.data.profileFiles} />
+            <AboutSection
+              backend={q.data.backend.name}
+              uptime={health.data?.uptime}
+              version="v0.3.1"
+            />
+          </>
+        )}
+      </div>
+      <RestartWorkerModal
+        open={showRestart}
+        onOpenChange={setShowRestart}
+        onConfirm={() => {
+          restartWorker.mutate();
+          setShowRestart(false);
+        }}
+      />
+    </>
+  );
+}
 
-      <section className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between border-b border-dashed border-border-subtle pb-2.5">
-          <h2 className="font-sans text-lg font-medium tracking-[-0.005em] text-text-primary">
-            backend
-          </h2>
-          <Kicker mute>selected at boot · ZENO_BACKEND={s.backend.name}</Kicker>
-        </div>
-        <BackendCard name={s.backend.name} selectedVia={s.backend.selectedVia} />
-      </section>
+// ─── Header ───────────────────────────────────────────────────────────────────
 
-      <section className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between border-b border-dashed border-border-subtle pb-2.5">
-          <h2 className="font-sans text-lg font-medium tracking-[-0.005em] text-text-primary">
-            mcp servers
-          </h2>
-          <Kicker mute>loaded from profile/mcp.json</Kicker>
-        </div>
-        <div className="flex flex-col border border-border-subtle bg-panel">
-          {s.mcpServers.length === 0 ? (
-            <EmptyState title="no servers configured" />
-          ) : (
-            s.mcpServers.map((m) => <McpServerRow key={m.name} server={m} />)
-          )}
-        </div>
-      </section>
+function Header({ onRestart }: { onRestart: () => void }): JSX.Element {
+  return (
+    <header className="flex items-end justify-between gap-6 border-b border-border-subtle pb-6">
+      <div className="flex flex-col flex-1">
+        <span className="font-mono text-[11px] font-medium tracking-[0.18em] leading-[14px] uppercase text-gold">
+          system
+        </span>
+        <h1 className="font-sans text-[32px] font-medium tracking-[-0.015em] leading-10 text-text-primary mt-2 m-0">
+          settings
+        </h1>
+        <p className="mt-2.5 max-w-[640px] m-0 font-sans text-sm leading-[1.6] text-text-secondary">
+          Read-only view. Most knobs live in <InlineCode>.env</InlineCode> and{' '}
+          <InlineCode>profile/</InlineCode>; edit there and Zeno hot-reloads.
+        </p>
+      </div>
+      <RestartWorkerButton onClick={onRestart} />
+    </header>
+  );
+}
 
-      <section className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between border-b border-dashed border-border-subtle pb-2.5">
-          <h2 className="font-sans text-lg font-medium tracking-[-0.005em] text-text-primary">
-            profile files
-          </h2>
-          <Kicker mute>bind-mounted · edits apply on next agent turn</Kicker>
-        </div>
-        <div className="flex flex-col border border-border-subtle bg-panel">
-          {s.profileFiles.map((f) => (
-            <ProfileFileRow key={f.path} file={f} />
-          ))}
-        </div>
-      </section>
+function InlineCode({ children }: { children: ReactNode }): JSX.Element {
+  return (
+    <span className="inline-block align-baseline bg-panel-2 border border-border-subtle px-1.5 py-px font-mono text-xs leading-[1.6] text-gold">
+      {children}
+    </span>
+  );
+}
 
-      <section className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between border-b border-dashed border-border-subtle pb-2.5">
-          <h2 className="font-sans text-lg font-medium tracking-[-0.005em] text-text-primary">
-            about
-          </h2>
-          <Kicker mute>runtime</Kicker>
-        </div>
-        <div className="flex flex-col border border-border-subtle bg-panel">
-          <AboutRow label="backend" value={s.backend.name} />
-          {uptime !== undefined && <AboutRow label="uptime" value={formatUptime(uptime)} />}
-          <AboutRow label="dashboard" value="vite · react · tanstack-router" />
-        </div>
-      </section>
-    </div>
+function RestartWorkerButton({ onClick }: { onClick: () => void }): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="self-end shrink-0 inline-flex items-center gap-2 px-3.5 py-2 border border-status-failed/30 font-mono text-xs font-medium tracking-[0.06em] leading-4 uppercase text-status-failed hover:bg-status-failed/[0.06] hover:border-status-failed transition-colors duration-[120ms]"
+    >
+      <RestartIcon />
+      restart worker
+    </button>
+  );
+}
+
+function RestartIcon(): JSX.Element {
+  return (
+    <svg
+      aria-hidden="true"
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0"
+    >
+      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+      <path d="M3 21v-5h5" />
+    </svg>
+  );
+}
+
+// ─── Sections ────────────────────────────────────────────────────────────────
+
+function Section({
+  title,
+  meta,
+  children,
+}: {
+  title: string;
+  meta: string;
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <section className="flex flex-col gap-4">
+      <div className="flex items-baseline justify-between border-b border-dashed border-border-subtle pb-2.5">
+        <h2 className="font-sans text-lg font-medium tracking-[-0.005em] leading-[22px] text-text-primary m-0">
+          {title}
+        </h2>
+        <span className="font-mono text-[10px] tracking-[0.2em] leading-3 uppercase text-text-tertiary">
+          {meta}
+        </span>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function BackendSection({ backend }: { backend: SettingsSnapshot['backend'] }): JSX.Element {
+  return (
+    <Section title="backend" meta={`selected via ${backend.selectedVia}`}>
+      <BackendCard
+        name={backend.name}
+        summary="Claude Agent SDK · OAuth · 300s timeout · gh + claude CLI verified at boot"
+      />
+    </Section>
+  );
+}
+
+function McpSection({ servers }: { servers: SettingsSnapshot['mcpServers'] }): JSX.Element {
+  return (
+    <Section title="mcp servers" meta="loaded from profile/mcp.json">
+      <div className="bg-panel border border-border-subtle flex flex-col">
+        {servers.length === 0 ? (
+          <div className="px-5 py-4 font-mono text-xs text-text-tertiary">
+            no servers configured.
+          </div>
+        ) : (
+          servers.map((m, i) => (
+            <McpServerRow
+              key={m.name}
+              server={m}
+              description={m.reason ?? ''}
+              caption={m.status === 'enabled' ? 'process · running' : ''}
+              last={i === servers.length - 1}
+            />
+          ))
+        )}
+      </div>
+    </Section>
+  );
+}
+
+function ProfileFilesSection({ files }: { files: SettingsSnapshot['profileFiles'] }): JSX.Element {
+  return (
+    <Section title="profile files" meta="bind-mounted · edits apply on next agent turn">
+      <div className="bg-panel border border-border-subtle flex flex-col">
+        {files.length === 0 ? (
+          <div className="px-5 py-4 font-mono text-xs text-text-tertiary">no files mounted.</div>
+        ) : (
+          files.map((f, i) => (
+            <ProfileFileRow key={f.path} file={f} last={i === files.length - 1} />
+          ))
+        )}
+      </div>
+    </Section>
+  );
+}
+
+function AboutSection({
+  backend,
+  uptime,
+  version,
+}: {
+  backend: string;
+  uptime: number | undefined;
+  version: string;
+}): JSX.Element {
+  return (
+    <Section title="about" meta="runtime">
+      <div className="bg-panel border border-border-subtle flex flex-col">
+        <AboutRow label="dashboard" value={`vite · react · tanstack-router · ${version}`} />
+        <AboutRow label="backend" value={backend} />
+        <AboutRow label="uptime" value={uptime !== undefined ? formatUptime(uptime) : '—'} last />
+      </div>
+    </Section>
   );
 }

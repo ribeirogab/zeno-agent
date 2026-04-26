@@ -1,222 +1,297 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
-import type { DotTone } from '@zeno/ui';
-import { Button, EmptyState, ErrorState, Kicker, Pill, Skeleton } from '@zeno/ui';
-import type { JSX } from 'react';
+import { createFileRoute } from '@tanstack/react-router';
+import { ErrorState } from '@zeno/ui';
+import cronstrue from 'cronstrue';
+import type { JSX, ReactNode } from 'react';
+import { useState } from 'react';
+import { CronActions } from '@/components/crons/cron-actions';
 import { CronRunHistoryRow } from '@/components/crons/cron-run-history-row';
-import { IcoPlay } from '@/components/icons';
-import { useDeleteCron, usePauseCron, useResumeCron, useRunNowCron } from '@/lib/mutations';
-import { useCron } from '@/lib/use-cron';
+import { type CronStatus, CronStatusPill } from '@/components/crons/cron-status-pill';
+import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
+import { DeleteCronModal } from '@/components/modals/delete-cron-modal';
+import { CronDetailRunsSkeleton } from '@/components/skeletons/cron-detail-runs-skeleton';
+import { useDeleteCron } from '@/lib/mutations';
+import { type CronRunApi, useCron } from '@/lib/use-cron';
 import type { CronApi } from '@/lib/use-crons';
 
 export const Route = createFileRoute('/_authed/crons/$id')({
-  component: CronDetailPage,
+  component: CronDetailScreen,
 });
 
-function cronTone(cron: CronApi): DotTone {
-  if (!cron.enabled) return 'paused';
-  return 'active';
-}
-
-function CronDetailPage(): JSX.Element {
+function CronDetailScreen(): JSX.Element {
   const { id } = Route.useParams();
   const query = useCron(id);
-  const pause = usePauseCron();
-  const resume = useResumeCron();
-  const runNow = useRunNowCron();
   const deleteCron = useDeleteCron();
+  const [pendingDelete, setPendingDelete] = useState<CronApi | null>(null);
 
   if (query.isLoading) {
     return (
-      <div className="zen-page">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-96" />
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-40 w-full" />
-      </div>
+      <>
+        <DashboardTopstrip
+          crumbs={[
+            { label: 'crons', to: '/crons' },
+            { label: '…', current: true },
+          ]}
+        />
+        <div className="max-w-[1080px] w-full mx-auto px-12 pt-10 pb-30 flex flex-col gap-10 min-w-0">
+          <CronDetailRunsSkeleton />
+        </div>
+      </>
     );
   }
 
   if (query.isError || !query.data) {
     return (
-      <div className="zen-page">
-        <ErrorState onRetry={() => void query.refetch()} />
-      </div>
+      <>
+        <DashboardTopstrip
+          crumbs={[
+            { label: 'crons', to: '/crons' },
+            { label: '…', current: true },
+          ]}
+        />
+        <div className="max-w-[1080px] w-full mx-auto px-12 pt-10 pb-30 flex flex-col gap-10 min-w-0">
+          <ErrorState
+            title="cron not found"
+            description="this cron could not be loaded."
+            onRetry={() => void query.refetch()}
+          />
+        </div>
+      </>
     );
   }
 
   const { cron, recentRuns } = query.data;
-  const tone = cronTone(cron);
+  const status: CronStatus = cron.enabled ? 'active' : 'paused';
 
   return (
-    <div className="zen-page">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 font-mono text-[11px] tracking-[0.06em]">
-        <Link
-          to="/crons"
-          className="border-0 bg-transparent p-0 font-mono text-[11px] uppercase tracking-[0.06em] text-text-tertiary transition-colors hover:text-text-primary"
-        >
-          crons
-        </Link>
-        <span className="text-text-tertiary">/</span>
-        <span className="uppercase text-gold">{cron.name}</span>
-      </nav>
-
-      {/* Page header */}
-      <header className="flex items-end justify-between gap-6 border-b border-border-subtle pb-6">
-        <div>
-          <h1 className="font-mono text-[28px] font-medium leading-tight tracking-[0.02em] text-text-primary">
-            {cron.name}
-          </h1>
-          {cron.description && (
-            <p className="mt-3 max-w-[620px] text-sm leading-relaxed text-text-secondary">
-              {cron.description}
-            </p>
-          )}
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <span className="border border-gold-line bg-panel-2 px-2.5 py-1 font-mono text-[13px] text-gold">
-              {cron.schedule}
-            </span>
-            <span className="text-text-tertiary">·</span>
-            <Pill tone={tone}>{tone === 'paused' ? 'paused' : 'active'}</Pill>
-            <span className="text-text-tertiary">·</span>
-            <span className="text-[13px] text-text-secondary">
-              source <span className="text-text-primary">{cron.source}</span>
-            </span>
-            {cron.nextRunAt && cron.enabled && (
-              <>
-                <span className="text-text-tertiary">·</span>
-                <span className="text-[13px] text-text-secondary">
-                  next{' '}
-                  <span className="text-text-primary">
-                    {new Date(cron.nextRunAt).toLocaleString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: false,
-                    })}
-                  </span>
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            variant="ghost"
-            disabled={cron.enabled ? pause.isPending : resume.isPending}
-            onClick={() => {
-              if (cron.enabled) {
-                pause.mutate(cron.id);
-              } else {
-                resume.mutate(cron.id);
-              }
-            }}
-          >
-            {cron.enabled ? 'pause' : 'resume'}
-          </Button>
-          <Button
-            variant="primary"
-            disabled={runNow.isPending || !cron.enabled}
-            onClick={() => runNow.mutate(cron.id)}
-          >
-            <IcoPlay size={12} />
-            run now
-          </Button>
-          {cron.source === 'chat' && (
-            <Button
-              variant="danger"
-              size="sm"
-              disabled={deleteCron.isPending}
-              onClick={() => deleteCron.mutate(cron.id)}
-            >
-              delete
-            </Button>
-          )}
-        </div>
-      </header>
-
-      {/* Prompt block */}
-      {cron.prompt && (
-        <section>
-          <pre className="relative mt-3 whitespace-pre-wrap border border-border-subtle border-l-2 border-l-gold bg-panel px-6 py-[22px] font-mono text-[13px] leading-[1.75] text-text-primary before:absolute before:-top-2 before:left-3 before:bg-canvas before:px-2 before:font-mono before:text-[9px] before:uppercase before:tracking-[0.2em] before:text-gold before:content-['PROMPT']">
-            {cron.prompt}
-          </pre>
-        </section>
-      )}
-
-      {/* Stats */}
-      <section className="grid grid-cols-4 gap-px border border-border-subtle bg-border-subtle">
-        <StatCell label="total runs" value={String(recentRuns.length)} sub="lifetime" />
-        <StatCell label="success rate" value={successRate(recentRuns)} sub="last 30d" gold />
-        <StatCell label="avg duration" value={avgDuration(recentRuns)} sub="recent runs" />
-        <StatCell
-          label="source"
-          value={cron.source}
-          sub={cron.source === 'chat' ? 'from slack' : 'config file'}
-        />
-      </section>
-
-      {/* Run history */}
-      <section className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between border-b border-dashed border-border-subtle pb-2.5">
-          <h2 className="font-sans text-lg font-medium tracking-[-0.005em] text-text-primary">
-            run history
-          </h2>
-          <Kicker mute>{recentRuns.length} runs · click to expand</Kicker>
-        </div>
-        {recentRuns.length === 0 ? (
-          <EmptyState title="no runs yet" />
-        ) : (
-          <div className="flex flex-col border border-border-subtle bg-panel py-1">
-            {recentRuns.map((run) => (
-              <CronRunHistoryRow key={run.id} run={run} />
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
+    <>
+      <DashboardTopstrip
+        crumbs={[
+          { label: 'crons', to: '/crons' },
+          { label: cron.name, current: true },
+        ]}
+      />
+      <div className="max-w-[1080px] w-full mx-auto px-12 pt-10 pb-30 flex flex-col gap-10 min-w-0">
+        <Header cron={cron} status={status} onRequestDelete={(c) => setPendingDelete(c)} />
+        <PromptBlock prompt={cron.prompt} />
+        <StatsStrip cron={cron} runs={recentRuns} />
+        <RunHistory runs={recentRuns} />
+      </div>
+      <DeleteCronModal
+        open={pendingDelete !== null}
+        onOpenChange={(v) => {
+          if (!v) setPendingDelete(null);
+        }}
+        cron={pendingDelete}
+        onConfirm={() => {
+          if (pendingDelete) deleteCron.mutate(pendingDelete.id);
+          setPendingDelete(null);
+        }}
+      />
+    </>
   );
 }
 
-function StatCell({
-  label,
-  value,
-  sub,
-  gold = false,
+// ─── Header + meta bar ───────────────────────────────────────────────────────
+
+function Header({
+  cron,
+  status,
+  onRequestDelete,
 }: {
-  label: string;
-  value: string;
-  sub: string;
-  gold?: boolean;
+  cron: CronApi;
+  status: CronStatus;
+  onRequestDelete: (cron: CronApi) => void;
 }): JSX.Element {
   return (
-    <div className="flex flex-col gap-2 overflow-hidden bg-panel px-5 py-5 transition-colors hover:bg-panel-2">
-      <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
-        {label}
+    <header className="flex items-end justify-between gap-6 border-b border-border-subtle pb-6">
+      <div className="flex flex-col flex-1 min-w-0">
+        <h1 className="font-mono text-[28px] font-medium tracking-[0.02em] leading-[34px] text-text-primary m-0">
+          {cron.name}
+        </h1>
+        {cron.description ? (
+          <p className="mt-3 max-w-[620px] m-0 font-sans text-sm leading-[1.6] text-text-secondary">
+            {cron.description}
+          </p>
+        ) : null}
+        <MetaBar cron={cron} status={status} />
+      </div>
+      <CronActions cron={cron} onRequestDelete={onRequestDelete} />
+    </header>
+  );
+}
+
+function MetaBar({ cron, status }: { cron: CronApi; status: CronStatus }): JSX.Element {
+  const human = humanSchedule(cron.schedule);
+  const nextRun = formatNextRun(cron);
+  return (
+    <div className="flex items-center flex-wrap gap-3 mt-4">
+      <span className="bg-panel-2 border border-gold-line px-2.5 py-1 font-mono text-[13px] leading-4 text-gold">
+        {cron.schedule}
       </span>
-      <span
-        className={`font-serif text-[44px] font-normal leading-none tracking-[-0.02em] ${gold ? 'text-gold' : 'text-text-primary'}`}
-        style={{ fontFeatureSettings: "'tnum' on, 'lnum' on" }}
-      >
-        {value}
+      <span className="font-mono text-[13px] leading-4 text-text-secondary">{human}</span>
+      <Sep />
+      <CronStatusPill status={status} />
+      <Sep />
+      <span className="font-sans text-[13px] leading-4 text-text-secondary">
+        source {cron.source}
       </span>
-      <span className="font-mono text-[10px] tracking-[0.06em] text-text-tertiary">{sub}</span>
+      {nextRun ? (
+        <>
+          <Sep />
+          <span className="font-sans text-[13px] leading-4 text-text-secondary">{nextRun}</span>
+        </>
+      ) : null}
     </div>
   );
 }
 
-function successRate(runs: Array<{ status: string }>): string {
-  if (runs.length === 0) return '—';
-  const ok = runs.filter((r) => r.status === 'success').length;
-  return `${Math.round((ok / runs.length) * 100)}%`;
+function Sep(): JSX.Element {
+  return <span className="font-sans text-base leading-5 text-text-tertiary select-none">·</span>;
 }
 
-function avgDuration(runs: Array<{ startedAt: string; finishedAt: string | null }>): string {
-  const finished = runs.filter((r) => r.finishedAt);
-  if (finished.length === 0) return '—';
-  const total = finished.reduce((acc, r) => {
-    return acc + (new Date(r.finishedAt as string).getTime() - new Date(r.startedAt).getTime());
-  }, 0);
-  return `${(total / finished.length / 1000).toFixed(1)}s`;
+// ─── Prompt block ────────────────────────────────────────────────────────────
+
+function PromptBlock({ prompt }: { prompt: string }): JSX.Element {
+  return (
+    <div className="relative bg-panel border border-border-subtle border-l-2 border-l-gold mt-3 px-6 py-[22px]">
+      <pre className="font-mono text-[13px] leading-[23px] text-text-primary whitespace-pre-wrap m-0">
+        {prompt}
+      </pre>
+      <span className="absolute -top-2 left-3 px-2 bg-canvas font-mono text-[9px] tracking-[0.2em] leading-4 text-gold">
+        PROMPT
+      </span>
+    </div>
+  );
+}
+
+// ─── Stats strip ─────────────────────────────────────────────────────────────
+
+function StatsStrip({ cron, runs }: { cron: CronApi; runs: CronRunApi[] }): JSX.Element {
+  const total = runs.length;
+  const succ = runs.filter((r) => r.status === 'success').length;
+  const successRate = total > 0 ? Math.round((succ / total) * 100) : 0;
+  const completed = runs.filter((r) => r.finishedAt);
+  const avgMs =
+    completed.length > 0
+      ? completed.reduce((acc, r) => {
+          const ms = r.finishedAt
+            ? new Date(r.finishedAt).getTime() - new Date(r.startedAt).getTime()
+            : 0;
+          return acc + ms;
+        }, 0) / completed.length
+      : 0;
+  const avgSec = (avgMs / 1000).toFixed(1);
+
+  return (
+    <div className="flex gap-px bg-border-subtle border border-border-subtle">
+      <StatCell label="total runs">
+        <ValueLg>{total}</ValueLg>
+        <Caption>recent</Caption>
+      </StatCell>
+      <StatCell label="success rate">
+        <ValueLg gold>{successRate}%</ValueLg>
+        <Caption>last {total} runs</Caption>
+      </StatCell>
+      <StatCell label="avg duration">
+        <span className="flex items-baseline">
+          <span className="font-serif text-[44px] tracking-[-0.02em] leading-none text-text-primary">
+            {avgSec}
+          </span>
+          <span className="font-serif text-[20px] tracking-[-0.02em] leading-none text-text-tertiary">
+            s
+          </span>
+        </span>
+        <Caption>{completed.length} completed</Caption>
+      </StatCell>
+      <StatCell label="notifies">
+        <span className="font-serif text-[32px] tracking-[-0.02em] leading-none text-text-primary">
+          {cron.notifyConversationId ? `#${cron.notifyConversationId.slice(0, 12)}` : '—'}
+        </span>
+        <Caption>slack channel</Caption>
+      </StatCell>
+    </div>
+  );
+}
+
+function StatCell({ label, children }: { label: string; children: ReactNode }): JSX.Element {
+  return (
+    <div className="flex-1 flex flex-col gap-2 bg-panel pt-5 px-5 pb-[18px]">
+      <span className="font-mono text-[10px] tracking-[0.18em] leading-3 uppercase text-text-tertiary">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function ValueLg({ children, gold }: { children: ReactNode; gold?: boolean }): JSX.Element {
+  return (
+    <span
+      className={`font-serif text-[44px] tracking-[-0.02em] leading-none ${
+        gold ? 'text-gold' : 'text-text-primary'
+      }`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function Caption({ children }: { children: ReactNode }): JSX.Element {
+  return (
+    <span className="font-mono text-[10px] tracking-[0.06em] leading-3 text-text-tertiary">
+      {children}
+    </span>
+  );
+}
+
+// ─── Run history ─────────────────────────────────────────────────────────────
+
+function RunHistory({ runs }: { runs: CronRunApi[] }): JSX.Element {
+  return (
+    <section className="flex flex-col gap-4">
+      <div className="flex items-baseline justify-between border-b border-dashed border-border-subtle pb-2.5">
+        <h2 className="font-sans text-lg font-medium tracking-[-0.005em] leading-[22px] text-text-primary m-0">
+          run history
+        </h2>
+        <span className="font-mono text-[10px] tracking-[0.2em] leading-3 uppercase text-text-tertiary">
+          {runs.length === 0
+            ? 'no runs yet'
+            : `last ${runs.length} run${runs.length === 1 ? '' : 's'} · click to expand`}
+        </span>
+      </div>
+      {runs.length === 0 ? (
+        <div className="bg-panel border border-border-subtle px-5 py-6 font-mono text-xs text-text-tertiary text-center">
+          run-now to see results here.
+        </div>
+      ) : (
+        <div className="bg-panel border border-border-subtle py-1 flex flex-col">
+          {runs.map((r) => (
+            <CronRunHistoryRow key={r.id} run={r} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function humanSchedule(cron: string): string {
+  try {
+    return cronstrue.toString(cron, { use24HourTimeFormat: true }).toLowerCase();
+  } catch {
+    return cron;
+  }
+}
+
+function formatNextRun(cron: CronApi): string {
+  if (!cron.enabled) return 'paused';
+  if (!cron.nextRunAt) return '';
+  const next = new Date(cron.nextRunAt);
+  const diff = next.getTime() - Date.now();
+  if (diff <= 0) return 'next now';
+  const min = Math.floor(diff / 60_000);
+  const hours = Math.floor(min / 60);
+  const mins = min % 60;
+  return hours > 0 ? `next in ${hours}h ${mins}m` : `next in ${mins}m`;
 }

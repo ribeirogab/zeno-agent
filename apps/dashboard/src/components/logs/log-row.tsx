@@ -1,19 +1,18 @@
-import { cn, Dot } from '@zeno/ui';
 import { type JSX, useState } from 'react';
 import { LogJsonBlock } from '@/components/logs/log-json-block';
 import type { LogApi } from '@/lib/log-filters';
 
-type LevelMeta = {
-  text: string;
-  colorClass: string;
-  dotTone: 'active' | 'paused' | 'failed' | 'idle';
-};
+type LevelTone = 'active' | 'paused' | 'failed';
 
-function levelLabel(level: number): LevelMeta {
-  if (level >= 50) return { text: 'ERROR', colorClass: 'text-status-failed', dotTone: 'failed' };
-  if (level >= 40) return { text: 'WARN', colorClass: 'text-status-paused', dotTone: 'paused' };
-  if (level >= 30) return { text: 'INFO', colorClass: 'text-status-active', dotTone: 'active' };
-  return { text: 'DEBUG', colorClass: 'text-text-tertiary', dotTone: 'idle' };
+interface LevelMeta {
+  label: 'INFO' | 'WARN' | 'ERROR';
+  tone: LevelTone;
+}
+
+function levelMeta(level: number): LevelMeta {
+  if (level >= 50) return { label: 'ERROR', tone: 'failed' };
+  if (level >= 40) return { label: 'WARN', tone: 'paused' };
+  return { label: 'INFO', tone: 'active' };
 }
 
 function fmtTs(iso: string): string {
@@ -25,57 +24,61 @@ function fmtTs(iso: string): string {
   return `${hh}:${mm}:${ss}.${ms}`;
 }
 
-function dotToneToLevelTone(
-  tone: 'active' | 'paused' | 'failed' | 'idle',
-): 'active' | 'paused' | 'failed' {
-  if (tone === 'failed') return 'failed';
-  if (tone === 'paused') return 'paused';
-  return 'active';
-}
+const DOT_BG: Record<LevelTone, string> = {
+  active: 'bg-status-active',
+  paused: 'bg-status-paused',
+  failed: 'bg-status-failed',
+};
+const TEXT_TONE: Record<LevelTone, string> = {
+  active: 'text-status-active',
+  paused: 'text-status-paused',
+  failed: 'text-status-failed',
+};
 
+/**
+ * One row in the streaming log list. Visual reference:
+ * `apps/design/src/routes/dashboard/logs/index.tsx` — `<LogRow>`. Click toggles
+ * the JSON payload expansion below the row.
+ */
 export function LogRow({ log, isNew = false }: { log: LogApi; isNew?: boolean }): JSX.Element {
   const [expanded, setExpanded] = useState(false);
-  const level = levelLabel(log.level);
+  const meta = levelMeta(log.level);
 
   return (
     <>
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
-        className={cn(
-          'flex cursor-pointer items-center gap-4 px-5 py-2.5 font-mono text-xs transition-colors hover:bg-panel-2',
-          isNew && 'animate-log-new',
-        )}
+        className={`flex items-center gap-4 px-5 py-2.5 cursor-pointer hover:bg-panel-2 transition-colors duration-[120ms] min-w-[760px] w-full text-left bg-transparent border-0 ${
+          isNew ? 'animate-log-new' : ''
+        }`}
       >
-        <span className="flex w-1.5 shrink-0 justify-center">
-          <Dot tone={level.dotTone} />
+        <span className="shrink-0 w-1.5 flex justify-center">
+          <span className={`w-1.5 h-1.5 rounded-full ${DOT_BG[meta.tone]}`} />
         </span>
-        <span className="w-[100px] shrink-0 font-mono text-xs text-text-tertiary">
+        <span className="shrink-0 w-[100px] font-mono text-xs leading-4 text-text-tertiary">
           {fmtTs(log.ts)}
         </span>
         <span
-          className={cn(
-            'w-[50px] shrink-0 font-mono text-[10px] font-semibold uppercase tracking-[0.15em]',
-            level.colorClass,
-          )}
+          className={`shrink-0 w-[50px] font-mono text-[10px] font-semibold tracking-[0.15em] leading-3 ${TEXT_TONE[meta.tone]}`}
         >
-          {level.text}
+          {meta.label}
         </span>
-        <span className="w-[210px] shrink-0 truncate font-mono text-[11px] text-gold">
+        <span className="shrink-0 w-[210px] font-mono text-[11px] leading-[14px] text-gold truncate">
           {log.event ?? '—'}
         </span>
-        <span className="flex-1 truncate font-mono text-xs text-text-primary">
+        <span className="flex-1 min-w-0 font-mono text-xs leading-4 text-text-primary truncate">
           {log.message ?? '(no message)'}
         </span>
-        <span className="w-[120px] shrink-0 text-right font-mono text-[10px] tracking-[0.04em] text-text-tertiary">
+        <span className="shrink-0 w-[120px] font-mono text-[10px] tracking-[0.04em] leading-3 text-text-tertiary text-right">
           {log.correlationId ?? '—'}
         </span>
       </button>
-      {expanded && (
+      {expanded ? (
         <div className="mx-5 mb-2.5">
-          <LogJsonBlock payload={log.payload} levelTone={dotToneToLevelTone(level.dotTone)} />
+          <LogJsonBlock payload={log.payload} levelTone={meta.tone} />
         </div>
-      )}
+      ) : null}
     </>
   );
 }

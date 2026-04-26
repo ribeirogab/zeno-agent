@@ -1,6 +1,9 @@
-import { cn, Dot } from '@zeno/ui';
 import type { JSX } from 'react';
 
+/**
+ * Follow / pause toggle for the SSE stream. Visual reference:
+ * `apps/design/src/routes/dashboard/logs/index.tsx` — `<FollowingPill>`.
+ */
 export function FollowingToggle({
   following,
   connected,
@@ -11,19 +14,21 @@ export function FollowingToggle({
   onChange: (v: boolean) => void;
 }): JSX.Element {
   const isActive = following && connected;
-
   return (
     <button
       type="button"
       onClick={() => onChange(!following)}
-      className={cn(
-        'inline-flex items-center gap-2 border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.15em] transition-all duration-[120ms]',
+      className={`self-end shrink-0 inline-flex items-center gap-2 px-3 py-1.5 border font-mono text-[10px] tracking-[0.15em] leading-3 uppercase transition-colors duration-[120ms] ${
         isActive
-          ? 'border-[rgba(107,211,163,0.35)] bg-[rgba(107,211,163,0.06)] text-status-active'
-          : 'border-border-subtle bg-transparent text-text-tertiary',
-      )}
+          ? 'bg-status-active/[0.06] border-status-active/35 text-status-active'
+          : 'border-border-subtle bg-transparent text-text-tertiary hover:border-border-strong'
+      }`}
     >
-      <Dot tone={isActive ? 'active' : 'idle'} pulse={isActive} />
+      <span
+        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+          isActive ? 'bg-status-active' : 'bg-text-tertiary'
+        }`}
+      />
       <span>{following ? 'following' : 'paused'}</span>
     </button>
   );

@@ -29,6 +29,7 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/tailwind-v4-source-directive-cross-package|Tailwind v4 `@source` directive for cross-package components]] — workspace packages self-register their content globs in `tokens.css`.
 - [[../learnings/lowercase-pill-convention|Lowercase pill convention]] — status pills lowercase, kickers and filter chips uppercase.
 - [[../learnings/optimistic-mutation-pattern|Optimistic-mutation primitive over TanStack useMutation]] — declarative wrapper handles snapshot/restore/invalidate; each mutation becomes ~10 lines of config.
+- [[../learnings/apps-design-role-and-ui-boundary|`apps/design`'s role and the `@zeno/ui` boundary]] — three-tier UI architecture; `@zeno/ui` stays primitive-only; never cross-app imports between `apps/design` and `apps/dashboard`.
 - [[../learnings/docker-multi-profile-via-compose|Multi-profile isolation via Docker Compose]] — same image, N compose files, N profile dirs; shared claude_home, isolated workspace volumes.
 - [[../learnings/skill-scoped-credentials-pattern|Skill-scoped credentials pattern]] — AWS keys, GitHub App private key, and Terraform all live inside the skill folder; referenced via env vars per-command.
 - [[../learnings/github-app-token-rotation|GitHub App token rotation]] — JWT → installation token exchange; per-org env vars; 55-min refresh loop; primary token overrides GH_TOKEN.
@@ -72,6 +73,8 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/git-credential-helper-for-token-rotation|Git credential helper for token rotation]] — never embed tokens in clone URLs; use a helper that reads GH_TOKEN from env at runtime.
 - [[../learnings/tailwind-merge-position-conflict|tailwind-merge silently resolves position conflicts]] — `fixed` + `relative` in the same `cn()` string: merge keeps the last one, dialog renders invisible.
 - [[../learnings/css-keyframes-must-exist-for-animations|CSS animations referencing missing @keyframes fail silently]] — `animate-[name]` without a `@keyframes name` block: no error, element stays at initial state.
+- [[../learnings/paper-mcp-file-identity-check|Always verify Paper's open file before consulting]] — `get_basic_info` first; if `fileName` doesn't match the project, stop. The user works in parallel on multiple Paper files.
+- [[../learnings/tailwind-v4-import-needs-workspace-dep|`@import "@workspace/pkg/path.css"` needs the dep declared]] — PostCSS uses Node resolution; without the workspace dep in `package.json`, the `@import` errors `ENOENT` even though the file exists.
 
 ## `#meta` — Workflow and process
 

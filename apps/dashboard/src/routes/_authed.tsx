@@ -1,5 +1,7 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
-import { Layout } from '@/components/layout/layout';
+import type { JSX } from 'react';
+import { DashboardCommandPalette } from '@/components/layout/dashboard-command-palette';
+import { DashboardSidebar } from '@/components/layout/dashboard-sidebar';
 import { ApiError, apiFetch } from '@/lib/api-client';
 
 export const Route = createFileRoute('/_authed')({
@@ -13,9 +15,17 @@ export const Route = createFileRoute('/_authed')({
       throw err;
     }
   },
-  component: () => (
-    <Layout>
-      <Outlet />
-    </Layout>
-  ),
+  component: AuthedLayout,
 });
+
+function AuthedLayout(): JSX.Element {
+  return (
+    <div className="flex min-h-screen bg-canvas">
+      <DashboardSidebar />
+      <main className="flex-1 flex flex-col overflow-auto">
+        <Outlet />
+      </main>
+      <DashboardCommandPalette />
+    </div>
+  );
+}

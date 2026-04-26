@@ -2,16 +2,20 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import type { JSX, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useOptimisticMutation } from '@/lib/use-optimistic-mutation';
 
-vi.mock('sonner', () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-  },
+const successMock = vi.fn();
+const failMock = vi.fn();
+
+vi.mock('@zeno/ui', () => ({
+  useToast: () => ({
+    success: successMock,
+    fail: failMock,
+    warn: vi.fn(),
+    dismiss: vi.fn(),
+  }),
 }));
 
-import { toast } from 'sonner';
+import { useOptimisticMutation } from '@/lib/use-optimistic-mutation';
 
 type Cron = { id: string; name: string; enabled: boolean };
 
@@ -30,8 +34,8 @@ describe('useOptimisticMutation', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.mocked(toast.success).mockReset();
-    vi.mocked(toast.error).mockReset();
+    successMock.mockReset();
+    failMock.mockReset();
     qc = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
@@ -52,8 +56,10 @@ describe('useOptimisticMutation', () => {
           optimisticUpdate: (id) => [
             {
               queryKey: ['crons'],
-              updater: (prev: Cron[] | undefined) =>
-                prev?.map((c) => (c.id === id ? { ...c, enabled: false } : c)),
+              updater: (prev) => {
+                const crons = prev as Cron[] | undefined;
+                return crons?.map((c) => (c.id === id ? { ...c, enabled: false } : c));
+              },
             },
           ],
           invalidateKeys: () => [['crons']],
@@ -67,8 +73,8 @@ describe('useOptimisticMutation', () => {
     });
 
     expect(qc.getQueryData<Cron[]>(['crons'])?.[0].enabled).toBe(false);
-    expect(toast.success).toHaveBeenCalledWith('paused');
-    expect(toast.error).not.toHaveBeenCalled();
+    expect(successMock).toHaveBeenCalledWith('paused');
+    expect(failMock).not.toHaveBeenCalled();
   });
 
   it('restores the snapshot and fires error toast when mutation rejects', async () => {
@@ -83,8 +89,10 @@ describe('useOptimisticMutation', () => {
           optimisticUpdate: (id) => [
             {
               queryKey: ['crons'],
-              updater: (prev: Cron[] | undefined) =>
-                prev?.map((c) => (c.id === id ? { ...c, enabled: false } : c)),
+              updater: (prev) => {
+                const crons = prev as Cron[] | undefined;
+                return crons?.map((c) => (c.id === id ? { ...c, enabled: false } : c));
+              },
             },
           ],
           invalidateKeys: () => [['crons']],
@@ -97,7 +105,7 @@ describe('useOptimisticMutation', () => {
     });
 
     expect(qc.getQueryData<Cron[]>(['crons'])?.[0].enabled).toBe(true);
-    expect(toast.error).toHaveBeenCalled();
+    expect(failMock).toHaveBeenCalled();
   });
 
   it('snapshots and restores multiple caches atomically', async () => {
@@ -116,13 +124,17 @@ describe('useOptimisticMutation', () => {
           optimisticUpdate: (id) => [
             {
               queryKey: ['crons'],
-              updater: (prev: Cron[] | undefined) =>
-                prev?.map((c) => (c.id === id ? { ...c, enabled: false } : c)),
+              updater: (prev) => {
+                const crons = prev as Cron[] | undefined;
+                return crons?.map((c) => (c.id === id ? { ...c, enabled: false } : c));
+              },
             },
             {
               queryKey: ['crons', id],
-              updater: (prev: { cron: Cron; recentRuns: unknown[] } | undefined) =>
-                prev ? { ...prev, cron: { ...prev.cron, enabled: false } } : prev,
+              updater: (prev) => {
+                const detail = prev as { cron: Cron; recentRuns: unknown[] } | undefined;
+                return detail ? { ...detail, cron: { ...detail.cron, enabled: false } } : detail;
+              },
             },
           ],
           invalidateKeys: () => [['crons'], ['crons', 'a']],
@@ -153,7 +165,7 @@ describe('useOptimisticMutation', () => {
       expect(v).toBe(42);
     });
 
-    expect(toast.success).toHaveBeenCalledWith('got 42');
+    expect(successMock).toHaveBeenCalledWith('got 42');
   });
 
   it('invalidateSoon fires after the delay', async () => {

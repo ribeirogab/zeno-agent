@@ -1,33 +1,32 @@
-import type { DotTone } from '@zeno/ui';
-import { Dot } from '@zeno/ui';
+import { Dot, type DotTone } from '@zeno/ui';
 import type { JSX } from 'react';
-import type { Activity } from '@/lib/use-activity';
 
-const statusTone: Record<Activity['status'], DotTone> = {
-  running: 'active',
-  success: 'active',
-  failed: 'failed',
-  skipped: 'idle',
-};
-
-function fmt(timestamp: string): string {
-  return new Date(timestamp).toLocaleTimeString('en-US', {
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+export interface ActivityRowData {
+  /** Time-of-day label, e.g. "23:42:00" */
+  ts: string;
+  /** Kind label, e.g. "cron · run" */
+  kind: string;
+  /** Human-readable summary */
+  summary: string;
+  /** Dot color tone */
+  tone: DotTone;
 }
 
-export function ActivityRow({ activity }: { activity: Activity }): JSX.Element {
+/**
+ * One row in the recent-activity stream on Home. Visual reference:
+ * `apps/design/src/routes/dashboard/home/index.tsx` — `<ActivityRow>`.
+ */
+export function ActivityRow({ row }: { row: ActivityRowData }): JSX.Element {
   return (
-    <div className="zen-activity-row">
-      <span className="zen-activity-dot">
-        <Dot tone={statusTone[activity.status]} />
+    <div className="flex items-center gap-4 px-5 py-2.5 font-mono text-xs transition-colors hover:bg-panel-2">
+      <div className="w-1.5 flex justify-center shrink-0">
+        <Dot tone={row.tone} />
+      </div>
+      <span className="w-[78px] text-text-tertiary shrink-0">{row.ts}</span>
+      <span className="w-[150px] text-gold text-[10px] tracking-[0.1em] uppercase shrink-0">
+        {row.kind}
       </span>
-      <span className="zen-ts">{fmt(activity.timestamp)}</span>
-      <span className="zen-event">{activity.kind.replace('_', ' · ')}</span>
-      <span className="zen-activity-summary">{activity.summary}</span>
+      <span className="flex-1 text-text-secondary text-xs min-w-0 truncate">{row.summary}</span>
     </div>
   );
 }

@@ -114,10 +114,10 @@ function LoginPage(): JSX.Element {
           <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-text-tertiary">
             zeno · agent console
           </span>
-          <h1 className="font-serif text-[34px] leading-tight text-text-primary">
+          <h1 className="font-serif text-[34px] font-normal tracking-[-0.02em] leading-[1.05] text-text-primary m-0">
             Identify yourself.
           </h1>
-          <p className="text-[13px] text-text-secondary" style={{ marginTop: 2 }}>
+          <p className="font-sans text-[13px] leading-[1.6] text-text-secondary m-0">
             Only the king speaks with the king.
           </p>
         </div>
@@ -147,16 +147,13 @@ function LoginPage(): JSX.Element {
         </div>
 
         {/* Terminal strip */}
-        <div
-          className="flex items-center gap-2 border border-border-subtle bg-canvas font-mono text-[11px] text-text-secondary"
-          style={{ marginTop: 4, padding: '10px 14px' }}
-        >
+        <div className="mt-1 px-3.5 py-2.5 bg-canvas border border-border-subtle font-mono text-[11px] text-text-secondary flex gap-2 items-center">
           <span className="text-gold">$</span>
           <span>
             {submitting ? TERMINAL_MESSAGES[seq % TERMINAL_MESSAGES.length] : 'awaiting passphrase'}
           </span>
           <span
-            className="ml-auto inline-block shrink-0 bg-gold"
+            className="inline-block shrink-0 bg-gold"
             style={{
               width: 7,
               height: 13,

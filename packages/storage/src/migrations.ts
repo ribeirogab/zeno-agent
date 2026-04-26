@@ -121,6 +121,63 @@ CREATE INDEX idx_approvals_log_profile_created ON approvals_log(profile, created
 CREATE INDEX idx_approvals_log_correlation ON approvals_log(correlation_id);
 `,
   },
+  {
+    id: 5,
+    name: 'connectors',
+    sql: `
+CREATE TABLE connectors (
+  id               TEXT PRIMARY KEY,
+  slug             TEXT NOT NULL UNIQUE
+                    CHECK (slug GLOB '[a-z0-9]*' AND slug NOT GLOB '*[^a-z0-9-]*' AND length(slug) >= 1),
+  display_name     TEXT NOT NULL,
+  description      TEXT,
+  source           TEXT NOT NULL CHECK (source IN ('catalog','custom')),
+  catalog_id       TEXT,
+  transport        TEXT NOT NULL CHECK (transport IN ('stdio','remote')),
+  command          TEXT,
+  args             TEXT,
+  url              TEXT,
+  status           TEXT NOT NULL CHECK (status IN ('enabled','disabled','pending')) DEFAULT 'enabled',
+  last_error       TEXT,
+  last_error_at    TEXT,
+  last_verified_at TEXT,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX idx_connectors_status_slug ON connectors(status, slug);
+
+CREATE TABLE connector_secrets (
+  connector_id TEXT NOT NULL REFERENCES connectors(id) ON DELETE CASCADE,
+  key          TEXT NOT NULL,
+  value        TEXT NOT NULL,
+  PRIMARY KEY (connector_id, key)
+);
+
+CREATE TABLE connector_tool_permissions (
+  connector_id TEXT NOT NULL REFERENCES connectors(id) ON DELETE CASCADE,
+  tool_name    TEXT NOT NULL,
+  description  TEXT,
+  category     TEXT NOT NULL CHECK (category IN ('read','write','interactive')),
+  permission   TEXT NOT NULL CHECK (permission IN ('always_allow','ask','never')),
+  PRIMARY KEY (connector_id, tool_name)
+);
+CREATE INDEX idx_connector_tool_permissions_connector ON connector_tool_permissions(connector_id);
+
+CREATE TABLE connector_invocations (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  connector_id   TEXT NOT NULL REFERENCES connectors(id) ON DELETE CASCADE,
+  tool_name      TEXT NOT NULL,
+  thread_id      TEXT,
+  correlation_id TEXT,
+  result         TEXT NOT NULL CHECK (result IN ('ok','error')),
+  duration_ms    INTEGER NOT NULL,
+  error_message  TEXT,
+  created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX idx_connector_invocations_connector_created ON connector_invocations(connector_id, created_at DESC);
+CREATE INDEX idx_connector_invocations_thread ON connector_invocations(thread_id);
+`,
+  },
 ];
 
 /**

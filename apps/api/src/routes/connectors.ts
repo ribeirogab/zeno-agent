@@ -219,7 +219,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       status: 200,
       headers: {
         'Content-Type': 'image/svg+xml',
-        'Cache-Control': 'public, max-age=86400',
+        // 5min cache: long enough for perf during a session, short enough that
+        // catalog SVG edits propagate without forcing the operator to hard-reload.
+        'Cache-Control': 'public, max-age=300',
       },
     });
   });

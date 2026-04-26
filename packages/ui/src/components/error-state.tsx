@@ -10,7 +10,7 @@ export interface ErrorStateProps {
 }
 
 export function ErrorState({
-  title = 'algo deu errado',
+  title = 'something went wrong',
   description,
   onRetry,
   className,
@@ -23,7 +23,7 @@ export function ErrorState({
       ) : null}
       {onRetry ? (
         <Button variant="ghost" size="sm" onClick={onRetry} className="mt-4">
-          tentar de novo
+          try again
         </Button>
       ) : null}
     </div>

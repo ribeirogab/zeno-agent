@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Button, CornerBrackets, Crest, Input } from '@zeno/ui';
+import { Button, CornerBrackets, Crest, Input, useToast } from '@zeno/ui';
 import { type FormEvent, type JSX, useEffect, useState } from 'react';
-import { toast } from 'sonner';
 import { ApiError, apiFetch } from '@/lib/api-client';
 
 export const Route = createFileRoute('/login')({
@@ -17,6 +16,7 @@ const TERMINAL_MESSAGES = [
 
 function LoginPage(): JSX.Element {
   const navigate = useNavigate();
+  const toast = useToast();
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [seq, setSeq] = useState(0);
@@ -39,9 +39,9 @@ function LoginPage(): JSX.Element {
       await navigate({ to: '/' });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        toast.error('invalid password');
+        toast.fail('invalid password');
       } else {
-        toast.error('unexpected error, try again');
+        toast.fail('unexpected error, try again');
       }
     } finally {
       setSubmitting(false);

@@ -20,12 +20,7 @@ describe('EmptyState', () => {
   });
 
   it('renders optional action', () => {
-    render(
-      <EmptyState
-        title="empty"
-        action={<button type="button">create</button>}
-      />,
-    );
+    render(<EmptyState title="empty" action={<button type="button">create</button>} />);
     expect(screen.getByRole('button', { name: 'create' })).toBeDefined();
   });
 

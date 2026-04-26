@@ -5,7 +5,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { useToast } from '@zeno/ui';
 import { formatError } from '@/lib/format-error';
 import { invalidateSoon } from '@/lib/invalidate-soon';
 
@@ -58,6 +58,7 @@ export function useOptimisticMutation<TVars, TResult = void>(
   opts: OptimisticMutationOptions<TVars, TResult>,
 ): UseMutationResult<TResult, unknown, TVars, OptimisticMutationContext> {
   const qc = useQueryClient();
+  const toast = useToast();
 
   return useMutation<TResult, unknown, TVars, OptimisticMutationContext>({
     mutationFn: opts.mutationFn,
@@ -86,7 +87,7 @@ export function useOptimisticMutation<TVars, TResult = void>(
         typeof opts.errorToast === 'function'
           ? opts.errorToast(err, vars)
           : (opts.errorToast ?? formatError(err));
-      toast.error(msg);
+      toast.fail(msg);
     },
 
     onSuccess: (result, vars) => {

@@ -22,16 +22,16 @@ function DestructiveModal({ onConfirm }: { onConfirm: () => void }) {
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>remover?</AlertDialogTitle>
-          <AlertDialogDescription>não pode desfazer.</AlertDialogDescription>
+          <AlertDialogTitle>delete?</AlertDialogTitle>
+          <AlertDialogDescription>cannot be undone.</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel asChild>
-            <Button variant="ghost">cancelar</Button>
+            <Button variant="ghost">cancel</Button>
           </AlertDialogCancel>
           <AlertDialogAction asChild>
             <Button variant="accent" onClick={onConfirm}>
-              remover
+              delete
             </Button>
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -44,15 +44,15 @@ describe('AlertDialog', () => {
   it('renders only the trigger initially', () => {
     render(<DestructiveModal onConfirm={() => {}} />);
     expect(screen.getByRole('button', { name: 'Delete' })).toBeDefined();
-    expect(screen.queryByText('remover?')).toBeNull();
+    expect(screen.queryByText('delete?')).toBeNull();
   });
 
   it('opens on trigger click and shows title + description', async () => {
     const user = userEvent.setup();
     render(<DestructiveModal onConfirm={() => {}} />);
     await user.click(screen.getByRole('button', { name: 'Delete' }));
-    expect(await screen.findByText('remover?')).toBeDefined();
-    expect(screen.getByText('não pode desfazer.')).toBeDefined();
+    expect(await screen.findByText('delete?')).toBeDefined();
+    expect(screen.getByText('cannot be undone.')).toBeDefined();
   });
 
   it('calls onConfirm when the accent action is clicked', async () => {
@@ -60,7 +60,7 @@ describe('AlertDialog', () => {
     const user = userEvent.setup();
     render(<DestructiveModal onConfirm={onConfirm} />);
     await user.click(screen.getByRole('button', { name: 'Delete' }));
-    await user.click(await screen.findByRole('button', { name: 'remover' }));
+    await user.click(await screen.findByRole('button', { name: 'delete' }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
@@ -69,7 +69,7 @@ describe('AlertDialog', () => {
     const user = userEvent.setup();
     render(<DestructiveModal onConfirm={onConfirm} />);
     await user.click(screen.getByRole('button', { name: 'Delete' }));
-    await user.click(await screen.findByRole('button', { name: 'cancelar' }));
+    await user.click(await screen.findByRole('button', { name: 'cancel' }));
     expect(onConfirm).not.toHaveBeenCalled();
   });
 });

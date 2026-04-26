@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { useToast } from '@zeno/ui';
 import { apiFetch } from '@/lib/api-client';
 import { formatError } from '@/lib/format-error';
 import { tempId } from '@/lib/temp-id';
@@ -120,9 +120,10 @@ export function useCreateCron() {
 
 // Plain useMutation — no cache effect, so no optimistic primitive.
 export function useRestartWorker() {
+  const toast = useToast();
   return useMutation({
     mutationFn: () => apiFetch<void>('/api/settings/restart', { method: 'POST' }),
     onSuccess: () => toast.success('restarting worker…'),
-    onError: (err) => toast.error(formatError(err)),
+    onError: (err) => toast.fail(formatError(err)),
   });
 }

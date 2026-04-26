@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "design",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@zeno/design", "dev"],
+      "port": 5174
+    }
+  ]
+}

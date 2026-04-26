@@ -17,34 +17,34 @@ describe('EmptyState', () => {
   it('renders title and optional description + action', () => {
     render(
       <EmptyState
-        title="nada por aqui"
-        description="crie seu primeiro item."
-        action={<button type="button">novo</button>}
+        title="nothing here"
+        description="create your first item."
+        action={<button type="button">new</button>}
       />,
     );
-    expect(screen.getByText('nada por aqui')).toBeDefined();
-    expect(screen.getByText('crie seu primeiro item.')).toBeDefined();
-    expect(screen.getByRole('button', { name: 'novo' })).toBeDefined();
+    expect(screen.getByText('nothing here')).toBeDefined();
+    expect(screen.getByText('create your first item.')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'new' })).toBeDefined();
   });
 
   it('omits description and action when not provided', () => {
-    render(<EmptyState title="só o título" />);
-    expect(screen.getByText('só o título')).toBeDefined();
+    render(<EmptyState title="title only" />);
+    expect(screen.getByText('title only')).toBeDefined();
     expect(screen.queryByRole('button')).toBeNull();
   });
 });
 
 describe('ErrorState', () => {
-  it('uses default title "algo deu errado"', () => {
+  it('uses default title "something went wrong"', () => {
     render(<ErrorState />);
-    expect(screen.getByText('algo deu errado')).toBeDefined();
+    expect(screen.getByText('something went wrong')).toBeDefined();
   });
 
   it('calls onRetry when the button is clicked', async () => {
     const onRetry = vi.fn();
     const user = userEvent.setup();
     render(<ErrorState onRetry={onRetry} />);
-    await user.click(screen.getByRole('button', { name: 'tentar de novo' }));
+    await user.click(screen.getByRole('button', { name: 'try again' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 

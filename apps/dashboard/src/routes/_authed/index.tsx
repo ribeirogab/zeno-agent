@@ -18,7 +18,7 @@ export const Route = createFileRoute('/_authed/')({
   component: HomePage,
 });
 
-const USER_NAME = 'Operator';
+const USER_NAME = 'Alex';
 
 function formatCountdown(nextRunAt: string, now: Date): string {
   const diff = new Date(nextRunAt).getTime() - now.getTime();

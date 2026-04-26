@@ -117,9 +117,9 @@ export function Sidebar(): JSX.Element {
 
       {/* User */}
       <div className="zen-user">
-        <div className="zen-avatar">GR</div>
+        <div className="zen-avatar">AL</div>
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-          <span className="zen-user-name">operator</span>
+          <span className="zen-user-name">alex</span>
           <span className="zen-user-meta">single-owner {'·'} hmac</span>
         </div>
         <Link to="/login" className="zen-user-logout">

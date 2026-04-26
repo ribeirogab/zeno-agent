@@ -17,7 +17,8 @@
       "!**/dist/**",
       "!**/node_modules/**",
       "!**/.turbo/**",
-      "!apps/dashboard/src/route-tree.gen.ts"
+      "!apps/dashboard/src/route-tree.gen.ts",
+      "!apps/design/src/route-tree.gen.ts"
     ]
   },
   "formatter": {
@@ -59,7 +60,7 @@
   },
   "overrides": [
     {
-      "includes": ["apps/dashboard/src/routes/**"],
+      "includes": ["apps/dashboard/src/routes/**", "apps/design/src/routes/**"],
       "linter": {
         "rules": {
           "style": {

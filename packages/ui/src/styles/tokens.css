@@ -11,11 +11,11 @@
 @source "../components/**/*.{ts,tsx}";
 
 @theme {
-  /* Surfaces */
-  --color-canvas: #0A0A10;
+  /* Surfaces — values reconciled with Paper's "02 · Palette — Surfaces" artboard */
+  --color-canvas: #08090F;
   --color-panel: #0f1119;
   --color-panel-2: #151824;
-  --color-sidebar: #050610;
+  --color-sidebar: #05060F;
 
   /* Borders */
   --color-border-subtle: #1e2131;

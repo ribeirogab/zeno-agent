@@ -12,6 +12,6 @@ export * from './components/kicker';
 export * from './components/losango';
 export * from './components/pill';
 export * from './components/skeleton';
-export * from './components/sonner';
 export * from './components/spark';
+export * from './components/toast';
 export { cn } from './utils';

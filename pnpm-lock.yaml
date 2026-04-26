@@ -185,6 +185,9 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.2.110
         version: 0.2.110(zod@4.3.6)
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.29.0
+        version: 1.29.0(zod@4.3.6)
       '@slack/bolt':
         specifier: ^4.7.0
         version: 4.7.0(@types/express@5.0.6)

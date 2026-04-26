@@ -283,6 +283,7 @@ async function main(): Promise<void> {
     buildHandlerMap({
       crons,
       cronRuns,
+      connectors,
       runner,
       exit: (code) => process.exit(code),
     }),

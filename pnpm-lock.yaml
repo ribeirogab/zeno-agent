@@ -38,6 +38,9 @@ importers:
       '@zeno/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@zeno/mcp-discover':
+        specifier: workspace:*
+        version: link:../../packages/mcp-discover
       '@zeno/storage':
         specifier: workspace:*
         version: link:../../packages/storage
@@ -185,15 +188,15 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.2.110
         version: 0.2.110(zod@4.3.6)
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.29.0
-        version: 1.29.0(zod@4.3.6)
       '@slack/bolt':
         specifier: ^4.7.0
         version: 4.7.0(@types/express@5.0.6)
       '@zeno/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@zeno/mcp-discover':
+        specifier: workspace:*
+        version: link:../../packages/mcp-discover
       '@zeno/storage':
         specifier: workspace:*
         version: link:../../packages/storage
@@ -222,6 +225,22 @@ importers:
       pino:
         specifier: ^10.3.1
         version: 10.3.1
+    devDependencies:
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.2
+      vitest:
+        specifier: ^4.1.4
+        version: 4.1.4(@types/node@25.6.0)(happy-dom@20.9.0)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/mcp-discover:
+    dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.29.0
+        version: 1.29.0(zod@4.3.6)
+      '@zeno/storage':
+        specifier: workspace:*
+        version: link:../storage
     devDependencies:
       typescript:
         specifier: ^6.0.2

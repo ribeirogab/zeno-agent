@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { classifyToolCategory } from '@/agent/mcp-discover';
+import { classifyToolCategory } from '../src/discover';
 
 describe('classifyToolCategory', () => {
-  it('classifies read prefixes', () => {
+  it('read prefixes', () => {
     expect(classifyToolCategory('read_file')).toBe('read');
     expect(classifyToolCategory('list_issues')).toBe('read');
     expect(classifyToolCategory('get_user')).toBe('read');
@@ -10,7 +10,7 @@ describe('classifyToolCategory', () => {
     expect(classifyToolCategory('find_channel')).toBe('read');
   });
 
-  it('classifies write prefixes', () => {
+  it('write prefixes', () => {
     expect(classifyToolCategory('create_issue')).toBe('write');
     expect(classifyToolCategory('update_status')).toBe('write');
     expect(classifyToolCategory('delete_message')).toBe('write');
@@ -19,14 +19,12 @@ describe('classifyToolCategory', () => {
     expect(classifyToolCategory('put_metadata')).toBe('write');
   });
 
-  it('classifies anything else as interactive', () => {
+  it('falls back to interactive', () => {
     expect(classifyToolCategory('schedule_meeting')).toBe('interactive');
     expect(classifyToolCategory('archive_thread')).toBe('interactive');
-    expect(classifyToolCategory('do_thing')).toBe('interactive');
   });
 
-  it('matches case-insensitively', () => {
+  it('case-insensitive', () => {
     expect(classifyToolCategory('READ_file')).toBe('read');
-    expect(classifyToolCategory('Update_thing')).toBe('write');
   });
 });

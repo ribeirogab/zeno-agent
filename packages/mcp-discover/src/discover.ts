@@ -1,24 +1,9 @@
-/**
- * Discover the tool list of an MCP server. Used by the dashboard's "Test
- * connection" / "Refresh tools" flows (spec 0034) and by the worker's internal
- * test-connection on credential edits.
- *
- * Both transports go through the official `@modelcontextprotocol/sdk` client:
- *   - stdio: spawn the command, speak JSON-RPC over stdin/stdout, request
- *     `tools/list`, kill the process.
- *   - remote: open an HTTP/SSE connection per the connector's URL + headers
- *     (matches the SDK config produced by toRemoteConfig), request
- *     `tools/list`, close.
- *
- * Spec 0033 §Stdio path defines the errorKind taxonomy used here.
- */
-
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { Connector, ConnectorSecret, ToolCategory } from '@zeno/storage';
-import { toRemoteConfig, toStdioConfig } from '@/agent/mcp-build';
+import { toRemoteConfig, toStdioConfig } from './build-config.js';
 
 export interface DiscoveredTool {
   name: string;
@@ -37,11 +22,6 @@ const DISCOVER_TIMEOUT_MS = 10_000;
 const READ_PREFIXES = ['read_', 'list_', 'get_', 'search_', 'find_'];
 const WRITE_PREFIXES = ['create_', 'update_', 'delete_', 'send_', 'post_', 'put_'];
 
-/**
- * Heuristic category classifier used for tools discovered on custom MCPs (no
- * catalog metadata to rely on). Catalog entries declare categories explicitly
- * and skip this path.
- */
 export function classifyToolCategory(name: string): ToolCategory {
   const lower = name.toLowerCase();
   if (READ_PREFIXES.some((p) => lower.startsWith(p))) return 'read';
@@ -88,20 +68,12 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-/**
- * Open an MCP client, request `tools/list`, classify, return.
- *
- * Spec 0033 §Behavior parity matrix — same shape for both transports.
- */
 export async function discoverTools(
   connector: Connector,
   secrets: ConnectorSecret[],
 ): Promise<DiscoverToolsResult> {
   const start = Date.now();
-  const client = new Client(
-    { name: 'zeno-discover', version: '0.1.0' },
-    { capabilities: {} },
-  );
+  const client = new Client({ name: 'zeno-discover', version: '0.1.0' }, { capabilities: {} });
 
   try {
     if (connector.transport === 'stdio') {
@@ -110,22 +82,20 @@ export async function discoverTools(
       const transport = new StdioClientTransport({
         command: config.command,
         args: config.args ?? [],
-        env: config.env,
+        ...(config.env ? { env: config.env } : {}),
       });
       await withTimeout(client.connect(transport), DISCOVER_TIMEOUT_MS);
     } else {
       const config = toRemoteConfig(connector, secrets);
       if (!config.url) throw new Error('connector has transport=remote but no url');
       const url = new URL(config.url);
+      const headers = config.headers;
+      const requestInit = headers ? { headers } : undefined;
       const transport =
         config.type === 'sse'
-          ? new SSEClientTransport(url, {
-              requestInit: { headers: config.headers },
-            })
-          : new StreamableHTTPClientTransport(url, {
-              requestInit: { headers: config.headers },
-            });
-      await withTimeout(client.connect(transport), DISCOVER_TIMEOUT_MS);
+          ? new SSEClientTransport(url, requestInit ? { requestInit } : {})
+          : new StreamableHTTPClientTransport(url, requestInit ? { requestInit } : {});
+      await withTimeout(client.connect(transport as never), DISCOVER_TIMEOUT_MS);
     }
 
     const result = await withTimeout(client.listTools(), DISCOVER_TIMEOUT_MS);

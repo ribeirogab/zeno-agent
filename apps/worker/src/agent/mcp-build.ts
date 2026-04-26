@@ -1,83 +1,30 @@
 /**
  * Build the SDK's `mcpServers` option from the DB-managed connectors. Spec 0032.
  *
- * Two layers feed the agent's MCP map:
- *   1. agent/mcp.json — built-in MCPs (cron tools, etc.). Unchanged from the
- *      pre-cutover loader, kept in `loadAgentMcpConfig`.
- *   2. DB — user-managed connectors (`status='enabled'`).
- *
- * `profile/mcp.json` is no longer read. A boot-time warning lists any servers
- * declared there so the operator knows their old config is inert
- * (`warnIfMcpJsonExists`, in `mcp-cutover.ts`).
+ * The transport-specific helpers (`toStdioConfig`, `toRemoteConfig`) and the
+ * reserved-key constants live in `@zeno/mcp-discover` and are re-exported here
+ * for backward-compatible imports. This file owns the worker-side concerns:
+ *   - reading agent/mcp.json (built-ins)
+ *   - applying user connectors from the DB
+ *   - persisting `last_error` when a connector fails to build
  */
 
 import type { Logger } from '@zeno/logger';
-import type { Connector, ConnectorRepo, ConnectorSecret } from '@zeno/storage';
+import {
+  RESERVED_AUTHORIZATION_KEY,
+  RESERVED_MCP_TYPE_KEY,
+  toRemoteConfig,
+  toStdioConfig,
+} from '@zeno/mcp-discover';
+import type { ConnectorRepo } from '@zeno/storage';
 import type { McpServerConfig } from '@/agent/mcp';
 import { loadAgentMcpConfig } from '@/agent/mcp';
 
-// Reserved secret keys consumed by the loader (not forwarded to the MCP).
-// Spec 0033 reserves `__MCP_TYPE__` and `__MCP_AUTHORIZATION__` for the remote
-// transport. The stdio path also recognizes them: `__MCP_TYPE__` is ignored
-// (only relevant for remote URL classification); `__MCP_AUTHORIZATION__` is
-// passed as the env var `AUTHORIZATION` if any stdio MCP cares to use it.
-export const RESERVED_MCP_TYPE_KEY = '__MCP_TYPE__';
-export const RESERVED_AUTHORIZATION_KEY = '__MCP_AUTHORIZATION__';
+export { RESERVED_AUTHORIZATION_KEY, RESERVED_MCP_TYPE_KEY, toRemoteConfig, toStdioConfig };
 
 interface BuildMcpServersOptions {
   connectorRepo: ConnectorRepo;
   logger: Logger;
-}
-
-export function toStdioConfig(connector: Connector, secrets: ConnectorSecret[]): McpServerConfig {
-  if (!connector.command) {
-    throw new Error(`connector ${connector.slug} has transport=stdio but no command`);
-  }
-  const env: Record<string, string> = {};
-  for (const s of secrets) {
-    if (s.key === RESERVED_MCP_TYPE_KEY) continue;
-    if (s.key === RESERVED_AUTHORIZATION_KEY) {
-      env.AUTHORIZATION = s.value;
-      continue;
-    }
-    env[s.key] = s.value;
-  }
-  return {
-    type: 'stdio',
-    command: connector.command,
-    args: connector.args ?? [],
-    env: Object.keys(env).length > 0 ? env : undefined,
-  };
-}
-
-function pickRemoteType(url: string, override?: string): 'http' | 'sse' {
-  if (override === 'http' || override === 'sse') return override;
-  return /\/sse\/?$/i.test(url) ? 'sse' : 'http';
-}
-
-export function toRemoteConfig(connector: Connector, secrets: ConnectorSecret[]): McpServerConfig {
-  if (!connector.url) {
-    throw new Error(`connector ${connector.slug} has transport=remote but no url`);
-  }
-  const headers: Record<string, string> = {};
-  let typeOverride: string | undefined;
-  for (const s of secrets) {
-    if (s.key === RESERVED_MCP_TYPE_KEY) {
-      typeOverride = s.value;
-      continue;
-    }
-    if (s.key === RESERVED_AUTHORIZATION_KEY) {
-      headers.Authorization = s.value;
-      continue;
-    }
-    headers[s.key] = s.value;
-  }
-  const type = pickRemoteType(connector.url, typeOverride);
-  return {
-    type,
-    url: connector.url,
-    headers: Object.keys(headers).length > 0 ? headers : undefined,
-  };
 }
 
 /**

@@ -3,6 +3,212 @@
   "version": 1,
   "connectors": [
     {
+      "id": "linear",
+      "name": "Linear",
+      "description": "Issues, projects, cycles, docs, and team metadata.",
+      "icon": "linear.svg",
+      "docsUrl": "https://linear.app/docs/mcp",
+      "transport": "remote",
+      "transportConfig": {
+        "url": "https://mcp.linear.app/mcp"
+      },
+      "authCheckTool": "list_teams",
+      "secrets": [
+        {
+          "key": "__MCP_AUTHORIZATION__",
+          "label": "Authorization Header",
+          "help": "Linear API key as a Bearer token. Format: \"Bearer lin_api_xxxxx\". Get a personal API key at linear.app/settings/api.",
+          "required": true
+        }
+      ],
+      "tools": [
+        {
+          "name": "extract_images",
+          "description": "Extract and fetch images from markdown content.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "save_comment",
+          "description": "Create or update a comment on a Linear issue.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "save_document",
+          "description": "Create or update a Linear document.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "save_issue",
+          "description": "Create or update a Linear issue.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "save_milestone",
+          "description": "Create or update a milestone in a Linear project.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "save_project",
+          "description": "Create or update a Linear project.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "get_attachment",
+          "description": "Retrieve an attachment's content by ID.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_document",
+          "description": "Retrieve a Linear document by ID or slug",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_issue",
+          "description": "Retrieve detailed information about an issue by ID, including attachments and git branch name",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_issue_status",
+          "description": "Retrieve detailed information about an issue status in Linear by name or ID",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_milestone",
+          "description": "Retrieve details of a specific milestone by ID or name",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_project",
+          "description": "Retrieve details of a specific project in Linear",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_team",
+          "description": "Retrieve details of a specific Linear team",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_user",
+          "description": "Retrieve details of a specific Linear user",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_comments",
+          "description": "List comments for a specific Linear issue",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_cycles",
+          "description": "Retrieve cycles for a specific Linear team",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_documents",
+          "description": "List documents in the user's Linear workspace",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_issue_labels",
+          "description": "List available issue labels in a Linear workspace or team",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_issue_statuses",
+          "description": "List available issue statuses in a Linear team",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_issues",
+          "description": "List issues in the user's Linear workspace.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_milestones",
+          "description": "List all milestones in a Linear project",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_project_labels",
+          "description": "List available project labels in the Linear workspace",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_projects",
+          "description": "List projects in the user's Linear workspace",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_teams",
+          "description": "List teams in the user's Linear workspace",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_users",
+          "description": "Retrieve users in the Linear workspace",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "search_documentation",
+          "description": "Search Linear's documentation to learn about features and usage",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "create_attachment",
+          "description": "Create a new attachment on a specific Linear issue by uploading base64-encoded content.",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "create_issue_label",
+          "description": "Create a new Linear issue label",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "delete_attachment",
+          "description": "Delete an attachment by ID",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "delete_comment",
+          "description": "Delete a comment from a Linear issue",
+          "category": "write",
+          "defaultPermission": "ask"
+        }
+      ],
+      "tags": [
+        "issues",
+        "project-management"
+      ]
+    },
+    {
       "id": "sentry",
       "name": "Sentry",
       "description": "Errors, releases, issues across your projects.",

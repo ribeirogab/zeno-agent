@@ -88,9 +88,10 @@ async function fetchToolsFromLiveMcp(catalog) {
     const envName = required.key;
     const value = process.env[envName];
     if (!value) {
-      throw new Error(
-        `--fetch-from-mcp: missing env var ${envName} for catalog entry "${entry.id}"`,
+      console.warn(
+        `skip ${entry.id}: missing env var ${envName} (set it to fetch tools for this entry)`,
       );
+      continue;
     }
 
     console.log(`fetching tools from live MCP for ${entry.id}...`);

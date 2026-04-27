@@ -39,9 +39,9 @@ function classifyError(err: unknown): { error: string; errorKind: DiscoverErrorK
   const lower = message.toLowerCase();
   // Auth bucket: HTTP statuses, common error words, plus phrasings real MCPs
   // emit (Sentry uses "Authorization Expired ... rejected the stored access
-  // token"; others may use "invalid token" / "credentials"). Spec 0038 F#2.
+  // token"; Linear uses "invalid_token" / "Invalid access token"). Spec 0038 F#2 + spec 0039.
   if (
-    /401|403|unauthorized|forbidden|authenticat|authorization (expired|invalid|rejected)|invalid (token|credentials)|access token (rejected|invalid|expired)/.test(
+    /401|403|unauthorized|forbidden|authenticat|authorization (expired|invalid|rejected)|invalid (token|credentials|access token|api key)|invalid_token|access token (rejected|invalid|expired)/.test(
       lower,
     )
   ) {

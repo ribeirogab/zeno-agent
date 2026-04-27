@@ -108,12 +108,11 @@ function findSourceDir(candidates: string[]): string | null {
 
 /**
  * Map a (source, filename) pair to its reload group.
- * Anything under skills/ is ignored — Zeno reads those on-demand via Read tool.
  * `mcp.json` is ignored after spec 0032 (DB is the source of truth for MCPs).
+ * Spec 0050: skills/ branch removed — runtime no longer loads skill content.
  */
 export function classify(source: SourceKind, filename: string): FileGroup {
   const normalized = filename.replace(/\\/g, '/');
-  if (normalized.startsWith('skills/') || normalized === 'skills') return 'ignored';
   if (source === 'agent' && normalized === 'SOUL.md') return 'prompt';
   if (source === 'profile' && normalized === 'USER.md') return 'prompt';
   if (source === 'profile' && normalized === 'config.yaml') return 'crons';

@@ -1,5 +1,5 @@
 import { createLogger } from '@zeno/logger';
-import type { ApprovalRulesRepo, ConnectorRepo } from '@zeno/storage';
+import type { ConnectorRepo } from '@zeno/storage';
 import { z } from 'zod';
 import type { Handler } from '@/commands/dispatcher';
 import type { HandlerDeps } from '@/commands/handlers';
@@ -9,9 +9,7 @@ const logger = createLogger({ service: 'worker' });
 
 const payloadSchema = z.object({ id: z.string() });
 
-type Deps = Pick<HandlerDeps, 'connectors' | 'getGithubApp'> & {
-  approvalRules?: ApprovalRulesRepo;
-};
+type Deps = Pick<HandlerDeps, 'connectors' | 'getGithubApp'>;
 
 export function buildConnectorUninstallHandler(deps: Deps): Handler;
 export function buildConnectorUninstallHandler(connectors: ConnectorRepo): Handler;
@@ -49,22 +47,8 @@ export function buildConnectorUninstallHandler(arg: Deps | ConnectorRepo): Handl
       }
     }
 
-    // Spec 0047: cascade-delete auto rules whose pattern matches the removed
-    // installation's slug. Manual + yaml-migrated rules survive (operator
-    // intent preserved). The LIKE pattern matches `mcp__<slug>__%`.
-    if (before && deps.approvalRules) {
-      const removedCount = deps.approvalRules.deleteAutoMatching(`mcp__${before.slug}__%`);
-      if (removedCount > 0) {
-        logger.info(
-          {
-            event: 'approval_rules_auto_cascaded',
-            slug: before.slug,
-            removed: removedCount,
-          },
-          'auto-cascaded approval rules on connector_uninstall',
-        );
-      }
-    }
+    // Spec 0050: the auto-rule cascade that lived here (spec 0047) is gone
+    // with the rest of the approval-rules infrastructure.
 
     return { ok: true };
   };

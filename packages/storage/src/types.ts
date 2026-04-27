@@ -285,4 +285,3 @@ export interface RecordInvocationInput {
   durationMs: number;
   errorMessage?: string | null;
 }
-

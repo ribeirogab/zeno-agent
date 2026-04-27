@@ -1,28 +1,6 @@
 import { ConnectorRepo, closeDatabase, openDatabase, runMigrations } from '@zeno/storage';
 import { describe, expect, it } from 'vitest';
-import { makeConnectorPermissionPolicy } from '@/guardrails/policies/connector-permission';
-import type { PolicyContext } from '@/guardrails/types';
-
-function ctx(toolName: string): PolicyContext {
-  return {
-    toolName,
-    toolInput: {},
-    skillReadOnly: false,
-    isOwner: true,
-    ownerUserId: 'U-OWNER',
-    requesterUserId: 'U-OWNER',
-    correlationId: 'corr',
-    threadId: null,
-    conversationId: 'C',
-    profile: 'default',
-    classifierReason: null,
-    lastDeciderUserId: null,
-    requestApproval: async () => ({
-      decision: { allow: true, reason: 'stub', policyThatGated: 'auto_allow' },
-      deciderUserId: null,
-    }),
-  };
-}
+import { checkConnectorPermission } from '@/guardrails/policies/connector-permission';
 
 function makeRepo() {
   const db = openDatabase(':memory:');
@@ -31,112 +9,114 @@ function makeRepo() {
   return { repo, close: () => closeDatabase(db) };
 }
 
-describe('connector_permission policy', () => {
-  it('passes through when tool name does not match mcp__<slug>__<tool>', async () => {
+describe('checkConnectorPermission (spec 0050)', () => {
+  it('denies non-MCP tool names (Bash, Read, Write, Edit, etc.)', () => {
     const { repo, close } = makeRepo();
-    const policy = makeConnectorPermissionPolicy({ connectorRepo: repo });
-    expect(await policy.check(ctx('Bash'))).toBeUndefined();
-    expect(await policy.check(ctx('Read'))).toBeUndefined();
+    for (const name of ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'WebFetch', 'Task']) {
+      const decision = checkConnectorPermission(repo, name);
+      expect(decision.allow).toBe(false);
+      expect(decision.policyThatGated).toBe('non_mcp_deny');
+    }
     close();
   });
 
-  it('passes through when slug is not in DB', async () => {
+  it('allows MCP tools whose slug is not in connector_repo (built-in MCPs)', () => {
     const { repo, close } = makeRepo();
-    const policy = makeConnectorPermissionPolicy({ connectorRepo: repo });
-    expect(await policy.check(ctx('mcp__unknown__do_thing'))).toBeUndefined();
+    const decision = checkConnectorPermission(repo, 'mcp__playwright__navigate');
+    expect(decision.allow).toBe(true);
+    expect(decision.policyThatGated).toBe('builtin_mcp_allow');
     close();
   });
 
-  it('passes through when tool is not in connector permissions', async () => {
+  it('denies MCP tool when slug is in DB but tool is NOT registered with the connector', () => {
     const { repo, close } = makeRepo();
     repo.create({
       slug: 'echo',
-      displayName: 'E',
+      displayName: 'Echo',
       source: 'custom',
       transport: 'stdio',
-      command: 'x',
-      secrets: [],
       tools: [],
+      secrets: [],
     });
-    const policy = makeConnectorPermissionPolicy({ connectorRepo: repo });
-    expect(await policy.check(ctx('mcp__echo__missing'))).toBeUndefined();
+    const decision = checkConnectorPermission(repo, 'mcp__echo__missing_tool');
+    expect(decision.allow).toBe(false);
+    expect(decision.policyThatGated).toBe('unknown_tool_deny');
     close();
   });
 
-  it('returns allow when permission=always_allow', async () => {
+  it('allows when permission=always_allow', () => {
     const { repo, close } = makeRepo();
     repo.create({
       slug: 'echo',
-      displayName: 'E',
+      displayName: 'Echo',
       source: 'custom',
       transport: 'stdio',
-      command: 'x',
+      tools: [
+        { toolName: 'do_a', description: null, category: 'read', permission: 'always_allow' },
+      ],
       secrets: [],
-      tools: [{ toolName: 'r', description: null, category: 'read', permission: 'always_allow' }],
     });
-    const policy = makeConnectorPermissionPolicy({ connectorRepo: repo });
-    const decision = await policy.check(ctx('mcp__echo__r'));
-    expect(decision).toEqual({
-      allow: true,
-      reason: expect.stringContaining('always_allow'),
-      policyThatGated: 'connector_allow',
-    });
+    const decision = checkConnectorPermission(repo, 'mcp__echo__do_a');
+    expect(decision.allow).toBe(true);
+    expect(decision.policyThatGated).toBe('connector_allow');
     close();
   });
 
-  it('returns deny when permission=never', async () => {
+  it('denies when permission=never', () => {
     const { repo, close } = makeRepo();
     repo.create({
       slug: 'echo',
-      displayName: 'E',
+      displayName: 'Echo',
       source: 'custom',
       transport: 'stdio',
-      command: 'x',
+      tools: [{ toolName: 'do_b', description: null, category: 'write', permission: 'never' }],
       secrets: [],
-      tools: [{ toolName: 'd', description: null, category: 'write', permission: 'never' }],
     });
-    const policy = makeConnectorPermissionPolicy({ connectorRepo: repo });
-    const decision = await policy.check(ctx('mcp__echo__d'));
-    expect(decision).toEqual({
-      allow: false,
-      reason: expect.stringContaining('never'),
-      policyThatGated: 'connector_never',
-    });
+    const decision = checkConnectorPermission(repo, 'mcp__echo__do_b');
+    expect(decision.allow).toBe(false);
+    expect(decision.policyThatGated).toBe('connector_never');
     close();
   });
 
-  it('passes through when permission=ask', async () => {
+  it('allows when permission=ask (spec 0050: installation-time decision IS the approval)', () => {
     const { repo, close } = makeRepo();
     repo.create({
       slug: 'echo',
-      displayName: 'E',
+      displayName: 'Echo',
       source: 'custom',
       transport: 'stdio',
-      command: 'x',
+      tools: [{ toolName: 'do_c', description: null, category: 'interactive', permission: 'ask' }],
       secrets: [],
-      tools: [{ toolName: 'a', description: null, category: 'write', permission: 'ask' }],
     });
-    const policy = makeConnectorPermissionPolicy({ connectorRepo: repo });
-    expect(await policy.check(ctx('mcp__echo__a'))).toBeUndefined();
+    const decision = checkConnectorPermission(repo, 'mcp__echo__do_c');
+    expect(decision.allow).toBe(true);
+    expect(decision.policyThatGated).toBe('connector_ask_allow');
     close();
   });
 
-  it('handles slugs with hyphens correctly', async () => {
+  it('handles slugs with hyphens correctly', () => {
     const { repo, close } = makeRepo();
     repo.create({
       slug: 'fn-scrum',
-      displayName: 'FN',
+      displayName: 'FN Scrum',
       source: 'custom',
-      transport: 'remote',
-      url: 'https://x',
-      secrets: [],
+      transport: 'stdio',
       tools: [
         { toolName: 'list', description: null, category: 'read', permission: 'always_allow' },
       ],
+      secrets: [],
     });
-    const policy = makeConnectorPermissionPolicy({ connectorRepo: repo });
-    const decision = await policy.check(ctx('mcp__fn-scrum__list'));
-    expect(decision?.allow).toBe(true);
+    const decision = checkConnectorPermission(repo, 'mcp__fn-scrum__list');
+    expect(decision.allow).toBe(true);
+    expect(decision.policyThatGated).toBe('connector_allow');
+    close();
+  });
+
+  it('denies malformed mcp tool names', () => {
+    const { repo, close } = makeRepo();
+    const d1 = checkConnectorPermission(repo, 'mcp__');
+    expect(d1.allow).toBe(false);
+    expect(d1.policyThatGated).toBe('non_mcp_deny');
     close();
   });
 });

@@ -1,9 +1,13 @@
 ---
-status: shipped
+status: superseded
+superseded_by: 0050
 feature: always-sensitive-db-ui
 created: 2026-04-27
 shipped: 2026-04-27
 ---
+
+> **Superseded** by spec [[../0050-strip-skills-and-classifier/spec|0050-strip-skills-and-classifier]] (connectors-only positioning, see [[../../learnings/connectors-only-pivot]]). The `approval_rules` table, dashboard "sensitive tools" settings section, and the entire approval-rules CRUD flow described here were removed in spec 0050. The single guardrail that survives is the connector-permission gate (per-tool dashboard toggle).
+
 # Always-Sensitive Rules — DB + Dashboard Editor Spec
 
 **Status:** Draft

@@ -1,5 +1,5 @@
 import { createLogger } from '@zeno/logger';
-import type { ApprovalRulesRepo, ConnectorRepo } from '@zeno/storage';
+import type { ConnectorRepo } from '@zeno/storage';
 import { z } from 'zod';
 import type { Handler } from '@/commands/dispatcher';
 import type { HandlerDeps } from '@/commands/handlers';
@@ -50,9 +50,7 @@ const customSchema = z.object({
 
 const payloadSchema = z.discriminatedUnion('source', [catalogSchema, customSchema]);
 
-type Deps = Pick<HandlerDeps, 'connectors' | 'getGithubApp'> & {
-  approvalRules?: ApprovalRulesRepo;
-};
+type Deps = Pick<HandlerDeps, 'connectors' | 'getGithubApp'>;
 
 export function buildConnectorCreateHandler(deps: Deps): Handler;
 // Backwards-compatible factory accepting just the repo (for existing tests).
@@ -110,24 +108,8 @@ export function buildConnectorCreateHandler(arg: Deps | ConnectorRepo): Handler 
             );
           }
         }
-        // Spec 0047: auto-create the default sensitive-tool rule for the new
-        // installation. Pattern matches the runtime-spawned tool name shape
-        // mcp__<slug>__merge_pull_request. Source='auto' so it cascades on
-        // installation removal.
-        if (deps.approvalRules) {
-          try {
-            deps.approvalRules.upsert({
-              pattern: `mcp__${data.slug}__merge_pull_request`,
-              source: 'auto',
-              notes: `auto-generated for github-app installation ${data.slug}`,
-            });
-          } catch (err) {
-            logger.warn(
-              { event: 'connector_create_auto_rule_failed', slug: data.slug, err: String(err) },
-              'failed to create auto approval rule',
-            );
-          }
-        }
+        // Spec 0050: the auto-rule creation that lived here (spec 0047) is
+        // gone with the rest of the approval-rules infrastructure.
       }
       return { ok: true, data: { connectorId: created.id, slug: created.slug } };
     } catch (err) {

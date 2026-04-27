@@ -8,7 +8,7 @@ import { nextRunAfter, validateSchedule } from '@/cron/parser';
 const logger = createLogger({ service: 'worker' });
 
 const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
-const KNOWN_SECTIONS = new Set(['crons', 'approvals', 'github_app', 'always_active_skills']);
+const KNOWN_SECTIONS = new Set(['crons', 'github_app']);
 
 const NotifySchema = z
   .object({
@@ -81,6 +81,14 @@ export function loadStaticCrons(now: Date = new Date()): CreateCronInput[] {
   }
 
   for (const key of Object.keys(fileResult.data)) {
+    // Spec 0050: the `approvals:` block was retired with the Haiku classifier
+    // + Slack approval flow. If a profile yaml still has it, fail loudly
+    // (matches spec 0048 Q5's precedent for `approvals.always_sensitive`).
+    if (key === 'approvals') {
+      throw new Error(
+        'config.yaml has an `approvals:` block — this section was removed in spec 0050 along with the Haiku classifier and Slack approval flow. Delete the entire `approvals:` block from your profile config.yaml.',
+      );
+    }
     if (!KNOWN_SECTIONS.has(key)) {
       logger.warn(
         { event: 'config_unknown_section', section: key },

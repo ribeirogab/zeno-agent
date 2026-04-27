@@ -2,8 +2,6 @@ import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { createLogger, type Logger } from '@zeno/logger';
 import {
-  ApprovalRulesRepo,
-  ApprovalsLogRepo,
   CommandRepo,
   ConnectorAppRepo,
   ConnectorRepo,
@@ -21,36 +19,19 @@ import { loadMockFixtures } from '@/agent/backends/mock-fixtures';
 import { AgentCore } from '@/agent/core';
 import type { McpServerConfig } from '@/agent/mcp';
 import { buildMcpServersMap } from '@/agent/mcp-build';
-import {
-  buildSystemPrompt,
-  loadAgentFile,
-  loadAlwaysActiveSkills,
-  loadProfileFile,
-} from '@/agent/system-prompt';
+import { buildSystemPrompt, loadAgentFile, loadProfileFile } from '@/agent/system-prompt';
 import type { AgentBackend } from '@/agent/types';
 import { SlackChannel } from '@/channels/slack/adapter';
 import { buildDispatcher } from '@/commands/dispatcher';
 import { buildHandlerMap } from '@/commands/handlers';
 import { CommandsPoller } from '@/commands/poller';
 import { type Config, loadConfig } from '@/config';
-import { loadAlwaysActiveSkillNames } from '@/config/always-active-skills';
 import { CronRunner } from '@/cron/runner';
 import { loadStaticCrons } from '@/cron/static-loader';
 import { buildCronMcpServer } from '@/cron/tools';
 import { type GitHubAppAuth, loadGitHubAppFromDb } from '@/github/app-auth';
 import { resolveGitIdentity } from '@/github/git-identity';
-import { SlackApprover } from '@/guardrails/approver/slack-approver';
-import { HaikuClassifier } from '@/guardrails/classifier/haiku';
-import { loadApprovalsConfig } from '@/guardrails/config';
-import { GuardedBackend } from '@/guardrails/guarded-backend';
-import { makeAlwaysAllowedPolicy } from '@/guardrails/policies/always-allowed';
-import { makeAlwaysSensitivePolicy } from '@/guardrails/policies/always-sensitive';
-import { makeAuditLogger } from '@/guardrails/policies/audit';
-import { makeClassifierGatePolicy } from '@/guardrails/policies/classifier-gate';
-import { makeConnectorPermissionPolicy } from '@/guardrails/policies/connector-permission';
-import { makeReadOnlySkillPolicy } from '@/guardrails/policies/read-only-skill';
-import { loadSkillRegistry } from '@/guardrails/skill-registry';
-import type { PolicyMiddleware } from '@/guardrails/types';
+import { ConnectorGatedBackend } from '@/guardrails/connector-gated-backend';
 import { LogsRetention } from '@/logs/retention';
 import { ProfileWatcher } from '@/profile/watcher';
 
@@ -146,21 +127,19 @@ async function main(): Promise<void> {
     );
   }
 
-  // Load identity files (SOUL.md from agent/, USER.md from profile/)
-  // + always-active skills from config
-  const alwaysActiveNames = loadAlwaysActiveSkillNames();
-  const alwaysActiveContents = loadAlwaysActiveSkills(alwaysActiveNames);
-
+  // Load identity files (SOUL.md from agent/, USER.md from profile/).
+  // Spec 0050: skills are no longer part of the runtime; the system prompt
+  // is just SOUL + USER.
   const buildPromptNow = (): string => {
     const soul = loadAgentFile('SOUL.md');
     const user = loadProfileFile('USER.md');
-    return buildSystemPrompt(soul, user, alwaysActiveContents);
+    return buildSystemPrompt(soul, user);
   };
 
   const initialSoul = loadAgentFile('SOUL.md');
   const initialUser = loadProfileFile('USER.md');
 
-  const promptHolder = { value: buildSystemPrompt(initialSoul, initialUser, alwaysActiveContents) };
+  const promptHolder = { value: buildSystemPrompt(initialSoul, initialUser) };
 
   const dbPath = join(config.workspaceDir, 'zeno.db');
   const db = openDatabase(dbPath);
@@ -172,10 +151,8 @@ async function main(): Promise<void> {
   const cronRuns = new CronRunRepo(db);
   const commands = new CommandRepo(db);
   const logs = new LogRepo(db);
-  const approvalsLog = new ApprovalsLogRepo(db);
   const connectors = new ConnectorRepo(db);
   const connectorApps = new ConnectorAppRepo(db);
-  const approvalRules = new ApprovalRulesRepo(db);
 
   // Real logger now that the sink is available. Every log from here on is
   // persisted for the dashboard Logs page.
@@ -299,11 +276,8 @@ async function main(): Promise<void> {
     process.env.GIT_COMMITTER_EMAIL = gitIdentity.email;
   }
 
-  const approvalsConfig = loadApprovalsConfig();
   const slack = new SlackChannel({
     ...config.slack,
-    dmOwnerUserId:
-      approvalsConfig?.dm_owner_only !== false ? approvalsConfig?.owner_slack_user_id : undefined,
     workspaceDir: config.workspaceDir,
   });
   const defaultCronChannel = process.env.ZENO_CRON_DEFAULT_CHANNEL ?? null;
@@ -326,7 +300,6 @@ async function main(): Promise<void> {
       cronRuns,
       connectors,
       connectorApps,
-      approvalRules,
       runner,
       exit: (code) => process.exit(code),
       // Spec 0044: pass getter so handlers observe the current value of the
@@ -344,68 +317,35 @@ async function main(): Promise<void> {
   });
 
   // The chat-facing backend gets the in-process MCP server with cron CRUD tools wired to repos + runner.
-  // Crons run UNGUARDED for MVP (their `userMessage` carries no Slack context to identify a requester);
-  // only this user-facing backend is wrapped with the guardrails policy pipeline.
+  // Spec 0050: the only guardrail is the connector-permission gate (deny non-mcp,
+  // permission-aware allow/deny per tool). Crons still run UNGUARDED (their
+  // `userMessage` has no requester context) — only this user-facing backend is
+  // wrapped with `ConnectorGatedBackend`.
   const cronMcp = buildCronMcpServer({ crons, cronRuns, runner });
   const isClaudeBackend = (process.env.ZENO_BACKEND ?? 'claude-code') === 'claude-code';
 
   let chatBackend: AgentBackend;
-  if (approvalsConfig && isClaudeBackend) {
-    const skillRegistry = loadSkillRegistry();
-    const classifier = new HaikuClassifier({ model: approvalsConfig.classifier_model });
-    const approver = new SlackApprover(
-      slack,
-      approvalsConfig.owner_slack_user_id,
-      approvalsConfig.approval_timeout_sec * 1000,
-    );
-    const audit = makeAuditLogger(approvalsLog);
-    const policies: PolicyMiddleware[] = [
-      // Spec 0047: rules sourced from DB (mutable via dashboard); the getter
-      // is called fresh per check so changes propagate to the next agent
-      // turn without restart. Spec 0048 Q5: yaml `always_sensitive` is no
-      // longer parsed — operators manage rules entirely via dashboard.
-      makeAlwaysSensitivePolicy({ getRules: () => approvalRules.listPatterns() }),
-      makeAlwaysAllowedPolicy({
-        tools: approvalsConfig.always_allowed_tools,
-        commands: approvalsConfig.always_allowed_commands,
-      }),
-      makeReadOnlySkillPolicy(),
-      makeConnectorPermissionPolicy({ connectorRepo: connectors }),
-      makeClassifierGatePolicy(classifier),
-    ];
-    const guardedDeps = {
-      policies,
-      audit,
-      approver,
-      skillRegistry,
-      ownerUserId: approvalsConfig.owner_slack_user_id,
-      profile: process.env.PROFILE ?? 'default',
-    };
+  if (isClaudeBackend) {
     // Two-phase construction: the SDK's PreToolUse hook is a constructor option
-    // on `ClaudeCodeBackend`, but the hook is owned by `GuardedBackend`. Build a
-    // throwaway wrapper to obtain the hook, construct the real inner backend
-    // with it, then build the final wrapper around it.
+    // on `ClaudeCodeBackend`, but the hook is owned by `ConnectorGatedBackend`.
+    // Build a throwaway wrapper to obtain the hook, construct the real inner
+    // backend with it, then build the final wrapper around it.
+    const gatedDeps = { connectorRepo: connectors };
     const tempInner = new ClaudeCodeBackend({
       getMcpServers,
       inProcessMcpServers: { zeno: cronMcp },
     });
-    const preToolUseHook = new GuardedBackend(tempInner, guardedDeps).buildPreToolUseHook();
-    const guardedInner = new ClaudeCodeBackend({
+    const preToolUseHook = new ConnectorGatedBackend(tempInner, gatedDeps).buildPreToolUseHook();
+    const gatedInner = new ClaudeCodeBackend({
       getMcpServers,
       inProcessMcpServers: { zeno: cronMcp },
       preToolUseHook,
       onInvocation,
     });
-    chatBackend = new GuardedBackend(guardedInner, guardedDeps);
+    chatBackend = new ConnectorGatedBackend(gatedInner, gatedDeps);
     logger.info(
-      {
-        event: 'guardrails_enabled',
-        ownerUserId: approvalsConfig.owner_slack_user_id,
-        // Spec 0048 Q5: rules now sourced from DB; report current count.
-        alwaysSensitive: approvalRules.count(),
-        timeoutSec: approvalsConfig.approval_timeout_sec,
-      },
-      'guardrails enabled',
+      { event: 'connector_gate_enabled' },
+      'connector-permission gate enabled (spec 0050)',
     );
   } else {
     chatBackend = buildBackend(logger, {
@@ -413,17 +353,10 @@ async function main(): Promise<void> {
       inProcessMcpServers: { zeno: cronMcp },
       onInvocation,
     });
-    if (approvalsConfig && !isClaudeBackend) {
-      logger.warn(
-        { event: 'guardrails_skipped_non_claude_backend' },
-        'guardrails skipped: backend is not claude-code',
-      );
-    } else {
-      logger.warn(
-        { event: 'guardrails_disabled' },
-        'approvals section missing in config — running unguarded',
-      );
-    }
+    logger.warn(
+      { event: 'connector_gate_skipped_non_claude_backend' },
+      'connector-permission gate skipped: backend is not claude-code',
+    );
   }
 
   const core = new AgentCore({

@@ -23,7 +23,6 @@ interface Props {
   appUuid: string;
   appName: string;
   installationCount: number;
-  installationEnvVars: string[]; // for the consequences callout
   onClose: () => void;
 }
 
@@ -31,7 +30,6 @@ export function GitHubAppUninstallAppModal({
   appUuid,
   appName,
   installationCount,
-  installationEnvVars,
   onClose,
 }: Props): JSX.Element {
   const uninstall = useUninstallApp(appUuid);
@@ -68,10 +66,7 @@ export function GitHubAppUninstallAppModal({
         <CornerBrackets />
         <Header appName={appName} />
         <div className="flex flex-col gap-[18px] px-7 py-[22px]">
-          <ConsequencesCallout
-            installationCount={installationCount}
-            envVars={installationEnvVars}
-          />
+          <ConsequencesCallout installationCount={installationCount} />
           <TypeToConfirm
             label={`type the App name "${appName}" to confirm`}
             expected={appName}
@@ -125,10 +120,8 @@ function Header({ appName }: { appName: string }): JSX.Element {
 
 function ConsequencesCallout({
   installationCount,
-  envVars,
 }: {
   installationCount: number;
-  envVars: string[];
 }): JSX.Element {
   return (
     <div className="flex items-start gap-3 px-4 py-3 bg-status-failed/[0.04] border border-status-failed/30 border-l-2 border-l-status-failed">
@@ -142,18 +135,6 @@ function ConsequencesCallout({
             delete {installationCount} installation connector
             {installationCount === 1 ? '' : 's'} (cascade)
           </li>
-          {envVars.length > 0 && (
-            <li>
-              unset env vars{' '}
-              {envVars.map((v, i) => (
-                <span key={v}>
-                  <span className="font-mono text-gold">{v}</span>
-                  {i < envVars.length - 1 ? ', ' : ''}
-                </span>
-              ))}{' '}
-              — affects skills referencing them
-            </li>
-          )}
           <li>revoke all cached installation tokens</li>
           <li>permanently delete the PEM from the database</li>
         </ul>

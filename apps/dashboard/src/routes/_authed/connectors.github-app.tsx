@@ -135,9 +135,6 @@ function GitHubAppDetailScreen(): JSX.Element {
           appUuid={appUuid}
           appName={detail.data.app.appName}
           installationCount={detail.data.installations.length}
-          installationEnvVars={detail.data.installations
-            .map((i) => i.envVar)
-            .filter((v): v is string => v !== null)}
           onClose={() => setModal(null)}
         />
       )}
@@ -152,7 +149,6 @@ function GitHubAppDetailScreen(): JSX.Element {
               installation={{
                 connectorId: inst.connectorId,
                 displayName: inst.displayName,
-                envVar: inst.envVar,
                 toolCount: inst.toolCount,
               }}
               onClose={() => setModal(null)}
@@ -317,7 +313,6 @@ function InstallationsSection({
       <div className="bg-panel border border-border-subtle flex flex-col min-w-0 overflow-x-auto">
         <div className="flex items-center gap-4 px-5 py-3 border-b border-border-subtle bg-sidebar font-mono text-[10px] tracking-[0.18em] leading-3 uppercase text-text-tertiary min-w-[820px]">
           <span className="flex-1 min-w-0">installation</span>
-          <span className="w-[160px] shrink-0">env var</span>
           <span className="w-[100px] shrink-0">tools</span>
           <span className="w-[120px] shrink-0">last verified</span>
           <span className="w-[80px] shrink-0">actions</span>
@@ -353,9 +348,6 @@ function InstallationsSection({
                   installation {inst.installationId ?? '—'}
                 </span>
               </Link>
-              <span className="w-[160px] shrink-0 font-mono text-[11px] leading-[14px] text-text-tertiary truncate">
-                {inst.envVar ?? '—'}
-              </span>
               <span className="w-[100px] shrink-0 font-mono text-[11px] leading-[14px] text-text-secondary">
                 {inst.toolCount} tools
               </span>

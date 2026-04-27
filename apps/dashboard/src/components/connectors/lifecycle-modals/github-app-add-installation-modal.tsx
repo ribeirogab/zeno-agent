@@ -88,7 +88,6 @@ export function GitHubAppAddInstallationModal({ appUuid, appName, onClose }: Pro
           await add.mutateAsync({
             installationId: t.id,
             displayName: t.name,
-            envVar: defaultEnvVarForName(t.name),
           });
           return { id: t.id, ok: true as const };
         } catch (err) {
@@ -122,7 +121,6 @@ export function GitHubAppAddInstallationModal({ appUuid, appName, onClose }: Pro
       await add.mutateAsync({
         installationId: target.id,
         displayName: target.name,
-        envVar: defaultEnvVarForName(target.name),
       });
       setRowStates((prev) => ({ ...prev, [id]: { status: 'success' } }));
     } catch (err) {
@@ -371,15 +369,7 @@ function Footer({
   );
 }
 
-/**
- * Default env var name from the installation's GitHub account login.
- * Examples: "FlaviaNasser" → "FLAVIANASSER_GH_TOKEN", "fn-livros" → "FN_LIVROS_GH_TOKEN".
- */
-function defaultEnvVarForName(name: string): string {
-  const sanitized = name
-    .toUpperCase()
-    .replace(/[^A-Z0-9_]/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '');
-  return sanitized.length > 0 ? `${sanitized}_GH_TOKEN` : 'GH_TOKEN';
-}
+// Spec 0051: defaultEnvVarForName helper removed (envVar customization
+// dropped — the worker authenticates the github-mcp-server subprocess via
+// the fixed GITHUB_PERSONAL_ACCESS_TOKEN env var; nothing reads an
+// operator-picked name).

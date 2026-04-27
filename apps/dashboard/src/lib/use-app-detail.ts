@@ -28,7 +28,6 @@ export interface AppDetail {
     slug: string;
     displayName: string;
     installationId: string | null;
-    envVar: string | null;
     status: 'enabled' | 'disabled' | 'pending';
     lastVerifiedAt: string | null;
     lastError: string | null;

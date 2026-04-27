@@ -40,16 +40,15 @@ export function buildConnectorUpdateHandler(arg: Deps | ConnectorRepo): Handler 
     const connector = deps.connectors.get(id);
     if (!connector) return { ok: false, error: 'connector_not_found' };
 
-    // Spec 0044: capture old github-app reserved values BEFORE we mutate, so
-    // we can compare against the new ones and dispatch renameInstallation if
-    // env_var or name changed.
+    // Spec 0051: M11 envVar rename branch removed. Capture only oldName so
+    // a renameInstallation can fire if the operator updates the
+    // installation name (rare; M11's UI is gone but a future spec could
+    // reintroduce a name-only rename).
     let oldName: string | null = null;
-    let oldEnvVar: string | null = null;
     if (connector.slug.startsWith('github-app-')) {
       const before = deps.connectors.getSecrets(id);
       oldName =
         before.find((s) => s.key === GITHUB_APP_RESERVED_KEYS.INSTALLATION_NAME)?.value ?? null;
-      oldEnvVar = before.find((s) => s.key === GITHUB_APP_RESERVED_KEYS.ENV_VAR)?.value ?? null;
     }
 
     if (patch && Object.keys(patch).length > 0) {
@@ -66,11 +65,8 @@ export function buildConnectorUpdateHandler(arg: Deps | ConnectorRepo): Handler 
         const githubApp = deps.getGithubApp();
         const map = new Map(secrets.map((s) => [s.key, s.value]));
         const newName = map.get(GITHUB_APP_RESERVED_KEYS.INSTALLATION_NAME) ?? oldName ?? null;
-        const newEnvVar = map.get(GITHUB_APP_RESERVED_KEYS.ENV_VAR) ?? oldEnvVar ?? null;
-        if (githubApp && oldName && oldEnvVar && newName && newEnvVar) {
-          if (oldName !== newName || oldEnvVar !== newEnvVar) {
-            githubApp.renameInstallation({ oldName, newName, oldEnvVar, newEnvVar });
-          }
+        if (githubApp && oldName && newName && oldName !== newName) {
+          githubApp.renameInstallation({ oldName, newName });
         } else if (!githubApp) {
           logger.warn(
             { event: 'connector_update_no_github_app', slug: connector.slug },

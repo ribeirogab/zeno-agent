@@ -326,7 +326,6 @@ describe('GET /api/connectors/apps/:appUuid', () => {
       installations: Array<{
         slug: string;
         installationId: string | null;
-        envVar: string | null;
         toolCount: number;
       }>;
     };
@@ -337,7 +336,6 @@ describe('GET /api/connectors/apps/:appUuid', () => {
     expect(body.installations).toHaveLength(1);
     expect(body.installations[0]?.slug).toBe('github-app-acme');
     expect(body.installations[0]?.installationId).toBe('100');
-    expect(body.installations[0]?.envVar).toBe('GITHUB_TOKEN_ACME');
     expect(body.installations[0]?.toolCount).toBe(1);
   });
 

@@ -1,10 +1,11 @@
 /**
- * M8 — Add Installation manual fallback. Spec 0046.
+ * M8 — Add Installation manual fallback. Spec 0046; spec 0051 dropped the
+ * envVar field.
  *
  * Used when the auto-discover list is empty or the user has a specific
- * installationId to add. Three fields: displayName, installationId, envVar.
- * No "TEST" button — the backend will reject if the installation doesn't
- * exist (the worker handler mints a token at first use).
+ * installationId to add. Two fields: displayName, installationId. No "TEST"
+ * button — the backend will reject if the installation doesn't exist (the
+ * worker handler mints a token at first use).
  */
 
 import { CornerBrackets, Dialog, DialogContent, DialogTitle, Input } from '@zeno/ui';
@@ -28,16 +29,14 @@ export function GitHubAppAddInstallationManualModal({
   const add = useAddInstallation(appUuid);
   const [installationId, setInstallationId] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [envVar, setEnvVar] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const envVarValid = /^[A-Z][A-Z0-9_]*$/.test(envVar);
-  const canSubmit = installationId.trim() && displayName.trim() && envVarValid && !add.isPending;
+  const canSubmit = installationId.trim() && displayName.trim() && !add.isPending;
 
   const handleSubmit = async (): Promise<void> => {
     setError(null);
     try {
-      await add.mutateAsync({ installationId, displayName, envVar });
+      await add.mutateAsync({ installationId, displayName });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -83,15 +82,6 @@ export function GitHubAppAddInstallationManualModal({
             onChange={setInstallationId}
             placeholder="125887887"
             mono
-          />
-          <Field
-            label="env var name"
-            help="UPPER_SNAKE_CASE. Skills reference this env var to call GitHub."
-            value={envVar}
-            onChange={setEnvVar}
-            placeholder="ACME_GH_TOKEN"
-            mono
-            invalid={envVar.length > 0 && !envVarValid}
           />
           {error && (
             <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-status-failed/[0.06] border border-status-failed/30 border-l-2 border-l-status-failed">

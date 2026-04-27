@@ -1,14 +1,13 @@
 /**
- * Add-installation mutation hook. Spec 0046.
+ * Add-installation mutation hook. Spec 0046; spec 0051 dropped the envVar
+ * field (the worker authenticates the github-mcp-server subprocess via the
+ * fixed GITHUB_PERSONAL_ACCESS_TOKEN env var).
  *
  * Backend endpoint: POST /api/connectors/catalog/github-app/installations
- *   body: {installationId, displayName, envVar}
+ *   body: {installationId, displayName}
  *
  * Uses the project-wide `useOptimisticMutation` factory (see
- * `context/learnings/optimistic-mutation-pattern.md`). Optimistic update
- * appends a placeholder installation row to the App detail cache so C8
- * re-renders instantly. Background refetch (via `invalidateSoon`)
- * reconciles.
+ * `context/learnings/optimistic-mutation-pattern.md`).
  */
 
 import { apiFetch } from '@/lib/api-client';
@@ -18,7 +17,6 @@ import { cacheChange, useOptimisticMutation } from '@/lib/use-optimistic-mutatio
 export interface AddInstallationInput {
   installationId: string;
   displayName: string;
-  envVar: string;
 }
 
 export interface AddInstallationResponse {
@@ -47,7 +45,6 @@ export function useAddInstallation(appUuid: string | undefined) {
                 slug: `github-app-${input.displayName.toLowerCase().replace(/[^a-z0-9-]+/g, '-')}`,
                 displayName: `GitHub App — ${input.displayName}`,
                 installationId: input.installationId,
-                envVar: input.envVar,
                 status: 'pending',
                 lastVerifiedAt: null,
                 lastError: null,

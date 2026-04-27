@@ -10,13 +10,13 @@
  */
 
 import { CornerBrackets, Dialog, DialogContent, DialogTitle } from '@zeno/ui';
-import type { JSX } from 'react';
+import type { JSX, ReactNode } from 'react';
 import { useState } from 'react';
 import { TypeToConfirm } from './type-to-confirm';
 
 export interface ConfirmModalProps {
   title: string;
-  description?: string;
+  description?: ReactNode;
   confirmLabel?: string;
   intent?: 'destructive' | 'neutral';
   /** When set, the CTA is gated by typing this exact string. */

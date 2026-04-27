@@ -1,9 +1,10 @@
 /**
  * Type-to-confirm input. Spec 0046.
  *
- * Used by destructive modals (M9 rotate PEM, M10 remove installation, M12
- * uninstall App). The user must type the expected value EXACTLY before the
- * destructive CTA enables. Native input element keeps it screen-reader-friendly.
+ * Used by destructive modals (M10 remove installation, M12 uninstall App)
+ * and by the generic ConfirmModal (spec 0051). The user must type the
+ * expected value EXACTLY before the destructive CTA enables. Native input
+ * element keeps it screen-reader-friendly.
  *
  * The expected value is rendered above the input in italic gold (Fraunces) so
  * the visual cue matches the modal title style.
@@ -28,8 +29,8 @@ export interface TypeToConfirmProps {
    */
   italicGold?: boolean;
   /**
-   * If true, render the expected value in monospace — used by M9 (rotate PEM,
-   * confirms numeric App ID) and M10 (confirms installation name).
+   * If true, render the expected value in monospace — used by M10 (confirms
+   * installation name) and ConfirmModal (generic identifier-shaped values).
    */
   mono?: boolean;
   /** Optional id for the input (for label association). */

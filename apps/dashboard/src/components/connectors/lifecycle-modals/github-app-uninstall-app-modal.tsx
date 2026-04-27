@@ -7,7 +7,7 @@
  * github-app-* connector + secrets in one transaction → worker tear-down
  * runs async via `app_uninstall` command.
  *
- * Visual matches M9/M10 destructive pattern. Italic gold App name in the
+ * Visual matches M10 destructive pattern. Italic gold App name in the
  * type-to-confirm input, matching the modal title's italic gold rendering.
  */
 

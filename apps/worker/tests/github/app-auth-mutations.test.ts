@@ -55,12 +55,6 @@ beforeEach(() => {
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  // Wipe env vars left by the tests
-  delete process.env.GH_TOKEN;
-  delete process.env.GITHUB_TOKEN_ACME;
-  delete process.env.GITHUB_TOKEN_ACME_NEW;
-  delete process.env.GITHUB_TOKEN_BETA;
-  delete process.env.GITHUB_TOKEN_GAMMA;
 });
 
 describe('GitHubAppAuth mutations', () => {

@@ -13,6 +13,13 @@ export const catalogSecretSchema = z.object({
   label: z.string(),
   help: z.string(),
   required: z.boolean(),
+  /**
+   * Optional rendering hint for the install modal. Spec 0042.
+   * - `password` (default): masked single-line input
+   * - `text`: visible single-line input
+   * - `pem`: textarea + file picker that loads file content into textarea
+   */
+  inputType: z.enum(['text', 'password', 'pem']).optional(),
 });
 
 export const catalogToolSchema = z.object({
@@ -50,6 +57,12 @@ export const catalogEntrySchema = z.object({
    * call returns a validation error and the auth check misclassifies. Spec 0040.
    */
   authCheckArgs: z.record(z.string(), z.unknown()).optional(),
+  /**
+   * Optional id of a custom install component registered in the dashboard.
+   * When set, the install modal renders that component instead of the default
+   * secret-fields layout. Spec 0042 (used by `github-app`).
+   */
+  customInstallComponent: z.string().optional(),
   tags: z.array(z.string()).optional(),
 });
 

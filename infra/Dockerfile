@@ -46,6 +46,10 @@ COPY --from=deps /app/packages ./packages
 COPY . .
 RUN pnpm turbo run build --filter=@zeno/worker... --filter=@zeno/api... --filter=@zeno/dashboard...
 
+# Spec 0042: build the GitHub MCP Go binary; copied into runtime below.
+FROM golang:1.24 AS gh-mcp-builder
+RUN go install github.com/github/github-mcp-server/cmd/github-mcp-server@v0.5.0
+
 # Stage 4: runtime
 FROM base AS runtime
 ENV NODE_ENV=production
@@ -69,6 +73,9 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/apps/dashboard/dist ./apps/dashboard/dist
 COPY package.json pnpm-workspace.yaml ./
+
+# Spec 0042: github-mcp-server binary on /usr/local/bin (root + node PATH).
+COPY --from=gh-mcp-builder /go/bin/github-mcp-server /usr/local/bin/
 
 # Persistent volume mount point (owned by node so the agent can write workspaces)
 RUN mkdir -p /workspace && chown -R node:node /workspace /app

@@ -15,9 +15,20 @@ export interface McpServerConfig {
 }
 
 // Reserved secret keys consumed by the loader (not forwarded to the MCP).
-// Spec 0033.
+// Spec 0033 + Spec 0042.
 export const RESERVED_MCP_TYPE_KEY = '__MCP_TYPE__';
 export const RESERVED_AUTHORIZATION_KEY = '__MCP_AUTHORIZATION__';
+// Spec 0042: github-app composite secret keys. Worker (`mcp-build.ts`) handles
+// these specially — mints an installation token at MCP spawn and substitutes
+// `GITHUB_PERSONAL_ACCESS_TOKEN`. They must NEVER be forwarded to the
+// github-mcp-server subprocess; this skip list is defense-in-depth.
+const GITHUB_APP_RESERVED_KEYS_SET = new Set([
+  '__GITHUB_APP_ID__',
+  '__GITHUB_APP_PEM__',
+  '__GITHUB_INSTALLATION_ID__',
+  '__GITHUB_INSTALLATION_NAME__',
+  '__GITHUB_ENV_VAR__',
+]);
 
 export function toStdioConfig(connector: Connector, secrets: ConnectorSecret[]): McpServerConfig {
   if (!connector.command) {
@@ -26,6 +37,7 @@ export function toStdioConfig(connector: Connector, secrets: ConnectorSecret[]):
   const env: Record<string, string> = {};
   for (const s of secrets) {
     if (s.key === RESERVED_MCP_TYPE_KEY) continue;
+    if (GITHUB_APP_RESERVED_KEYS_SET.has(s.key)) continue;
     if (s.key === RESERVED_AUTHORIZATION_KEY) {
       env.AUTHORIZATION = s.value;
       continue;

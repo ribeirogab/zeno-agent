@@ -3,6 +3,358 @@
   "version": 1,
   "connectors": [
     {
+      "id": "github-app",
+      "name": "GitHub App",
+      "description": "Multi-installation GitHub access via a GitHub App. One connector per installation.",
+      "icon": "github.svg",
+      "docsUrl": "https://github.com/github/github-mcp-server",
+      "transport": "stdio",
+      "transportConfig": {
+        "command": "github-mcp-server",
+        "args": ["stdio"]
+      },
+      "customInstallComponent": "github-app",
+      "authCheckTool": "get_me",
+      "secrets": [],
+      "tools": [],
+      "tags": ["development", "code"]
+    },
+    {
+      "id": "github",
+      "name": "GitHub Personal",
+      "description": "GitHub access via a personal access token. Issues, PRs, repos, code search.",
+      "icon": "github.svg",
+      "docsUrl": "https://github.com/github/github-mcp-server",
+      "transport": "stdio",
+      "transportConfig": {
+        "command": "github-mcp-server",
+        "args": [
+          "stdio"
+        ]
+      },
+      "authCheckTool": "get_me",
+      "secrets": [
+        {
+          "key": "GITHUB_PERSONAL_ACCESS_TOKEN",
+          "label": "Personal Access Token",
+          "help": "GitHub PAT with at least repo + read:org scopes. Get one at github.com/settings/tokens (classic) or github.com/settings/personal-access-tokens (fine-grained).",
+          "required": true
+        }
+      ],
+      "tools": [
+        {
+          "name": "add_issue_comment",
+          "description": "Add a comment to a specific issue in a GitHub repository.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "add_pull_request_review_comment_to_pending_review",
+          "description": "Add a comment to the requester's latest pending pull request review, a pending review needs to already exist to call this (check with the user if not sure).",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "assign_copilot_to_issue",
+          "description": "Assign Copilot to a specific issue in a GitHub repository.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "dismiss_notification",
+          "description": "Dismiss a notification by marking it as read or done",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "fork_repository",
+          "description": "Fork a GitHub repository to your account or specified organization",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "manage_notification_subscription",
+          "description": "Manage a notification subscription: ignore, watch, or delete a notification thread subscription.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "manage_repository_notification_subscription",
+          "description": "Manage a repository notification subscription: ignore, watch, or delete repository notifications subscription for the provided repository.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "mark_all_notifications_read",
+          "description": "Mark all notifications as read",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "merge_pull_request",
+          "description": "Merge a pull request in a GitHub repository.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "push_files",
+          "description": "Push multiple files to a GitHub repository in a single commit",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "request_copilot_review",
+          "description": "Request a GitHub Copilot code review for a pull request.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "submit_pending_pull_request_review",
+          "description": "Submit the requester's latest pending pull request review, normally this is a final step after creating a pending review, adding comments first, unless you know that the user already did the first two steps, you should check before calling this.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "get_code_scanning_alert",
+          "description": "Get details of a specific code scanning alert in a GitHub repository.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_commit",
+          "description": "Get details for a commit from a GitHub repository",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_file_contents",
+          "description": "Get the contents of a file or directory from a GitHub repository",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_issue",
+          "description": "Get details of a specific issue in a GitHub repository.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_issue_comments",
+          "description": "Get comments for a specific issue in a GitHub repository.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_me",
+          "description": "Get details of the authenticated GitHub user.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_notification_details",
+          "description": "Get detailed information for a specific GitHub notification, always call this tool when the user asks for details about a specific notification, if you don't know the ID list notifications first.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_pull_request",
+          "description": "Get details of a specific pull request in a GitHub repository.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_pull_request_comments",
+          "description": "Get comments for a specific pull request.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_pull_request_diff",
+          "description": "Get the diff of a pull request.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_pull_request_files",
+          "description": "Get the files changed in a specific pull request.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_pull_request_reviews",
+          "description": "Get reviews for a specific pull request.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_pull_request_status",
+          "description": "Get the status of a specific pull request.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_secret_scanning_alert",
+          "description": "Get details of a specific secret scanning alert in a GitHub repository.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_tag",
+          "description": "Get details about a specific git tag in a GitHub repository",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_branches",
+          "description": "List branches in a GitHub repository",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_code_scanning_alerts",
+          "description": "List code scanning alerts in a GitHub repository.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_commits",
+          "description": "Get list of commits of a branch in a GitHub repository",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_issues",
+          "description": "List issues in a GitHub repository.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_notifications",
+          "description": "Lists all GitHub notifications for the authenticated user, including unread notifications, mentions, review requests, assignments, and updates on issues or pull requests.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_pull_requests",
+          "description": "List pull requests in a GitHub repository.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_secret_scanning_alerts",
+          "description": "List secret scanning alerts in a GitHub repository.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_tags",
+          "description": "List git tags in a GitHub repository",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "search_code",
+          "description": "Search for code across GitHub repositories",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "search_issues",
+          "description": "Search for issues in GitHub repositories.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "search_repositories",
+          "description": "Search for GitHub repositories",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "search_users",
+          "description": "Search for GitHub users",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "create_and_submit_pull_request_review",
+          "description": "Create and submit a review for a pull request without review comments.",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "create_branch",
+          "description": "Create a new branch in a GitHub repository",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "create_issue",
+          "description": "Create a new issue in a GitHub repository.",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "create_or_update_file",
+          "description": "Create or update a single file in a GitHub repository.",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "create_pending_pull_request_review",
+          "description": "Create a pending review for a pull request.",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "create_pull_request",
+          "description": "Create a new pull request in a GitHub repository.",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "create_repository",
+          "description": "Create a new GitHub repository in your account",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "delete_file",
+          "description": "Delete a file from a GitHub repository",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "delete_pending_pull_request_review",
+          "description": "Delete the requester's latest pending pull request review.",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "update_issue",
+          "description": "Update an existing issue in a GitHub repository.",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "update_pull_request",
+          "description": "Update an existing pull request in a GitHub repository.",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "update_pull_request_branch",
+          "description": "Update the branch of a pull request with the latest changes from the base branch.",
+          "category": "write",
+          "defaultPermission": "ask"
+        }
+      ],
+      "tags": [
+        "development",
+        "code"
+      ]
+    },
+    {
       "id": "klaviyo",
       "name": "Klaviyo",
       "description": "Email/SMS marketing — campaigns, lists, segments, profiles, events.",

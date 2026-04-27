@@ -181,19 +181,22 @@ async function main(): Promise<void> {
   logger.info({ event: 'cron_static_loaded', count: staticCrons.length }, 'static crons loaded');
 
   // GitHub App auth — generates installation tokens and sets env vars (ACME_GH_TOKEN, etc.)
-  const githubApp = loadGitHubAppConfig();
+  // Spec 0042: prefer DB-sourced github-app-* connectors; fall back to yaml.
+  const githubApp = loadGitHubAppConfig(connectors);
   if (githubApp) {
     await githubApp.bootstrap();
   } else {
     logger.info(
       { event: 'github_app_skipped' },
-      'no github_app section in config.yaml, using GH_TOKEN only',
+      'no github_app config (DB or yaml), using GH_TOKEN only',
     );
   }
 
   // The MCP map is built per agent turn from the DB so connector edits land
   // without restart. We resolve once at boot just for the log line.
-  const getMcpServers = () => buildMcpServersMap({ connectorRepo: connectors, logger });
+  // Spec 0042: pass githubApp so buildMcpServersMap can intercept github-app-*
+  // connectors and synthesize a fresh GITHUB_PERSONAL_ACCESS_TOKEN per turn.
+  const getMcpServers = () => buildMcpServersMap({ connectorRepo: connectors, githubApp, logger });
   const initialServers = getMcpServers();
   logger.info(
     {

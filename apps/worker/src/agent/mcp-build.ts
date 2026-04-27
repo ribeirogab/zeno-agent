@@ -16,14 +16,17 @@ import {
   toRemoteConfig,
   toStdioConfig,
 } from '@zeno/mcp-discover';
-import type { ConnectorRepo } from '@zeno/storage';
+import type { ConnectorRepo, ConnectorSecret } from '@zeno/storage';
 import type { McpServerConfig } from '@/agent/mcp';
 import { loadAgentMcpConfig } from '@/agent/mcp';
+import { GITHUB_APP_RESERVED_KEYS, type GitHubAppAuth } from '@/github/app-auth';
 
 export { RESERVED_AUTHORIZATION_KEY, RESERVED_MCP_TYPE_KEY, toRemoteConfig, toStdioConfig };
 
 interface BuildMcpServersOptions {
   connectorRepo: ConnectorRepo;
+  /** Optional. When set, github-app-* connectors get a fresh installation token. Spec 0042. */
+  githubApp?: GitHubAppAuth | null;
   logger: Logger;
 }
 
@@ -43,10 +46,40 @@ export function buildMcpServersMap(opts: BuildMcpServersOptions): Record<string,
   const merged: Record<string, McpServerConfig> = { ...agentServers };
   for (const { connector, secrets } of userLayer) {
     try {
+      // Spec 0042: github-app-* connectors get a synthetic PAT secret minted
+      // from the cached installation token. The five __GITHUB_*__ reserved
+      // keys are NEVER forwarded to the github-mcp-server subprocess.
+      let effectiveSecrets: ConnectorSecret[] = secrets;
+      if (connector.slug.startsWith('github-app-')) {
+        if (!opts.githubApp) {
+          throw new Error('github-app connector requires githubApp auth instance');
+        }
+        const map = new Map(secrets.map((s) => [s.key, s.value]));
+        const installationName = map.get(GITHUB_APP_RESERVED_KEYS.INSTALLATION_NAME);
+        if (!installationName) {
+          throw new Error(
+            `github-app connector ${connector.slug} missing __GITHUB_INSTALLATION_NAME__`,
+          );
+        }
+        const token = opts.githubApp.getCachedToken(installationName);
+        if (!token) {
+          throw new Error(
+            `github-app token cache miss for installation "${installationName}" — refresh interval will populate it on the next cycle`,
+          );
+        }
+        effectiveSecrets = [
+          {
+            connectorId: connector.id,
+            key: 'GITHUB_PERSONAL_ACCESS_TOKEN',
+            value: token,
+          },
+        ];
+      }
+
       const config =
         connector.transport === 'stdio'
-          ? toStdioConfig(connector, secrets)
-          : toRemoteConfig(connector, secrets);
+          ? toStdioConfig(connector, effectiveSecrets)
+          : toRemoteConfig(connector, effectiveSecrets);
       if (merged[connector.slug]) {
         opts.logger.info(
           { event: 'connector_overrides_builtin', slug: connector.slug },

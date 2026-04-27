@@ -1,4 +1,262 @@
 {
+  "github-app": [],
+  "github": [
+    {
+      "name": "add_issue_comment",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "add_pull_request_review_comment_to_pending_review",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "assign_copilot_to_issue",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "dismiss_notification",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "fork_repository",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "manage_notification_subscription",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "manage_repository_notification_subscription",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "mark_all_notifications_read",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "merge_pull_request",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "push_files",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "request_copilot_review",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "submit_pending_pull_request_review",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "get_code_scanning_alert",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_commit",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_file_contents",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_issue",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_issue_comments",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_me",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_notification_details",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_pull_request",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_pull_request_comments",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_pull_request_diff",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_pull_request_files",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_pull_request_reviews",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_pull_request_status",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_secret_scanning_alert",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_tag",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_branches",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_code_scanning_alerts",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_commits",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_issues",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_notifications",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_pull_requests",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_secret_scanning_alerts",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_tags",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "search_code",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "search_issues",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "search_repositories",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "search_users",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "create_and_submit_pull_request_review",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_branch",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_issue",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_or_update_file",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_pending_pull_request_review",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_pull_request",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_repository",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "delete_file",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "delete_pending_pull_request_review",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "update_issue",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "update_pull_request",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "update_pull_request_branch",
+      "category": "write",
+      "defaultPermission": "ask"
+    }
+  ],
   "klaviyo": [
     {
       "name": "klaviyo_assign_template_to_campaign_message",

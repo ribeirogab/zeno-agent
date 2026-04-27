@@ -21,6 +21,13 @@ export function parseGitIdentityFromConfig(
     try {
       const raw = readFileSync(path, 'utf8');
       const parsed = parseYaml(raw) as Record<string, unknown> | null;
+      // Spec 0042: prefer top-level `git_identity` (separated from github_app
+      // when the App config moved to DB). Fall back to `github_app.git_identity`
+      // for back-compat with profiles that haven't migrated yet.
+      const topLevel = parsed?.git_identity as { name?: string; email?: string } | undefined;
+      if (topLevel?.name && topLevel?.email) {
+        return { name: topLevel.name, email: topLevel.email };
+      }
       const githubApp = parsed?.github_app as Record<string, unknown> | undefined;
       const identity = githubApp?.git_identity as { name?: string; email?: string } | undefined;
       if (identity?.name && identity?.email) {

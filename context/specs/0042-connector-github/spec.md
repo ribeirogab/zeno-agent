@@ -1,8 +1,8 @@
 ---
-status: approved
+status: shipped
 feature: connector-github
 created: 2026-04-27
-shipped: null
+shipped: 2026-04-27
 ---
 # GitHub Connector — Spec
 
@@ -187,6 +187,15 @@ Provide two catalog-installable GitHub connectors. The Personal flow is a one-ti
 - **Non-owner runtime path** for write tools (e.g., `merge_pull_request`): same gap as Linear. Single-tenant `fn` profile.
 - **OAuth App flow**: deferred.
 - **Multi-profile shared GitHub App**: not designed for. Each profile maintains its own.
+
+## Findings during implementation
+
+- **Finding #1: `golang:1.22` too old for github-mcp-server v0.5.0** (requires Go 1.23.7+). Bumped Dockerfile builder stage to `golang:1.24`.
+- **Finding #2: Custom Install UI deferred**. The catalog entry uses `customInstallComponent: 'github-app'` but the spec's full custom React component (PEM file picker + installations editor) was deferred — install happens via the new API endpoint `POST /api/connectors/catalog/github-app/install`. The dashboard catalog modal will throw when opening github-app until the component is wired up; in practice, install is API-driven for v1. Tracked as a follow-up.
+- **Finding #3: Worker doesn't hot-reload GitHubAppAuth**. After `connector_create` enqueues N github-app rows, the worker's already-bootstrapped `GitHubAppAuth` doesn't pick them up — the operator must restart the container so `loadGitHubAppConfig(connectors)` re-reads the DB. Documented in the install endpoint's API doc-comment. Hot-reload is a follow-up.
+- **Finding #4: `mcp-build.ts` stays sync via `getCachedToken`**. As planned in spec round 3, added a synchronous `GitHubAppAuth.getCachedToken(installationName)` that returns the cached token if still valid, `null` otherwise. The interval-based `refreshAll` (55-min timer) keeps the cache fresh under the 60-min token TTL. Cache-miss path falls into the existing `connector_skipped` warning + last_error persist.
+- **Finding #5: Reserved keys defense-in-depth**. Added the five `__GITHUB_*__` keys to `toStdioConfig`'s skip list so they're never forwarded to the github-mcp-server subprocess even on an accidental code path that bypasses `mcp-build.ts`'s intercept.
+- **Finding #6: classifyError regex false positive**. Initial regex change for spec 0039 used `authenticat` as a fragment to catch "authentication". GitHub's `get_me` response contains `"two_factor_authentication":true` in success payloads — the regex matched, returning `errorKind: 'auth'` for valid responses. Tightened to `unauthenticat|authentication (failed|invalid|required|expired|denied|error)|authorization (expired|invalid|rejected|denied|failed|error)`. Verified against all 4 connectors (Linear/Klaviyo/Swarmia/GitHub) that bad-token still classifies as auth and good-token still classifies as ok.
 
 ## Review procedure
 

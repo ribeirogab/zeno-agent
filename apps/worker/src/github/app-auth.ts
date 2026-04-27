@@ -2,11 +2,21 @@ import { createSign } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createLogger } from '@zeno/logger';
+import type { ConnectorRepo } from '@zeno/storage';
 import { parse as parseYaml } from 'yaml';
 
 const logger = createLogger({ service: 'worker' });
 
 const TOKEN_REFRESH_MARGIN_MS = 5 * 60_000;
+
+// Reserved secret keys for github-app-* connectors. Spec 0042.
+export const GITHUB_APP_RESERVED_KEYS = {
+  APP_ID: '__GITHUB_APP_ID__',
+  PEM: '__GITHUB_APP_PEM__',
+  INSTALLATION_ID: '__GITHUB_INSTALLATION_ID__',
+  INSTALLATION_NAME: '__GITHUB_INSTALLATION_NAME__',
+  ENV_VAR: '__GITHUB_ENV_VAR__',
+} as const;
 
 interface Installation {
   name: string;
@@ -16,7 +26,9 @@ interface Installation {
 
 interface GitHubAppAuthOptions {
   appId: string;
-  privateKeyPath: string;
+  /** Either pass a pre-loaded PEM string (DB-sourced) or a path to a PEM file (yaml-sourced). */
+  privateKey?: string;
+  privateKeyPath?: string;
   installations: Installation[];
 }
 
@@ -34,8 +46,31 @@ export class GitHubAppAuth {
 
   constructor(opts: GitHubAppAuthOptions) {
     this.appId = opts.appId;
-    this.privateKey = readFileSync(opts.privateKeyPath, 'utf8');
+    if (opts.privateKey) {
+      this.privateKey = opts.privateKey;
+    } else if (opts.privateKeyPath) {
+      this.privateKey = readFileSync(opts.privateKeyPath, 'utf8');
+    } else {
+      throw new Error('GitHubAppAuth: privateKey or privateKeyPath required');
+    }
     this.installations = opts.installations;
+  }
+
+  /**
+   * Sync read of a cached installation token. Returns null if cache is empty
+   * or token is within the refresh margin (5 min). Used by `mcp-build.ts` to
+   * stay synchronous (the SDK getter contract is sync). Spec 0042.
+   */
+  getCachedToken(installationName: string): string | null {
+    const cached = this.cache.get(installationName);
+    if (!cached) return null;
+    if (cached.expiresAt.getTime() - Date.now() <= TOKEN_REFRESH_MARGIN_MS) return null;
+    return cached.token;
+  }
+
+  /** Spec 0042: invalidate cached token (called from connector_update handler). */
+  invalidateCache(installationName: string): void {
+    this.cache.delete(installationName);
   }
 
   async bootstrap(): Promise<void> {
@@ -176,12 +211,95 @@ function loadGitHubAppLayer(
 }
 
 /**
- * Load GitHub App config from agent/ (shared base: app_id, key, git_identity)
- * and profile/ (installations). Profile fields override agent fields when both
- * are present. Paths (private_key_file) resolve relative to the layer that
- * provides them.
+ * Load GitHub App config. Spec 0042: prefer DB-sourced `github-app-*` connector
+ * rows; fall back to legacy yaml + .pem during the migration window.
+ *
+ * If `connectorRepo` is provided and at least one `github-app-*` connector
+ * exists, build the GitHubAppAuth from those rows. The first row's app_id +
+ * pem are the source of truth (all rows share the same app credentials).
+ *
+ * Otherwise read agent/profile yaml as before.
  */
-export function loadGitHubAppConfig(): GitHubAppAuth | null {
+export function loadGitHubAppConfig(connectorRepo?: ConnectorRepo): GitHubAppAuth | null {
+  if (connectorRepo) {
+    const fromDb = loadGitHubAppFromDb(connectorRepo);
+    if (fromDb) return fromDb;
+  }
+  return loadGitHubAppFromYaml();
+}
+
+function loadGitHubAppFromDb(connectorRepo: ConnectorRepo): GitHubAppAuth | null {
+  const all = connectorRepo.getEnabledWithRelations();
+  const appRows = all.filter((r) => r.connector.slug.startsWith('github-app-'));
+  if (appRows.length === 0) return null;
+
+  let appId: string | undefined;
+  let pem: string | undefined;
+  const installations: Installation[] = [];
+
+  for (const { connector, secrets } of appRows) {
+    const map = new Map(secrets.map((s) => [s.key, s.value]));
+    const rowAppId = map.get(GITHUB_APP_RESERVED_KEYS.APP_ID);
+    const rowPem = map.get(GITHUB_APP_RESERVED_KEYS.PEM);
+    const instId = map.get(GITHUB_APP_RESERVED_KEYS.INSTALLATION_ID);
+    const instName = map.get(GITHUB_APP_RESERVED_KEYS.INSTALLATION_NAME);
+    const envVar = map.get(GITHUB_APP_RESERVED_KEYS.ENV_VAR);
+
+    if (!rowAppId || !rowPem || !instId || !instName || !envVar) {
+      logger.warn(
+        {
+          event: 'github_app_db_row_incomplete',
+          slug: connector.slug,
+          missing: [
+            !rowAppId && 'app_id',
+            !rowPem && 'pem',
+            !instId && 'installation_id',
+            !instName && 'installation_name',
+            !envVar && 'env_var',
+          ].filter(Boolean),
+        },
+        'skipping incomplete github-app connector row',
+      );
+      continue;
+    }
+
+    appId ??= rowAppId;
+    pem ??= rowPem;
+    if (rowAppId !== appId) {
+      logger.warn(
+        {
+          event: 'github_app_id_mismatch',
+          slug: connector.slug,
+          expected: appId,
+          got: rowAppId,
+        },
+        'github-app connector rows have different app_ids; using the first',
+      );
+    }
+
+    installations.push({ name: instName, id: instId, envVar });
+  }
+
+  if (!appId || !pem || installations.length === 0) {
+    logger.warn(
+      { event: 'github_app_db_no_complete_rows' },
+      'no complete github-app-* connector rows found',
+    );
+    return null;
+  }
+
+  logger.info(
+    {
+      event: 'github_app_config_loaded_from_db',
+      installations: installations.map((i) => i.name),
+    },
+    'github_app config loaded from DB',
+  );
+
+  return new GitHubAppAuth({ appId, privateKey: pem, installations });
+}
+
+function loadGitHubAppFromYaml(): GitHubAppAuth | null {
   const agentLayer = loadGitHubAppLayer(AGENT_CANDIDATES);
   const profileLayer = loadGitHubAppLayer(PROFILE_CANDIDATES);
 
@@ -215,7 +333,7 @@ export function loadGitHubAppConfig(): GitHubAppAuth | null {
       profileLayer: !!profileLayer,
       installations: installations.length,
     },
-    'github_app config loaded',
+    'github_app config loaded from yaml',
   );
 
   return new GitHubAppAuth({

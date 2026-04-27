@@ -52,6 +52,19 @@ function slugify(displayName: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+// Spec 0042: lowercase + kebab-case for github-app installation names.
+// Different from slugify in that it doesn't first lowercase ASCII removal —
+// installation names are user-controlled (e.g., "AcmeBooks", "Flavia-Nasser-OMS")
+// and we want to preserve hyphens already present.
+function kebabLower(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 function resolveSlugCollision(repo: ConnectorRepo, base: string): string {
   if (!SLUG_REGEX.test(base)) {
     throw new Error(`derived slug ${JSON.stringify(base)} is invalid`);
@@ -275,6 +288,96 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     }
     return c.json({ ok: true, tools: result.tools, durationMs: result.durationMs });
   });
+
+  // POST /catalog/github-app/install — Spec 0042: installs N github-app connectors
+  // (one per installation) with the five reserved-key secrets. The runtime
+  // (`mcp-build.ts` + `app-auth.ts`) recognizes `github-app-*` slugs and mints
+  // installation tokens at MCP spawn time.
+  //
+  // Important: after a successful install, the worker must be restarted so
+  // `loadGitHubAppConfig(connectors)` re-reads the DB rows and bootstraps the
+  // token cache. Until then, the new github-app-* connectors will fail at MCP
+  // spawn with "github-app token cache miss".
+  route.post(
+    '/catalog/github-app/install',
+    zValidator(
+      'json',
+      z.object({
+        appId: z.string().min(1),
+        pem: z
+          .string()
+          .min(1)
+          .refine((v) => v.includes('BEGIN RSA PRIVATE KEY') || v.includes('BEGIN PRIVATE KEY'), {
+            message: 'pem must be a PEM-formatted RSA private key',
+          }),
+        installations: z
+          .array(
+            z.object({
+              name: z.string().min(1),
+              id: z.string().min(1),
+              envVar: z
+                .string()
+                .min(1)
+                .regex(/^[A-Z][A-Z0-9_]*$/, 'envVar must be UPPER_SNAKE_CASE'),
+            }),
+          )
+          .min(1),
+      }),
+    ),
+    (c) => {
+      const body = c.req.valid('json');
+      const slugs = new Set<string>();
+      for (const inst of body.installations) {
+        const slugCandidate = `github-app-${kebabLower(inst.name)}`;
+        if (slugs.has(slugCandidate)) {
+          return c.json({ error: 'duplicate_installation_name', name: inst.name }, 400);
+        }
+        slugs.add(slugCandidate);
+      }
+
+      const githubAppEntry = findCatalogEntry('github-app');
+      if (!githubAppEntry) {
+        return c.json({ error: 'github_app_catalog_entry_missing' }, 500);
+      }
+
+      // Enqueue one connector_create command per installation. Each row carries
+      // the five __GITHUB_*__ reserved-key secrets. Worker handler creates the
+      // row; mcp-build intercepts at MCP spawn to mint the actual PAT.
+      for (const inst of body.installations) {
+        const slug = resolveSlugCollision(deps.connectors, `github-app-${kebabLower(inst.name)}`);
+        const payload = {
+          source: 'catalog',
+          catalogId: 'github-app',
+          slug,
+          displayName: `GitHub App — ${inst.name}`,
+          description: githubAppEntry.description,
+          transport: githubAppEntry.transport,
+          command: githubAppEntry.transportConfig.command ?? null,
+          args: githubAppEntry.transportConfig.args ?? null,
+          url: githubAppEntry.transportConfig.url ?? null,
+          secrets: [
+            { key: '__GITHUB_APP_ID__', value: body.appId },
+            { key: '__GITHUB_APP_PEM__', value: body.pem },
+            { key: '__GITHUB_INSTALLATION_ID__', value: inst.id },
+            { key: '__GITHUB_INSTALLATION_NAME__', value: inst.name },
+            { key: '__GITHUB_ENV_VAR__', value: inst.envVar },
+          ],
+          tools: githubAppEntry.tools.map((t) => ({
+            toolName: t.name,
+            description: t.description,
+            category: t.category,
+            permission: t.defaultPermission,
+          })),
+        };
+        deps.commands.enqueue({
+          type: 'connector_create',
+          payload,
+          correlationId: randomUUID(),
+        });
+      }
+      return c.json({ ok: true, count: body.installations.length });
+    },
+  );
 
   // POST /test (transient — not yet saved)
   route.post('/test', zValidator('json', testConnectionSchema), async (c) => {

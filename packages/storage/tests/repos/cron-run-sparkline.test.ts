@@ -19,9 +19,12 @@ beforeEach(() => {
 });
 
 function insertRunAt(db: DB, cronId: string, startedAt: string, status = 'success'): void {
-  db.prepare(
-    'INSERT INTO cron_runs (id, cron_id, started_at, status) VALUES (?, ?, ?, ?)',
-  ).run(crypto.randomUUID(), cronId, startedAt, status);
+  db.prepare('INSERT INTO cron_runs (id, cron_id, started_at, status) VALUES (?, ?, ?, ?)').run(
+    crypto.randomUUID(),
+    cronId,
+    startedAt,
+    status,
+  );
 }
 
 function hourKey(hoursAgo: number): string {

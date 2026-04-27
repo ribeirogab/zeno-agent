@@ -17,8 +17,15 @@ Template: `[[../specs/_template/spec|_template/spec]]`
 - [[../specs/0027-documentation-platform/spec|0027 — Documentation Platform]] (draft) — Fumadocs + llms.txt for agent-friendly docs site in `apps/docs/`.
 - [[../specs/0028-skill-final-reaction/spec|0028 — Skill-controlled Final Reaction]] (draft) — in-process MCP (`set_final_reaction`, `slack_react`, `slack_unreact`) + optional `AgentOutput.finalReaction` so skills can override the core's default ✅.
 
+## Deferred
+
+- [[../specs/0035-connectors-e2e/spec|0035 — Connectors E2E Validation + Testing]] (deferred 2026-04-26) — full automated suite with 22 scenarios + 4× consecutive clean rule. Manual validation guide in spec 0034 covers the operator path; revisit once the surface stabilizes.
+
 ## Shipped
 
+- [[../specs/0034-connectors-dashboard/spec|0034 — Connectors Dashboard]] (2026-04-26) — `/connectors` route + Hono API (15 endpoints) + 4 worker handlers (create/update/refresh-tools/uninstall) + Slack catalog entry + `@zeno/mcp-discover` workspace package + frontend port from `apps/design`.
+- [[../specs/0033-remote-mcp-runtime/spec|0033 — Remote MCP Runtime]] (2026-04-26) — HTTP/SSE transport via `@modelcontextprotocol/sdk`; `discoverTools` with stdio + remote paths; reserved keys `__MCP_TYPE__` / `__MCP_AUTHORIZATION__`.
+- [[../specs/0032-connectors-backend/spec|0032 — Connectors Backend Foundation]] (2026-04-26) — migration 5 (4 tables) + `ConnectorRepo` + DB-first MCP loader + `connector_permission` policy in pipeline + invocation logging + `mcp.json` cutover warning.
 - [[../specs/0026-imperial-terminal-rebranding/spec|0026 — Imperial Terminal Rebranding]] (2026-04-24) — full visual rebuild: tokens, fonts, primitives, all 8 screens, 2 API endpoints. Based on `tmp/rebranding/zeno/` prototype.
 
 ## Design-only

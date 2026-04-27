@@ -14,12 +14,14 @@
     "@anthropic-ai/claude-agent-sdk": "^0.2.110",
     "@slack/bolt": "^4.7.0",
     "@zeno/logger": "workspace:*",
+    "@zeno/mcp-discover": "workspace:*",
     "@zeno/storage": "workspace:*",
     "cron-parser": "^5.5.0",
     "yaml": "^2.8.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "tsc-alias": "^1.8.16",
     "typescript": "^6.0.2",
     "vitest": "^4.1.4"

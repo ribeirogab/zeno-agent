@@ -1,0 +1,114 @@
+{
+  "sentry": [
+    {
+      "name": "analyze_issue_with_seer",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "whoami",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "find_dsns",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "find_organizations",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "find_projects",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "find_releases",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "find_teams",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_doc",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_event_attachment",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_issue_tag_values",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_profile_details",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_replay_details",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_sentry_resource",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_events",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_issue_events",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_issues",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "search_docs",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "create_dsn",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_project",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_team",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "update_issue",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "update_project",
+      "category": "write",
+      "defaultPermission": "ask"
+    }
+  ]
+}

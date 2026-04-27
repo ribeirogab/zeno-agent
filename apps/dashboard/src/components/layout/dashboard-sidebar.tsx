@@ -3,12 +3,13 @@ import { Crest } from '@zeno/ui';
 import type { JSX, ReactNode } from 'react';
 import { type ServiceStatus, useHealth } from '@/lib/use-health';
 
-type NavId = 'home' | 'crons' | 'sessions' | 'logs' | 'settings';
+type NavId = 'home' | 'crons' | 'sessions' | 'connectors' | 'logs' | 'settings';
 
 const NAV: { id: NavId; label: string; to: string; badge?: number }[] = [
   { id: 'home', label: 'home', to: '/' },
   { id: 'crons', label: 'crons', to: '/crons' },
   { id: 'sessions', label: 'sessions', to: '/sessions' },
+  { id: 'connectors', label: 'connectors', to: '/connectors' },
   { id: 'logs', label: 'logs', to: '/logs' },
   { id: 'settings', label: 'settings', to: '/settings' },
 ];
@@ -39,6 +40,7 @@ function navIdForPath(path: string): NavId {
   if (path === '/') return 'home';
   if (path.startsWith('/crons')) return 'crons';
   if (path.startsWith('/sessions')) return 'sessions';
+  if (path.startsWith('/connectors')) return 'connectors';
   if (path.startsWith('/logs')) return 'logs';
   if (path.startsWith('/settings')) return 'settings';
   return 'home';
@@ -156,6 +158,14 @@ function NavIcon({ id }: { id: NavId }): JSX.Element {
       return (
         <svg {...props} aria-hidden="true">
           <path d="M4 6h16v10H9l-5 4z" />
+        </svg>
+      );
+    case 'connectors':
+      return (
+        <svg {...props} aria-hidden="true">
+          <path d="M9 7v4M15 7v4" />
+          <path d="M5 11h14v3a4 4 0 0 1-4 4h-6a4 4 0 0 1-4-4v-3z" />
+          <path d="M12 18v3" />
         </svg>
       );
     case 'logs':

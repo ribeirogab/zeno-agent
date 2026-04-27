@@ -39,7 +39,6 @@ describe('ProfileWatcher', () => {
     const watcher = new ProfileWatcher({
       onPromptFilesChanged,
       onCronsChanged: vi.fn(),
-      onMcpChanged: vi.fn(),
       debounceMs: 50,
     });
     watcher.start();
@@ -61,7 +60,6 @@ describe('ProfileWatcher', () => {
     const watcher = new ProfileWatcher({
       onPromptFilesChanged: vi.fn(),
       onCronsChanged,
-      onMcpChanged: vi.fn(),
       debounceMs: 50,
     });
     watcher.start();
@@ -76,52 +74,33 @@ describe('ProfileWatcher', () => {
     expect(onCronsChanged).toHaveBeenCalledTimes(1);
   });
 
-  it('routes profile/mcp.json edits to onMcpChanged', async () => {
-    const onMcpChanged = vi.fn();
+  it('ignores mcp.json edits (DB-managed connectors after spec 0032)', async () => {
+    const onPromptFilesChanged = vi.fn();
+    const onCronsChanged = vi.fn();
     const watcher = new ProfileWatcher({
-      onPromptFilesChanged: vi.fn(),
-      onCronsChanged: vi.fn(),
-      onMcpChanged,
+      onPromptFilesChanged,
+      onCronsChanged,
       debounceMs: 50,
     });
     watcher.start();
     await wait(50);
 
     touchProfile('mcp.json', '{}');
-
-    await wait(150);
-    watcher.stop();
-
-    expect(onMcpChanged).toHaveBeenCalledTimes(1);
-  });
-
-  it('routes agent/mcp.json edits to onMcpChanged', async () => {
-    const onMcpChanged = vi.fn();
-    const watcher = new ProfileWatcher({
-      onPromptFilesChanged: vi.fn(),
-      onCronsChanged: vi.fn(),
-      onMcpChanged,
-      debounceMs: 50,
-    });
-    watcher.start();
-    await wait(50);
-
     touchAgent('mcp.json', '{}');
 
     await wait(150);
     watcher.stop();
 
-    expect(onMcpChanged).toHaveBeenCalledTimes(1);
+    expect(onPromptFilesChanged).not.toHaveBeenCalled();
+    expect(onCronsChanged).not.toHaveBeenCalled();
   });
 
   it('ignores edits under skills/ from either source', async () => {
     const onPromptFilesChanged = vi.fn();
     const onCronsChanged = vi.fn();
-    const onMcpChanged = vi.fn();
     const watcher = new ProfileWatcher({
       onPromptFilesChanged,
       onCronsChanged,
-      onMcpChanged,
       debounceMs: 50,
     });
     watcher.start();
@@ -135,7 +114,6 @@ describe('ProfileWatcher', () => {
 
     expect(onPromptFilesChanged).not.toHaveBeenCalled();
     expect(onCronsChanged).not.toHaveBeenCalled();
-    expect(onMcpChanged).not.toHaveBeenCalled();
   });
 
   it('does not crash when a handler throws', async () => {
@@ -144,7 +122,6 @@ describe('ProfileWatcher', () => {
         throw new Error('handler boom');
       },
       onCronsChanged: vi.fn(),
-      onMcpChanged: vi.fn(),
       debounceMs: 50,
     });
     watcher.start();

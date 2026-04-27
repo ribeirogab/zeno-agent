@@ -68,7 +68,11 @@ export type CommandType =
   | 'cron_resume'
   | 'cron_run_now'
   | 'cron_delete'
-  | 'worker_restart';
+  | 'worker_restart'
+  | 'connector_create'
+  | 'connector_update'
+  | 'connector_refresh_tools'
+  | 'connector_uninstall';
 
 export type CommandStatus = 'pending' | 'processing' | 'success' | 'failed';
 
@@ -122,7 +126,9 @@ export type PolicyThatGated =
   | 'auto_allow'
   | 'timeout'
   | 'classifier_unavailable'
-  | 'approver_channel_error';
+  | 'approver_channel_error'
+  | 'connector_allow'
+  | 'connector_never';
 
 export interface ApprovalsLogEntry {
   id: number;
@@ -150,4 +156,104 @@ export interface LogFilter {
   cursorId?: number;
   sinceId?: number;
   limit?: number;
+}
+
+// ───────────────────────────────────────────────────────────────────
+// Connectors (spec 0032)
+// ───────────────────────────────────────────────────────────────────
+
+export type ConnectorTransport = 'stdio' | 'remote';
+export type ConnectorSource = 'catalog' | 'custom';
+export type ConnectorStatus = 'enabled' | 'disabled' | 'pending';
+export type ToolCategory = 'read' | 'write' | 'interactive';
+export type ToolPermission = 'always_allow' | 'ask' | 'never';
+export type InvocationResult = 'ok' | 'error';
+
+export interface Connector {
+  id: string;
+  slug: string;
+  displayName: string;
+  description: string | null;
+  source: ConnectorSource;
+  catalogId: string | null;
+  transport: ConnectorTransport;
+  command: string | null;
+  args: string[] | null;
+  url: string | null;
+  status: ConnectorStatus;
+  lastError: string | null;
+  lastErrorAt: string | null;
+  lastVerifiedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConnectorSecret {
+  connectorId: string;
+  key: string;
+  value: string;
+}
+
+export interface ConnectorToolPermission {
+  connectorId: string;
+  toolName: string;
+  description: string | null;
+  category: ToolCategory;
+  permission: ToolPermission;
+}
+
+export interface ConnectorInvocation {
+  id: number;
+  connectorId: string;
+  toolName: string;
+  threadId: string | null;
+  correlationId: string | null;
+  result: InvocationResult;
+  durationMs: number;
+  errorMessage: string | null;
+  createdAt: string;
+}
+
+export interface CreateConnectorInput {
+  id?: string;
+  slug: string;
+  displayName: string;
+  description?: string | null;
+  source: ConnectorSource;
+  catalogId?: string | null;
+  transport: ConnectorTransport;
+  command?: string | null;
+  args?: string[] | null;
+  url?: string | null;
+  status?: ConnectorStatus;
+  secrets: Array<{ key: string; value: string }>;
+  tools: Array<Omit<ConnectorToolPermission, 'connectorId'>>;
+}
+
+export interface UpdateConnectorInput {
+  displayName?: string;
+  description?: string | null;
+  command?: string | null;
+  args?: string[] | null;
+  url?: string | null;
+  status?: ConnectorStatus;
+  lastError?: string | null;
+  lastErrorAt?: string | null;
+  lastVerifiedAt?: string | null;
+}
+
+export interface ConnectorWithRelations {
+  connector: Connector;
+  secrets: ConnectorSecret[];
+  tools: ConnectorToolPermission[];
+}
+
+export interface RecordInvocationInput {
+  connectorId: string;
+  toolName: string;
+  threadId?: string | null;
+  correlationId?: string | null;
+  result: InvocationResult;
+  durationMs: number;
+  errorMessage?: string | null;
 }

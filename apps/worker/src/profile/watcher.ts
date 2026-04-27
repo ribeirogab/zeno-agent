@@ -4,7 +4,7 @@ import { createLogger } from '@zeno/logger';
 const logger = createLogger({ service: 'worker' });
 
 /** Logical groupings of identity/config files. The watcher dispatches one group per debounce window. */
-type FileGroup = 'prompt' | 'crons' | 'mcp' | 'ignored';
+type FileGroup = 'prompt' | 'crons' | 'ignored';
 
 type SourceKind = 'agent' | 'profile';
 
@@ -16,8 +16,6 @@ interface ProfileWatcherOptions {
   onPromptFilesChanged: () => void;
   /** Called when profile/config.yaml changes. */
   onCronsChanged: () => void;
-  /** Called when agent/mcp.json or profile/mcp.json changes. */
-  onMcpChanged: () => void;
   /** Debounce window in ms. Defaults to 250 — enough to coalesce editor save bursts. */
   debounceMs?: number;
 }
@@ -91,9 +89,6 @@ export class ProfileWatcher {
         case 'crons':
           this.opts.onCronsChanged();
           break;
-        case 'mcp':
-          this.opts.onMcpChanged();
-          break;
       }
     } catch (error) {
       logger.error(
@@ -114,6 +109,7 @@ function findSourceDir(candidates: string[]): string | null {
 /**
  * Map a (source, filename) pair to its reload group.
  * Anything under skills/ is ignored — Zeno reads those on-demand via Read tool.
+ * `mcp.json` is ignored after spec 0032 (DB is the source of truth for MCPs).
  */
 export function classify(source: SourceKind, filename: string): FileGroup {
   const normalized = filename.replace(/\\/g, '/');
@@ -121,6 +117,5 @@ export function classify(source: SourceKind, filename: string): FileGroup {
   if (source === 'agent' && normalized === 'SOUL.md') return 'prompt';
   if (source === 'profile' && normalized === 'USER.md') return 'prompt';
   if (source === 'profile' && normalized === 'config.yaml') return 'crons';
-  if (normalized === 'mcp.json') return 'mcp';
   return 'ignored';
 }

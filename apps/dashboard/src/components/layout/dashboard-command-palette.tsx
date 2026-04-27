@@ -57,6 +57,13 @@ export function DashboardCommandPalette(): JSX.Element {
             <span>sessions</span>
             <CommandShortcut>⌘S</CommandShortcut>
           </CommandItem>
+          <CommandItem
+            value="connectors mcp tools integrations"
+            onSelect={() => goto('/connectors')}
+          >
+            <span>connectors</span>
+            <CommandShortcut>⌘N</CommandShortcut>
+          </CommandItem>
           <CommandItem value="logs observability pino" onSelect={() => goto('/logs')}>
             <span>logs</span>
             <CommandShortcut>⌘L</CommandShortcut>

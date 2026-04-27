@@ -4,13 +4,13 @@ import { createLogger } from '@zeno/logger';
 const logger = createLogger({ service: 'worker' });
 
 const AGENT_CANDIDATES = ['/app/agent', 'agent'];
-const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
+export const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
 
 type Layer = 'agent' | 'profile';
 
 /**
  * MCP server configuration as accepted by the Claude Agent SDK's `mcpServers` option.
- * We support the stdio shape (command + args + env) and HTTP/SSE shape (type + url).
+ * We support the stdio shape (command + args + env) and HTTP/SSE shape (type + url + headers).
  * Underscore-prefixed fields (_comment, _disabled, _doc) are our convention and stripped before passing to the SDK.
  */
 export interface McpServerConfig {
@@ -19,6 +19,7 @@ export interface McpServerConfig {
   env?: Record<string, string>;
   type?: 'http' | 'sse' | 'stdio';
   url?: string;
+  headers?: Record<string, string>;
 }
 
 interface McpFileEntry extends McpServerConfig {
@@ -134,22 +135,10 @@ function loadLayer(
 }
 
 /**
- * Load the merged MCP server config from both agent/mcp.json (built-in) and
- * profile/mcp.json (user). On name collision, the profile entry wins.
+ * Load only the agent-layer MCP config (built-in MCPs from agent/mcp.json).
+ * Spec 0032 — `profile/mcp.json` is no longer read; user MCPs come from the
+ * DB via `buildMcpServersMap` in `mcp-build.ts`.
  */
-export function loadMcpConfig(): Record<string, McpServerConfig> {
-  const agentServers = loadLayer('agent', AGENT_CANDIDATES, 'mcp.json');
-  const profileServers = loadLayer('profile', PROFILE_CANDIDATES, 'mcp.json');
-
-  const merged: Record<string, McpServerConfig> = { ...agentServers };
-  for (const [name, entry] of Object.entries(profileServers)) {
-    if (merged[name]) {
-      logger.info(
-        { event: 'mcp_server_override', name, winner: 'profile' },
-        'profile mcp server overrides agent built-in',
-      );
-    }
-    merged[name] = entry;
-  }
-  return merged;
+export function loadAgentMcpConfig(): Record<string, McpServerConfig> {
+  return loadLayer('agent', AGENT_CANDIDATES, 'mcp.json');
 }

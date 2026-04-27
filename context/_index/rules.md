@@ -10,7 +10,7 @@ Rules are added when a project-specific safety or workflow constraint is discove
 
 ## `severity: critical`
 
-_(none yet)_
+- [[../rules/integration-tokens-in-db-only|Integration tokens vivem na DB, não no `.env`]] — credenciais de integração externa (Sentry, Linear, Notion, GitHub MCP, etc.) só em `connector_secrets`. Garante que a toggle "disable" do connector seja uma promessa forte: sem credencial alcançável pelo agent via Bash. Slack tokens são exceção temporária (Channel adapter).
 
 ## `severity: important`
 

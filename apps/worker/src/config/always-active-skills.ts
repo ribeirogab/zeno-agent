@@ -18,9 +18,7 @@ export function loadAlwaysActiveSkillNames(): string[] {
       if (Array.isArray(skills) && skills.length > 0) {
         return skills.filter((name): name is string => typeof name === 'string');
       }
-    } catch {
-      continue;
-    }
+    } catch {}
   }
   return [];
 }

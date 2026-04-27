@@ -1,10 +1,11 @@
-import type { CommandRepo, CronRepo, CronRunRepo, DB, LogRepo } from '@zeno/storage';
+import type { CommandRepo, ConnectorRepo, CronRepo, CronRunRepo, DB, LogRepo } from '@zeno/storage';
 import { SessionRepo } from '@zeno/storage';
 import { Hono } from 'hono';
 import { requireAuth } from '@/auth/middleware';
 import type { ApiConfig } from '@/config';
 import { buildActivityRoute } from '@/routes/activity';
 import { buildAuthRoutes } from '@/routes/auth';
+import { buildConnectorsRoute } from '@/routes/connectors';
 import { buildCronsRoute } from '@/routes/crons';
 import { buildHealthRoute } from '@/routes/health';
 import { buildLogsRoute } from '@/routes/logs';
@@ -20,6 +21,8 @@ export interface AppDeps {
   cronRunRepo: CronRunRepo;
   commandRepo: CommandRepo;
   logRepo: LogRepo;
+  /** Optional in tests that don't exercise the /api/connectors/* routes. */
+  connectorRepo?: ConnectorRepo;
   /** Directory holding Claude Code JSONL transcripts (e.g. `~/.claude/projects/-workspace`). */
   claudeHome: string;
   /** Directory holding the agent profile files (SOUL.md, USER.md, crons.yaml, mcp.json). */
@@ -83,6 +86,17 @@ export function createApp(deps: AppDeps): Hono {
   app.use('/api/logs', requireAuth({ secret: deps.config.sessionSecret, secure }));
   app.use('/api/logs/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
   app.route('/api/logs', buildLogsRoute({ logs: deps.logRepo }));
+  if (deps.connectorRepo) {
+    app.use('/api/connectors', requireAuth({ secret: deps.config.sessionSecret, secure }));
+    app.use('/api/connectors/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
+    app.route(
+      '/api/connectors',
+      buildConnectorsRoute({
+        connectors: deps.connectorRepo,
+        commands: deps.commandRepo,
+      }),
+    );
+  }
   if (deps.spaDir) {
     app.get('*', serveStaticSpa(deps.spaDir));
   }

@@ -196,10 +196,13 @@ describe('GuardedBackend.buildPreToolUseHook', () => {
         }),
     );
 
+    // Spec 0038 F#3: deny path now prepends `policy_denied: ` to the reason.
+    // The fail-safe deny path (missing call context) is intentionally NOT
+    // prefixed because it's an internal failure, not a policy denial.
     expect(result).toMatchObject({
       hookSpecificOutput: {
         permissionDecision: 'deny',
-        permissionDecisionReason: 'never merge from here',
+        permissionDecisionReason: 'policy_denied: never merge from here',
       },
     });
   });

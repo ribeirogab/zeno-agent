@@ -22,7 +22,9 @@ function buildCtx(toolName: string, toolInput: unknown = {}): PolicyContext {
 describe('alwaysAllowedPolicy', () => {
   it('allows tools in always_allowed_tools list', async () => {
     const policy = makeAlwaysAllowedPolicy({ tools: ['Read', 'Glob', 'Grep'], commands: [] });
-    expect(await policy.check(buildCtx('Read', { file_path: '/foo' }))).toMatchObject({ allow: true });
+    expect(await policy.check(buildCtx('Read', { file_path: '/foo' }))).toMatchObject({
+      allow: true,
+    });
     expect(await policy.check(buildCtx('Glob', { pattern: '**' }))).toMatchObject({ allow: true });
     expect(await policy.check(buildCtx('Grep', { query: 'x' }))).toMatchObject({ allow: true });
   });
@@ -35,29 +37,49 @@ describe('alwaysAllowedPolicy', () => {
 
   it('allows Bash commands matching always_allowed_commands patterns', async () => {
     const policy = makeAlwaysAllowedPolicy({ tools: [], commands: ['gh pr *', 'gh api *'] });
-    expect(await policy.check(buildCtx('Bash', { command: 'gh pr diff 123' }))).toMatchObject({ allow: true });
-    expect(await policy.check(buildCtx('Bash', { command: 'gh pr view 42 --json title' }))).toMatchObject({ allow: true });
-    expect(await policy.check(buildCtx('Bash', { command: 'gh pr review 42 --approve' }))).toMatchObject({ allow: true });
-    expect(await policy.check(buildCtx('Bash', { command: 'gh api repos/foo/bar/pulls/1/reviews' }))).toMatchObject({ allow: true });
+    expect(await policy.check(buildCtx('Bash', { command: 'gh pr diff 123' }))).toMatchObject({
+      allow: true,
+    });
+    expect(
+      await policy.check(buildCtx('Bash', { command: 'gh pr view 42 --json title' })),
+    ).toMatchObject({ allow: true });
+    expect(
+      await policy.check(buildCtx('Bash', { command: 'gh pr review 42 --approve' })),
+    ).toMatchObject({ allow: true });
+    expect(
+      await policy.check(buildCtx('Bash', { command: 'gh api repos/foo/bar/pulls/1/reviews' })),
+    ).toMatchObject({ allow: true });
   });
 
   it('allows compound Bash commands with export prefix', async () => {
     const policy = makeAlwaysAllowedPolicy({ tools: [], commands: ['gh pr *', 'gh api *'] });
     expect(
-      await policy.check(buildCtx('Bash', { command: 'export GH_TOKEN=$ACME_GH_TOKEN && gh pr review 87 --approve --body "ok"' })),
+      await policy.check(
+        buildCtx('Bash', {
+          command: 'export GH_TOKEN=$ACME_GH_TOKEN && gh pr review 87 --approve --body "ok"',
+        }),
+      ),
     ).toMatchObject({ allow: true });
     expect(
-      await policy.check(buildCtx('Bash', { command: 'export GH_TOKEN=$ACME_GH_TOKEN && gh pr diff 42' })),
+      await policy.check(
+        buildCtx('Bash', { command: 'export GH_TOKEN=$ACME_GH_TOKEN && gh pr diff 42' }),
+      ),
     ).toMatchObject({ allow: true });
     expect(
-      await policy.check(buildCtx('Bash', { command: 'cd /workspace && export GH_TOKEN=$X && gh api repos/foo/bar/pulls' })),
+      await policy.check(
+        buildCtx('Bash', {
+          command: 'cd /workspace && export GH_TOKEN=$X && gh api repos/foo/bar/pulls',
+        }),
+      ),
     ).toMatchObject({ allow: true });
   });
 
   it('allows compound commands if any allowed pattern is found (contains-match)', async () => {
     const policy = makeAlwaysAllowedPolicy({ tools: [], commands: ['gh pr *'] });
     expect(
-      await policy.check(buildCtx('Bash', { command: 'export GH_TOKEN=$X && gh pr diff 1 && echo done' })),
+      await policy.check(
+        buildCtx('Bash', { command: 'export GH_TOKEN=$X && gh pr diff 1 && echo done' }),
+      ),
     ).toMatchObject({ allow: true });
   });
 

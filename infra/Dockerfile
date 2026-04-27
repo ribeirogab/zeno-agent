@@ -30,6 +30,7 @@ COPY apps/api/package.json ./apps/api/
 COPY apps/dashboard/package.json ./apps/dashboard/
 COPY packages/storage/package.json ./packages/storage/
 COPY packages/logger/package.json ./packages/logger/
+COPY packages/mcp-discover/package.json ./packages/mcp-discover/
 COPY packages/ui/package.json ./packages/ui/
 RUN pnpm install --frozen-lockfile
 
@@ -53,6 +54,9 @@ COPY --from=builder /app/packages/storage/node_modules ./packages/storage/node_m
 COPY --from=builder /app/packages/logger/dist ./packages/logger/dist
 COPY --from=builder /app/packages/logger/package.json ./packages/logger/
 COPY --from=builder /app/packages/logger/node_modules ./packages/logger/node_modules
+COPY --from=builder /app/packages/mcp-discover/dist ./packages/mcp-discover/dist
+COPY --from=builder /app/packages/mcp-discover/package.json ./packages/mcp-discover/
+COPY --from=builder /app/packages/mcp-discover/node_modules ./packages/mcp-discover/node_modules
 COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
 COPY --from=builder /app/apps/worker/package.json ./apps/worker/
 COPY --from=builder /app/apps/worker/node_modules ./apps/worker/node_modules

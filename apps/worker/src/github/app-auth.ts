@@ -170,9 +170,7 @@ function loadGitHubAppLayer(
       const parsed = parseYaml(raw) as Record<string, unknown> | null;
       if (!parsed?.github_app) continue;
       return { base, config: parsed.github_app as RawGitHubAppConfig };
-    } catch {
-      continue;
-    }
+    } catch {}
   }
   return null;
 }
@@ -194,9 +192,7 @@ export function loadGitHubAppConfig(): GitHubAppAuth | null {
 
   const appId = profileCfg.app_id ?? agentCfg.app_id;
   const privateKeyFile = profileCfg.private_key_file ?? agentCfg.private_key_file;
-  const keyBase = profileCfg.private_key_file
-    ? profileLayer?.base
-    : agentLayer?.base;
+  const keyBase = profileCfg.private_key_file ? profileLayer?.base : agentLayer?.base;
   const installations: RawInstallation[] = [
     ...(agentCfg.installations ?? []),
     ...(profileCfg.installations ?? []),

@@ -71,9 +71,7 @@ export function loadAlwaysActiveSkills(skillNames: string[]): string[] {
             found = true;
             break;
           }
-        } catch {
-          continue;
-        }
+        } catch {}
       }
       if (found) break;
     }

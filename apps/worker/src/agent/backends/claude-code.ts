@@ -14,21 +14,46 @@ const logger = createLogger({ service: 'worker' });
 // biome-ignore lint/suspicious/noExplicitAny: an in-process MCP server returned by createSdkMcpServer; SDK types are not exported
 type InProcessMcpServer = any;
 
+/**
+ * Reported back to a caller-provided callback after every tool call. Used by
+ * the worker to populate `connector_invocations` and update `last_error` on
+ * connectors when a tool from a DB-managed MCP fails.
+ */
+export interface InvocationEvent {
+  toolName: string;
+  durationMs: number;
+  result: 'ok' | 'error';
+  errorMessage: string | null;
+  threadId: string | null;
+  correlationId: string;
+}
+
 interface ClaudeCodeBackendOptions {
   /** Max wall-clock ms; on expiry the AbortController fires and raises kind=timeout. */
   timeoutMs?: number;
   /** Tools auto-approved. MVP: Bash only. */
   allowedTools?: string[];
-  /** MCP servers loaded from profile/mcp.json. Passed verbatim to the SDK. */
+  /** Static MCP servers (typically the in-process zeno tools). Merged with the dynamic getter. */
   mcpServers?: Record<string, McpServerConfig>;
   /** In-process MCP servers (e.g. cron tools) created via the SDK's createSdkMcpServer helper. */
   inProcessMcpServers?: Record<string, InProcessMcpServer>;
+  /**
+   * Optional dynamic MCP server map. Called once per `query()` to pick up DB
+   * changes without restarting the worker. Spec 0032 — `getMcpServers` factory.
+   * The dynamic map merges OVER `mcpServers` (dynamic wins on key conflict).
+   */
+  getMcpServers?: () => Record<string, McpServerConfig>;
   /**
    * Optional pre-tool-use hook. When provided, it fires before every tool call
    * via the SDK's `hooks.PreToolUse` mechanism and can allow or deny execution.
    * `permissionMode` switches to `'default'` so the hook is honored.
    */
   preToolUseHook?: HookCallback;
+  /**
+   * Optional callback fired once per tool result. Used by the worker to record
+   * `connector_invocations` and update `last_error`. Spec 0032 P5.
+   */
+  onInvocation?: (event: InvocationEvent) => void;
   /** Environment variables for the SDK subprocess. Overrides process.env when set. */
   env?: Record<string, string | undefined>;
 }
@@ -38,16 +63,20 @@ export class ClaudeCodeBackend implements AgentBackend {
   private readonly timeoutMs: number;
   private readonly allowedTools: string[];
   private readonly mcpServers: Record<string, McpServerConfig>;
+  private readonly getMcpServers?: () => Record<string, McpServerConfig>;
   private readonly inProcessMcpServers: Record<string, InProcessMcpServer>;
   private readonly preToolUseHook?: HookCallback;
+  private readonly onInvocation?: (event: InvocationEvent) => void;
   private readonly env?: Record<string, string | undefined>;
 
   constructor(opts: ClaudeCodeBackendOptions = {}) {
     this.timeoutMs = opts.timeoutMs ?? 3_600_000;
     this.allowedTools = opts.allowedTools ?? ['Bash', 'Read', 'Glob', 'Grep'];
     this.mcpServers = opts.mcpServers ?? {};
+    this.getMcpServers = opts.getMcpServers;
     this.inProcessMcpServers = opts.inProcessMcpServers ?? {};
     this.preToolUseHook = opts.preToolUseHook;
+    this.onInvocation = opts.onInvocation;
     this.env = opts.env;
   }
 
@@ -63,6 +92,12 @@ export class ClaudeCodeBackend implements AgentBackend {
     const toolCalls: ToolCallSummary[] = [];
     let finalText = '';
     let sessionId: string | undefined;
+
+    // Track tool_use start times so we can compute duration on tool_result.
+    // Keyed by SDK tool_use_id. Spec 0032 §Invocation logging.
+    const toolUseStartedAt = new Map<string, { name: string; start: number }>();
+    const threadId = parseThreadIdFromSlackContext(input.userMessage);
+    const onInvocation = this.onInvocation;
 
     try {
       const iter = query({
@@ -117,6 +152,9 @@ export class ClaudeCodeBackend implements AgentBackend {
           for (const block of message.message.content) {
             if (block.type === 'tool_use') {
               toolCalls.push({ tool: block.name, input: block.input });
+              if ('id' in block && typeof block.id === 'string') {
+                toolUseStartedAt.set(block.id, { name: block.name, start: Date.now() });
+              }
               logger.info(
                 {
                   event: 'backend_tool_call',
@@ -126,6 +164,49 @@ export class ClaudeCodeBackend implements AgentBackend {
                 },
                 'tool call',
               );
+            }
+          }
+        } else if (
+          onInvocation &&
+          message.type === 'user' &&
+          'message' in message &&
+          Array.isArray(message.message?.content)
+        ) {
+          // The SDK reports tool results as user-role messages with `tool_result` blocks.
+          for (const block of message.message.content) {
+            if (
+              block &&
+              typeof block === 'object' &&
+              'type' in block &&
+              block.type === 'tool_result' &&
+              'tool_use_id' in block &&
+              typeof block.tool_use_id === 'string'
+            ) {
+              const started = toolUseStartedAt.get(block.tool_use_id);
+              if (!started) continue;
+              toolUseStartedAt.delete(block.tool_use_id);
+              const isError =
+                'is_error' in block && typeof block.is_error === 'boolean' ? block.is_error : false;
+              const errorMessage = isError ? extractErrorMessage(block) : null;
+              try {
+                onInvocation({
+                  toolName: started.name,
+                  durationMs: Date.now() - started.start,
+                  result: isError ? 'error' : 'ok',
+                  errorMessage,
+                  threadId,
+                  correlationId: input.correlationId,
+                });
+              } catch (err) {
+                logger.error(
+                  {
+                    event: 'invocation_callback_failed',
+                    correlationId: input.correlationId,
+                    err: String(err),
+                  },
+                  'onInvocation callback threw',
+                );
+              }
             }
           }
         }
@@ -165,14 +246,55 @@ export class ClaudeCodeBackend implements AgentBackend {
     return { text: finalText || '(sem resposta)', toolCalls, sessionId };
   }
 
-  /** Merge config-driven MCP servers with in-process ones into the SDK's mcpServers option. */
+  /**
+   * Merge config-driven MCP servers (static + dynamic via getMcpServers) with
+   * in-process ones into the SDK's mcpServers option. The dynamic getter is
+   * called ONCE per query() so per-turn DB reads are bounded; spec 0032.
+   */
   private buildMcpServers(): { mcpServers?: Record<string, McpServerConfig> } {
+    const dynamic = this.getMcpServers ? this.getMcpServers() : {};
     const merged: Record<string, McpServerConfig> = {
       ...this.mcpServers,
+      ...dynamic,
       ...(this.inProcessMcpServers as Record<string, McpServerConfig>),
     };
     if (Object.keys(merged).length === 0) return {};
     return { mcpServers: merged };
+  }
+}
+
+/** Extract a Slack thread id from the user message preamble, or null. */
+function parseThreadIdFromSlackContext(userMessage: string): string | null {
+  const match = userMessage.match(/thread_id=([^\s\]]+)/);
+  return match ? (match[1] ?? null) : null;
+}
+
+/**
+ * Pull a usable error string out of a `tool_result` block reported as an error.
+ * The SDK's content shape varies; we try a few common shapes and fall back to
+ * the JSON of the block.
+ */
+function extractErrorMessage(block: { content?: unknown }): string {
+  const content = block.content;
+  if (typeof content === 'string') return content.slice(0, 500);
+  if (Array.isArray(content)) {
+    for (const part of content) {
+      if (
+        part &&
+        typeof part === 'object' &&
+        'type' in part &&
+        part.type === 'text' &&
+        'text' in part &&
+        typeof part.text === 'string'
+      ) {
+        return part.text.slice(0, 500);
+      }
+    }
+  }
+  try {
+    return JSON.stringify(content).slice(0, 500);
+  } catch {
+    return 'tool error (unserializable content)';
   }
 }
 

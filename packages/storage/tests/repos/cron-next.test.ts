@@ -24,7 +24,13 @@ describe('CronRepo.next', () => {
 
   it('returns only enabled crons with next_run_at', () => {
     const future = new Date(Date.now() + 60_000).toISOString();
-    repo.create({ name: 'enabled-with-next', prompt: 'p', schedule: '*', source: 'chat', nextRunAt: future });
+    repo.create({
+      name: 'enabled-with-next',
+      prompt: 'p',
+      schedule: '*',
+      source: 'chat',
+      nextRunAt: future,
+    });
     repo.create({ name: 'enabled-without-next', prompt: 'p', schedule: '*', source: 'chat' });
 
     const result = repo.next();
@@ -34,7 +40,14 @@ describe('CronRepo.next', () => {
 
   it('excludes disabled crons', () => {
     const future = new Date(Date.now() + 60_000).toISOString();
-    repo.create({ name: 'disabled', prompt: 'p', schedule: '*', source: 'chat', enabled: false, nextRunAt: future });
+    repo.create({
+      name: 'disabled',
+      prompt: 'p',
+      schedule: '*',
+      source: 'chat',
+      enabled: false,
+      nextRunAt: future,
+    });
     repo.create({ name: 'enabled', prompt: 'p', schedule: '*', source: 'chat', nextRunAt: future });
 
     const result = repo.next();
@@ -69,7 +82,13 @@ describe('CronRepo.next', () => {
 
   it('excludes crons without next_run_at', () => {
     const future = new Date(Date.now() + 60_000).toISOString();
-    repo.create({ name: 'with-next', prompt: 'p', schedule: '*', source: 'chat', nextRunAt: future });
+    repo.create({
+      name: 'with-next',
+      prompt: 'p',
+      schedule: '*',
+      source: 'chat',
+      nextRunAt: future,
+    });
     repo.create({ name: 'without-next', prompt: 'p', schedule: '*', source: 'chat' });
 
     const result = repo.next(10);

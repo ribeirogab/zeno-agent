@@ -46,8 +46,8 @@ apps/dashboard/      Vite + React + TanStack + shadcn SPA (built into static ass
 packages/storage/    @zeno/storage — DB connection + migrations + repos + types
 packages/logger/     @zeno/logger — pino factory tipado
 infra/               Dockerfile + docker-compose.<profile>.yml + docker.sh + entrypoint.sh
-agent/               SOUL.md, mcp.json, skills/ (Zeno's identity — shared across profiles)
-profiles/default/    .env, USER.md, config.yaml, mcp.json, skills/ (user config per profile)
+agent/               SOUL.md, mcp.json, connectors-catalog.json (Zeno's identity — shared across profiles)
+profiles/default/    .env, USER.md, config.yaml (user config per profile)
 context/             Specs, learnings, conventions, rules
 ```
 

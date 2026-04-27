@@ -1,8 +1,8 @@
 ---
-status: approved
+status: shipped
 feature: github-app-v2-install-ui
 created: 2026-04-27
-shipped: null
+shipped: 2026-04-27
 ---
 # GitHub App v2 — Install + Listing/Detail UI Spec
 

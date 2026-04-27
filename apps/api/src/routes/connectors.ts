@@ -94,6 +94,9 @@ function buildListItem(
   iconUrl: string | null,
 ): Record<string, unknown> {
   return {
+    // Spec 0045: discriminated union — `kind: 'connector'` is REQUIRED so
+    // dashboards narrow on the field type-safely.
+    kind: 'connector',
     id: connector.id,
     slug: connector.slug,
     displayName: connector.displayName,
@@ -108,6 +111,9 @@ function buildListItem(
     lastVerifiedAt: connector.lastVerifiedAt,
     toolCount,
     invocationCount24h,
+    // Spec 0044/0045: optional FK so dashboard can render the inherited-app
+    // callout on github-app-* detail pages.
+    appId: connector.appId,
   };
 }
 
@@ -120,6 +126,28 @@ function iconUrlForConnector(connector: Connector): string | null {
   } catch {
     return null;
   }
+}
+
+// Spec 0045: aggregate per-installation status into a single App row.
+// 'active' = all installations enabled + last_verified, 'mixed' = some pending
+// or some disabled, 'error' = any with last_error_at set.
+// R3 F2: empty installations list = mixed (not vacuously 'active') so the
+// freshly-installed App with 0 installations shows a pending/mixed pill
+// instead of a misleading green "0/0 active".
+function computeStatusAggregate(installations: Connector[]): 'active' | 'mixed' | 'error' {
+  if (installations.length === 0) return 'mixed';
+  if (installations.some((i) => i.lastError && i.lastErrorAt)) return 'error';
+  if (installations.every((i) => i.status === 'enabled' && i.lastVerifiedAt)) return 'active';
+  return 'mixed';
+}
+
+function pickLatestVerified(installations: Connector[]): string | null {
+  const verifiedTimes = installations
+    .map((i) => i.lastVerifiedAt)
+    .filter((t): t is string => t !== null);
+  if (verifiedTimes.length === 0) return null;
+  // ISO timestamps sort lexicographically.
+  return verifiedTimes.sort().reverse()[0] ?? null;
 }
 
 // ─── Schemas ─────────────────────────────────────────────────────────────
@@ -219,6 +247,16 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         .map((connector) => connector.catalogId)
         .filter((id): id is string => id !== null),
     );
+    // Spec 0045: also surface customInstallComponent so the dashboard can
+    // route to a bespoke install modal (e.g., the github-app M6 component).
+    // Re-install logic for github-app: even though the catalog entry says
+    // isInstalled (via the connector_apps row's parent), the v2 install
+    // endpoint guards against duplicate installs with a 409. The flag here
+    // is informational for the catalog grid: github-app should NOT show
+    // "installed" while it has 0 connector rows yet (just the App row).
+    const installedAppCatalogIds = new Set(
+      deps.connectorApps?.list().map((a) => a.catalogId) ?? [],
+    );
     const out = catalog.map((entry) => ({
       id: entry.id,
       name: entry.name,
@@ -228,7 +266,12 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       transport: entry.transport,
       secrets: entry.secrets,
       toolCount: entry.tools.length,
-      isInstalled: installedCatalogIds.has(entry.id),
+      // For github-app, "installed" tracks the connector_apps row, not connector
+      // rows. For everything else, fall back to the connector-row check.
+      isInstalled: entry.customInstallComponent
+        ? installedAppCatalogIds.has(entry.id)
+        : installedCatalogIds.has(entry.id),
+      customInstallComponent: entry.customInstallComponent ?? null,
     }));
     return c.json(out);
   });
@@ -368,10 +411,20 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       });
     }
 
-    const existing = deps.connectorApps.getByCatalogAndAppId('github-app', body.appId);
+    // Spec 0045 (R1 F1): single-app enforcement — reject install if ANY
+    // connector_apps row already exists with catalog_id='github-app',
+    // regardless of appId. The single-app constraint (spec line 113) is
+    // stricter than UNIQUE(catalog_id, app_id).
+    const existing = deps.connectorApps.getOneByCatalog('github-app');
     if (existing) {
       return c.json(
-        { ok: false, errorKind: 'conflict' as const, error: 'app_already_installed' },
+        {
+          ok: false,
+          errorKind: 'conflict' as const,
+          error: 'app_already_installed',
+          existingAppId: existing.appId,
+          existingAppName: existing.appName,
+        },
         409,
       );
     }
@@ -463,6 +516,14 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       if (!githubAppEntry) {
         return c.json({ error: 'github_app_catalog_entry_missing' }, 500);
       }
+      // Spec 0045: copy tools from the `github` (Personal) catalog entry —
+      // both Personal and App use the same github-mcp-server, so they expose
+      // the same 51 tools. The `github-app` catalog entry's tools[] is empty
+      // by design (the install modal builds installation rows individually).
+      const githubEntry = findCatalogEntry('github');
+      if (!githubEntry) {
+        return c.json({ error: 'github_catalog_entry_missing' }, 500);
+      }
 
       const slug = resolveSlugCollision(
         deps.connectors,
@@ -483,7 +544,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
           { key: '__GITHUB_INSTALLATION_NAME__', value: body.displayName },
           { key: '__GITHUB_ENV_VAR__', value: body.envVar },
         ],
-        tools: githubAppEntry.tools.map((t) => ({
+        // Spec 0045: tools sourced from the `github` (Personal) catalog entry,
+        // not from `github-app`'s empty array.
+        tools: githubEntry.tools.map((t) => ({
           toolName: t.name,
           description: t.description,
           category: t.category,
@@ -711,15 +774,72 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     return c.json({ ok: true, tools: result.tools, durationMs: result.durationMs });
   });
 
-  // GET / (list)
+  // GET / (list) — Spec 0045: returns a discriminated union of
+  // ConnectorListItem (existing rows, kind='connector') and AppListItem
+  // (collapsed App rows for github-app, kind='app'). The 4 github-app-*
+  // connectors are NOT returned individually at the top level — they appear
+  // nested inside the parent AppListItem.
   route.get('/', (c) => {
     const all = deps.connectors.list();
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const items = all.map((connector) => {
+
+    // Partition: connectors with appId set are nested inside an App row;
+    // others are emitted as standalone ConnectorListItems.
+    const connectorsByAppId = new Map<string, Connector[]>();
+    const standalone: Connector[] = [];
+    for (const connector of all) {
+      if (connector.appId) {
+        const existing = connectorsByAppId.get(connector.appId) ?? [];
+        existing.push(connector);
+        connectorsByAppId.set(connector.appId, existing);
+      } else {
+        standalone.push(connector);
+      }
+    }
+
+    // Build standalone ConnectorListItems.
+    const items: Array<Record<string, unknown>> = standalone.map((connector) => {
       const tools = deps.connectors.getTools(connector.id);
       const invocations = deps.connectors.countInvocationsSince(connector.id, cutoff);
       return buildListItem(connector, tools.length, invocations, iconUrlForConnector(connector));
     });
+
+    // Build AppListItems by joining connector_apps + nested connectors.
+    if (deps.connectorApps) {
+      for (const app of deps.connectorApps.list()) {
+        const installations = connectorsByAppId.get(app.id) ?? [];
+        const githubEntry = (() => {
+          try {
+            return findCatalogEntry('github');
+          } catch {
+            return null;
+          }
+        })();
+        const iconUrl = githubEntry ? `/api/connectors/catalog/icons/${githubEntry.icon}` : null;
+        items.push({
+          kind: 'app',
+          appUuid: app.id,
+          appId: app.appId,
+          catalogId: app.catalogId,
+          appName: app.appName,
+          appSlug: app.appSlug,
+          iconUrl,
+          installationCount: installations.length,
+          statusAggregate: computeStatusAggregate(installations),
+          lastVerifiedAt: pickLatestVerified(installations),
+          installations: installations.map((i) => ({
+            connectorId: i.id,
+            slug: i.slug,
+            displayName: i.displayName,
+            status: i.status,
+            lastVerifiedAt: i.lastVerifiedAt,
+            lastError: i.lastError,
+            lastErrorAt: i.lastErrorAt,
+          })),
+        });
+      }
+    }
+
     return c.json(items);
   });
 
@@ -772,6 +892,52 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       correlationId: randomUUID(),
     });
     return c.body(null, 204);
+  });
+
+  // GET /apps/:appUuid — Spec 0045: rich App detail for the dashboard's
+  // C8 page. MUST be registered BEFORE the dynamic `:id` route below
+  // (Hono matches in registration order; static segments come first).
+  route.get('/apps/:appUuid', (c) => {
+    if (!deps.connectorApps) {
+      return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
+    }
+    const appUuid = c.req.param('appUuid');
+    const app = deps.connectorApps.get(appUuid);
+    if (!app) return c.json({ error: 'not_found' }, 404);
+    const installations = deps.connectors
+      .list({ source: 'catalog' })
+      .filter((cn) => cn.appId === app.id)
+      .map((cn) => {
+        const secrets = deps.connectors.getSecrets(cn.id);
+        const map = new Map(secrets.map((s) => [s.key, s.value]));
+        const tools = deps.connectors.getTools(cn.id);
+        return {
+          connectorId: cn.id,
+          slug: cn.slug,
+          displayName: cn.displayName,
+          installationId: map.get('__GITHUB_INSTALLATION_ID__') ?? null,
+          envVar: map.get('__GITHUB_ENV_VAR__') ?? null,
+          status: cn.status,
+          lastVerifiedAt: cn.lastVerifiedAt,
+          lastError: cn.lastError,
+          lastErrorAt: cn.lastErrorAt,
+          toolCount: tools.length,
+        };
+      });
+    return c.json({
+      app: {
+        id: app.id,
+        appId: app.appId,
+        catalogId: app.catalogId,
+        appName: app.appName,
+        appSlug: app.appSlug,
+        pemSha256: app.pemSha256,
+        pemRotatedAt: app.pemRotatedAt,
+        createdAt: app.createdAt,
+        updatedAt: app.updatedAt,
+      },
+      installations,
+    });
   });
 
   // ── DYNAMIC :id PATHS (after all statics) ──

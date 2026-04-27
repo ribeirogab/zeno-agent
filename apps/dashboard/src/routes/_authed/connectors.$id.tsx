@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useToast } from '@zeno/ui';
 import type { JSX } from 'react';
 import { useState } from 'react';
+import { InheritedAppCallout } from '@/components/connectors/inherited-app-callout';
 import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
 import {
   useRefreshTools,
@@ -120,6 +121,11 @@ function ConnectorDetailScreen(): JSX.Element {
       {visualStatus === 'error' && c.lastError && (
         <ErrorBanner message={c.lastError} onTest={handleTest} />
       )}
+      {/* Spec 0045 C10: github-app-* installations share credentials with the
+          parent App row; surface this with a gold callout. Use the appId FK
+          (not slug prefix) so a custom connector named "github-app-foo"
+          doesn't trigger a false positive. R3 F1. */}
+      {c.appId && <InheritedAppCallout />}
       <ConnectionSection connector={c} />
       <ToolPermissionsSection connector={c} />
       <ActivitySection feed={activity.data ?? []} loading={activity.isLoading} />

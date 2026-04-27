@@ -7,7 +7,13 @@ export type ConnectorStatus = 'enabled' | 'disabled' | 'pending';
 export type ToolCategory = 'read' | 'write' | 'interactive';
 export type ToolPermission = 'always_allow' | 'ask' | 'never';
 
+// Spec 0045: discriminated union — every list entry carries a `kind` field.
+// Standalone connectors are `kind: 'connector'`; collapsed App rows (github-app)
+// are `kind: 'app'` with a nested installations array.
+
 export interface ConnectorListItem {
+  /** Discriminator — REQUIRED by backend (spec 0045). */
+  kind: 'connector';
   id: string;
   slug: string;
   displayName: string;
@@ -22,7 +28,40 @@ export interface ConnectorListItem {
   lastVerifiedAt: string | null;
   toolCount: number;
   invocationCount24h: number;
+  /**
+   * Spec 0044/0045: FK to connector_apps.id. Null for standalone connectors.
+   * Sent by backend on every list item (R1-restart-2 F2). Used by detail
+   * page's InheritedAppCallout via `c.appId != null`.
+   */
+  appId: string | null;
 }
+
+export interface AppNestedInstallation {
+  connectorId: string;
+  slug: string;
+  displayName: string;
+  status: ConnectorStatus;
+  lastVerifiedAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+}
+
+export interface AppListItem {
+  kind: 'app';
+  appUuid: string;
+  /** Numeric GitHub App id (e.g. '12345'). */
+  appId: string;
+  catalogId: string;
+  appName: string;
+  appSlug: string;
+  iconUrl: string | null;
+  installationCount: number;
+  statusAggregate: 'active' | 'mixed' | 'error';
+  lastVerifiedAt: string | null;
+  installations: AppNestedInstallation[];
+}
+
+export type ConnectorListEntry = ConnectorListItem | AppListItem;
 
 export interface MaskedSecret {
   key: string;
@@ -60,7 +99,7 @@ export interface ConnectorInvocationApi {
 export function useConnectors() {
   return useQuery({
     queryKey: ['connectors'],
-    queryFn: () => apiFetch<ConnectorListItem[]>('/api/connectors'),
+    queryFn: () => apiFetch<ConnectorListEntry[]>('/api/connectors'),
   });
 }
 

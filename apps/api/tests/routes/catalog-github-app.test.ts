@@ -246,7 +246,48 @@ describe('POST /api/connectors/catalog/github-app/install', () => {
       headers: authed(),
     });
     expect(second.status).toBe(409);
-    const body = (await second.json()) as { errorKind: string; error: string };
+    const body = (await second.json()) as {
+      errorKind: string;
+      error: string;
+      existingAppName: string;
+    };
+    expect(body.error).toBe('app_already_installed');
+    expect(body.existingAppName).toBe('Zen');
+  });
+
+  // Spec 0045 R1 F1: single-app constraint — reject install of a DIFFERENT
+  // appId when another github-app row already exists.
+  it('returns 409 when installing a DIFFERENT appId after one is already installed', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.endsWith('/app')) {
+        // Distinguish requests by JWT (different pems → different sigs).
+        return fakeOk({ id: 7777, slug: 'zen', name: 'Zen' });
+      }
+      return fakeErr(404);
+    });
+    const pem = newPem();
+    const app = makeApp();
+    // Install first app (id 7777)
+    const first = await app.request('/api/connectors/catalog/github-app/install', {
+      method: 'POST',
+      body: JSON.stringify({ appId: '7777', pem }),
+      headers: authed(),
+    });
+    expect(first.status).toBe(200);
+    // Try to install second app with id 8888 — should be rejected by the
+    // single-app guard regardless of appId.
+    mockFetch.mockImplementation((url: string) => {
+      if (url.endsWith('/app')) return fakeOk({ id: 8888, slug: 'second', name: 'Second' });
+      return fakeErr(404);
+    });
+    const pem2 = newPem();
+    const second = await app.request('/api/connectors/catalog/github-app/install', {
+      method: 'POST',
+      body: JSON.stringify({ appId: '8888', pem: pem2 }),
+      headers: authed(),
+    });
+    expect(second.status).toBe(409);
+    const body = (await second.json()) as { error: string };
     expect(body.error).toBe('app_already_installed');
   });
 });

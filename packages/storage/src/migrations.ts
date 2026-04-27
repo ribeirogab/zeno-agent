@@ -367,6 +367,20 @@ ALTER TABLE connector_apps ADD COLUMN last_refresh_error_at TEXT;
 ALTER TABLE connector_apps ADD COLUMN last_refresh_error_message TEXT;
 `,
   },
+  {
+    id: 10,
+    name: 'drop_approval_rules_and_approvals_log',
+    // Spec 0050: connectors-only pivot. The Haiku-classifier + Slack-approval
+    // flow is gone; approval_rules CRUD + approvals_log audit table have no
+    // remaining writers or readers. DROP IF EXISTS for idempotency.
+    sql: `
+DROP INDEX IF EXISTS idx_approval_rules_source;
+DROP TABLE IF EXISTS approval_rules;
+DROP INDEX IF EXISTS idx_approvals_log_profile_created;
+DROP INDEX IF EXISTS idx_approvals_log_correlation;
+DROP TABLE IF EXISTS approvals_log;
+`,
+  },
 ];
 
 /**

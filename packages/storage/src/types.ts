@@ -121,37 +121,6 @@ export interface CreateLogInput {
   payload: string;
 }
 
-export type ApprovalDecision = 'allow' | 'deny';
-
-export type PolicyThatGated =
-  | 'always_sensitive'
-  | 'read_only'
-  | 'classifier'
-  | 'auto_allow'
-  | 'timeout'
-  | 'classifier_unavailable'
-  | 'approver_channel_error'
-  | 'connector_allow'
-  | 'connector_never';
-
-export interface ApprovalsLogEntry {
-  id: number;
-  profile: string;
-  correlationId: string;
-  threadId: string | null;
-  requesterUserId: string;
-  deciderUserId: string | null;
-  toolName: string;
-  toolInput: string;
-  policyThatGated: PolicyThatGated;
-  classifierReason: string | null;
-  decision: ApprovalDecision;
-  decisionReason: string;
-  createdAt: string;
-}
-
-export type CreateApprovalsLogEntry = Omit<ApprovalsLogEntry, 'id' | 'createdAt'>;
-
 export interface LogFilter {
   level?: LogLevel;
   q?: string;
@@ -317,24 +286,3 @@ export interface RecordInvocationInput {
   errorMessage?: string | null;
 }
 
-// ───────────────────────────────────────────────────────────────────
-// Approval rules (spec 0047)
-// ───────────────────────────────────────────────────────────────────
-
-export type ApprovalRuleSource = 'manual' | 'auto' | 'yaml-migrated';
-
-export interface ApprovalRule {
-  id: string;
-  pattern: string;
-  source: ApprovalRuleSource;
-  createdAt: string;
-  updatedAt: string;
-  notes: string | null;
-}
-
-export interface CreateApprovalRuleInput {
-  id?: string;
-  pattern: string;
-  source: ApprovalRuleSource;
-  notes?: string | null;
-}

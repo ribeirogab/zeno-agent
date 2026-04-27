@@ -66,7 +66,7 @@ context/             Specs, learnings, conventions, rules
 
 ## Claude Code skills and commands
 
-These are committed to `.claude/` and provide the project's agentic workflow.
+These are committed to `.claude/` and provide the project's agentic workflow when working on this codebase via Claude Code. **They are not loaded by Zeno's runtime** — Zeno today has no skills concept, only connectors (see `context/constitution.md` and `context/learnings/connectors-only-pivot.md`).
 
 - **`brainstorming`** — design exploration before writing a spec.
 - **`writing-plans`** — turn an approved design into a task list.

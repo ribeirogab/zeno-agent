@@ -18,7 +18,7 @@ The architecture is intentionally layered, in order of weight:
 - **The channel is the I/O boundary.** Slack today; Discord, Telegram, email, etc. are pluggable additions tomorrow. The channel is how user requests come in and how the agent's reply goes back out — not a tool the agent uses.
 - **The backend is the brain.** Pluggable reasoning engine (Claude Code today, alternatives possible). Orchestrates which connector tools to call.
 - **The core is small and stable.** A channel adapter, a backend wire, a cron runner, a dashboard. It should rarely change.
-- **Skills (deferred) are domain knowledge.** Skills are not part of the runtime in this iteration. When they return, they will likely be bundled with connectors — domain knowledge layered on top of connector capabilities to inform orchestration without granting power. This is a future direction; the concrete design is for a later spec.
+- **Skills (deferred) are domain knowledge.** Skills are not part of the runtime in this iteration. When they return, they may be bundled with connectors — domain knowledge layered on top of connector capabilities to inform orchestration without granting power. This is a future direction; the concrete design is for a later spec.
 
 The goal is that adding a capability is always a matter of installing or building a new connector, never of modifying the core. When in doubt between flexibility in the core and flexibility in the connector layer, the connector layer wins.
 

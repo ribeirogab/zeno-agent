@@ -53,7 +53,7 @@ zeno-agent/
    cp USER.example.md USER.md
    cp config.example.yaml config.yaml
    ```
-   Fill `.env` (Slack tokens, GitHub token, Claude OAuth). Fill `USER.md` (name, GitHub username, preferences). `config.yaml` starts empty. MCP connectors are added later through the dashboard at `http://localhost:3001/connectors`.
+   Fill `.env` (Slack tokens, GitHub token, Claude OAuth). Fill `USER.md` (name, GitHub username, preferences). `config.yaml` starts empty. MCP connectors are added later through the dashboard at `http://localhost:3000/connectors` (default profile; other profiles map to other host ports — see `infra/docker-compose.<profile>.yml`).
 
 2. **Shared volume** (first time only):
    ```bash

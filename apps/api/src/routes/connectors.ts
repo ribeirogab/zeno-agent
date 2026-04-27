@@ -342,9 +342,11 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   //   POST /catalog/github-app/install       — sync DB write + async worker bootstrap
   //   POST /catalog/github-app/installations/discover — list installs from GitHub
   //   POST /catalog/github-app/installations  — add 1 installation (creates connector row)
-  //   POST /catalog/github-app/rotate-pem     — atomic PEM swap
   //   POST /catalog/github-app/uninstall-app  — tear down App + cascade
   //   GET  /catalog/github-app/app            — read installed App metadata
+  //
+  // Spec 0051 retired POST /catalog/github-app/rotate-pem; PEM rotation is
+  // handled via uninstall-app + reinstall.
   //
   // All endpoints require `deps.connectorApps` to be wired (server.ts).
 

@@ -2,11 +2,10 @@
  * Spec 0046: lifecycle endpoint integration tests.
  *
  * Covers:
- *   - PATCH /:id with `{envVar: 'NEW_NAME'}` (M11) translates to a
- *     secrets-only patch and enqueues `connector_update`.
- *   - PATCH /:id with `{envVar}` on a non-github-app connector returns 400.
- *   - POST /catalog/github-app/rotate-pem flow (success path with mocked fetch).
  *   - POST /catalog/github-app/uninstall-app cascades.
+ *
+ * Spec 0051 retired the M11 envVar PATCH and the rotate-PEM endpoint;
+ * their tests were removed alongside the features.
  */
 
 import { generateKeyPairSync } from 'node:crypto';

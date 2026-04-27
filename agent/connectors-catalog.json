@@ -11,7 +11,10 @@
       "transport": "stdio",
       "transportConfig": {
         "command": "npx",
-        "args": ["-y", "@sentry/mcp-server"]
+        "args": [
+          "-y",
+          "@sentry/mcp-server"
+        ]
       },
       "authCheckTool": "whoami",
       "secrets": [
@@ -30,55 +33,142 @@
       ],
       "tools": [
         {
-          "name": "list_organizations",
-          "description": "List Sentry organizations the auth token can access.",
+          "name": "analyze_issue_with_seer",
+          "description": "Use Seer to analyze production errors and get detailed root cause analysis with specific code fixes.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "whoami",
+          "description": "Identify the authenticated user in Sentry.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "find_dsns",
+          "description": "List all Sentry DSNs for a specific project.",
           "category": "read",
           "defaultPermission": "always_allow"
         },
         {
-          "name": "list_projects",
-          "description": "List projects in an organization.",
+          "name": "find_organizations",
+          "description": "Find organizations that the user has access to in Sentry.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "find_projects",
+          "description": "Find projects in Sentry.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "find_releases",
+          "description": "Find releases in Sentry.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "find_teams",
+          "description": "Find teams in an organization in Sentry.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_doc",
+          "description": "Fetch the full markdown content of a Sentry documentation page.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_event_attachment",
+          "description": "Download attachments from a Sentry event.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_issue_tag_values",
+          "description": "Get tag value distribution for a specific Sentry issue.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_profile_details",
+          "description": "Inspect a specific Sentry profile in detail.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_replay_details",
+          "description": "Get high-level information about a specific Sentry replay by URL or replay ID.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_sentry_resource",
+          "description": "Fetch a Sentry resource by URL or by type and ID.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_events",
+          "description": "Search events or replays using Sentry query syntax directly (no AI/LLM required).",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_issue_events",
+          "description": "List events within a specific issue using Sentry query syntax (no AI/LLM required).",
           "category": "read",
           "defaultPermission": "always_allow"
         },
         {
           "name": "list_issues",
-          "description": "List recent issues filtered by org/project/query.",
+          "description": "List issues using Sentry query syntax directly (no AI/LLM required).",
           "category": "read",
           "defaultPermission": "always_allow"
         },
         {
-          "name": "get_issue",
-          "description": "Fetch a single issue by short-ID or URL.",
+          "name": "search_docs",
+          "description": "Search Sentry documentation for SDK setup, instrumentation, and configuration guidance.",
           "category": "read",
           "defaultPermission": "always_allow"
         },
         {
-          "name": "search_errors",
-          "description": "Search error events with Sentry's query syntax.",
-          "category": "read",
-          "defaultPermission": "always_allow"
-        },
-        {
-          "name": "list_releases",
-          "description": "List releases for an organization or project.",
-          "category": "read",
-          "defaultPermission": "always_allow"
-        },
-        {
-          "name": "resolve_issue",
-          "description": "Mark an issue as resolved.",
+          "name": "create_dsn",
+          "description": "Create an additional DSN for an EXISTING project.",
           "category": "write",
           "defaultPermission": "ask"
         },
         {
-          "name": "assign_issue",
-          "description": "Assign an issue to a user or team.",
+          "name": "create_project",
+          "description": "Create a new project in Sentry (includes DSN automatically).",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "create_team",
+          "description": "Create a new team in Sentry.",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "update_issue",
+          "description": "Update a Sentry issue's status or assignment.",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "update_project",
+          "description": "Update project settings in Sentry, such as name, slug, platform, and team assignment.",
           "category": "write",
           "defaultPermission": "ask"
         }
       ],
-      "tags": ["observability", "errors"]
+      "tags": [
+        "observability",
+        "errors"
+      ]
     }
   ]
 }

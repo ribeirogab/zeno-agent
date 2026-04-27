@@ -187,6 +187,98 @@ describe('PATCH /api/connectors/:id with {envVar} (M11 rename)', () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it('rejects envVar already in use by another installation with 409 (R3 F1)', async () => {
+    const appRepo = new ConnectorAppRepo(db);
+    const app = appRepo.create({
+      catalogId: 'github-app',
+      appId: '7777',
+      appSlug: 'zen',
+      appName: 'Zen',
+      pem: 'pem',
+      pemSha256: 'sha',
+    });
+    const connRepo = new ConnectorRepo(db);
+    // Existing installation A using GITHUB_TOKEN_A.
+    connRepo.create({
+      slug: 'github-app-a',
+      displayName: 'A',
+      source: 'catalog',
+      catalogId: 'github-app',
+      transport: 'stdio',
+      command: 'github-mcp-server',
+      args: ['stdio'],
+      secrets: [
+        { key: '__GITHUB_INSTALLATION_ID__', value: '100' },
+        { key: '__GITHUB_INSTALLATION_NAME__', value: 'A' },
+        { key: '__GITHUB_ENV_VAR__', value: 'GITHUB_TOKEN_A' },
+      ],
+      tools: [],
+      appId: app.id,
+    });
+    // Installation B trying to rename its envVar to A's.
+    const b = connRepo.create({
+      slug: 'github-app-b',
+      displayName: 'B',
+      source: 'catalog',
+      catalogId: 'github-app',
+      transport: 'stdio',
+      command: 'github-mcp-server',
+      args: ['stdio'],
+      secrets: [
+        { key: '__GITHUB_INSTALLATION_ID__', value: '200' },
+        { key: '__GITHUB_INSTALLATION_NAME__', value: 'B' },
+        { key: '__GITHUB_ENV_VAR__', value: 'GITHUB_TOKEN_B' },
+      ],
+      tools: [],
+      appId: app.id,
+    });
+    const res = await makeApp().request(`/api/connectors/${b.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ envVar: 'GITHUB_TOKEN_A' }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string; envVar: string };
+    expect(body.error).toBe('env_var_in_use');
+    expect(body.envVar).toBe('GITHUB_TOKEN_A');
+  });
+
+  it('allows envVar PATCH that keeps its own current value (self-update, R3 F1)', async () => {
+    const appRepo = new ConnectorAppRepo(db);
+    const app = appRepo.create({
+      catalogId: 'github-app',
+      appId: '7777',
+      appSlug: 'zen',
+      appName: 'Zen',
+      pem: 'pem',
+      pemSha256: 'sha',
+    });
+    const connRepo = new ConnectorRepo(db);
+    const a = connRepo.create({
+      slug: 'github-app-a',
+      displayName: 'A',
+      source: 'catalog',
+      catalogId: 'github-app',
+      transport: 'stdio',
+      command: 'github-mcp-server',
+      args: ['stdio'],
+      secrets: [
+        { key: '__GITHUB_INSTALLATION_ID__', value: '100' },
+        { key: '__GITHUB_INSTALLATION_NAME__', value: 'A' },
+        { key: '__GITHUB_ENV_VAR__', value: 'GITHUB_TOKEN_A' },
+      ],
+      tools: [],
+      appId: app.id,
+    });
+    // PATCH the same envVar back — must not 409 against itself.
+    const res = await makeApp().request(`/api/connectors/${a.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ envVar: 'GITHUB_TOKEN_A' }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(204);
+  });
 });
 
 describe('POST /api/connectors/catalog/github-app/rotate-pem (M9)', () => {

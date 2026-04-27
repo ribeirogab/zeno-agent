@@ -172,6 +172,29 @@ function pickLatestVerified(installations: Connector[]): string | null {
   return verifiedTimes.sort().reverse()[0] ?? null;
 }
 
+/**
+ * Spec 0048 R3 F1: enumerate envVars currently in use by github-app-*
+ * connectors, optionally excluding one by id (so a self-update is allowed
+ * without spurious conflict). Two installations sharing the same envVar
+ * non-deterministically clobber each other on every refresh tick — the API
+ * rejects such configurations on install + edit-env-var.
+ */
+function getInstallationEnvVarsInUse(
+  connectorRepo: ConnectorRepo,
+  excludeId?: string,
+): Set<string> {
+  const result = new Set<string>();
+  for (const c of connectorRepo.list()) {
+    if (excludeId && c.id === excludeId) continue;
+    if (!c.slug.startsWith('github-app-')) continue;
+    const envVar = connectorRepo
+      .getSecrets(c.id)
+      .find((s) => s.key === '__GITHUB_ENV_VAR__')?.value;
+    if (envVar) result.add(envVar);
+  }
+  return result;
+}
+
 // ─── Schemas ─────────────────────────────────────────────────────────────
 
 // Spec 0044: secrets carry an optional `isPublic` flag that the dashboard uses
@@ -554,6 +577,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       const githubEntry = findCatalogEntry('github');
       if (!githubEntry) {
         return c.json({ error: 'github_catalog_entry_missing' }, 500);
+      }
+
+      // Spec 0048 R3 F1: reject duplicate envVar across installations.
+      // Two installs sharing one envVar clobber each other on every refresh.
+      const envVarsInUse = getInstallationEnvVarsInUse(deps.connectors);
+      if (envVarsInUse.has(body.envVar)) {
+        return c.json({ error: 'env_var_in_use', envVar: body.envVar }, 409);
       }
 
       const slug = resolveSlugCollision(
@@ -1058,6 +1088,12 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     if (body.envVar !== undefined) {
       if (!connector.slug.startsWith('github-app-')) {
         return c.json({ error: 'envVar_only_valid_for_github_app_installations' }, 400);
+      }
+      // Spec 0048 R3 F1: reject if another installation already uses this
+      // envVar. Self-update (same id) is allowed.
+      const envVarsInUse = getInstallationEnvVarsInUse(deps.connectors, id);
+      if (envVarsInUse.has(body.envVar)) {
+        return c.json({ error: 'env_var_in_use', envVar: body.envVar }, 409);
       }
       const existing = deps.connectors.getSecrets(id);
       const hasEnvVar = existing.some((s) => s.key === '__GITHUB_ENV_VAR__');

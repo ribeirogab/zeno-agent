@@ -119,7 +119,6 @@ function Field({
   onChange,
   placeholder,
   mono,
-  invalid,
 }: {
   label: string;
   help: string;
@@ -127,7 +126,6 @@ function Field({
   onChange: (v: string) => void;
   placeholder?: string;
   mono?: boolean;
-  invalid?: boolean;
 }): JSX.Element {
   const inputId = useId();
   const helpId = useId();
@@ -146,10 +144,7 @@ function Field({
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         aria-describedby={helpId}
-        aria-invalid={invalid ? 'true' : 'false'}
-        className={`bg-panel-2 border ${
-          invalid ? 'border-status-failed/50' : 'border-border-subtle'
-        } px-3 py-2.5 ${mono ? 'font-mono' : 'font-sans'} text-[13px] text-text-primary`}
+        className={`bg-panel-2 border border-border-subtle px-3 py-2.5 ${mono ? 'font-mono' : 'font-sans'} text-[13px] text-text-primary`}
       />
       <span id={helpId} className="font-mono text-[11px] leading-[14px] text-text-tertiary">
         {help}

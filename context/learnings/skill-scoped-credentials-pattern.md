@@ -6,7 +6,12 @@ related:
   - "[[agent-skills-open-standard]]"
   - "[[../specs/0021-agent-profile-split/spec|spec 0021]]"
 created: 2026-04-21
+status: superseded
+superseded_by: 0049
 ---
+
+> **Superseded** by spec [[../specs/0049-zeno-redefinition/spec|0049-zeno-redefinition]] (connectors-only positioning). Skills no longer exist as a runtime concept; credentials in Zeno today are owned by connectors (DB-stored, dashboard-managed). If skills return bundled with connectors, the credential boundary becomes the connector's, not the skill's. See [[connectors-only-pivot]].
+
 # Skill-scoped credentials: self-contained auth inside the skill folder
 
 A skill can carry its own credentials (AWS keys, API tokens, private keys) as files inside its directory. The skill's SKILL.md documents how to use them. No global env pollution, no cross-skill leakage.

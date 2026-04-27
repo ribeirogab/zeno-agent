@@ -122,11 +122,34 @@ created: 2026-04-27
 
 ### Task 5.1: Produce per-file decision table
 
-- [ ] Step 1: List every `.md` file in `context/learnings/`. For each file, read its frontmatter + first 2 paragraphs.
-- [ ] Step 2: Apply the predicate: "If a future contributor reads this file as canonical, would they reintroduce skills as Zeno's primary capability surface?"
-- [ ] Step 3: Build a table inside this tasks.md (in this same Step) with columns `file | decision (superseded | preserved) | one-line rationale`. The decision must be explicit per file.
-- [ ] Step 4: For each file marked superseded, add `status: superseded` and `superseded_by: 0049` to the existing frontmatter (preserve all other frontmatter fields). If the file has no frontmatter, add a new frontmatter block at top.
-- [ ] Step 5: Verify body content is unchanged for every superseded file (only frontmatter changes).
+- [x] Step 1: List every `.md` file in `context/learnings/`. For each file, read its frontmatter + first 2 paragraphs. — 17 files mention "skill"; predicate applied to each.
+- [x] Step 2: Apply the predicate: "If a future contributor reads this file as canonical, would they reintroduce skills as Zeno's primary capability surface?"
+- [x] Step 3: Decision table:
+
+  | File | Decision | Rationale |
+  |---|---|---|
+  | `agent-skills-open-standard.md` | **superseded** | Prescribes adopting agentskills.io as Zeno's standard for "skills"; future reader treats it as the path forward. |
+  | `closed-learning-loop-self-improving-skills.md` | **superseded** | Title literally promotes "self-improving skills" as a Zeno bet; reader would design Zeno around it. |
+  | `lessons-for-zeno-from-openclaw-hermes.md` | **superseded** | Recommends `SKILL.md + MCP servers` as Zeno's future capability surface — directly the old thesis. |
+  | `skill-scoped-credentials-pattern.md` | **superseded** | Prescribes per-skill credential pattern as canonical for Zeno. |
+  | `workspace-markdown-files-pattern.md` | **superseded** | Lists `SKILL.md` as expected workspace file in Zeno's shape; skills not a runtime concept now. |
+  | `claude-code-cli-headless.md` | preserved | Third-party Claude Code CLI flag reference; mentions skill only describing `--bare`. |
+  | `claude-sdk-settings-sources-skills.md` | preserved | Third-party SDK gotcha (settingSources required); useful if skills come back. Not a thesis prescription. |
+  | `claudeclaw-claude-code-plugin-pattern.md` | preserved | Reference about claudeclaw plugin pattern (third-party tool); plugin layout includes `/skills`, but the lesson is about the plugin pattern itself. |
+  | `docker-multi-profile-via-compose.md` | preserved | Lesson about Docker Compose multi-profile isolation; mentions "skills" as one example of what shouldn't cross-contaminate. The infra lesson is durable. |
+  | `git-credential-helper-for-token-rotation.md` | preserved | Lesson about git credential helpers (avoid embedding tokens in clone URLs). Mentions `dev-workflow` skill as the use case but the principle is generic. |
+  | `hermes-architecture.md` | preserved | Reference about Hermes agent (third-party). Comparing other agents. |
+  | `hermes-prompt-caching-invariants.md` | preserved | Lesson about prompt-cache invariants. Skill-loading is one example; the general principle (don't break cache mid-conversation) is durable and applies to any per-turn dynamic loading (system prompt, USER.md, etc.). |
+  | `multi-agent-routing-channels-to-agents.md` | preserved | Lesson about routing channels to agents. Mentions skills as a per-agent property, but the routing pattern is the thing. |
+  | `openclaw-architecture.md` | preserved | Reference about OpenClaw (third-party). |
+  | `profile-isolation-via-env-var.md` | preserved | Lesson about Hermes' `HERMES_HOME` env-var trick. Mentions skills as one of the per-profile state paths — the lesson (one env var resolves all) generalizes to any per-profile state. |
+  | `slack-mrkdwn-vs-markdown.md` | preserved | Lesson about Slack mrkdwn conversion at the channel adapter layer. Mentions skill in passing as an example consumer. |
+  | `spec-review-loop-catches-real-bugs.md` | preserved | Lesson about using `spec-document-reviewer`. Mentions Claude Code's `brainstorming` skill (a Claude Code skill, not a Zeno runtime skill). |
+
+  **Total:** 5 superseded, 12 preserved.
+
+- [x] Step 4: For each file marked superseded, added `status: superseded` and `superseded_by: 0049` to the existing frontmatter (preserved all other fields), plus a one-paragraph banner under frontmatter explaining the supersession with cross-links.
+- [x] Step 5: Verify body content unchanged below the banner — confirmed via `git diff` showing only frontmatter + banner additions.
 
 ### Task 5.2: Update learnings index
 

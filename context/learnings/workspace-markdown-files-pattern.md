@@ -7,7 +7,12 @@ related:
   - "[[hermes-architecture]]"
   - "[[agent-skills-open-standard]]"
 created: 2026-04-15
+status: superseded
+superseded_by: 0049
 ---
+
+> **Superseded** by spec [[../specs/0049-zeno-redefinition/spec|0049-zeno-redefinition]] (connectors-only positioning). The pattern includes `SKILL.md` as part of Zeno's expected workspace shape; skills are no longer a runtime concept. SOUL.md and USER.md remain canonical; references to per-skill markdown reflect the old thesis. See [[connectors-only-pivot]].
+
 # Workspace markdown files — the emerging agent-config lingua franca
 
 Both OpenClaw and Hermes converge on a small set of markdown files that encode agent identity, memory, and user model. These filenames are becoming a de-facto standard across agent ecosystems — using them means portability (Hermes can `claw migrate` from an OpenClaw install and pick up state directly).

@@ -7,7 +7,11 @@ related:
   - "[[hermes-architecture]]"
   - "[[workspace-markdown-files-pattern]]"
 created: 2026-04-15
+status: superseded
+superseded_by: 0049
 ---
+
+> **Superseded** by spec [[../specs/0049-zeno-redefinition/spec|0049-zeno-redefinition]] (connectors-only positioning). Skills were removed from Zeno's runtime in this batch; if they return, the standard they follow is a future decision. See [[connectors-only-pivot]] for context, and [[how-to-read-pre-cleanup-specs]] for how to read this file as historical record.
 # Agent Skills — agentskills.io open standard
 
 Agent Skills (`agentskills.io`, spec at `agentskills.io/specification`, repo `github.com/agentskills/agentskills`) is the emerging **open, portable standard** for defining AI-agent capabilities as markdown-plus-scripts bundles. Published by Anthropic under Apache 2.0 (code) and CC-BY-4.0 (docs); adopted within days by Microsoft (VS Code + GitHub Copilot), OpenAI (Codex CLI + ChatGPT), Cursor, Amp, Goose, OpenCode, Letta, and others. Both OpenClaw and Hermes support it natively.

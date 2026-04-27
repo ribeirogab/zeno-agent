@@ -68,9 +68,33 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+/**
+ * Optional configuration for `discoverTools`.
+ *
+ * Spec 0038 F#2: `authCheckTool` lets the catalog declare a tool name the
+ * discovery layer should call after a successful `tools/list` to verify
+ * credentials are real. Without this hop, `tools/list` may succeed even
+ * with an invalid token (the Sentry MCP, e.g., returns its tool list
+ * without authenticating). Calling a real tool surfaces auth failure
+ * deterministically.
+ */
+export interface DiscoverOptions {
+  /**
+   * If set and the tool exists in the result of `tools/list`, the discovery
+   * layer calls `client.callTool({ name: authCheckTool, arguments: {} })`
+   * with the same 10s timeout. An MCP-style or HTTP-style auth error from
+   * that call returns `{ errorKind: 'auth' }`. If the named tool is not
+   * present in the live `tools/list`, a warning is logged (best-effort)
+   * and the auth check is skipped — discovery continues with the listed
+   * tools as if no auth check had been requested.
+   */
+  authCheckTool?: string;
+}
+
 export async function discoverTools(
   connector: Connector,
   secrets: ConnectorSecret[],
+  options?: DiscoverOptions,
 ): Promise<DiscoverToolsResult> {
   const start = Date.now();
   const client = new Client({ name: 'zeno-discover', version: '0.1.0' }, { capabilities: {} });
@@ -104,6 +128,43 @@ export async function discoverTools(
       description: t.description ?? null,
       category: classifyToolCategory(t.name),
     }));
+
+    // Spec 0038 F#2: optional auth probe. After tools/list, call a designated
+    // tool to confirm the credentials actually work. tools/list is unauthed
+    // on some MCPs (Sentry's, notably), so without this hop a bad token
+    // would pass the test endpoints silently.
+    if (options?.authCheckTool) {
+      const present = tools.some((t) => t.name === options.authCheckTool);
+      if (!present) {
+        // Catalog drift: the auth-check tool is no longer exposed by the
+        // MCP. Don't fail discovery — this is a misconfiguration to surface
+        // in operator review, not a test failure. Logged to stderr (best
+        // effort; mcp-discover has no logger dep).
+        console.warn(
+          `discoverTools: authCheckTool="${options.authCheckTool}" not present in tools/list; skipping auth check (catalog drift?)`,
+        );
+      } else {
+        try {
+          const callResult = (await withTimeout(
+            client.callTool({ name: options.authCheckTool, arguments: {} }),
+            DISCOVER_TIMEOUT_MS,
+          )) as { isError?: boolean; content?: Array<{ type?: string; text?: string }> };
+          // The SDK encodes tool-level errors as `{ isError: true, content: [...] }`
+          // rather than throwing. We extract the error text and run it through
+          // classifyError so 401/403/Unauthorized text → errorKind: 'auth'.
+          if (callResult?.isError) {
+            const text = Array.isArray(callResult.content)
+              ? callResult.content.map((c) => (c?.type === 'text' ? (c.text ?? '') : '')).join(' ')
+              : '';
+            return classifyError(new Error(text || 'auth check tool returned an error'));
+          }
+        } catch (err) {
+          // Synchronous throws (transport-level / MCP protocol errors).
+          return classifyError(err);
+        }
+      }
+    }
+
     return { tools, durationMs: Date.now() - start };
   } catch (err) {
     return classifyError(err);

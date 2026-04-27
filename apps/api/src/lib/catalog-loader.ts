@@ -38,6 +38,12 @@ export const catalogEntrySchema = z.object({
   transportConfig: catalogTransportConfigSchema,
   secrets: z.array(catalogSecretSchema),
   tools: z.array(catalogToolSchema),
+  /**
+   * Optional name of a tool the test endpoints can call to verify credentials
+   * are valid. `tools/list` alone often returns success regardless of token —
+   * calling a real tool is the only deterministic auth check. Spec 0038 F#2.
+   */
+  authCheckTool: z.string().optional(),
   tags: z.array(z.string()).optional(),
 });
 

@@ -62,7 +62,7 @@ server.registerTool(
   'read_echo',
   {
     description: 'Echoes the input message. Used by P1.1 / P1.5 / P4 tests.',
-    inputSchema: { message: z.string() },
+    inputSchema: { message: z.string().optional() },
   },
   makeHandler('read'),
 );
@@ -71,7 +71,7 @@ server.registerTool(
   'update_echo',
   {
     description: 'Echoes the input message; categorized as write because update_ matches WRITE_PREFIXES.',
-    inputSchema: { message: z.string() },
+    inputSchema: { message: z.string().optional() },
   },
   makeHandler('write'),
 );
@@ -80,7 +80,7 @@ server.registerTool(
   'interactive_echo',
   {
     description: 'Echoes the input message; falls through to interactive category (no prefix match).',
-    inputSchema: { message: z.string() },
+    inputSchema: { message: z.string().optional() },
   },
   makeHandler('interactive'),
 );

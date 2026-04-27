@@ -13,6 +13,7 @@
         "command": "npx",
         "args": ["-y", "@sentry/mcp-server"]
       },
+      "authCheckTool": "whoami",
       "secrets": [
         {
           "key": "SENTRY_ACCESS_TOKEN",

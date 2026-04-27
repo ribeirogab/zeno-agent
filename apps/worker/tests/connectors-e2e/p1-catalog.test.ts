@@ -71,14 +71,20 @@ describe('P1 — catalog + discoverTools', () => {
     expect(['spawn', 'unknown', 'network']).toContain(result.errorKind);
   });
 
-  // P1.3 — ships as it.skip in spec 0037; spec 0038 unskips and asserts
-  // errorKind:'auth' once `discoverTools` accepts an `authCheckTool` option.
-  it.skip('P1.3: FIXTURE_FAIL=auth + authCheckTool → errorKind=auth (unskipped by 0038 F#2)', async () => {
-    // Placeholder — 0038 will replace this body with:
-    //   fixture = bootFixture({ failMode: 'auth' });
-    //   const result = await discoverTools(connector, fixtureSecrets('auth'),
-    //     { authCheckTool: 'read_echo' });
-    //   expect((result as any).errorKind).toBe('auth');
+  // P1.3 — unskipped by 0038 F#2: discoverTools now accepts authCheckTool.
+  // With FIXTURE_FAIL=auth the fixture's tools/list succeeds but tools/call
+  // returns Unauthorized. discoverTools' new auth probe catches this and
+  // returns errorKind:'auth'. Without the F#2 plumbing this test would have
+  // returned `{ ok: true, tools: [...] }` (the Finding #2 regression bait).
+  it('P1.3: FIXTURE_FAIL=auth + authCheckTool → errorKind=auth', async () => {
+    fixture = bootFixture({ failMode: 'auth' });
+    const connector = makeTransientFixtureConnector(fixture);
+    const result = await discoverTools(connector, fixtureSecrets('auth'), {
+      authCheckTool: 'read_echo',
+    });
+    expect('error' in result).toBe(true);
+    if (!('error' in result)) return;
+    expect(result.errorKind).toBe('auth');
   });
 
   it('P1.4: FIXTURE_FAIL=timeout → errorKind=timeout', async () => {

@@ -37,7 +37,14 @@ interface RawTool {
 function classifyError(err: unknown): { error: string; errorKind: DiscoverErrorKind } {
   const message = err instanceof Error ? err.message : String(err);
   const lower = message.toLowerCase();
-  if (/401|403|unauthorized|forbidden|authenticat/.test(lower)) {
+  // Auth bucket: HTTP statuses, common error words, plus phrasings real MCPs
+  // emit (Sentry uses "Authorization Expired ... rejected the stored access
+  // token"; others may use "invalid token" / "credentials"). Spec 0038 F#2.
+  if (
+    /401|403|unauthorized|forbidden|authenticat|authorization (expired|invalid|rejected)|invalid (token|credentials)|access token (rejected|invalid|expired)/.test(
+      lower,
+    )
+  ) {
     return { error: message.slice(0, 500), errorKind: 'auth' };
   }
   if (/timeout|timed out/.test(lower)) {

@@ -144,7 +144,21 @@ function computeStatusAggregate(
     if (ageMs >= 0 && ageMs < 60 * 60_000) return 'degraded';
   }
   if (installations.length === 0) return 'mixed';
-  if (installations.some((i) => i.lastError && i.lastErrorAt)) return 'error';
+  // Time-guarded: only RECENT errors flag the App as 'error'. Without this,
+  // a single stale `last_error_at` from months ago would keep the App red
+  // forever even after every installation recovered. 24h matches the
+  // worker's verify cadence (operator has plenty of time to see + act).
+  const ERROR_WINDOW_MS = 24 * 60 * 60_000;
+  const now = Date.now();
+  if (
+    installations.some((i) => {
+      if (!i.lastError || !i.lastErrorAt) return false;
+      const ageMs = now - new Date(i.lastErrorAt).getTime();
+      return ageMs >= 0 && ageMs < ERROR_WINDOW_MS;
+    })
+  ) {
+    return 'error';
+  }
   if (installations.every((i) => i.status === 'enabled' && i.lastVerifiedAt)) return 'active';
   return 'mixed';
 }

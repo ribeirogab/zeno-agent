@@ -68,6 +68,10 @@ export function buildHandlerMap(deps: HandlerDeps): HandlerMap {
     }),
     app_install: buildAppInstallHandler(deps),
     app_pem_rotated: buildAppPemRotatedHandler(deps),
-    app_uninstall: buildAppUninstallHandler(deps),
+    app_uninstall: buildAppUninstallHandler({
+      getGithubApp: deps.getGithubApp,
+      tearDownGithubApp: deps.tearDownGithubApp,
+      approvalRules: deps.approvalRules,
+    }),
   };
 }

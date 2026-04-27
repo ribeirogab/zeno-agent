@@ -229,13 +229,50 @@ describe('GET /api/connectors — discriminated union', () => {
     });
     connRepo.update(c1.id, {
       lastError: 'token revoked',
-      lastErrorAt: '2026-04-01T00:00:00Z',
+      // Recent timestamp — outside 24h window the App falls back to 'mixed'
+      // (stale errors don't lock the App into 'error' forever). Spec 0048 R2 F2.
+      lastErrorAt: new Date().toISOString(),
     });
 
     const res = await makeApp().request('/api/connectors', { headers: authed() });
     const items = (await res.json()) as ListEntry[];
     const appItem = items.find((i) => i.kind === 'app') as AppListItem | undefined;
     expect(appItem?.statusAggregate).toBe('error');
+  });
+
+  it('falls back to non-error when lastErrorAt is older than 24h (spec 0048 R2 F2)', async () => {
+    const appRepo = new ConnectorAppRepo(db);
+    const app = appRepo.create({
+      catalogId: 'github-app',
+      appId: '7777',
+      appSlug: 'zen',
+      appName: 'Zen',
+      pem: 'pem',
+      pemSha256: 'sha',
+    });
+    const connRepo = new ConnectorRepo(db);
+    const c1 = connRepo.create({
+      slug: 'github-app-acme',
+      displayName: 'Acme',
+      source: 'catalog',
+      catalogId: 'github-app',
+      transport: 'stdio',
+      command: 'github-mcp-server',
+      args: ['stdio'],
+      secrets: [],
+      tools: [],
+      appId: app.id,
+    });
+    // 48h-old error → must NOT lock the App into 'error' state.
+    connRepo.update(c1.id, {
+      lastError: 'token revoked long ago',
+      lastErrorAt: new Date(Date.now() - 48 * 60 * 60_000).toISOString(),
+    });
+
+    const res = await makeApp().request('/api/connectors', { headers: authed() });
+    const items = (await res.json()) as ListEntry[];
+    const appItem = items.find((i) => i.kind === 'app') as AppListItem | undefined;
+    expect(appItem?.statusAggregate).not.toBe('error');
   });
 });
 

@@ -43,7 +43,6 @@ import { SlackApprover } from '@/guardrails/approver/slack-approver';
 import { HaikuClassifier } from '@/guardrails/classifier/haiku';
 import { loadApprovalsConfig } from '@/guardrails/config';
 import { GuardedBackend } from '@/guardrails/guarded-backend';
-import { migrateYamlAlwaysSensitiveToDb } from '@/guardrails/migration-yaml-to-db';
 import { makeAlwaysAllowedPolicy } from '@/guardrails/policies/always-allowed';
 import { makeAlwaysSensitivePolicy } from '@/guardrails/policies/always-sensitive';
 import { makeAuditLogger } from '@/guardrails/policies/audit';
@@ -301,11 +300,6 @@ async function main(): Promise<void> {
   }
 
   const approvalsConfig = loadApprovalsConfig();
-  // Spec 0048 Q5: yaml `always_sensitive` is no longer parsed (loadApprovalsConfig
-  // throws if the field is still present). The 0047 migration helper is kept
-  // as a no-op safety net for any deployment that ran 0047 but didn't
-  // complete the boot migration before 0048 shipped.
-  void migrateYamlAlwaysSensitiveToDb;
   const slack = new SlackChannel({
     ...config.slack,
     dmOwnerUserId:
@@ -368,8 +362,8 @@ async function main(): Promise<void> {
     const policies: PolicyMiddleware[] = [
       // Spec 0047: rules sourced from DB (mutable via dashboard); the getter
       // is called fresh per check so changes propagate to the next agent
-      // turn without restart. Yaml `always_sensitive` is migrated to DB at
-      // boot (above) and only read once per turn from DB after that.
+      // turn without restart. Spec 0048 Q5: yaml `always_sensitive` is no
+      // longer parsed — operators manage rules entirely via dashboard.
       makeAlwaysSensitivePolicy({ getRules: () => approvalRules.listPatterns() }),
       makeAlwaysAllowedPolicy({
         tools: approvalsConfig.always_allowed_tools,

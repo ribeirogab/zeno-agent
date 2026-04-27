@@ -153,4 +153,37 @@ describe('app_uninstall handler', () => {
     expect(res.ok).toBe(true);
     expect(tearDown).not.toHaveBeenCalled();
   });
+
+  it('cascade-deletes auto rules scoped to mcp__github-app-% (R1 F1)', async () => {
+    const githubApp = makeFakeGithubApp();
+    const tearDown = vi.fn();
+    const deleteAutoMatching = vi.fn(() => 3);
+    const approvalRules = { deleteAutoMatching } as unknown as Parameters<
+      typeof buildAppUninstallHandler
+    >[0]['approvalRules'];
+    const handler = buildAppUninstallHandler({
+      getGithubApp: () => githubApp,
+      tearDownGithubApp: tearDown,
+      approvalRules,
+    });
+    const res = await handler(fakeCommand('app_uninstall', { appUuid: 'a-1' }));
+    expect(res).toEqual({ ok: true });
+    expect(deleteAutoMatching).toHaveBeenCalledWith('mcp__github-app-%');
+    expect(tearDown).toHaveBeenCalledTimes(1);
+  });
+
+  it('still cascades auto rules even when singleton is null (R1 F1)', async () => {
+    const deleteAutoMatching = vi.fn(() => 1);
+    const approvalRules = { deleteAutoMatching } as unknown as Parameters<
+      typeof buildAppUninstallHandler
+    >[0]['approvalRules'];
+    const handler = buildAppUninstallHandler({
+      getGithubApp: () => null,
+      tearDownGithubApp: vi.fn(),
+      approvalRules,
+    });
+    const res = await handler(fakeCommand('app_uninstall', { appUuid: 'a-1' }));
+    expect(res.ok).toBe(true);
+    expect(deleteAutoMatching).toHaveBeenCalledWith('mcp__github-app-%');
+  });
 });

@@ -11,6 +11,7 @@
  */
 
 import { createLogger } from '@zeno/logger';
+import type { ApprovalRulesRepo } from '@zeno/storage';
 import { z } from 'zod';
 import type { Handler } from '@/commands/dispatcher';
 import type { HandlerDeps } from '@/commands/handlers';
@@ -21,12 +22,34 @@ const payloadSchema = z.object({
   appUuid: z.string(),
 });
 
-type Deps = Pick<HandlerDeps, 'getGithubApp' | 'tearDownGithubApp'>;
+type Deps = Pick<HandlerDeps, 'getGithubApp' | 'tearDownGithubApp'> & {
+  approvalRules?: ApprovalRulesRepo;
+};
 
 export function buildAppUninstallHandler(deps: Deps): Handler {
   return async (cmd) => {
     const parsed = payloadSchema.safeParse(cmd.payload ? JSON.parse(cmd.payload) : null);
     if (!parsed.success) return { ok: false, error: `invalid payload: ${parsed.error.message}` };
+
+    // Spec 0047 + R1 follow-up: cascade-delete every auto rule scoped to the
+    // github-app catalog. The SQLite cascade (`connectors.app_id`) wipes
+    // every github-app-* connector before this handler runs, so the
+    // per-connector_uninstall cleanup never fires — without this, auto rules
+    // like `mcp__github-app-<name>__merge_pull_request` become permanent
+    // zombies. Manual + yaml-migrated rules are preserved (operator intent).
+    if (deps.approvalRules) {
+      const removedCount = deps.approvalRules.deleteAutoMatching('mcp__github-app-%');
+      if (removedCount > 0) {
+        logger.info(
+          {
+            event: 'approval_rules_auto_cascaded_app',
+            appUuid: parsed.data.appUuid,
+            removed: removedCount,
+          },
+          'auto-cascaded approval rules on app_uninstall',
+        );
+      }
+    }
 
     const githubApp = deps.getGithubApp();
     if (!githubApp) {

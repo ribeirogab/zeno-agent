@@ -337,6 +337,25 @@ WHERE c.slug LIKE 'github-app-%'
   );
 `,
   },
+  {
+    id: 8,
+    name: 'approval_rules',
+    // Spec 0047: move always_sensitive rules from yaml to a DB-managed table.
+    // Generic shape (pattern + source) — works for any sensitive tool across
+    // any connector, with a source field that drives auto-cascade behavior.
+    sql: `
+CREATE TABLE approval_rules (
+  id          TEXT PRIMARY KEY,
+  pattern     TEXT NOT NULL,
+  source      TEXT NOT NULL CHECK (source IN ('manual', 'auto', 'yaml-migrated')),
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  notes       TEXT,
+  UNIQUE (pattern)
+);
+CREATE INDEX idx_approval_rules_source ON approval_rules(source);
+`,
+  },
 ];
 
 /**

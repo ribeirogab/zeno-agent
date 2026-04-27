@@ -5,6 +5,7 @@ import { RestartWorkerModal } from '@/components/modals/restart-worker-modal';
 import { AboutRow } from '@/components/settings/about-row';
 import { BackendCard } from '@/components/settings/backend-card';
 import { ProfileFileRow } from '@/components/settings/profile-file-row';
+import { SensitiveToolsSection } from '@/components/settings/sensitive-tools-section';
 import { SettingsSectionSkeleton } from '@/components/skeletons/settings-section-skeleton';
 import { useRestartWorker } from '@/lib/mutations';
 import { useHealth } from '@/lib/use-health';
@@ -35,13 +36,14 @@ function SettingsScreen(): JSX.Element {
         {q.isLoading || !q.data ? (
           <>
             <SettingsSectionSkeleton title="backend" rows={1} />
-            <SettingsSectionSkeleton title="mcp servers" rows={5} />
+            <SettingsSectionSkeleton title="sensitive tools" rows={3} />
             <SettingsSectionSkeleton title="profile files" rows={5} />
             <SettingsSectionSkeleton title="about" rows={3} />
           </>
         ) : (
           <>
             <BackendSection backend={q.data.backend} />
+            <SensitiveToolsSection />
             <ProfileFilesSection files={q.data.profileFiles} />
             <AboutSection
               backend={q.data.backend.name}
@@ -76,8 +78,9 @@ function Header({ onRestart }: { onRestart: () => void }): JSX.Element {
           settings
         </h1>
         <p className="mt-2.5 max-w-[640px] m-0 font-sans text-sm leading-[1.6] text-text-secondary">
-          Read-only view. Most knobs live in <InlineCode>.env</InlineCode> and{' '}
-          <InlineCode>profile/</InlineCode>; edit there and Zeno hot-reloads.
+          Mostly read-only. Sensitive tool rules are managed below; other knobs live in{' '}
+          <InlineCode>.env</InlineCode> and <InlineCode>profile/</InlineCode> — edit there and Zeno
+          hot-reloads.
         </p>
       </div>
       <RestartWorkerButton onClick={onRestart} />

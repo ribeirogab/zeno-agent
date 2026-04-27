@@ -310,3 +310,25 @@ export interface RecordInvocationInput {
   durationMs: number;
   errorMessage?: string | null;
 }
+
+// ───────────────────────────────────────────────────────────────────
+// Approval rules (spec 0047)
+// ───────────────────────────────────────────────────────────────────
+
+export type ApprovalRuleSource = 'manual' | 'auto' | 'yaml-migrated';
+
+export interface ApprovalRule {
+  id: string;
+  pattern: string;
+  source: ApprovalRuleSource;
+  createdAt: string;
+  updatedAt: string;
+  notes: string | null;
+}
+
+export interface CreateApprovalRuleInput {
+  id?: string;
+  pattern: string;
+  source: ApprovalRuleSource;
+  notes?: string | null;
+}

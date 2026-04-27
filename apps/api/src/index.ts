@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
 import { createLogger } from '@zeno/logger';
 import {
+  ApprovalRulesRepo,
   CommandRepo,
   ConnectorAppRepo,
   ConnectorRepo,
@@ -45,6 +46,7 @@ function main(): void {
   const logRepo = new LogRepo(db);
   const connectorRepo = new ConnectorRepo(db);
   const connectorAppRepo = new ConnectorAppRepo(db);
+  const approvalRulesRepo = new ApprovalRulesRepo(db);
   const logger = createLogger({ service: 'api', dbSink: logRepo });
   const here = dirname(fileURLToPath(import.meta.url));
   // After build: apps/api/dist/index.js → ../.. → apps → /dashboard/dist
@@ -62,6 +64,7 @@ function main(): void {
     logRepo,
     connectorRepo,
     connectorAppRepo,
+    approvalRulesRepo,
     claudeHome,
     profileDir,
     spaDir,

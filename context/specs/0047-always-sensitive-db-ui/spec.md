@@ -1,8 +1,8 @@
 ---
-status: approved
+status: shipped
 feature: always-sensitive-db-ui
 created: 2026-04-27
-shipped: null
+shipped: 2026-04-27
 ---
 # Always-Sensitive Rules — DB + Dashboard Editor Spec
 

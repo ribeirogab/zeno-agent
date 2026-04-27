@@ -1,5 +1,6 @@
 export { closeDatabase, type DB, openDatabase } from './db.js';
 export { runMigrations } from './migrations.js';
+export { ApprovalRulesRepo } from './repos/approval-rules.js';
 export { ApprovalsLogRepo } from './repos/approvals-log.js';
 export { CommandRepo } from './repos/commands.js';
 export { ConnectorAppRepo } from './repos/connector-apps.js';
@@ -10,6 +11,8 @@ export { LogRepo } from './repos/logs.js';
 export { SessionRepo } from './repos/sessions.js';
 export type {
   ApprovalDecision,
+  ApprovalRule,
+  ApprovalRuleSource,
   ApprovalsLogEntry,
   Command,
   CommandStatus,
@@ -23,6 +26,7 @@ export type {
   ConnectorToolPermission,
   ConnectorTransport,
   ConnectorWithRelations,
+  CreateApprovalRuleInput,
   CreateApprovalsLogEntry,
   CreateCommandInput,
   CreateConnectorAppInput,

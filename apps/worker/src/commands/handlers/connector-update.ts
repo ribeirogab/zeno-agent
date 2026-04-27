@@ -20,15 +20,13 @@ const payloadSchema = z.object({
     .optional(),
 });
 
-type Deps = Pick<HandlerDeps, 'connectors' | 'getGithubApp'>;
+type Deps = Pick<HandlerDeps, 'connectors'>;
 
 export function buildConnectorUpdateHandler(deps: Deps): Handler;
 export function buildConnectorUpdateHandler(connectors: ConnectorRepo): Handler;
 export function buildConnectorUpdateHandler(arg: Deps | ConnectorRepo): Handler {
   const deps: Deps =
-    'connectors' in (arg as Deps)
-      ? (arg as Deps)
-      : { connectors: arg as ConnectorRepo, getGithubApp: () => null };
+    'connectors' in (arg as Deps) ? (arg as Deps) : { connectors: arg as ConnectorRepo };
   return async (cmd) => {
     const parsed = payloadSchema.safeParse(cmd.payload ? JSON.parse(cmd.payload) : null);
     if (!parsed.success) return { ok: false, error: `invalid payload: ${parsed.error.message}` };

@@ -345,15 +345,19 @@ export class GitHubAppAuth {
     //   - failure
     //   - recovery (failure → success)
     //   - one cycle-complete aggregate
-    let primaryToken: string | null = null;
+    //
+    // Spec 0051: the `process.env.GH_TOKEN` write that used to live here
+    // (capturing the first installation's token) was removed alongside the
+    // operator-picked envVar field. The github-mcp-server subprocess gets
+    // `GITHUB_PERSONAL_ACCESS_TOKEN` synthesized from `getCachedToken()` in
+    // mcp-build.ts; no global env var is needed.
     let succeeded = 0;
     let failed = 0;
     let aggregateError: string | null = null;
     for (const inst of this.installations.values()) {
       const previousState = this.lastRefreshState.get(inst.name) ?? 'unknown';
       try {
-        const token = await this.mintAndCache(inst);
-        if (!primaryToken) primaryToken = token;
+        await this.mintAndCache(inst);
         succeeded += 1;
         if (previousState === 'unknown') {
           logger.info(
@@ -386,11 +390,6 @@ export class GitHubAppAuth {
         }
       }
     }
-    // Spec 0051: `process.env.GH_TOKEN = primaryToken` removed alongside
-    // operator-picked envVar field. The github-mcp-server subprocess
-    // receives `GITHUB_PERSONAL_ACCESS_TOKEN` via mcp-build.ts (synthesized
-    // from getCachedToken); no global env var is needed.
-    void primaryToken;
     // Spec 0048 Q4: single aggregate log per cycle (cheap).
     logger.info(
       {

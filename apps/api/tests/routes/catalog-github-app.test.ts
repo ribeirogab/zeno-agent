@@ -324,7 +324,6 @@ describe('POST /api/connectors/catalog/github-app/installations/discover', () =>
       secrets: [
         { key: '__GITHUB_INSTALLATION_ID__', value: '100' },
         { key: '__GITHUB_INSTALLATION_NAME__', value: 'acme' },
-        { key: '__GITHUB_ENV_VAR__', value: 'GITHUB_TOKEN_ACME' },
       ],
       tools: [],
       appId: app.id,

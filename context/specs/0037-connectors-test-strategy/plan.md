@@ -51,7 +51,7 @@ Implements the MCP protocol over stdio with `@modelcontextprotocol/sdk/server/in
 Three tools:
 
 - `read_echo` — returns input back unchanged. Categorized as `read` by `classifyToolCategory`.
-- `write_echo` — same. Categorized as `write`.
+- `update_echo` — same. Categorized as `write`.
 - `interactive_echo` — same. Falls through to `interactive` because `interactive_` is not in `READ_PREFIXES` or `WRITE_PREFIXES` in `mcp-discover`.
 
 Failure modes via env vars set by the test harness:
@@ -198,11 +198,11 @@ Update `0035-connectors-e2e/spec.md` header. Add a learning note if anything non
 
 ### Phase 10 — Smoke (manual, fast)
 
-Run `bash tmp/0036-validation/reset.sh` followed by a quick `pnpm --filter @zeno/worker test --testPathPattern=connectors-e2e` round to verify the suite passes against a clean DB.
+Run `bash tmp/0036-validation/reset.sh` followed by a quick `pnpm --filter @zeno/worker test connectors-e2e` round to verify the suite passes against a clean DB.
 
 ## Risks / Open Decisions
 
-- **Decision: vitest pattern vs separate suite directory.** Going with a sub-directory under the worker's existing `tests/` tree, **no separate npm script**. The worker's `vitest.config.ts` `include: ['tests/**/*.test.ts']` already auto-discovers the new directory. Both `pnpm --filter @zeno/worker test` (full suite) and `pnpm --filter @zeno/worker test --testPathPattern=connectors-e2e` (fast inner loop) work; `pnpm run quality-gate` runs everything via turbo.
+- **Decision: vitest pattern vs separate suite directory.** Going with a sub-directory under the worker's existing `tests/` tree, **no separate npm script**. The worker's `vitest.config.ts` `include: ['tests/**/*.test.ts']` already auto-discovers the new directory. Both `pnpm --filter @zeno/worker test` (full suite) and `pnpm --filter @zeno/worker test connectors-e2e` (fast inner loop) work; `pnpm run quality-gate` runs everything via turbo.
 - **Decision: plain `.mjs` (no TypeScript) for fixture and regenerator script.** Verified during R1 that no workspace has `tsx`, `ts-node`, or another TS-on-the-fly runner. Adding one is unnecessary scope. The fixture and the script are both small (~80 lines and ~50 lines), don't share code with the worker source, and don't benefit from types in their own right. Boot via `node apps/worker/tests/connectors-e2e/fixtures/echo-mcp/server.mjs` and `node apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs`.
 - **Decision: snapshot format for P1.5.** Plain JSON in the `__snapshots__` directory — not vitest's `.snap` files (which are quoted JS, harder to read in PRs). The test loads the JSON and compares with `expect(...).toEqual(...)`. Snapshot updates require running the regenerator script (deliberate friction so catalog-vs-snapshot drift is caught at code review).
 - **Decision: in-memory DB vs file DB for tests.** In-memory (`:memory:` SQLite) — fast, isolated, no cleanup. Spec 0036 used file DB because it ran against the live system; this suite is pure unit/integration so memory is correct.

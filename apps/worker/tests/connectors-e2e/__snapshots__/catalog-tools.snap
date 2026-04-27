@@ -1,0 +1,44 @@
+{
+  "sentry": [
+    {
+      "name": "get_issue",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_issues",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_organizations",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_projects",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_releases",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "search_errors",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "assign_issue",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "resolve_issue",
+      "category": "write",
+      "defaultPermission": "ask"
+    }
+  ]
+}

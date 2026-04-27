@@ -131,7 +131,7 @@ This spec answers: what changes, where, with what tests, and how the fix is vali
 |---|---|
 | F1.1 | Run `SENTRY_ACCESS_TOKEN=<real-token> node apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs` (script created in spec 0037 Task 7.1; **0038 extends it** with a `--fetch-from-mcp` flag that, when set, calls `discoverTools` per catalog entry instead of mirroring the existing JSON, and writes both `agent/connectors-catalog.json` and `__snapshots__/catalog-tools.snap` from the live results). The script is invoked via plain `node`; no `package.json` script alias added (per spec 0037's decision). |
 | F1.2 | After regeneration, `pnpm test --filter @zeno/api` passes (existing 16 tests in `connectors.test.ts` are not catalog-pinned). |
-| F1.3 | After regeneration, `pnpm --filter @zeno/worker test --testPathPattern=connectors-e2e` passes including spec 0037's P1.5 (snapshot matches). |
+| F1.3 | After regeneration, `pnpm --filter @zeno/worker test connectors-e2e` passes including spec 0037's P1.5 (snapshot matches). |
 | F1.4 | Reinstalling Sentry from the dashboard (`POST /api/connectors` with `source:'catalog'`) seeds 22 tools immediately, without needing a manual `refresh-tools` to reconcile. **Validated manually via spec 0036 G6.4 + G1.8.** |
 
 ### Finding #2 — auth check

@@ -49,7 +49,7 @@ created: 2026-04-26
 ### Task 1.1: Build the fixture
 
 - [ ] Step 1: Create `apps/worker/tests/connectors-e2e/fixtures/echo-mcp/server.mjs` (plain JS — `tsx` is not available in any workspace) using `@modelcontextprotocol/sdk`'s server stdio transport.
-- [ ] Step 2: Implement three tools: `read_echo`, `write_echo`, `interactive_echo`. Each accepts `{ message: string }` and returns the echoed message.
+- [ ] Step 2: Implement three tools: `read_echo`, `update_echo`, `interactive_echo`. Each accepts `{ message: string }` and returns the echoed message. Names chosen to land in `read`/`write`/`interactive` categories per `mcp-discover/classifyToolCategory`'s `READ_PREFIXES` / `WRITE_PREFIXES` (note: `write_` is NOT a prefix; `update_` is).
 - [ ] Step 3: Implement `FIXTURE_FAIL` env handling — four modes: `spawn` (exit 1 immediately), `auth` (tools/list ok, but `tools/call` returns `Unauthorized` errors — used by P1.3 auth-check tests), `mcp_error` (tools/list ok, but `tools/call` returns a non-auth `"fixture: simulated tool error (not auth)"` error — used by P4.3), `timeout` (sleep 30s before any response).
 - [ ] Step 4: Smoke manually with `node apps/worker/tests/connectors-e2e/fixtures/echo-mcp/server.mjs` + the SDK client; confirm tools/list returns 3 tools.
 - [ ] Step 5: Commit.
@@ -94,7 +94,7 @@ created: 2026-04-26
 
 ### Task 3.3: 10× determinism check
 
-- [ ] Step 1: `for i in 1..10; do pnpm --filter @zeno/worker test --testPathPattern=connectors-e2e/p1; done`.
+- [ ] Step 1: `for i in 1..10; do pnpm --filter @zeno/worker test connectors-e2e/p1; done`.
 - [ ] Step 2: All green; commit.
 
 ## Phase 4 — P2 scenarios (lifecycle)
@@ -183,11 +183,11 @@ The policy `check()` returns `{ allow: boolean, reason: string, policyThatGated:
 - [ ] Step 2: Add `testTimeout: 5000` to the worker `vitest.config.ts` (currently absent; relying on the 5000ms default). Pinning makes the per-scenario budget explicit and visible to anyone who edits the config later.
 - [ ] Step 3: NO new script in `package.json`. Running the existing `pnpm --filter @zeno/worker test` runs everything; `quality-gate` runs everything.
 - [ ] Step 4: Run `pnpm run quality-gate` and confirm: green; total time ≤ baseline + 90s.
-- [ ] Step 5: Document in `apps/worker/README.md` (see Task 8.2): "fast inner loop: `pnpm --filter @zeno/worker test --testPathPattern=connectors-e2e`".
+- [ ] Step 5: Document in `apps/worker/README.md` (see Task 8.2): "fast inner loop: `pnpm --filter @zeno/worker test connectors-e2e`".
 
 ### Task 8.2: Update `apps/worker/README.md` (or create one)
 
-- [ ] Step 1: One paragraph: "Phase A regression suite at `tests/connectors-e2e/`; reuses fixture echo MCP at `tests/connectors-e2e/fixtures/echo-mcp/server.mjs`. Run via `pnpm --filter @zeno/worker test --testPathPattern=connectors-e2e` (fast inner loop) or as part of `pnpm run quality-gate` (full)."
+- [ ] Step 1: One paragraph: "Phase A regression suite at `tests/connectors-e2e/`; reuses fixture echo MCP at `tests/connectors-e2e/fixtures/echo-mcp/server.mjs`. Run via `pnpm --filter @zeno/worker test connectors-e2e` (fast inner loop) or as part of `pnpm run quality-gate` (full)."
 
 ## Phase 9 — Documentation update
 

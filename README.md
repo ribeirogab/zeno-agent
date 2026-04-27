@@ -1,12 +1,20 @@
 # Zeno
 
-> **A personal agent whose intelligence lives in the skills you author.**
+> **Personal agent that operates across the apps you use, by composing connectors you install. Self-hosted.**
 
-Zeno is a self-hosted personal agent. The core is deliberately small and stable: a channel listener, a reasoning backend, a cron runner, a dashboard. That is all it does. Everything Zeno *knows how to do* — open a pull request, review code, summarize your inbox, manage tasks in a specific tool, whatever matters to you — lives outside the core, as **skills** you write.
+Zeno is for getting things done across the systems you already work in. Open a pull request after fixing a Sentry error. Triage your inbox. List the issues blocking the current sprint. Comment on a PR with the output of a code review. Anything that involves *acting* in an external app, Zeno can do — provided you've installed a connector for that app.
 
-A skill is a folder with a `SKILL.md` file (following the [agentskills.io](https://agentskills.io) open standard) plus whatever auxiliary files that skill needs: credentials, context, templates, scripts. Skills are self-contained, private to you by default, and loaded on demand. Zeno picks the right skill by matching your request against each skill's description — or you can invoke one explicitly.
+Connectors are the heart of the product. A connector is an MCP server you install via the dashboard at `/connectors`. It exposes typed tools (e.g. `mcp__github-app-acme__merge_pull_request`, `mcp__sentry__list_issues`) that Zeno composes to deliver real outcomes. Without connectors, Zeno is a talking statue. Adding a capability means installing or building a connector — not modifying the codebase.
 
-This design is intentional. Adding a capability should not require changing the codebase. Swapping the reasoning backend should not require rewriting your skills. Adding a new channel should not touch anything else. Zeno grows sideways, through the library of skills you maintain, not upwards through more code.
+The architecture is layered, in order of weight:
+
+1. **Connectors** — the capability surface. Everything Zeno can do externally is a tool exposed by a connector you installed.
+2. **Channel** — Slack today; Discord, Telegram, email, etc. as future adapters. The channel is how requests come in and replies go out.
+3. **Backend** — the reasoning engine (Claude Code today). Decides which connector tools to call, in what order.
+4. **Core** — small wiring (channel ↔ backend ↔ connectors). Stable, rarely changes.
+5. **Skills (deferred)** — domain knowledge that informs orchestration. Not in the runtime today; may return later, possibly bundled with connectors. The [agentskills.io](https://agentskills.io) open-standard composable-units philosophy inspired the connector model and may inform how skills come back.
+
+This is what makes Zeno extensible. Want it to act in a new app? Build or install a connector. Want it on a new channel? Add a Channel adapter. Want a different reasoning model? Swap the backend. The core never changes.
 
 ## Project structure
 
@@ -15,20 +23,19 @@ zeno-agent/
 ├── agent/                    # committed — Zeno's identity
 │   ├── SOUL.md               # agent personality and rules
 │   ├── mcp.json              # built-in MCP servers (Playwright, …)
-│   └── skills/               # built-in skills (dev-workflow, cron-management, playwright)
+│   └── connectors-catalog.json # curated catalog the dashboard installs from
 ├── profiles/
 │   └── default/              # committed (examples only — real files gitignored)
 │       ├── .env.example      # env var template
 │       ├── USER.example.md   # user profile template
-│       ├── config.example.yaml # crons + config template
-│       └── skills/           # your skills (override agent/ on name collision)
+│       └── config.example.yaml # crons + config template
 ├── apps/                     # worker + api + dashboard
-├── packages/                 # @zeno/storage + @zeno/logger + @zeno/ui
+├── packages/                 # @zeno/storage + @zeno/logger + @zeno/ui + @zeno/github-app + @zeno/mcp-discover
 ├── context/                  # maintainer knowledge vault (NOT in container)
 └── infra/                    # Dockerfile, docker-compose, entrypoint, docker.sh
 ```
 
-`agent/` is committed — it *is* Zeno. `profiles/default/` ships with `.example` templates; your actual files are gitignored. Each profile is self-contained: `.env`, `USER.md`, `config.yaml`, and `skills/`. MCP servers (connectors) are configured entirely through the dashboard at `/connectors` and stored in the SQLite DB.
+`agent/` is committed — it *is* Zeno. `profiles/default/` ships with `.example` templates; your actual files are gitignored. Each profile is self-contained: `.env`, `USER.md`, `config.yaml`. **Connectors are not files in the repo** — they are MCP server configurations the operator installs via the dashboard at `/connectors`, stored in the SQLite DB.
 
 ## Prerequisites
 
@@ -95,7 +102,7 @@ All scripts default to the `default` profile. Use `PROFILE=<name>` to target a d
 
 ## Running multiple profiles
 
-Each profile runs as an isolated container with its own Slack app, credentials, skills, and workspace:
+Each profile runs as an isolated container with its own Slack app, credentials, and workspace:
 
 ```bash
 # Default profile (personal) — port 3000
@@ -107,14 +114,14 @@ PROFILE=work pnpm run docker:up
 
 To create a new profile:
 
-1. `mkdir -p profiles/work/skills`
-2. Copy examples: `cp profiles/default/.env.example profiles/work/.env` (and USER, config, mcp)
+1. `mkdir -p profiles/work`
+2. Copy examples: `cp profiles/default/.env.example profiles/work/.env` (and USER, config)
 3. Fill in the profile-specific values (different Slack app, different tokens)
 4. Copy and adapt a compose file: `cp infra/docker-compose.default.yml infra/docker-compose.work.yml`
 5. Update container name, port, and profile path in the compose file
 6. `PROFILE=work pnpm run docker:up`
 
-Profiles are fully isolated — the work container cannot see personal skills/credentials, and vice versa. They share only the Docker image and the Claude OAuth token.
+Profiles are fully isolated — the work container cannot see personal credentials, and vice versa. They share only the Docker image and the Claude OAuth token.
 
 ## Performance
 
@@ -131,13 +138,14 @@ Profiles are fully isolated — the work container cannot see personal skills/cr
 
 ## Architecture
 
-- **Channels** (`apps/worker/src/channels/`) — pluggable message sources. Slack is MVP.
-- **Agent Core** (`apps/worker/src/agent/core.ts`) — wires channel to backend. Channel-agnostic, backend-agnostic.
-- **Agent Backends** (`apps/worker/src/agent/backends/`) — pluggable LLM engines. Claude Code (via `@anthropic-ai/claude-agent-sdk`) is MVP.
-- **Agent** (`agent/`) — `SOUL.md` (identity) + `mcp.json` (built-in MCPs) + `skills/` (built-in skills). Shared across all profiles.
-- **Profile** (`profiles/<name>/`) — `.env` + `USER.md` + `config.yaml` + `mcp.json` + `skills/`. One per context (personal, work, etc.), mounted read-only into the container.
+- **Connectors** (DB-managed, configured via dashboard) — MCP servers the agent calls. Each connector exposes a typed tool surface (e.g. `mcp__github-app-acme__merge_pull_request`). Capabilities flow exclusively through connectors; the agent has no direct shell, filesystem, or web-fetch access.
+- **Channels** (`apps/worker/src/channels/`) — pluggable message sources. Slack today; Discord/Telegram/email as future adapters. The channel is *how the agent communicates*, not a tool the agent uses.
+- **Agent Backends** (`apps/worker/src/agent/backends/`) — pluggable reasoning engines. Claude Code (via `@anthropic-ai/claude-agent-sdk`) is MVP. Decides which connector tools to call.
+- **Agent Core** (`apps/worker/src/agent/core.ts`) — wires channel to backend. Channel-agnostic, backend-agnostic. Small and stable.
+- **Agent identity** (`agent/`) — `SOUL.md` (system prompt) + `mcp.json` (built-in MCPs the runtime always exposes) + `connectors-catalog.json` (curated connectors the dashboard installs from). Shared across all profiles.
+- **Profile** (`profiles/<name>/`) — `.env` + `USER.md` + `config.yaml`. One per context (personal, work, etc.), mounted read-only into the container.
 
-Full spec: `context/specs/0001-slack-zeno-mvp/`.
+Full spec: `context/specs/0001-slack-zeno-mvp/`. For the connectors-only positioning, see `context/specs/0049-zeno-redefinition/spec.md` and `context/learnings/connectors-only-pivot.md`.
 
 ## Development
 

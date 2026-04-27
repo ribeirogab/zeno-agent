@@ -1,8 +1,8 @@
 ---
-status: approved
+status: shipped
 feature: connector-polish-round
 created: 2026-04-27
-shipped: null
+shipped: 2026-04-27
 ---
 # Connector Polish Round Spec
 

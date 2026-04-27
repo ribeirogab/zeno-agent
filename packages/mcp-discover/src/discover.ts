@@ -22,7 +22,24 @@ const DISCOVER_TIMEOUT_MS = 10_000;
 const READ_PREFIXES = ['read_', 'list_', 'get_', 'search_', 'find_'];
 const WRITE_PREFIXES = ['create_', 'update_', 'delete_', 'send_', 'post_', 'put_'];
 
-export function classifyToolCategory(name: string): ToolCategory {
+/**
+ * Spec 0048 Q1: optional per-prefix override map.
+ *
+ * Some MCPs prefix every tool with their own namespace (e.g., Klaviyo's
+ * `klaviyo_get_campaigns` instead of `get_campaigns`). The default
+ * read/write prefix lists don't match those tools. The catalog entry can
+ * declare a `categoryPrefixMap` (e.g., `{ 'klaviyo_get_': 'read', ... }`)
+ * which is checked FIRST, before the generic prefixes.
+ */
+export function classifyToolCategory(
+  name: string,
+  prefixMap?: Record<string, ToolCategory>,
+): ToolCategory {
+  if (prefixMap) {
+    for (const [prefix, category] of Object.entries(prefixMap)) {
+      if (name.startsWith(prefix)) return category;
+    }
+  }
   const lower = name.toLowerCase();
   if (READ_PREFIXES.some((p) => lower.startsWith(p))) return 'read';
   if (WRITE_PREFIXES.some((p) => lower.startsWith(p))) return 'write';
@@ -105,6 +122,12 @@ export interface DiscoverOptions {
    * misclassifies the validation error as `unknown`. Spec 0040.
    */
   authCheckArgs?: Record<string, unknown>;
+  /**
+   * Spec 0048 Q1: per-prefix tool-category override. Sourced from the
+   * catalog entry's `categoryPrefixMap` field. The classifier consults this
+   * map BEFORE falling through to the default read/write prefix heuristic.
+   */
+  categoryPrefixMap?: Record<string, ToolCategory>;
 }
 
 export async function discoverTools(
@@ -142,7 +165,9 @@ export async function discoverTools(
     const tools: DiscoveredTool[] = (result.tools as RawTool[]).map((t) => ({
       name: t.name,
       description: t.description ?? null,
-      category: classifyToolCategory(t.name),
+      // Spec 0048 Q1: pass categoryPrefixMap so MCPs with namespaced tool
+      // names (e.g., Klaviyo's klaviyo_*) classify correctly.
+      category: classifyToolCategory(t.name, options?.categoryPrefixMap),
     }));
 
     // Spec 0038 F#2: optional auth probe. After tools/list, call a designated

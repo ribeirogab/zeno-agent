@@ -204,6 +204,13 @@ function Header({
   detail: AppDetail;
   onUninstall: () => void;
 }): JSX.Element {
+  // Spec 0048 Q2: amber inline warning when refresh failed within the last
+  // hour. The status pill on the listing already flags it; the detail page
+  // adds the actual error message for diagnosis.
+  const refreshErrorAge = detail.app.lastRefreshErrorAt
+    ? Date.now() - new Date(detail.app.lastRefreshErrorAt).getTime()
+    : null;
+  const isDegraded = refreshErrorAge !== null && refreshErrorAge < 60 * 60_000;
   return (
     <header className="flex items-end justify-between gap-6 border-b border-border-subtle pb-6">
       <div className="flex flex-col flex-1">
@@ -218,6 +225,21 @@ function Header({
           {detail.installations.length === 1 ? '' : 's'}. Each installation gets its own token and
           tool permissions.
         </p>
+        {isDegraded && (
+          <div className="mt-3 flex items-start gap-2 max-w-[620px] px-3 py-2 bg-[#C99F4F]/10 border border-[#C99F4F]/40 border-l-2 border-l-[#C99F4F]">
+            <span className="font-mono text-xs leading-4 text-[#C99F4F]">⚠</span>
+            <span
+              className="flex-1 font-mono text-[11px] leading-[15px] text-text-primary"
+              title={detail.app.lastRefreshErrorMessage ?? undefined}
+            >
+              token refresh failing — last error at{' '}
+              {formatRelative(detail.app.lastRefreshErrorAt as string)}
+              {detail.app.lastRefreshErrorMessage
+                ? `: ${detail.app.lastRefreshErrorMessage.slice(0, 100)}`
+                : ''}
+            </span>
+          </div>
+        )}
       </div>
       <button
         type="button"

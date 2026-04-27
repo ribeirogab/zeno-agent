@@ -33,6 +33,10 @@ const logger = createLogger({ service: 'worker' });
 
 const TOKEN_REFRESH_MARGIN_MS = 5 * 60_000;
 const REFRESH_INTERVAL_MS = 55 * 60_000;
+// Spec 0048 Q3: per-installation exponential backoff for failed refresh.
+// 30s, 60s, 120s, 240s, 480s — max 8min before falling back to the standard
+// 55min cycle. Reset to step 0 on success.
+const RETRY_BACKOFF_MS = [30_000, 60_000, 120_000, 240_000, 480_000];
 
 // Reserved secret keys for github-app-* connectors.
 // Spec 0042 had 5; spec 0044 drops APP_ID + PEM (now on connector_apps).
@@ -59,6 +63,12 @@ export interface GitHubAppAuthOptions {
   installations: Installation[];
   /** Optional: when provided, used to skip the auto-refresh interval (tests). */
   disableAutoRefresh?: boolean;
+  /**
+   * Spec 0048 Q2: optional callback to record a refresh failure to
+   * connector_apps.last_refresh_error_at. Called with `null` on success
+   * (clears any previous error). Called with the error message on failure.
+   */
+  onRefreshResult?: (result: { success: boolean; errorMessage: string | null }) => void;
 }
 
 export class GitHubAppAuth {
@@ -68,28 +78,50 @@ export class GitHubAppAuth {
   private readonly cache: Map<string, CachedToken> = new Map();
   private refreshTimer: NodeJS.Timeout | null = null;
   private readonly disableAutoRefresh: boolean;
+  private readonly onRefreshResult: GitHubAppAuthOptions['onRefreshResult'];
+  // Spec 0048 Q4: track per-installation last-refresh state to suppress
+  // routine-success log noise. Logs fire on init + on transition (failure or
+  // recovery). 'unknown' = haven't refreshed yet (boot path).
+  private readonly lastRefreshState = new Map<string, 'unknown' | 'success' | 'failed'>();
+  // Spec 0048 Q3: per-installation retry backoff index. 0 = no backoff
+  // active; 1+ = next retry at RETRY_BACKOFF_MS[i-1] from the last failure.
+  // Cleared on success.
+  private readonly retryTimers = new Map<string, NodeJS.Timeout>();
+  private readonly retryStep = new Map<string, number>();
 
   constructor(opts: GitHubAppAuthOptions) {
     this.appId = opts.appId;
     this.privateKey = opts.privateKey;
     for (const inst of opts.installations) {
       this.installations.set(inst.name, inst);
+      this.lastRefreshState.set(inst.name, 'unknown');
     }
     this.disableAutoRefresh = opts.disableAutoRefresh ?? false;
+    this.onRefreshResult = opts.onRefreshResult;
   }
 
   // ─── Read API ───────────────────────────────────────────────────────────
 
   /**
-   * Sync read of a cached installation token. Returns null if cache empty
-   * or token within the refresh margin (5 min). Used by `mcp-build.ts` to
-   * stay synchronous with the SDK getter contract.
+   * Sync read of a cached installation token. Returns null only when the
+   * cache is empty OR the token has hard-expired. Spec 0048 Q3:
+   * stale-but-valid tokens (within the 5min refresh margin) are STILL
+   * returned during outages — better to use a soon-to-expire token than to
+   * fail outright. The agent will retry on auth-error if the token expires
+   * mid-call, and the next refresh tick reseeds the cache.
    */
   getCachedToken(installationName: string): string | null {
     const cached = this.cache.get(installationName);
     if (!cached) return null;
-    if (cached.expiresAt.getTime() - Date.now() <= TOKEN_REFRESH_MARGIN_MS) return null;
+    if (cached.expiresAt.getTime() <= Date.now()) return null;
     return cached.token;
+  }
+
+  /** TOKEN_REFRESH_MARGIN_MS used by getToken's async path (mint when within margin). */
+  private isWithinRefreshMargin(installationName: string): boolean {
+    const cached = this.cache.get(installationName);
+    if (!cached) return false;
+    return cached.expiresAt.getTime() - Date.now() <= TOKEN_REFRESH_MARGIN_MS;
   }
 
   /** Spec 0044: invalidate one cached token (callable from outside). */
@@ -97,11 +129,15 @@ export class GitHubAppAuth {
     this.cache.delete(installationName);
   }
 
-  /** Async: cached token if valid, else mint a fresh one. */
+  /**
+   * Async: cached token if valid + outside the refresh margin, else mint a
+   * fresh one. Differs from getCachedToken in that it actively refreshes
+   * within the margin.
+   */
   async getToken(installationName: string): Promise<string | null> {
-    const cached = this.cache.get(installationName);
-    if (cached && cached.expiresAt.getTime() - Date.now() > TOKEN_REFRESH_MARGIN_MS) {
-      return cached.token;
+    if (!this.isWithinRefreshMargin(installationName)) {
+      const cached = this.cache.get(installationName);
+      if (cached && cached.expiresAt.getTime() > Date.now()) return cached.token;
     }
     const installation = this.installations.get(installationName);
     if (!installation) return null;
@@ -146,6 +182,79 @@ export class GitHubAppAuth {
     if (this.refreshTimer) {
       clearInterval(this.refreshTimer);
       this.refreshTimer = null;
+    }
+    // Spec 0048 Q3: clear any pending retry timers on stop/uninstall.
+    for (const t of this.retryTimers.values()) {
+      clearTimeout(t);
+    }
+    this.retryTimers.clear();
+    this.retryStep.clear();
+  }
+
+  /**
+   * Spec 0048 Q3: schedule an exponential-backoff retry for a single
+   * installation that just failed to refresh. Cancels any pending retry.
+   */
+  private scheduleRetry(installation: Installation): void {
+    const existing = this.retryTimers.get(installation.name);
+    if (existing) clearTimeout(existing);
+    const step = this.retryStep.get(installation.name) ?? 0;
+    const delay = RETRY_BACKOFF_MS[Math.min(step, RETRY_BACKOFF_MS.length - 1)] ?? 480_000;
+    const timer = setTimeout(() => {
+      this.retryTimers.delete(installation.name);
+      // The mintAndCache call invokes onRefreshResult-equivalent logic via
+      // the lastRefreshState transition path, so we don't fire the
+      // aggregate cycle log here. Per-installation only.
+      this.retryInstallation(installation).catch((err) => {
+        logger.error(
+          { event: 'github_app_retry_unhandled', name: installation.name, err: String(err) },
+          'unhandled error in retry path',
+        );
+      });
+    }, delay);
+    this.retryTimers.set(installation.name, timer);
+    this.retryStep.set(installation.name, step + 1);
+    logger.info(
+      {
+        event: 'github_app_retry_scheduled',
+        name: installation.name,
+        delayMs: delay,
+        step: step + 1,
+      },
+      'scheduled retry for failed installation refresh',
+    );
+  }
+
+  /**
+   * Spec 0048 Q3: single-installation retry. On success: cancels backoff,
+   * logs recovery. On failure: schedules next backoff step.
+   */
+  private async retryInstallation(installation: Installation): Promise<void> {
+    const previousState = this.lastRefreshState.get(installation.name) ?? 'failed';
+    try {
+      await this.mintAndCache(installation);
+      this.lastRefreshState.set(installation.name, 'success');
+      this.retryStep.delete(installation.name);
+      if (previousState === 'failed') {
+        logger.info(
+          { event: 'github_app_token_refresh_recovered', installation: installation.name },
+          'installation token recovered after backoff retry',
+        );
+      }
+      // Update DB to clear the error timestamp on this single recovery.
+      this.onRefreshResult?.({ success: true, errorMessage: null });
+    } catch (err) {
+      this.lastRefreshState.set(installation.name, 'failed');
+      const message = err instanceof Error ? err.message : String(err);
+      logger.warn(
+        {
+          event: 'github_app_retry_failed',
+          installation: installation.name,
+          err: message,
+        },
+        'retry failed; scheduling next backoff step',
+      );
+      this.scheduleRetry(installation);
     }
   }
 
@@ -195,6 +304,14 @@ export class GitHubAppAuth {
     this.cache.delete(name);
     delete process.env[inst.envVar];
     this.installations.delete(name);
+    // Spec 0048 Q3: cancel any pending retry for this installation.
+    const pendingRetry = this.retryTimers.get(name);
+    if (pendingRetry) {
+      clearTimeout(pendingRetry);
+      this.retryTimers.delete(name);
+    }
+    this.retryStep.delete(name);
+    this.lastRefreshState.delete(name);
     logger.info({ event: 'github_app_installation_removed', name }, 'installation removed');
   }
 
@@ -293,24 +410,74 @@ export class GitHubAppAuth {
   }
 
   private async refreshAll(): Promise<void> {
+    // Spec 0048 Q4: log noise reduction. Routine-success refreshes are
+    // silent. Logs fire on:
+    //   - first-time success per installation (init)
+    //   - failure
+    //   - recovery (failure → success)
+    //   - one cycle-complete aggregate
     let primaryToken: string | null = null;
+    let succeeded = 0;
+    let failed = 0;
+    let aggregateError: string | null = null;
     for (const inst of this.installations.values()) {
+      const previousState = this.lastRefreshState.get(inst.name) ?? 'unknown';
       try {
         const token = await this.mintAndCache(inst);
         if (!primaryToken) primaryToken = token;
-        logger.info(
-          { event: 'github_app_token_refreshed', installation: inst.name },
-          'installation token refreshed',
-        );
+        succeeded += 1;
+        if (previousState === 'unknown') {
+          logger.info(
+            { event: 'github_app_token_initialized', installation: inst.name },
+            'installation token initialized',
+          );
+        } else if (previousState === 'failed') {
+          logger.info(
+            { event: 'github_app_token_refresh_recovered', installation: inst.name },
+            'installation token recovered after prior failure',
+          );
+        }
+        this.lastRefreshState.set(inst.name, 'success');
       } catch (err) {
-        logger.error(
-          { event: 'github_app_token_failed', installation: inst.name, err: String(err) },
+        failed += 1;
+        const message = err instanceof Error ? err.message : String(err);
+        aggregateError = message;
+        logger.warn(
+          {
+            event: 'github_app_token_refresh_failed',
+            installation: inst.name,
+            err: message,
+          },
           'failed to refresh installation token',
         );
+        this.lastRefreshState.set(inst.name, 'failed');
+        // Spec 0048 Q3: kick off the exponential-backoff retry chain.
+        if (!this.disableAutoRefresh) {
+          this.scheduleRetry(inst);
+        }
       }
     }
     if (primaryToken) {
       process.env.GH_TOKEN = primaryToken;
+    }
+    // Spec 0048 Q4: single aggregate log per cycle (cheap).
+    logger.info(
+      {
+        event: 'github_app_refresh_cycle_complete',
+        succeeded,
+        failed,
+        total: this.installations.size,
+      },
+      'github app refresh cycle complete',
+    );
+    // Spec 0048 Q2: notify the caller so connector_apps.last_refresh_error_at
+    // can be updated. Single timestamp covers all installations (degraded =
+    // any installation refresh failed in the last hour).
+    if (this.onRefreshResult) {
+      this.onRefreshResult({
+        success: failed === 0,
+        errorMessage: failed > 0 ? aggregateError : null,
+      });
     }
   }
 
@@ -418,5 +585,22 @@ export async function loadGitHubAppFromDb(deps: LoadGitHubAppDeps): Promise<GitH
     appId: app.appId,
     privateKey: app.pem,
     installations,
+    // Spec 0048 Q2: refresh failures land on connector_apps.last_refresh_*
+    // so the dashboard can render the DEGRADED pill. Successes clear the
+    // fields. The 1-hour staleness window is computed at read-time in the
+    // listing endpoint.
+    onRefreshResult: ({ success, errorMessage }) => {
+      if (success) {
+        deps.connectorApps.update(app.id, {
+          lastRefreshErrorAt: null,
+          lastRefreshErrorMessage: null,
+        });
+      } else {
+        deps.connectorApps.update(app.id, {
+          lastRefreshErrorAt: new Date().toISOString(),
+          lastRefreshErrorMessage: errorMessage?.slice(0, 500) ?? 'unknown error',
+        });
+      }
+    },
   });
 }

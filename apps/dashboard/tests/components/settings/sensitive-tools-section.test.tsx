@@ -7,10 +7,12 @@ import type { ApprovalRule } from '@/lib/use-approval-rules';
 
 const mockUseApprovalRules = vi.hoisted(() => vi.fn());
 const mockUseDeleteApprovalRule = vi.hoisted(() => vi.fn());
+const mockUseRemoveOrphanRules = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/use-approval-rules', () => ({
   useApprovalRules: () => mockUseApprovalRules(),
   useDeleteApprovalRule: () => mockUseDeleteApprovalRule(),
+  useRemoveOrphanRules: () => mockUseRemoveOrphanRules(),
 }));
 
 vi.mock('@/components/settings/add-rule-modal', () => ({
@@ -38,7 +40,12 @@ vi.mock('@zeno/ui', async (importOriginal) => {
 
 afterEach(() => cleanup());
 
-function makeRule(overrides: Partial<ApprovalRule> = {}): ApprovalRule {
+function makeRule(
+  overrides: Partial<ApprovalRule> & {
+    matchStatus?: { matchCount: number; isOrphan: boolean };
+  } = {},
+): ApprovalRule & { matchStatus: { matchCount: number; isOrphan: boolean } } {
+  const { matchStatus, ...rest } = overrides;
   return {
     id: 'r-1',
     pattern: 'mcp__example__delete_*',
@@ -46,7 +53,8 @@ function makeRule(overrides: Partial<ApprovalRule> = {}): ApprovalRule {
     createdAt: new Date(Date.now() - 5 * 60_000).toISOString(),
     updatedAt: new Date().toISOString(),
     notes: null,
-    ...overrides,
+    ...rest,
+    matchStatus: matchStatus ?? { matchCount: 1, isOrphan: false },
   };
 }
 
@@ -58,7 +66,9 @@ function Wrap({ children }: { children: JSX.Element }): JSX.Element {
 beforeEach(() => {
   mockUseApprovalRules.mockReset();
   mockUseDeleteApprovalRule.mockReset();
+  mockUseRemoveOrphanRules.mockReset();
   mockUseDeleteApprovalRule.mockReturnValue({ mutate: vi.fn(), isPending: false });
+  mockUseRemoveOrphanRules.mockReturnValue({ mutate: vi.fn(), isPending: false });
 });
 
 describe('<SensitiveToolsSection>', () => {

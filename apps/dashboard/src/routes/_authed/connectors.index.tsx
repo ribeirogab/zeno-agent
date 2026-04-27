@@ -211,17 +211,22 @@ function AppRow({ app, last }: { app: AppListItem; last: boolean }): JSX.Element
   const baseClasses = `flex items-center gap-4 px-5 py-3.5 ${
     last ? '' : 'border-b border-border-subtle'
   } min-w-[820px] cursor-pointer transition-colors duration-[120ms] hover:bg-panel-2`;
-  const visualStatus =
+  // Spec 0048 Q2: 'degraded' renders an amber pill distinct from 'pending'.
+  const visualStatus: 'active' | 'error' | 'pending' | 'degraded' =
     app.statusAggregate === 'active'
       ? 'active'
       : app.statusAggregate === 'error'
         ? 'error'
-        : 'pending';
+        : app.statusAggregate === 'degraded'
+          ? 'degraded'
+          : 'pending';
   const lastVerifiedLabel = app.lastVerifiedAt ? formatRelative(app.lastVerifiedAt) : '—';
   const detail = `${app.installationCount} installations · github · catalog`;
   // R3-restart F1: when there are zero installations, the "0/0 active" label
   // contradicts the gold/pending pill styling. Show "no installations" instead.
+  // Spec 0048 Q2: a 'degraded' status (refresh failing) overrides the count.
   const aggregateLabel = (() => {
+    if (visualStatus === 'degraded') return 'refresh failing';
     if (app.installationCount === 0) return 'no installations';
     const enabledCount = app.installations.filter(
       (i) => i.status === 'enabled' && !i.lastError,
@@ -288,7 +293,7 @@ function AggregateStatusPill({
   status,
   label,
 }: {
-  status: 'active' | 'error' | 'pending';
+  status: 'active' | 'error' | 'pending' | 'degraded';
   label: string;
 }): JSX.Element {
   const config = {
@@ -303,6 +308,12 @@ function AggregateStatusPill({
     pending: {
       cls: 'bg-gold/10 border border-gold-line text-gold',
       dot: 'bg-gold',
+    },
+    // Spec 0048 Q2: degraded = transient refresh failure, distinct from
+    // 'pending' (configuration not done) and 'error' (hard failure).
+    degraded: {
+      cls: 'bg-[#C99F4F]/10 border border-[#C99F4F]/40 text-[#C99F4F]',
+      dot: 'bg-[#C99F4F]',
     },
   }[status];
   return (

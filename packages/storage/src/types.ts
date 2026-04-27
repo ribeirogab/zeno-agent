@@ -213,6 +213,10 @@ export interface ConnectorApp {
   pemRotatedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Spec 0048 Q2: ISO timestamp of the most recent refresh failure (null on success). */
+  lastRefreshErrorAt: string | null;
+  /** Spec 0048 Q2: brief error message from the most recent failure (null on success). */
+  lastRefreshErrorMessage: string | null;
 }
 
 export interface CreateConnectorAppInput {
@@ -231,6 +235,8 @@ export interface UpdateConnectorAppInput {
   pem?: string;
   pemSha256?: string;
   pemRotatedAt?: string | null;
+  lastRefreshErrorAt?: string | null;
+  lastRefreshErrorMessage?: string | null;
 }
 
 export interface ConnectorSecret {

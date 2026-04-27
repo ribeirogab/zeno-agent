@@ -12,18 +12,23 @@ import { useState } from 'react';
 import { AddRuleModal } from '@/components/settings/add-rule-modal';
 import { ApiError } from '@/lib/api-client';
 import {
-  type ApprovalRule,
+  type ApprovalRuleWithMatchStatus,
   useApprovalRules,
   useDeleteApprovalRule,
+  useRemoveOrphanRules,
 } from '@/lib/use-approval-rules';
 
 export function SensitiveToolsSection(): JSX.Element {
   const rules = useApprovalRules();
   const remove = useDeleteApprovalRule();
+  const removeOrphans = useRemoveOrphanRules();
   const toast = useToast();
   const [adding, setAdding] = useState(false);
 
   const items = rules.data ?? [];
+  // Spec 0048 Q6: orphan = manual/yaml-migrated rule that doesn't match any
+  // currently-installed tool. Auto rules are exempt (managed by lifecycle).
+  const orphanCount = items.filter((r) => r.matchStatus?.isOrphan).length;
 
   const handleDelete = (id: string): void => {
     remove.mutate(id, {
@@ -35,6 +40,17 @@ export function SensitiveToolsSection(): JSX.Element {
     });
   };
 
+  const handleRemoveOrphans = (): void => {
+    if (
+      !confirm(
+        `Remove ${orphanCount} orphan rule${orphanCount === 1 ? '' : 's'}? Auto-managed rules are not affected.`,
+      )
+    ) {
+      return;
+    }
+    removeOrphans.mutate();
+  };
+
   return (
     <section className="flex flex-col gap-4">
       <header className="flex items-baseline justify-between border-b border-dashed border-border-subtle pb-2.5">
@@ -44,7 +60,25 @@ export function SensitiveToolsSection(): JSX.Element {
         <div className="flex items-center gap-4">
           <span className="font-mono text-[10px] tracking-[0.2em] leading-3 uppercase text-text-tertiary">
             {rules.isLoading ? 'loading…' : `${items.length} rule${items.length === 1 ? '' : 's'}`}
+            {orphanCount > 0 && (
+              <span
+                className="ml-2 text-[#C99F4F]"
+                title="Spec 0048 Q6: orphan rule (no current tool matches the pattern)"
+              >
+                · ⚠ {orphanCount} orphan{orphanCount === 1 ? '' : 's'}
+              </span>
+            )}
           </span>
+          {orphanCount > 0 && (
+            <button
+              type="button"
+              onClick={handleRemoveOrphans}
+              disabled={removeOrphans.isPending}
+              className="font-mono text-[10px] tracking-[0.08em] uppercase text-status-failed hover:underline disabled:opacity-50"
+            >
+              remove orphans
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setAdding(true)}
@@ -84,17 +118,26 @@ function Row({
   onDelete,
   deleting,
 }: {
-  rule: ApprovalRule;
+  rule: ApprovalRuleWithMatchStatus;
   last: boolean;
   onDelete: () => void;
   deleting: boolean;
 }): JSX.Element {
   const isAuto = rule.source === 'auto';
+  const isOrphan = rule.matchStatus?.isOrphan ?? false;
   return (
     <div
       className={`flex items-center gap-4 px-5 py-3 ${last ? '' : 'border-b border-border-subtle'}`}
     >
       <span className="flex-1 font-mono text-[12px] tracking-[0.02em] leading-4 text-text-primary truncate">
+        {isOrphan && (
+          <span
+            className="text-[#C99F4F] mr-1.5"
+            title="No current tools match this pattern. Recently uninstalled connector?"
+          >
+            ⚠
+          </span>
+        )}
         {rule.pattern}
       </span>
       <span className="w-[120px] shrink-0 font-mono text-[10px] tracking-[0.1em] leading-3 uppercase text-text-tertiary">
@@ -126,7 +169,7 @@ function Row({
   );
 }
 
-function SourceBadge({ source }: { source: ApprovalRule['source'] }): JSX.Element {
+function SourceBadge({ source }: { source: ApprovalRuleWithMatchStatus['source'] }): JSX.Element {
   const label = source === 'auto' ? '🤖 auto' : source === 'manual' ? '👤 manual' : '📋 migrated';
   return <span>{label}</span>;
 }

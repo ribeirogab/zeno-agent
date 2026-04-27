@@ -128,13 +128,21 @@ function iconUrlForConnector(connector: Connector): string | null {
   }
 }
 
-// Spec 0045: aggregate per-installation status into a single App row.
-// 'active' = all installations enabled + last_verified, 'mixed' = some pending
-// or some disabled, 'error' = any with last_error_at set.
-// R3 F2: empty installations list = mixed (not vacuously 'active') so the
-// freshly-installed App with 0 installations shows a pending/mixed pill
-// instead of a misleading green "0/0 active".
-function computeStatusAggregate(installations: Connector[]): 'active' | 'mixed' | 'error' {
+// Spec 0045 + 0048 Q2: aggregate per-installation status into a single App row.
+//   'degraded' (amber): refresh failed in the last 1h (App-level transient issue)
+//   'error'    (red):   any installation has last_error_at within 24h
+//   'mixed'    (gray):  empty installations OR mix of enabled/disabled
+//   'active'   (green): all enabled + verified, no recent errors/refresh failures
+function computeStatusAggregate(
+  installations: Connector[],
+  lastRefreshErrorAt: string | null = null,
+): 'active' | 'mixed' | 'error' | 'degraded' {
+  // Refresh failure within 1h → degraded (transient App-level issue).
+  // Spec 0048 Q2: amber pill on App row + detail header.
+  if (lastRefreshErrorAt) {
+    const ageMs = Date.now() - new Date(lastRefreshErrorAt).getTime();
+    if (ageMs >= 0 && ageMs < 60 * 60_000) return 'degraded';
+  }
   if (installations.length === 0) return 'mixed';
   if (installations.some((i) => i.lastError && i.lastErrorAt)) return 'error';
   if (installations.every((i) => i.status === 'enabled' && i.lastVerifiedAt)) return 'active';
@@ -733,16 +741,12 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     // Spec 0038 F#2: pass authCheckTool from the catalog entry so the
     // test endpoint actually validates credentials (not just tools/list).
     // Spec 0040: also pass authCheckArgs for MCPs requiring non-empty input.
-    const result = await discoverTools(
-      transient,
-      secrets,
-      entry.authCheckTool
-        ? {
-            authCheckTool: entry.authCheckTool,
-            ...(entry.authCheckArgs ? { authCheckArgs: entry.authCheckArgs } : {}),
-          }
-        : {},
-    );
+    // Spec 0048 Q1: also pass categoryPrefixMap for MCPs with namespaced tools.
+    const result = await discoverTools(transient, secrets, {
+      ...(entry.authCheckTool ? { authCheckTool: entry.authCheckTool } : {}),
+      ...(entry.authCheckArgs ? { authCheckArgs: entry.authCheckArgs } : {}),
+      ...(entry.categoryPrefixMap ? { categoryPrefixMap: entry.categoryPrefixMap } : {}),
+    });
     if ('error' in result) {
       return c.json({ ok: false, errorKind: result.errorKind, error: result.error });
     }
@@ -834,8 +838,11 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
           appSlug: app.appSlug,
           iconUrl,
           installationCount: installations.length,
-          statusAggregate: computeStatusAggregate(installations),
+          statusAggregate: computeStatusAggregate(installations, app.lastRefreshErrorAt),
           lastVerifiedAt: pickLatestVerified(installations),
+          // Spec 0048 Q2: surface refresh-failure for the dashboard.
+          lastRefreshErrorAt: app.lastRefreshErrorAt,
+          lastRefreshErrorMessage: app.lastRefreshErrorMessage,
           installations: installations.map((i) => ({
             connectorId: i.id,
             slug: i.slug,
@@ -944,6 +951,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         pemRotatedAt: app.pemRotatedAt,
         createdAt: app.createdAt,
         updatedAt: app.updatedAt,
+        // Spec 0048 Q2: surface refresh failure for the C8 detail page header.
+        lastRefreshErrorAt: app.lastRefreshErrorAt,
+        lastRefreshErrorMessage: app.lastRefreshErrorMessage,
       },
       installations,
     });
@@ -994,18 +1004,21 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     // Spec 0038 F#2: pass authCheckTool from the catalog entry if this
     // connector was installed from one. Custom connectors get no auth probe.
     // Spec 0040: also pass authCheckArgs.
+    // Spec 0048 Q1: also pass categoryPrefixMap.
     let authCheckTool: string | undefined;
     let authCheckArgs: Record<string, unknown> | undefined;
+    let categoryPrefixMap: Record<string, ToolCategory> | undefined;
     if (connector.source === 'catalog' && connector.catalogId) {
       const entry = findCatalogEntry(connector.catalogId);
       authCheckTool = entry?.authCheckTool;
       authCheckArgs = entry?.authCheckArgs;
+      categoryPrefixMap = entry?.categoryPrefixMap;
     }
-    const result = await discoverTools(
-      connector,
-      secrets,
-      authCheckTool ? { authCheckTool, ...(authCheckArgs ? { authCheckArgs } : {}) } : {},
-    );
+    const result = await discoverTools(connector, secrets, {
+      ...(authCheckTool ? { authCheckTool } : {}),
+      ...(authCheckArgs ? { authCheckArgs } : {}),
+      ...(categoryPrefixMap ? { categoryPrefixMap } : {}),
+    });
     if ('error' in result) {
       deps.connectors.update(id, { lastError: result.error, lastErrorAt: nowIso() });
       return c.json({ ok: false, errorKind: result.errorKind, error: result.error });

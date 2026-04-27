@@ -259,143 +259,143 @@
   ],
   "klaviyo": [
     {
+      "name": "klaviyo_get_account_details",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_campaign",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_campaign_report",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_campaigns",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_catalog_items",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_email_template",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_events",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_flow",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_flow_report",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_flows",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_list",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_lists",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_metric",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_metrics",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_profile",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_profiles",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_segment",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_segments",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
       "name": "klaviyo_assign_template_to_campaign_message",
-      "category": "interactive",
+      "category": "write",
       "defaultPermission": "ask"
     },
     {
       "name": "klaviyo_create_campaign",
-      "category": "interactive",
+      "category": "write",
       "defaultPermission": "ask"
     },
     {
       "name": "klaviyo_create_email_template",
-      "category": "interactive",
+      "category": "write",
       "defaultPermission": "ask"
     },
     {
       "name": "klaviyo_create_event",
-      "category": "interactive",
+      "category": "write",
       "defaultPermission": "ask"
     },
     {
       "name": "klaviyo_create_profile",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_account_details",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_campaign",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_campaign_report",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_campaigns",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_catalog_items",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_email_template",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_events",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_flow",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_flow_report",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_flows",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_list",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_lists",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_metric",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_metrics",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_profile",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_profiles",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_segment",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "klaviyo_get_segments",
-      "category": "interactive",
+      "category": "write",
       "defaultPermission": "ask"
     },
     {
       "name": "klaviyo_subscribe_profile_to_marketing",
-      "category": "interactive",
+      "category": "write",
       "defaultPermission": "ask"
     },
     {
       "name": "klaviyo_unsubscribe_profile_from_marketing",
-      "category": "interactive",
+      "category": "write",
       "defaultPermission": "ask"
     },
     {
       "name": "klaviyo_update_profile",
-      "category": "interactive",
+      "category": "write",
       "defaultPermission": "ask"
     },
     {
       "name": "klaviyo_upload_image_from_file",
-      "category": "interactive",
+      "category": "write",
       "defaultPermission": "ask"
     },
     {
       "name": "klaviyo_upload_image_from_url",
-      "category": "interactive",
+      "category": "write",
       "defaultPermission": "ask"
     }
   ],

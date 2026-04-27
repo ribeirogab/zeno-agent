@@ -7,10 +7,13 @@ const logger = createLogger({ service: 'worker' });
 
 const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
 
+// Spec 0048 Q5: `always_sensitive` removed from yaml. Authoritative source
+// is the `approval_rules` DB table (spec 0047). The pre-parse rejection
+// check in `loadApprovalsConfig` raises a helpful error if operators still
+// have it in yaml, forcing a clean migration.
 const ApprovalsSchema = z
   .object({
     owner_slack_user_id: z.string().regex(/^U[A-Z0-9]+$/),
-    always_sensitive: z.array(z.string()).default([]),
     always_allowed_tools: z.array(z.string()).default(['Read', 'Glob', 'Grep']),
     always_allowed_commands: z.array(z.string()).default([]),
     approval_timeout_sec: z.number().int().min(10).max(3600).default(600),
@@ -78,6 +81,19 @@ export function loadApprovalsConfig(): ApprovalsConfig | null {
 
   if (fileResult.data.approvals === undefined) {
     return null;
+  }
+
+  // Spec 0048 Q5: hard-fail if the deprecated `always_sensitive` field is
+  // still present. Pre-parse check (rather than .strict() on the schema)
+  // targets this single deprecated key without rejecting unrelated future
+  // additions.
+  const approvalsRaw = fileResult.data.approvals as Record<string, unknown>;
+  if (approvalsRaw && typeof approvalsRaw === 'object' && 'always_sensitive' in approvalsRaw) {
+    throw new Error(
+      'Field `approvals.always_sensitive` is no longer supported in yaml. ' +
+        'Migrate to DB-managed rules at /settings (Sensitive tools section). ' +
+        'See spec 0047 for the migration. Remove the field from profile/config.yaml.',
+    );
   }
 
   return ApprovalsSchema.parse(fileResult.data.approvals) ?? null;

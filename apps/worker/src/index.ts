@@ -301,17 +301,11 @@ async function main(): Promise<void> {
   }
 
   const approvalsConfig = loadApprovalsConfig();
-  // Spec 0047: 1-shot data migration of yaml `approvals.always_sensitive` →
-  // DB `approval_rules`. Idempotent: skipped if DB already has rules.
-  if (approvalsConfig?.always_sensitive && approvalsConfig.always_sensitive.length > 0) {
-    const result = migrateYamlAlwaysSensitiveToDb(approvalRules, approvalsConfig.always_sensitive);
-    if (result.migrated > 0) {
-      logger.info(
-        { event: 'approval_rules_yaml_migration_done', migrated: result.migrated },
-        'yaml→DB migration completed',
-      );
-    }
-  }
+  // Spec 0048 Q5: yaml `always_sensitive` is no longer parsed (loadApprovalsConfig
+  // throws if the field is still present). The 0047 migration helper is kept
+  // as a no-op safety net for any deployment that ran 0047 but didn't
+  // complete the boot migration before 0048 shipped.
+  void migrateYamlAlwaysSensitiveToDb;
   const slack = new SlackChannel({
     ...config.slack,
     dmOwnerUserId:
@@ -413,7 +407,8 @@ async function main(): Promise<void> {
       {
         event: 'guardrails_enabled',
         ownerUserId: approvalsConfig.owner_slack_user_id,
-        alwaysSensitive: approvalsConfig.always_sensitive.length,
+        // Spec 0048 Q5: rules now sourced from DB; report current count.
+        alwaysSensitive: approvalRules.count(),
         timeoutSec: approvalsConfig.approval_timeout_sec,
       },
       'guardrails enabled',

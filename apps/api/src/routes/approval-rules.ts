@@ -14,11 +14,12 @@ import type { ApprovalRulesRepo, ConnectorRepo } from '@zeno/storage';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-// Spec 0047 §Risks: pattern validation. The shape mirrors actual tool names
-// (mcp__<connector>__<tool>) plus optional `*` wildcards anywhere. Min 1
-// char, max 200 to bound regex compile cost. Allows star at the start
-// (e.g., `*delete*`) per the loosened regex called out in the spec.
-const PATTERN_REGEX = /^[\w*-]+(__[\w*-]+)*$/;
+// Spec 0047 §Risks + spec 0048 Q7: pattern validation. The shape mirrors
+// actual tool names (mcp__<connector>__<tool>) plus optional `*` wildcards
+// at any position. Min 1 char, max 200 to bound regex compile cost. The
+// 0048 relaxation allows the first segment to be empty so patterns like
+// `*delete*` (matching anything containing 'delete') work cleanly.
+const PATTERN_REGEX = /^[\w*-]*(__[\w*-]+)*$/;
 
 const createSchema = z.object({
   pattern: z
@@ -73,7 +74,44 @@ export function buildApprovalRulesRoute(deps: ApprovalRulesRouteDeps): Hono {
   const route = new Hono();
 
   route.get('/', (c) => {
+    // Spec 0048 Q6: ?include=match-status returns each rule with a
+    // matchStatus block (matchCount + isOrphan) so the dashboard can render
+    // the orphan-warning UI without a second round-trip.
+    const include = c.req.query('include');
+    if (include === 'match-status') {
+      const inventory = buildToolInventory(deps.connectors);
+      const enriched = deps.rules.list().map((rule) => {
+        const matchCount = inventory.filter((t) => matchGlob(rule.pattern, t)).length;
+        return {
+          ...rule,
+          matchStatus: {
+            matchCount,
+            // Auto rules are exempt from orphan classification — they're
+            // managed by installation lifecycle, so a 0-match auto rule
+            // means the worker hasn't synced yet, not that the operator
+            // forgot to clean up.
+            isOrphan: matchCount === 0 && rule.source !== 'auto',
+          },
+        };
+      });
+      return c.json(enriched);
+    }
     return c.json(deps.rules.list());
+  });
+
+  // Spec 0048 Q6: mass-remove orphan rules (manual + yaml-migrated only).
+  // Body `{confirm: true}` required — defensive against accidental DELETE.
+  route.post('/remove-orphans', zValidator('json', z.object({ confirm: z.literal(true) })), (c) => {
+    const inventory = buildToolInventory(deps.connectors);
+    const toRemove = deps.rules.list().filter((rule) => {
+      if (rule.source === 'auto') return false;
+      return inventory.every((t) => !matchGlob(rule.pattern, t));
+    });
+    let removed = 0;
+    for (const rule of toRemove) {
+      if (deps.rules.delete(rule.id)) removed += 1;
+    }
+    return c.json({ deletedCount: removed });
   });
 
   route.post('/', zValidator('json', createSchema), (c) => {

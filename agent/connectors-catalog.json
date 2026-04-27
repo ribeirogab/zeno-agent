@@ -1,5 +1,5 @@
 {
-  "_doc": "Curated MCP connectors offered to the operator in the dashboard. Spec 0029. Adding a new entry here makes it appear under /connectors. The runtime stores connector configuration in the DB after install — this file is the directory, not the source of truth.",
+  "_doc": "Curated MCP connectors offered to the operator in the dashboard. Spec 0029. Adding a new entry here makes it appear under /connectors. The runtime stores connector configuration in the DB after install \u2014 this file is the directory, not the source of truth.",
   "version": 1,
   "connectors": [
     {
@@ -11,13 +11,18 @@
       "transport": "stdio",
       "transportConfig": {
         "command": "github-mcp-server",
-        "args": ["stdio"]
+        "args": [
+          "stdio"
+        ]
       },
       "customInstallComponent": "github-app",
       "authCheckTool": "get_me",
       "secrets": [],
       "tools": [],
-      "tags": ["development", "code"]
+      "tags": [
+        "development",
+        "code"
+      ]
     },
     {
       "id": "github",
@@ -357,7 +362,7 @@
     {
       "id": "klaviyo",
       "name": "Klaviyo",
-      "description": "Email/SMS marketing — campaigns, lists, segments, profiles, events.",
+      "description": "Email/SMS marketing \u2014 campaigns, lists, segments, profiles, events.",
       "icon": "klaviyo.svg",
       "docsUrl": "https://developers.klaviyo.com/en/docs/klaviyo_mcp_server",
       "transport": "stdio",
@@ -371,11 +376,20 @@
       "authCheckArgs": {
         "model": "other"
       },
+      "categoryPrefixMap": {
+        "klaviyo_get_": "read",
+        "klaviyo_create_": "write",
+        "klaviyo_update_": "write",
+        "klaviyo_subscribe_": "write",
+        "klaviyo_unsubscribe_": "write",
+        "klaviyo_assign_": "write",
+        "klaviyo_upload_": "write"
+      },
       "secrets": [
         {
           "key": "PRIVATE_API_KEY",
           "label": "Private API Key",
-          "help": "Klaviyo private API key (pk_…). Create at klaviyo.com/settings/api-keys with at least read scopes for accounts, campaigns, lists.",
+          "help": "Klaviyo private API key (pk_\u2026). Create at klaviyo.com/settings/api-keys with at least read scopes for accounts, campaigns, lists.",
           "required": true
         }
       ],
@@ -383,169 +397,169 @@
         {
           "name": "klaviyo_assign_template_to_campaign_message",
           "description": "Assigns an email template to a campaign message.",
-          "category": "interactive",
+          "category": "write",
           "defaultPermission": "ask"
         },
         {
           "name": "klaviyo_create_campaign",
           "description": "Creates a new draft campaign.",
-          "category": "interactive",
+          "category": "write",
           "defaultPermission": "ask"
         },
         {
           "name": "klaviyo_create_email_template",
           "description": "Create a new email template from the given HTML.",
-          "category": "interactive",
+          "category": "write",
           "defaultPermission": "ask"
         },
         {
           "name": "klaviyo_create_event",
           "description": "Create an event.",
-          "category": "interactive",
+          "category": "write",
           "defaultPermission": "ask"
         },
         {
           "name": "klaviyo_create_profile",
           "description": "Create a new profile.",
-          "category": "interactive",
+          "category": "write",
           "defaultPermission": "ask"
         },
         {
           "name": "klaviyo_get_account_details",
           "description": "Get the details of the account.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_campaign",
           "description": "Returns a specific campaign based on a required id.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_campaign_report",
           "description": "Returns metrics data for campaigns with the given filters and within the given timeframe.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_campaigns",
           "description": "Returns some or all campaigns based on filters.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_catalog_items",
           "description": "Get all catalog items in an account.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_email_template",
           "description": "Get an email template with the given data.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_events",
           "description": "Get events for a given filter such as a profile ID or metric ID.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_flow",
           "description": "Returns a flow by ID.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_flow_report",
           "description": "Returns metrics data for flows with the given filters and within the given timeframe.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_flows",
           "description": "Returns some or all flows based on filters.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_list",
           "description": "Get a list with the given list ID.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_lists",
           "description": "Get all lists in an account.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_metric",
           "description": "Get a metric with the given metric ID.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_metrics",
           "description": "Get all metrics in an account.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_profile",
           "description": "Get details of the profile with the given profile ID.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_profiles",
           "description": "Get all profiles in an account.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_segment",
           "description": "Get a segment with the given segment ID.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_get_segments",
           "description": "Get all segments in an account.",
-          "category": "interactive",
-          "defaultPermission": "ask"
+          "category": "read",
+          "defaultPermission": "always_allow"
         },
         {
           "name": "klaviyo_subscribe_profile_to_marketing",
           "description": "Subscribe a profile to marketing for a given channel.",
-          "category": "interactive",
+          "category": "write",
           "defaultPermission": "ask"
         },
         {
           "name": "klaviyo_unsubscribe_profile_from_marketing",
           "description": "Unsubscribe a profile from marketing for a given channel.",
-          "category": "interactive",
+          "category": "write",
           "defaultPermission": "ask"
         },
         {
           "name": "klaviyo_update_profile",
           "description": "Update the profile with the given profile ID.",
-          "category": "interactive",
+          "category": "write",
           "defaultPermission": "ask"
         },
         {
           "name": "klaviyo_upload_image_from_file",
           "description": "Upload an image from a file.",
-          "category": "interactive",
+          "category": "write",
           "defaultPermission": "ask"
         },
         {
           "name": "klaviyo_upload_image_from_url",
           "description": "Upload an image from a URL or data URI.",
-          "category": "interactive",
+          "category": "write",
           "defaultPermission": "ask"
         }
       ],
@@ -763,7 +777,7 @@
     {
       "id": "swarmia",
       "name": "Swarmia",
-      "description": "Engineering metrics — DORA, throughput, code review.",
+      "description": "Engineering metrics \u2014 DORA, throughput, code review.",
       "icon": "swarmia.svg",
       "docsUrl": "https://help.swarmia.com/settings/integrations/data-export/export-api",
       "transport": "stdio",
@@ -782,7 +796,7 @@
         {
           "key": "SWARMIA_API_TOKEN",
           "label": "API Token",
-          "help": "Personal API token from your Swarmia profile (Settings → API tokens). Read-only access to Export API.",
+          "help": "Personal API token from your Swarmia profile (Settings \u2192 API tokens). Read-only access to Export API.",
           "required": true
         }
       ],
@@ -849,7 +863,7 @@
         {
           "key": "SENTRY_ACCESS_TOKEN",
           "label": "Access Token",
-          "help": "User Auth Token from sentry.io/settings/account/api/auth-tokens. Recommended scopes: org:read, project:read, event:read, member:read, alerts:read. (The package reads this env as `SENTRY_ACCESS_TOKEN` — different from SENTRY_AUTH_TOKEN used by other Sentry SDKs.)",
+          "help": "User Auth Token from sentry.io/settings/account/api/auth-tokens. Recommended scopes: org:read, project:read, event:read, member:read, alerts:read. (The package reads this env as `SENTRY_ACCESS_TOKEN` \u2014 different from SENTRY_AUTH_TOKEN used by other Sentry SDKs.)",
           "required": true
         },
         {

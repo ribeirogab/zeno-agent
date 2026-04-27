@@ -19,6 +19,10 @@ export interface AppDetail {
     pemRotatedAt: string | null;
     createdAt: string;
     updatedAt: string;
+    /** Spec 0048 Q2. */
+    lastRefreshErrorAt?: string | null;
+    /** Spec 0048 Q2. */
+    lastRefreshErrorMessage?: string | null;
   };
   installations: Array<{
     connectorId: string;
@@ -39,5 +43,8 @@ export function useAppDetail(appUuid: string | undefined) {
     queryKey: ['app', appUuid],
     queryFn: () => apiFetch<AppDetail>(`/api/connectors/apps/${appUuid}`),
     enabled: !!appUuid,
+    // Spec 0048 Q2: 30s polling so a DEGRADED state recovers visually within
+    // the polling cadence after the worker's next successful refresh.
+    refetchInterval: 30_000,
   });
 }

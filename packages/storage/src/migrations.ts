@@ -356,6 +356,17 @@ CREATE TABLE approval_rules (
 CREATE INDEX idx_approval_rules_source ON approval_rules(source);
 `,
   },
+  {
+    id: 9,
+    name: 'connector_apps_last_refresh_error',
+    // Spec 0048 Q2: refresh-failure surfacing. The worker writes the
+    // timestamp + message of the most recent refresh failure; the listing
+    // endpoint reads it and renders DEGRADED on the App row when within 1h.
+    sql: `
+ALTER TABLE connector_apps ADD COLUMN last_refresh_error_at TEXT;
+ALTER TABLE connector_apps ADD COLUMN last_refresh_error_message TEXT;
+`,
+  },
 ];
 
 /**

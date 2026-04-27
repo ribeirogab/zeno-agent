@@ -63,6 +63,14 @@ export const catalogEntrySchema = z.object({
    * secret-fields layout. Spec 0042 (used by `github-app`).
    */
   customInstallComponent: z.string().optional(),
+  /**
+   * Spec 0048 Q1: optional per-prefix tool-category override. Used by MCPs
+   * whose tool-name convention doesn't match the default read_/list_/get_/etc.
+   * prefixes (e.g., Klaviyo prefixes everything `klaviyo_*`). The discovery
+   * layer + catalog regenerator consult this map BEFORE falling through to
+   * the default `classifyToolCategory` heuristic.
+   */
+  categoryPrefixMap: z.record(z.string(), z.enum(['read', 'write', 'interactive'])).optional(),
   tags: z.array(z.string()).optional(),
 });
 

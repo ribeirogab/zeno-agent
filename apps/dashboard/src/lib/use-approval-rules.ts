@@ -21,12 +21,35 @@ export interface ApprovalRule {
   notes: string | null;
 }
 
+// Spec 0048 Q6: enriched shape returned from `?include=match-status`.
+export interface ApprovalRuleWithMatchStatus extends ApprovalRule {
+  matchStatus: {
+    matchCount: number;
+    isOrphan: boolean;
+  };
+}
+
 const KEY = ['approval-rules'] as const;
 
 export function useApprovalRules() {
   return useQuery({
     queryKey: KEY,
-    queryFn: () => apiFetch<ApprovalRule[]>('/api/approval-rules'),
+    queryFn: () =>
+      apiFetch<ApprovalRuleWithMatchStatus[]>('/api/approval-rules?include=match-status'),
+  });
+}
+
+// Spec 0048 Q6: mass-remove orphan rules.
+export function useRemoveOrphanRules() {
+  return useOptimisticMutation<void, { deletedCount: number }>({
+    mutationFn: () =>
+      apiFetch<{ deletedCount: number }>('/api/approval-rules/remove-orphans', {
+        method: 'POST',
+        body: JSON.stringify({ confirm: true }),
+      }),
+    invalidateKeys: () => [['approval-rules']],
+    successToast: (result) =>
+      `${result.deletedCount} orphan rule${result.deletedCount === 1 ? '' : 's'} removed`,
   });
 }
 

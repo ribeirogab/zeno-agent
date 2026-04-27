@@ -18,6 +18,8 @@ interface ConnectorAppRow {
   pem_rotated_at: string | null;
   created_at: string;
   updated_at: string;
+  last_refresh_error_at: string | null;
+  last_refresh_error_message: string | null;
 }
 
 function rowToApp(row: ConnectorAppRow): ConnectorApp {
@@ -32,6 +34,8 @@ function rowToApp(row: ConnectorAppRow): ConnectorApp {
     pemRotatedAt: row.pem_rotated_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    lastRefreshErrorAt: row.last_refresh_error_at,
+    lastRefreshErrorMessage: row.last_refresh_error_message,
   };
 }
 
@@ -111,6 +115,14 @@ export class ConnectorAppRepo {
     if (patch.pemRotatedAt !== undefined) {
       fields.push('pem_rotated_at = ?');
       values.push(patch.pemRotatedAt);
+    }
+    if (patch.lastRefreshErrorAt !== undefined) {
+      fields.push('last_refresh_error_at = ?');
+      values.push(patch.lastRefreshErrorAt);
+    }
+    if (patch.lastRefreshErrorMessage !== undefined) {
+      fields.push('last_refresh_error_message = ?');
+      values.push(patch.lastRefreshErrorMessage);
     }
     if (fields.length === 0) {
       const current = this.get(id);

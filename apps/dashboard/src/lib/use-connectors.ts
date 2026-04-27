@@ -56,8 +56,13 @@ export interface AppListItem {
   appSlug: string;
   iconUrl: string | null;
   installationCount: number;
-  statusAggregate: 'active' | 'mixed' | 'error';
+  /** Spec 0048 Q2: `degraded` (amber) when refresh failed in the last 1h. */
+  statusAggregate: 'active' | 'mixed' | 'error' | 'degraded';
   lastVerifiedAt: string | null;
+  /** Spec 0048 Q2: ISO timestamp of the most recent refresh failure (null on success). */
+  lastRefreshErrorAt: string | null;
+  /** Spec 0048 Q2: brief error message from the most recent refresh failure. */
+  lastRefreshErrorMessage: string | null;
   installations: AppNestedInstallation[];
 }
 

@@ -19,7 +19,6 @@ import { loadMockFixtures } from '@/agent/backends/mock-fixtures';
 import { AgentCore } from '@/agent/core';
 import type { McpServerConfig } from '@/agent/mcp';
 import { buildMcpServersMap } from '@/agent/mcp-build';
-import { warnIfMcpJsonExists } from '@/agent/mcp-cutover';
 import {
   buildSystemPrompt,
   loadAgentFile,
@@ -191,9 +190,6 @@ async function main(): Promise<void> {
       'no github_app section in config.yaml, using GH_TOKEN only',
     );
   }
-
-  // Cutover warning for any pre-existing profile/mcp.json (spec 0032).
-  warnIfMcpJsonExists(logger);
 
   // The MCP map is built per agent turn from the DB so connector edits land
   // without restart. We resolve once at boot just for the log line.

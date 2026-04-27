@@ -4,7 +4,6 @@ import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
 import { RestartWorkerModal } from '@/components/modals/restart-worker-modal';
 import { AboutRow } from '@/components/settings/about-row';
 import { BackendCard } from '@/components/settings/backend-card';
-import { McpServerRow } from '@/components/settings/mcp-server-row';
 import { ProfileFileRow } from '@/components/settings/profile-file-row';
 import { SettingsSectionSkeleton } from '@/components/skeletons/settings-section-skeleton';
 import { useRestartWorker } from '@/lib/mutations';
@@ -43,7 +42,6 @@ function SettingsScreen(): JSX.Element {
         ) : (
           <>
             <BackendSection backend={q.data.backend} />
-            <McpSection servers={q.data.mcpServers} />
             <ProfileFilesSection files={q.data.profileFiles} />
             <AboutSection
               backend={q.data.backend.name}
@@ -163,30 +161,6 @@ function BackendSection({ backend }: { backend: SettingsSnapshot['backend'] }): 
         name={backend.name}
         summary="Claude Agent SDK · OAuth · 300s timeout · gh + claude CLI verified at boot"
       />
-    </Section>
-  );
-}
-
-function McpSection({ servers }: { servers: SettingsSnapshot['mcpServers'] }): JSX.Element {
-  return (
-    <Section title="mcp servers" meta="loaded from profile/mcp.json">
-      <div className="bg-panel border border-border-subtle flex flex-col">
-        {servers.length === 0 ? (
-          <div className="px-5 py-4 font-mono text-xs text-text-tertiary">
-            no servers configured.
-          </div>
-        ) : (
-          servers.map((m, i) => (
-            <McpServerRow
-              key={m.name}
-              server={m}
-              description={m.reason ?? ''}
-              caption={m.status === 'enabled' ? 'process · running' : ''}
-              last={i === servers.length - 1}
-            />
-          ))
-        )}
-      </div>
     </Section>
   );
 }

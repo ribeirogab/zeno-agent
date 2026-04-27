@@ -21,7 +21,6 @@ zeno-agent/
 │       ├── .env.example      # env var template
 │       ├── USER.example.md   # user profile template
 │       ├── config.example.yaml # crons + config template
-│       ├── mcp.example.json  # user-level MCP servers template
 │       └── skills/           # your skills (override agent/ on name collision)
 ├── apps/                     # worker + api + dashboard
 ├── packages/                 # @zeno/storage + @zeno/logger + @zeno/ui
@@ -29,7 +28,7 @@ zeno-agent/
 └── infra/                    # Dockerfile, docker-compose, entrypoint, docker.sh
 ```
 
-`agent/` is committed — it *is* Zeno. `profiles/default/` ships with `.example` templates; your actual files are gitignored. Each profile is self-contained: `.env`, `USER.md`, `config.yaml`, `mcp.json`, and `skills/`.
+`agent/` is committed — it *is* Zeno. `profiles/default/` ships with `.example` templates; your actual files are gitignored. Each profile is self-contained: `.env`, `USER.md`, `config.yaml`, and `skills/`. MCP servers (connectors) are configured entirely through the dashboard at `/connectors` and stored in the SQLite DB.
 
 ## Prerequisites
 
@@ -46,9 +45,8 @@ zeno-agent/
    cp .env.example .env
    cp USER.example.md USER.md
    cp config.example.yaml config.yaml
-   cp mcp.example.json mcp.json
    ```
-   Fill `.env` (Slack tokens, GitHub token, Claude OAuth). Fill `USER.md` (name, GitHub username, preferences). `config.yaml` starts empty; `mcp.json` lists available MCP servers.
+   Fill `.env` (Slack tokens, GitHub token, Claude OAuth). Fill `USER.md` (name, GitHub username, preferences). `config.yaml` starts empty. MCP connectors are added later through the dashboard at `http://localhost:3001/connectors`.
 
 2. **Shared volume** (first time only):
    ```bash

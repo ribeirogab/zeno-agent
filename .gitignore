@@ -14,7 +14,6 @@ profiles/default/*
 !profiles/default/.env.example
 !profiles/default/USER.example.md
 !profiles/default/config.example.yaml
-!profiles/default/mcp.example.json
 !profiles/default/skills/
 profiles/default/skills/*
 !profiles/default/skills/.gitkeep

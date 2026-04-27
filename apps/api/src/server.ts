@@ -25,7 +25,7 @@ export interface AppDeps {
   connectorRepo?: ConnectorRepo;
   /** Directory holding Claude Code JSONL transcripts (e.g. `~/.claude/projects/-workspace`). */
   claudeHome: string;
-  /** Directory holding the agent profile files (SOUL.md, USER.md, crons.yaml, mcp.json). */
+  /** Directory holding the agent profile files (SOUL.md, USER.md, crons.yaml). */
   profileDir: string;
   /** Absolute path to the dashboard's built static assets (apps/dashboard/dist). Optional in tests. */
   spaDir?: string;

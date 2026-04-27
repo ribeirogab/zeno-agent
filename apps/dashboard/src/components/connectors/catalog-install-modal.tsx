@@ -1,6 +1,7 @@
 import { CornerBrackets, Dialog, DialogContent, DialogTitle, Input } from '@zeno/ui';
 import type { JSX } from 'react';
 import { useMemo, useState } from 'react';
+import { installModalRegistry } from '@/components/connectors/install-modals/registry';
 import {
   type DiscoveredToolApi,
   type TestConnectionResponse,
@@ -14,18 +15,37 @@ export interface CatalogInstallModalProps {
   onClose: () => void;
 }
 
-export function CatalogInstallModal({
+// Spec 0045: registry routing wrapper. Looks up the catalog entry and, if it
+// declares `customInstallComponent`, hands off to the registered component.
+// Otherwise falls through to the default secret-fields modal. Wrapper keeps
+// hook order stable in the default flow.
+export function CatalogInstallModal(props: CatalogInstallModalProps): JSX.Element | null {
+  const catalog = useCatalog();
+  const entry: CatalogEntryApi | undefined = catalog.data?.find((e) => e.id === props.catalogId);
+  if (entry?.customInstallComponent) {
+    const Custom = installModalRegistry[entry.customInstallComponent];
+    if (Custom) return <Custom catalogId={props.catalogId} onClose={props.onClose} />;
+    if (typeof console !== 'undefined') {
+      console.warn(
+        `catalog entry "${props.catalogId}" declares customInstallComponent="${entry.customInstallComponent}" but no component is registered`,
+      );
+    }
+  }
+  return <DefaultCatalogInstallModal {...props} entry={entry} />;
+}
+
+function DefaultCatalogInstallModal({
   catalogId,
   onClose,
-}: CatalogInstallModalProps): JSX.Element | null {
-  const catalog = useCatalog();
-  const entry: CatalogEntryApi | undefined = catalog.data?.find((e) => e.id === catalogId);
+  entry,
+}: CatalogInstallModalProps & { entry: CatalogEntryApi | undefined }): JSX.Element | null {
   const test = useTestCatalogConnection();
   const create = useCreateCatalogConnector();
 
   const [secrets, setSecrets] = useState<Record<string, string>>({});
   const [testResult, setTestResult] = useState<TestConnectionResponse | null>(null);
   const [dirtySinceTest, setDirtySinceTest] = useState(false);
+  void catalogId;
 
   const handleClose = (open: boolean): void => {
     if (!open) onClose();

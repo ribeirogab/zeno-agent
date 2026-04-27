@@ -19,6 +19,10 @@ RUN set -eux; \
     unzip -q /tmp/awscliv2.zip -d /tmp; \
     /tmp/aws/install; \
     rm -rf /tmp/awscliv2.zip /tmp/aws
+
+# Spec 0040: install `uv` for Python-based MCP servers (Klaviyo, Swarmia).
+RUN curl -LsSf https://astral.sh/uv/0.11.7/install.sh | UV_INSTALL_DIR=/usr/local/bin sh
+
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /app
 
@@ -31,6 +35,7 @@ COPY apps/dashboard/package.json ./apps/dashboard/
 COPY packages/storage/package.json ./packages/storage/
 COPY packages/logger/package.json ./packages/logger/
 COPY packages/mcp-discover/package.json ./packages/mcp-discover/
+COPY packages/github-app/package.json ./packages/github-app/
 COPY packages/ui/package.json ./packages/ui/
 RUN pnpm install --frozen-lockfile
 
@@ -41,6 +46,10 @@ COPY --from=deps /app/apps ./apps
 COPY --from=deps /app/packages ./packages
 COPY . .
 RUN pnpm turbo run build --filter=@zeno/worker... --filter=@zeno/api... --filter=@zeno/dashboard...
+
+# Spec 0042: build the GitHub MCP Go binary; copied into runtime below.
+FROM golang:1.24 AS gh-mcp-builder
+RUN go install github.com/github/github-mcp-server/cmd/github-mcp-server@v0.5.0
 
 # Stage 4: runtime
 FROM base AS runtime
@@ -57,6 +66,9 @@ COPY --from=builder /app/packages/logger/node_modules ./packages/logger/node_mod
 COPY --from=builder /app/packages/mcp-discover/dist ./packages/mcp-discover/dist
 COPY --from=builder /app/packages/mcp-discover/package.json ./packages/mcp-discover/
 COPY --from=builder /app/packages/mcp-discover/node_modules ./packages/mcp-discover/node_modules
+COPY --from=builder /app/packages/github-app/dist ./packages/github-app/dist
+COPY --from=builder /app/packages/github-app/package.json ./packages/github-app/
+COPY --from=builder /app/packages/github-app/node_modules ./packages/github-app/node_modules
 COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
 COPY --from=builder /app/apps/worker/package.json ./apps/worker/
 COPY --from=builder /app/apps/worker/node_modules ./apps/worker/node_modules
@@ -65,6 +77,9 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/apps/dashboard/dist ./apps/dashboard/dist
 COPY package.json pnpm-workspace.yaml ./
+
+# Spec 0042: github-mcp-server binary on /usr/local/bin (root + node PATH).
+COPY --from=gh-mcp-builder /go/bin/github-mcp-server /usr/local/bin/
 
 # Persistent volume mount point (owned by node so the agent can write workspaces)
 RUN mkdir -p /workspace && chown -R node:node /workspace /app

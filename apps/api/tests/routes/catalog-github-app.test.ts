@@ -1,0 +1,637 @@
+/**
+ * Integration tests for /api/connectors/catalog/github-app/*. Spec 0044.
+ *
+ * Mock fetch is hoisted via vi.stubGlobal so every endpoint exercised here
+ * sees the same fake GitHub API.
+ */
+
+import { generateKeyPairSync } from 'node:crypto';
+import { resolve } from 'node:path';
+import {
+  CommandRepo,
+  ConnectorAppRepo,
+  ConnectorRepo,
+  CronRepo,
+  CronRunRepo,
+  type DB,
+  LogRepo,
+  openDatabase,
+  runMigrations,
+} from '@zeno/storage';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { signSession } from '@/auth/hmac';
+import { COOKIE_NAME } from '@/auth/middleware';
+import { createApp } from '@/server';
+
+const SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
+function authed(): { Cookie: string; 'Content-Type': string } {
+  return {
+    Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+function newPem(): string {
+  const { privateKey } = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  return privateKey;
+}
+
+let db: DB;
+let mockFetch: ReturnType<typeof vi.fn>;
+const originalFetch = globalThis.fetch;
+const originalCwd = process.cwd();
+// catalog-loader resolves agent/connectors-catalog.json relative to cwd; chdir
+// to repo root so findCatalogEntry('github-app') succeeds.
+const repoRoot = resolve(__dirname, '..', '..', '..', '..');
+
+beforeAll(() => {
+  process.chdir(repoRoot);
+});
+afterAll(() => {
+  process.chdir(originalCwd);
+});
+
+beforeEach(() => {
+  db = openDatabase(':memory:');
+  runMigrations(db);
+  mockFetch = vi.fn();
+  globalThis.fetch = mockFetch as unknown as typeof fetch;
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  db.close();
+});
+
+function makeApp() {
+  return createApp({
+    config: {
+      password: 'pw',
+      sessionSecret: SECRET,
+      logLevel: 'info',
+      workspaceDir: '/tmp',
+      nodeEnv: 'test',
+      port: 3000,
+    },
+    db,
+    cronRepo: new CronRepo(db),
+    cronRunRepo: new CronRunRepo(db),
+    commandRepo: new CommandRepo(db),
+    logRepo: new LogRepo(db),
+    connectorRepo: new ConnectorRepo(db),
+    connectorAppRepo: new ConnectorAppRepo(db),
+    claudeHome: '/tmp',
+    profileDir: '/tmp',
+  });
+}
+
+function fakeOk<T>(body: T, headers?: Record<string, string>) {
+  return Promise.resolve({
+    ok: true,
+    status: 200,
+    text: async () => JSON.stringify(body),
+    json: async () => body,
+    headers: { get: (n: string) => headers?.[n.toLowerCase()] ?? null },
+  });
+}
+
+function fakeErr(status: number, body = 'err') {
+  return Promise.resolve({
+    ok: false,
+    status,
+    text: async () => body,
+    json: async () => ({}),
+  });
+}
+
+describe('POST /api/connectors/catalog/github-app/test', () => {
+  it('rejects without auth', async () => {
+    const res = await makeApp().request('/api/connectors/catalog/github-app/test', {
+      method: 'POST',
+      body: JSON.stringify({ appId: '1', pem: 'x' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns ok=true with appName + installations on success', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.endsWith('/app')) {
+        return fakeOk({ id: 12345, slug: 'zeno-bot', name: 'Zeno Bot' });
+      }
+      if (url.includes('/app/installations')) {
+        return fakeOk([
+          {
+            id: 100,
+            account: { login: 'acme', type: 'Organization' },
+            permissions: { contents: 'read' },
+            repository_selection: 'selected',
+          },
+        ]);
+      }
+      return fakeErr(404);
+    });
+
+    const pem = newPem();
+    const res = await makeApp().request('/api/connectors/catalog/github-app/test', {
+      method: 'POST',
+      body: JSON.stringify({ appId: '12345', pem }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      ok: boolean;
+      appName: string;
+      installationsAvailable: Array<{ name: string; id: string }>;
+    };
+    expect(body.ok).toBe(true);
+    expect(body.appName).toBe('Zeno Bot');
+    expect(body.installationsAvailable).toHaveLength(1);
+    expect(body.installationsAvailable[0]?.name).toBe('acme');
+  });
+
+  it('returns ok=false errorKind=auth on 401', async () => {
+    mockFetch.mockImplementation(() => fakeErr(401, 'Bad credentials'));
+    const pem = newPem();
+    const res = await makeApp().request('/api/connectors/catalog/github-app/test', {
+      method: 'POST',
+      body: JSON.stringify({ appId: '12345', pem }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { ok: boolean; errorKind: string };
+    expect(body.ok).toBe(false);
+    expect(body.errorKind).toBe('auth');
+  });
+
+  it('returns ok=false on appId mismatch', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.endsWith('/app')) return fakeOk({ id: 999, slug: 'other', name: 'Other' });
+      return fakeErr(404);
+    });
+    const pem = newPem();
+    const res = await makeApp().request('/api/connectors/catalog/github-app/test', {
+      method: 'POST',
+      body: JSON.stringify({ appId: '12345', pem }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { ok: boolean; error: string };
+    expect(body.ok).toBe(false);
+    expect(body.error).toMatch(/mismatch/);
+  });
+
+  it('rejects malformed PEM with shape error', async () => {
+    const res = await makeApp().request('/api/connectors/catalog/github-app/test', {
+      method: 'POST',
+      body: JSON.stringify({ appId: '12345', pem: 'not-a-pem' }),
+      headers: authed(),
+    });
+    // zod refine fails → 400 from zValidator
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/connectors/catalog/github-app/install', () => {
+  it('writes a connector_apps row + enqueues app_install', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.endsWith('/app')) return fakeOk({ id: 7777, slug: 'zen', name: 'Zen' });
+      return fakeErr(404);
+    });
+    const pem = newPem();
+    const res = await makeApp().request('/api/connectors/catalog/github-app/install', {
+      method: 'POST',
+      body: JSON.stringify({ appId: '7777', pem }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { ok: boolean; appUuid: string; appName: string };
+    expect(body.ok).toBe(true);
+    expect(body.appName).toBe('Zen');
+    expect(body.appUuid).toMatch(/[0-9a-f-]{36}/);
+
+    // Row was created.
+    const repo = new ConnectorAppRepo(db);
+    const row = repo.getOneByCatalog('github-app');
+    expect(row?.appId).toBe('7777');
+    expect(row?.appName).toBe('Zen');
+    expect(row?.pem).toBe(pem);
+    expect(row?.pemSha256).toMatch(/^[a-f0-9]{64}$/);
+
+    // Command was enqueued.
+    const cmds = new CommandRepo(db).recent(100);
+    expect(cmds.some((c) => c.type === 'app_install')).toBe(true);
+  });
+
+  it('returns 409 on re-install', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.endsWith('/app')) return fakeOk({ id: 7777, slug: 'zen', name: 'Zen' });
+      return fakeErr(404);
+    });
+    const pem = newPem();
+    const app = makeApp();
+    await app.request('/api/connectors/catalog/github-app/install', {
+      method: 'POST',
+      body: JSON.stringify({ appId: '7777', pem }),
+      headers: authed(),
+    });
+    const second = await app.request('/api/connectors/catalog/github-app/install', {
+      method: 'POST',
+      body: JSON.stringify({ appId: '7777', pem }),
+      headers: authed(),
+    });
+    expect(second.status).toBe(409);
+    const body = (await second.json()) as {
+      errorKind: string;
+      error: string;
+      existingAppName: string;
+    };
+    expect(body.error).toBe('app_already_installed');
+    expect(body.existingAppName).toBe('Zen');
+  });
+
+  // Spec 0045 R1 F1: single-app constraint — reject install of a DIFFERENT
+  // appId when another github-app row already exists.
+  it('returns 409 when installing a DIFFERENT appId after one is already installed', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.endsWith('/app')) {
+        // Distinguish requests by JWT (different pems → different sigs).
+        return fakeOk({ id: 7777, slug: 'zen', name: 'Zen' });
+      }
+      return fakeErr(404);
+    });
+    const pem = newPem();
+    const app = makeApp();
+    // Install first app (id 7777)
+    const first = await app.request('/api/connectors/catalog/github-app/install', {
+      method: 'POST',
+      body: JSON.stringify({ appId: '7777', pem }),
+      headers: authed(),
+    });
+    expect(first.status).toBe(200);
+    // Try to install second app with id 8888 — should be rejected by the
+    // single-app guard regardless of appId.
+    mockFetch.mockImplementation((url: string) => {
+      if (url.endsWith('/app')) return fakeOk({ id: 8888, slug: 'second', name: 'Second' });
+      return fakeErr(404);
+    });
+    const pem2 = newPem();
+    const second = await app.request('/api/connectors/catalog/github-app/install', {
+      method: 'POST',
+      body: JSON.stringify({ appId: '8888', pem: pem2 }),
+      headers: authed(),
+    });
+    expect(second.status).toBe(409);
+    const body = (await second.json()) as { error: string };
+    expect(body.error).toBe('app_already_installed');
+  });
+});
+
+describe('POST /api/connectors/catalog/github-app/installations/discover', () => {
+  it('returns 404 when no app installed', async () => {
+    const res = await makeApp().request(
+      '/api/connectors/catalog/github-app/installations/discover',
+      { method: 'POST', body: '{}', headers: authed() },
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it('returns installations with alreadyWired flags', async () => {
+    // Seed a connector_app + 1 wired connector
+    const appRepo = new ConnectorAppRepo(db);
+    const app = appRepo.create({
+      catalogId: 'github-app',
+      appId: '7777',
+      appSlug: 'zen',
+      appName: 'Zen',
+      pem: newPem(),
+      pemSha256: 'fake',
+    });
+    const connRepo = new ConnectorRepo(db);
+    connRepo.create({
+      slug: 'github-app-acme',
+      displayName: 'GitHub App — Acme',
+      source: 'catalog',
+      catalogId: 'github-app',
+      transport: 'stdio',
+      command: 'github-mcp-server',
+      args: ['stdio'],
+      secrets: [
+        { key: '__GITHUB_INSTALLATION_ID__', value: '100' },
+        { key: '__GITHUB_INSTALLATION_NAME__', value: 'acme' },
+        { key: '__GITHUB_ENV_VAR__', value: 'GITHUB_TOKEN_ACME' },
+      ],
+      tools: [],
+      appId: app.id,
+    });
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/app/installations')) {
+        return fakeOk([
+          {
+            id: 100,
+            account: { login: 'acme', type: 'Org' },
+            permissions: {},
+            repository_selection: 'all',
+          },
+          {
+            id: 200,
+            account: { login: 'beta', type: 'User' },
+            permissions: {},
+            repository_selection: 'all',
+          },
+        ]);
+      }
+      return fakeErr(404);
+    });
+
+    const res = await makeApp().request(
+      '/api/connectors/catalog/github-app/installations/discover',
+      { method: 'POST', body: '{}', headers: authed() },
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      installations: Array<{ id: string; name: string; alreadyWired: boolean }>;
+    };
+    expect(body.installations).toHaveLength(2);
+    const acme = body.installations.find((i) => i.id === '100');
+    const beta = body.installations.find((i) => i.id === '200');
+    expect(acme?.alreadyWired).toBe(true);
+    expect(beta?.alreadyWired).toBe(false);
+  });
+});
+
+describe('POST /api/connectors/catalog/github-app/installations', () => {
+  it('returns 404 when app not installed', async () => {
+    const res = await makeApp().request('/api/connectors/catalog/github-app/installations', {
+      method: 'POST',
+      body: JSON.stringify({
+        installationId: '100',
+        displayName: 'acme',
+        envVar: 'GITHUB_TOKEN_ACME',
+      }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('enqueues connector_create with the right payload', async () => {
+    const appRepo = new ConnectorAppRepo(db);
+    appRepo.create({
+      catalogId: 'github-app',
+      appId: '7777',
+      appSlug: 'zen',
+      appName: 'Zen',
+      pem: newPem(),
+      pemSha256: 'sha',
+    });
+    const res = await makeApp().request('/api/connectors/catalog/github-app/installations', {
+      method: 'POST',
+      body: JSON.stringify({
+        installationId: '100',
+        displayName: 'Acme Corp',
+        envVar: 'GITHUB_TOKEN_ACME',
+      }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(200);
+
+    const cmds = new CommandRepo(db).recent(100);
+    const create = cmds.find((c) => c.type === 'connector_create');
+    expect(create).toBeDefined();
+    const payload = JSON.parse(create?.payload ?? '{}') as {
+      slug: string;
+      secrets: Array<{ key: string; value: string }>;
+      appId: string;
+    };
+    expect(payload.slug).toBe('github-app-acme-corp');
+    expect(payload.appId).toMatch(/[0-9a-f-]{36}/);
+    const map = new Map(payload.secrets.map((s) => [s.key, s.value]));
+    expect(map.get('__GITHUB_INSTALLATION_ID__')).toBe('100');
+    expect(map.get('__GITHUB_INSTALLATION_NAME__')).toBe('Acme Corp');
+    expect(map.get('__GITHUB_ENV_VAR__')).toBe('GITHUB_TOKEN_ACME');
+    // No __GITHUB_APP_ID__ / __GITHUB_APP_PEM__ in v2 secrets.
+    expect(map.has('__GITHUB_APP_ID__')).toBe(false);
+    expect(map.has('__GITHUB_APP_PEM__')).toBe(false);
+  });
+
+  it('rejects with 409 when envVar is already in use by another installation (R3 F1)', async () => {
+    const appRepo = new ConnectorAppRepo(db);
+    const app = appRepo.create({
+      catalogId: 'github-app',
+      appId: '7777',
+      appSlug: 'zen',
+      appName: 'Zen',
+      pem: newPem(),
+      pemSha256: 'sha',
+    });
+    // Seed: an existing installation already using GITHUB_TOKEN_ACME.
+    const connRepo = new ConnectorRepo(db);
+    connRepo.create({
+      slug: 'github-app-already',
+      displayName: 'Already',
+      source: 'catalog',
+      catalogId: 'github-app',
+      transport: 'stdio',
+      command: 'github-mcp-server',
+      args: ['stdio'],
+      secrets: [
+        { key: '__GITHUB_INSTALLATION_ID__', value: '111' },
+        { key: '__GITHUB_INSTALLATION_NAME__', value: 'Already' },
+        { key: '__GITHUB_ENV_VAR__', value: 'GITHUB_TOKEN_ACME' },
+      ],
+      tools: [],
+      appId: app.id,
+    });
+
+    const res = await makeApp().request('/api/connectors/catalog/github-app/installations', {
+      method: 'POST',
+      body: JSON.stringify({
+        installationId: '222',
+        displayName: 'Other',
+        envVar: 'GITHUB_TOKEN_ACME',
+      }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as {
+      ok: boolean;
+      errorKind: string;
+      error: string;
+      envVar: string;
+    };
+    expect(body.ok).toBe(false);
+    expect(body.errorKind).toBe('conflict');
+    expect(body.error).toBe('env_var_in_use');
+    expect(body.envVar).toBe('GITHUB_TOKEN_ACME');
+  });
+});
+
+describe('POST /api/connectors/catalog/github-app/rotate-pem', () => {
+  it('rejects mismatched confirmAppId', async () => {
+    const appRepo = new ConnectorAppRepo(db);
+    appRepo.create({
+      catalogId: 'github-app',
+      appId: '7777',
+      appSlug: 'zen',
+      appName: 'Zen',
+      pem: newPem(),
+      pemSha256: 'sha',
+    });
+    const res = await makeApp().request('/api/connectors/catalog/github-app/rotate-pem', {
+      method: 'POST',
+      body: JSON.stringify({ newPem: newPem(), confirmAppId: 'wrong' }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rotates PEM atomically and enqueues app_pem_rotated', async () => {
+    const appRepo = new ConnectorAppRepo(db);
+    const app = appRepo.create({
+      catalogId: 'github-app',
+      appId: '7777',
+      appSlug: 'zen',
+      appName: 'Zen',
+      pem: newPem(),
+      pemSha256: 'sha',
+    });
+    // Seed 1 installation
+    new ConnectorRepo(db).create({
+      slug: 'github-app-acme',
+      displayName: 'Acme',
+      source: 'catalog',
+      catalogId: 'github-app',
+      transport: 'stdio',
+      command: 'github-mcp-server',
+      args: ['stdio'],
+      secrets: [
+        { key: '__GITHUB_INSTALLATION_ID__', value: '100' },
+        { key: '__GITHUB_INSTALLATION_NAME__', value: 'acme' },
+        { key: '__GITHUB_ENV_VAR__', value: 'GITHUB_TOKEN_ACME' },
+      ],
+      tools: [],
+      appId: app.id,
+    });
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url.endsWith('/app')) return fakeOk({ id: 7777, slug: 'zen', name: 'Zen' });
+      if (url.includes('/installations/100/access_tokens')) {
+        return fakeOk({
+          token: 'ghs_new',
+          expires_at: new Date(Date.now() + 3600_000).toISOString(),
+        });
+      }
+      return fakeErr(404);
+    });
+
+    const newPemValue = newPem();
+    const res = await makeApp().request('/api/connectors/catalog/github-app/rotate-pem', {
+      method: 'POST',
+      body: JSON.stringify({ newPem: newPemValue, confirmAppId: '7777' }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(200);
+
+    // Row was updated.
+    const after = appRepo.getOneByCatalog('github-app');
+    expect(after?.pem).toBe(newPemValue);
+    expect(after?.pemRotatedAt).not.toBeNull();
+
+    // Command was enqueued.
+    const cmds = new CommandRepo(db).recent(100);
+    expect(cmds.some((c) => c.type === 'app_pem_rotated')).toBe(true);
+  });
+});
+
+describe('POST /api/connectors/catalog/github-app/uninstall-app', () => {
+  it('rejects mismatched confirmAppName', async () => {
+    const appRepo = new ConnectorAppRepo(db);
+    appRepo.create({
+      catalogId: 'github-app',
+      appId: '7777',
+      appSlug: 'zen',
+      appName: 'Zen',
+      pem: newPem(),
+      pemSha256: 'sha',
+    });
+    const res = await makeApp().request('/api/connectors/catalog/github-app/uninstall-app', {
+      method: 'POST',
+      body: JSON.stringify({ confirmAppName: 'Wrong' }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('deletes the connector_apps row and cascades to connectors', async () => {
+    const appRepo = new ConnectorAppRepo(db);
+    const app = appRepo.create({
+      catalogId: 'github-app',
+      appId: '7777',
+      appSlug: 'zen',
+      appName: 'Zen',
+      pem: newPem(),
+      pemSha256: 'sha',
+    });
+    const connRepo = new ConnectorRepo(db);
+    connRepo.create({
+      slug: 'github-app-acme',
+      displayName: 'Acme',
+      source: 'catalog',
+      catalogId: 'github-app',
+      transport: 'stdio',
+      command: 'github-mcp-server',
+      args: ['stdio'],
+      secrets: [],
+      tools: [],
+      appId: app.id,
+    });
+
+    const res = await makeApp().request('/api/connectors/catalog/github-app/uninstall-app', {
+      method: 'POST',
+      body: JSON.stringify({ confirmAppName: 'Zen' }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(200);
+
+    expect(appRepo.getOneByCatalog('github-app')).toBeNull();
+    expect(connRepo.getBySlug('github-app-acme')).toBeNull();
+
+    const cmds = new CommandRepo(db).recent(100);
+    expect(cmds.some((c) => c.type === 'app_uninstall')).toBe(true);
+  });
+});
+
+describe('GET /api/connectors/catalog/github-app/app', () => {
+  it('returns 404 when not installed', async () => {
+    const res = await makeApp().request('/api/connectors/catalog/github-app/app', {
+      headers: authed(),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns app metadata when installed', async () => {
+    const appRepo = new ConnectorAppRepo(db);
+    appRepo.create({
+      catalogId: 'github-app',
+      appId: '7777',
+      appSlug: 'zen',
+      appName: 'Zen',
+      pem: newPem(),
+      pemSha256: 'a'.repeat(64),
+    });
+    const res = await makeApp().request('/api/connectors/catalog/github-app/app', {
+      headers: authed(),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { appId: string; appName: string; pemSha256: string };
+    expect(body.appId).toBe('7777');
+    expect(body.appName).toBe('Zen');
+    expect(body.pemSha256).toBe('a'.repeat(64));
+  });
+});

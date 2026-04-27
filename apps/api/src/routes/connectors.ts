@@ -11,10 +11,20 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { zValidator } from '@hono/zod-validator';
+import {
+  computePemSha256,
+  fetchAppMetadata,
+  fetchInstallations,
+  GitHubAppError,
+  looksLikePem,
+  mintInstallationToken,
+  signAppJwt,
+} from '@zeno/github-app';
 import { discoverTools } from '@zeno/mcp-discover';
 import type {
   CommandRepo,
   Connector,
+  ConnectorAppRepo,
   ConnectorRepo,
   ConnectorSecret,
   ToolCategory,
@@ -52,6 +62,19 @@ function slugify(displayName: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+// Spec 0042: lowercase + kebab-case for github-app installation names.
+// Different from slugify in that it doesn't first lowercase ASCII removal —
+// installation names are user-controlled (e.g., "AcmeBooks", "Flavia-Nasser-OMS")
+// and we want to preserve hyphens already present.
+function kebabLower(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 function resolveSlugCollision(repo: ConnectorRepo, base: string): string {
   if (!SLUG_REGEX.test(base)) {
     throw new Error(`derived slug ${JSON.stringify(base)} is invalid`);
@@ -71,6 +94,9 @@ function buildListItem(
   iconUrl: string | null,
 ): Record<string, unknown> {
   return {
+    // Spec 0045: discriminated union — `kind: 'connector'` is REQUIRED so
+    // dashboards narrow on the field type-safely.
+    kind: 'connector',
     id: connector.id,
     slug: connector.slug,
     displayName: connector.displayName,
@@ -85,6 +111,9 @@ function buildListItem(
     lastVerifiedAt: connector.lastVerifiedAt,
     toolCount,
     invocationCount24h,
+    // Spec 0044/0045: optional FK so dashboard can render the inherited-app
+    // callout on github-app-* detail pages.
+    appId: connector.appId,
   };
 }
 
@@ -99,20 +128,95 @@ function iconUrlForConnector(connector: Connector): string | null {
   }
 }
 
+// Spec 0045 + 0048 Q2: aggregate per-installation status into a single App row.
+//   'degraded' (amber): refresh failed in the last 1h (App-level transient issue)
+//   'error'    (red):   any installation has last_error_at within 24h
+//   'mixed'    (gray):  empty installations OR mix of enabled/disabled
+//   'active'   (green): all enabled + verified, no recent errors/refresh failures
+function computeStatusAggregate(
+  installations: Connector[],
+  lastRefreshErrorAt: string | null = null,
+): 'active' | 'mixed' | 'error' | 'degraded' {
+  // Refresh failure within 1h → degraded (transient App-level issue).
+  // Spec 0048 Q2: amber pill on App row + detail header.
+  if (lastRefreshErrorAt) {
+    const ageMs = Date.now() - new Date(lastRefreshErrorAt).getTime();
+    if (ageMs >= 0 && ageMs < 60 * 60_000) return 'degraded';
+  }
+  if (installations.length === 0) return 'mixed';
+  // Time-guarded: only RECENT errors flag the App as 'error'. Without this,
+  // a single stale `last_error_at` from months ago would keep the App red
+  // forever even after every installation recovered. 24h matches the
+  // worker's verify cadence (operator has plenty of time to see + act).
+  const ERROR_WINDOW_MS = 24 * 60 * 60_000;
+  const now = Date.now();
+  if (
+    installations.some((i) => {
+      if (!i.lastError || !i.lastErrorAt) return false;
+      const ageMs = now - new Date(i.lastErrorAt).getTime();
+      return ageMs >= 0 && ageMs < ERROR_WINDOW_MS;
+    })
+  ) {
+    return 'error';
+  }
+  if (installations.every((i) => i.status === 'enabled' && i.lastVerifiedAt)) return 'active';
+  return 'mixed';
+}
+
+function pickLatestVerified(installations: Connector[]): string | null {
+  const verifiedTimes = installations
+    .map((i) => i.lastVerifiedAt)
+    .filter((t): t is string => t !== null);
+  if (verifiedTimes.length === 0) return null;
+  // ISO timestamps sort lexicographically.
+  return verifiedTimes.sort().reverse()[0] ?? null;
+}
+
+/**
+ * Spec 0048 R3 F1: enumerate envVars currently in use by github-app-*
+ * connectors, optionally excluding one by id (so a self-update is allowed
+ * without spurious conflict). Two installations sharing the same envVar
+ * non-deterministically clobber each other on every refresh tick — the API
+ * rejects such configurations on install + edit-env-var.
+ */
+function getInstallationEnvVarsInUse(
+  connectorRepo: ConnectorRepo,
+  excludeId?: string,
+): Set<string> {
+  const result = new Set<string>();
+  for (const c of connectorRepo.list()) {
+    if (excludeId && c.id === excludeId) continue;
+    if (!c.slug.startsWith('github-app-')) continue;
+    const envVar = connectorRepo
+      .getSecrets(c.id)
+      .find((s) => s.key === '__GITHUB_ENV_VAR__')?.value;
+    if (envVar) result.add(envVar);
+  }
+  return result;
+}
+
 // ─── Schemas ─────────────────────────────────────────────────────────────
+
+// Spec 0044: secrets carry an optional `isPublic` flag that the dashboard uses
+// to skip masking on safe-to-display fields (e.g., GitHub App ID).
+const apiSecretSchema = z.object({
+  key: z.string(),
+  value: z.string(),
+  isPublic: z.boolean().optional(),
+});
 
 const testConnectionSchema = z.object({
   transport: z.enum(['stdio', 'remote']),
   command: z.string().optional(),
   args: z.array(z.string()).optional(),
   url: z.string().optional(),
-  secrets: z.array(z.object({ key: z.string(), value: z.string() })),
+  secrets: z.array(apiSecretSchema),
 });
 
 const createCatalogSchema = z.object({
   source: z.literal('catalog'),
   catalogId: z.string(),
-  secrets: z.array(z.object({ key: z.string(), value: z.string() })),
+  secrets: z.array(apiSecretSchema),
 });
 
 const createCustomSchema = z.object({
@@ -122,7 +226,7 @@ const createCustomSchema = z.object({
   command: z.string().optional(),
   args: z.array(z.string()).optional(),
   url: z.string().optional(),
-  secrets: z.array(z.object({ key: z.string(), value: z.string() })),
+  secrets: z.array(apiSecretSchema),
   tools: z
     .array(
       z.object({
@@ -143,7 +247,16 @@ const patchSchema = z.object({
   command: z.string().nullable().optional(),
   args: z.array(z.string()).nullable().optional(),
   url: z.string().nullable().optional(),
-  secrets: z.array(z.object({ key: z.string(), value: z.string() })).optional(),
+  secrets: z.array(apiSecretSchema).optional(),
+  // Spec 0046: M11 (edit env_var) sends the new env var name on a github-app-*
+  // PATCH. The worker handler reads `secrets[].value` for env_var rather than
+  // a top-level field, so this is a convenience: the dashboard sends
+  // `{envVar: 'NEW_NAME'}` and the API translates it to a secrets-only patch.
+  envVar: z
+    .string()
+    .min(1)
+    .regex(/^[A-Z][A-Z0-9_]*$/, 'envVar must be UPPER_SNAKE_CASE')
+    .optional(),
 });
 
 const permissionSchema = z.object({
@@ -160,6 +273,8 @@ const bulkPermissionSchema = z.object({
 export interface ConnectorsRouteDeps {
   connectors: ConnectorRepo;
   commands: CommandRepo;
+  /** Spec 0044: optional ConnectorApp repo enables /catalog/github-app/* endpoints. */
+  connectorApps?: ConnectorAppRepo;
   rateLimiter?: SecretRateLimiter;
 }
 
@@ -186,6 +301,16 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         .map((connector) => connector.catalogId)
         .filter((id): id is string => id !== null),
     );
+    // Spec 0045: also surface customInstallComponent so the dashboard can
+    // route to a bespoke install modal (e.g., the github-app M6 component).
+    // Re-install logic for github-app: even though the catalog entry says
+    // isInstalled (via the connector_apps row's parent), the v2 install
+    // endpoint guards against duplicate installs with a 409. The flag here
+    // is informational for the catalog grid: github-app should NOT show
+    // "installed" while it has 0 connector rows yet (just the App row).
+    const installedAppCatalogIds = new Set(
+      deps.connectorApps?.list().map((a) => a.catalogId) ?? [],
+    );
     const out = catalog.map((entry) => ({
       id: entry.id,
       name: entry.name,
@@ -195,7 +320,12 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       transport: entry.transport,
       secrets: entry.secrets,
       toolCount: entry.tools.length,
-      isInstalled: installedCatalogIds.has(entry.id),
+      // For github-app, "installed" tracks the connector_apps row, not connector
+      // rows. For everything else, fall back to the connector-row check.
+      isInstalled: entry.customInstallComponent
+        ? installedAppCatalogIds.has(entry.id)
+        : installedCatalogIds.has(entry.id),
+      customInstallComponent: entry.customInstallComponent ?? null,
     }));
     return c.json(out);
   });
@@ -226,7 +356,411 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     });
   });
 
+  // ── Spec 0044: GitHub App v2 endpoints ─────────────────────────────────
+  //
+  // These STATIC routes MUST come before `/catalog/:id/test` since Hono
+  // matches in registration order — without this, `/catalog/github-app/test`
+  // would hit the dynamic `:id='github-app'` handler.
+  //
+  // The v1 endpoint (commit dcfcd2a) created N installation rows in one shot
+  // by enqueuing `connector_create` commands; the App PEM was duplicated
+  // across each row, and discoverability + lifecycle ops were impossible. v2
+  // splits responsibility:
+  //   POST /catalog/github-app/test          — validate {appId, pem} (no DB write)
+  //   POST /catalog/github-app/install       — sync DB write + async worker bootstrap
+  //   POST /catalog/github-app/installations/discover — list installs from GitHub
+  //   POST /catalog/github-app/installations  — add 1 installation (creates connector row)
+  //   POST /catalog/github-app/rotate-pem     — atomic PEM swap
+  //   POST /catalog/github-app/uninstall-app  — tear down App + cascade
+  //   GET  /catalog/github-app/app            — read installed App metadata
+  //
+  // All endpoints require `deps.connectorApps` to be wired (server.ts).
+
+  const githubAppTestSchema = z.object({
+    appId: z.string().min(1),
+    pem: z
+      .string()
+      .min(1)
+      .refine(looksLikePem, { message: 'pem must be a PEM-formatted private key' }),
+  });
+  route.post('/catalog/github-app/test', zValidator('json', githubAppTestSchema), async (c) => {
+    const body = c.req.valid('json');
+    let jwt: string;
+    try {
+      jwt = signAppJwt({ appId: body.appId, privateKey: body.pem });
+    } catch (err) {
+      return c.json({
+        ok: false,
+        errorKind: 'auth' as const,
+        error: `pem could not sign a JWT: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+    try {
+      const meta = await fetchAppMetadata(jwt);
+      if (meta.appId !== body.appId) {
+        return c.json({
+          ok: false,
+          errorKind: 'auth' as const,
+          error: `appId mismatch: pem signs JWT for ${meta.appId}, not ${body.appId}`,
+        });
+      }
+      const installations = await fetchInstallations(jwt);
+      return c.json({
+        ok: true,
+        appName: meta.name,
+        appSlug: meta.slug,
+        installationsAvailable: installations.map((i) => ({
+          name: i.account,
+          id: i.id,
+          accountType: i.accountType,
+          repoCount: i.repoCount,
+          permissions: i.permissions,
+        })),
+      });
+    } catch (err) {
+      const kind = err instanceof GitHubAppError ? err.kind : 'unknown';
+      return c.json({
+        ok: false,
+        errorKind: kind,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  });
+
+  route.post('/catalog/github-app/install', zValidator('json', githubAppTestSchema), async (c) => {
+    if (!deps.connectorApps) {
+      return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
+    }
+    const body = c.req.valid('json');
+
+    let jwt: string;
+    try {
+      jwt = signAppJwt({ appId: body.appId, privateKey: body.pem });
+    } catch (err) {
+      return c.json({
+        ok: false,
+        errorKind: 'auth' as const,
+        error: `pem could not sign a JWT: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+    let appName: string;
+    let appSlug: string;
+    try {
+      const meta = await fetchAppMetadata(jwt);
+      if (meta.appId !== body.appId) {
+        return c.json({
+          ok: false,
+          errorKind: 'auth' as const,
+          error: `appId mismatch: pem signs JWT for ${meta.appId}, not ${body.appId}`,
+        });
+      }
+      appName = meta.name;
+      appSlug = meta.slug;
+    } catch (err) {
+      const kind = err instanceof GitHubAppError ? err.kind : 'unknown';
+      return c.json({
+        ok: false,
+        errorKind: kind,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    // Spec 0045 (R1 F1): single-app enforcement — reject install if ANY
+    // connector_apps row already exists with catalog_id='github-app',
+    // regardless of appId. The single-app constraint (spec line 113) is
+    // stricter than UNIQUE(catalog_id, app_id).
+    const existing = deps.connectorApps.getOneByCatalog('github-app');
+    if (existing) {
+      return c.json(
+        {
+          ok: false,
+          errorKind: 'conflict' as const,
+          error: 'app_already_installed',
+          existingAppId: existing.appId,
+          existingAppName: existing.appName,
+        },
+        409,
+      );
+    }
+
+    const created = deps.connectorApps.create({
+      catalogId: 'github-app',
+      appId: body.appId,
+      appSlug,
+      appName,
+      pem: body.pem,
+      pemSha256: computePemSha256(body.pem),
+    });
+
+    deps.commands.enqueue({
+      type: 'app_install',
+      payload: { appUuid: created.id },
+      correlationId: randomUUID(),
+    });
+
+    return c.json({
+      ok: true,
+      appUuid: created.id,
+      appId: created.appId,
+      appName: created.appName,
+      appSlug: created.appSlug,
+    });
+  });
+
+  route.post('/catalog/github-app/installations/discover', async (c) => {
+    if (!deps.connectorApps) {
+      return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
+    }
+    const app = deps.connectorApps.getOneByCatalog('github-app');
+    if (!app) return c.json({ error: 'app_not_installed' }, 404);
+    let jwt: string;
+    try {
+      jwt = signAppJwt({ appId: app.appId, privateKey: app.pem });
+    } catch (err) {
+      return c.json({ error: 'pem_invalid', detail: String(err) }, 500);
+    }
+    try {
+      const installs = await fetchInstallations(jwt);
+      const wired = new Set(
+        deps.connectors
+          .list({ source: 'catalog' })
+          .filter((c2) => c2.catalogId === 'github-app')
+          .map((c2) => {
+            const secrets = deps.connectors.getSecrets(c2.id);
+            return secrets.find((s) => s.key === '__GITHUB_INSTALLATION_ID__')?.value ?? null;
+          })
+          .filter((id): id is string => id !== null),
+      );
+      return c.json({
+        installations: installs.map((i) => ({
+          id: i.id,
+          name: i.account,
+          accountType: i.accountType,
+          repoCount: i.repoCount,
+          permissions: i.permissions,
+          alreadyWired: wired.has(i.id),
+        })),
+      });
+    } catch (err) {
+      const kind = err instanceof GitHubAppError ? err.kind : 'unknown';
+      return c.json({ error: kind, detail: err instanceof Error ? err.message : String(err) }, 502);
+    }
+  });
+
+  const addInstallationSchema = z.object({
+    installationId: z.string().min(1),
+    displayName: z.string().min(1),
+    envVar: z
+      .string()
+      .min(1)
+      .regex(/^[A-Z][A-Z0-9_]*$/, 'envVar must be UPPER_SNAKE_CASE'),
+  });
+  route.post(
+    '/catalog/github-app/installations',
+    zValidator('json', addInstallationSchema),
+    (c) => {
+      if (!deps.connectorApps) {
+        return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
+      }
+      const body = c.req.valid('json');
+      const app = deps.connectorApps.getOneByCatalog('github-app');
+      if (!app) return c.json({ error: 'app_not_installed' }, 404);
+
+      const githubAppEntry = findCatalogEntry('github-app');
+      if (!githubAppEntry) {
+        return c.json({ error: 'github_app_catalog_entry_missing' }, 500);
+      }
+      // Spec 0045: copy tools from the `github` (Personal) catalog entry —
+      // both Personal and App use the same github-mcp-server, so they expose
+      // the same 51 tools. The `github-app` catalog entry's tools[] is empty
+      // by design (the install modal builds installation rows individually).
+      const githubEntry = findCatalogEntry('github');
+      if (!githubEntry) {
+        return c.json({ error: 'github_catalog_entry_missing' }, 500);
+      }
+
+      // Spec 0048 R3 F1: reject duplicate envVar across installations.
+      // Two installs sharing one envVar clobber each other on every refresh.
+      // Response shape mirrors the install-time `app_already_installed`
+      // 409 above (errorKind:'conflict' envelope) for client uniformity.
+      const envVarsInUse = getInstallationEnvVarsInUse(deps.connectors);
+      if (envVarsInUse.has(body.envVar)) {
+        return c.json(
+          {
+            ok: false,
+            errorKind: 'conflict' as const,
+            error: 'env_var_in_use',
+            envVar: body.envVar,
+          },
+          409,
+        );
+      }
+
+      const slug = resolveSlugCollision(
+        deps.connectors,
+        `github-app-${kebabLower(body.displayName)}`,
+      );
+      const payload = {
+        source: 'catalog' as const,
+        catalogId: 'github-app',
+        slug,
+        displayName: `GitHub App — ${body.displayName}`,
+        description: githubAppEntry.description,
+        transport: githubAppEntry.transport,
+        command: githubAppEntry.transportConfig.command ?? null,
+        args: githubAppEntry.transportConfig.args ?? null,
+        url: githubAppEntry.transportConfig.url ?? null,
+        secrets: [
+          { key: '__GITHUB_INSTALLATION_ID__', value: body.installationId },
+          { key: '__GITHUB_INSTALLATION_NAME__', value: body.displayName },
+          { key: '__GITHUB_ENV_VAR__', value: body.envVar },
+        ],
+        // Spec 0045: tools sourced from the `github` (Personal) catalog entry,
+        // not from `github-app`'s empty array.
+        tools: githubEntry.tools.map((t) => ({
+          toolName: t.name,
+          description: t.description,
+          category: t.category,
+          permission: t.defaultPermission,
+        })),
+        appId: app.id,
+      };
+      deps.commands.enqueue({
+        type: 'connector_create',
+        payload,
+        correlationId: randomUUID(),
+      });
+      return c.json({ ok: true, slug });
+    },
+  );
+
+  const rotatePemSchema = z.object({
+    newPem: z
+      .string()
+      .min(1)
+      .refine(looksLikePem, { message: 'pem must be a PEM-formatted private key' }),
+    confirmAppId: z.string().min(1),
+  });
+  route.post('/catalog/github-app/rotate-pem', zValidator('json', rotatePemSchema), async (c) => {
+    if (!deps.connectorApps) {
+      return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
+    }
+    const body = c.req.valid('json');
+    const app = deps.connectorApps.getOneByCatalog('github-app');
+    if (!app) return c.json({ error: 'app_not_installed' }, 404);
+    if (body.confirmAppId !== app.appId) {
+      return c.json({ error: 'confirm_app_id_mismatch' }, 400);
+    }
+
+    let jwt: string;
+    try {
+      jwt = signAppJwt({ appId: app.appId, privateKey: body.newPem });
+    } catch (err) {
+      return c.json({
+        ok: false,
+        errorKind: 'auth' as const,
+        error: `new pem could not sign a JWT: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+    try {
+      const meta = await fetchAppMetadata(jwt);
+      if (meta.appId !== app.appId) {
+        return c.json({
+          ok: false,
+          errorKind: 'auth' as const,
+          error: `new pem signs for ${meta.appId}, expected ${app.appId}`,
+        });
+      }
+    } catch (err) {
+      const kind = err instanceof GitHubAppError ? err.kind : 'unknown';
+      return c.json({
+        ok: false,
+        errorKind: kind,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    const installRows = deps.connectors
+      .list({ source: 'catalog' })
+      .filter((r) => r.appId === app.id);
+    for (const row of installRows) {
+      const secrets = deps.connectors.getSecrets(row.id);
+      const instId = secrets.find((s) => s.key === '__GITHUB_INSTALLATION_ID__')?.value;
+      if (!instId) continue;
+      try {
+        await mintInstallationToken(jwt, instId);
+      } catch (err) {
+        const kind = err instanceof GitHubAppError ? err.kind : 'unknown';
+        return c.json({
+          ok: false,
+          errorKind: kind,
+          error: `installation ${row.slug} token mint failed: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        });
+      }
+    }
+
+    deps.connectorApps.update(app.id, {
+      pem: body.newPem,
+      pemSha256: computePemSha256(body.newPem),
+      pemRotatedAt: new Date().toISOString(),
+    });
+    // Spec 0044 review F1: DO NOT include the PEM in the command payload.
+    // `commands.payload` is a TEXT column with no TTL — duplicating the PEM
+    // there would defeat the "single source of truth" rationale for the
+    // connector_apps table (Q1). The handler reads the new PEM back from
+    // connector_apps via the deps that are already wired in.
+    deps.commands.enqueue({
+      type: 'app_pem_rotated',
+      payload: { appUuid: app.id },
+      correlationId: randomUUID(),
+    });
+    return c.json({ ok: true });
+  });
+
+  // Spec 0046 supersedes spec 0044 §API-Endpoints body shape: confirmAppName
+  // (not confirmAppId) — the dashboard M12 modal uses italic-gold app NAME for
+  // the type-to-confirm gesture, not the numeric App ID.
+  const uninstallAppSchema = z.object({ confirmAppName: z.string().min(1) });
+  route.post('/catalog/github-app/uninstall-app', zValidator('json', uninstallAppSchema), (c) => {
+    if (!deps.connectorApps) {
+      return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
+    }
+    const body = c.req.valid('json');
+    const app = deps.connectorApps.getOneByCatalog('github-app');
+    if (!app) return c.json({ error: 'app_not_installed' }, 404);
+    if (body.confirmAppName !== app.appName) {
+      return c.json({ error: 'confirm_app_name_mismatch' }, 400);
+    }
+    deps.connectorApps.delete(app.id);
+    deps.commands.enqueue({
+      type: 'app_uninstall',
+      payload: { appUuid: app.id },
+      correlationId: randomUUID(),
+    });
+    return c.json({ ok: true });
+  });
+
+  route.get('/catalog/github-app/app', (c) => {
+    if (!deps.connectorApps) {
+      return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
+    }
+    const app = deps.connectorApps.getOneByCatalog('github-app');
+    if (!app) return c.json({ error: 'app_not_installed' }, 404);
+    return c.json({
+      appUuid: app.id,
+      appId: app.appId,
+      appName: app.appName,
+      appSlug: app.appSlug,
+      pemSha256: app.pemSha256,
+      pemRotatedAt: app.pemRotatedAt,
+      createdAt: app.createdAt,
+      updatedAt: app.updatedAt,
+    });
+  });
+
   // POST /catalog/:id/test (resolves transportConfig server-side; for catalog installs)
+  // MUST be registered AFTER the github-app static routes above.
   route.post('/catalog/:id/test', async (c) => {
     const id = c.req.param('id');
     const entry = findCatalogEntry(id);
@@ -251,6 +785,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       lastVerifiedAt: null,
       createdAt: '',
       updatedAt: '',
+      appId: null,
     };
     const secrets: ConnectorSecret[] = (body.secrets ?? []).map((s) => ({
       connectorId: 'transient',
@@ -259,11 +794,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     }));
     // Spec 0038 F#2: pass authCheckTool from the catalog entry so the
     // test endpoint actually validates credentials (not just tools/list).
-    const result = await discoverTools(
-      transient,
-      secrets,
-      entry.authCheckTool ? { authCheckTool: entry.authCheckTool } : {},
-    );
+    // Spec 0040: also pass authCheckArgs for MCPs requiring non-empty input.
+    // Spec 0048 Q1: also pass categoryPrefixMap for MCPs with namespaced tools.
+    const result = await discoverTools(transient, secrets, {
+      ...(entry.authCheckTool ? { authCheckTool: entry.authCheckTool } : {}),
+      ...(entry.authCheckArgs ? { authCheckArgs: entry.authCheckArgs } : {}),
+      ...(entry.categoryPrefixMap ? { categoryPrefixMap: entry.categoryPrefixMap } : {}),
+    });
     if ('error' in result) {
       return c.json({ ok: false, errorKind: result.errorKind, error: result.error });
     }
@@ -290,6 +827,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       lastVerifiedAt: null,
       createdAt: '',
       updatedAt: '',
+      appId: null,
     };
     const secrets: ConnectorSecret[] = body.secrets.map((s) => ({
       connectorId: 'transient',
@@ -303,15 +841,75 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     return c.json({ ok: true, tools: result.tools, durationMs: result.durationMs });
   });
 
-  // GET / (list)
+  // GET / (list) — Spec 0045: returns a discriminated union of
+  // ConnectorListItem (existing rows, kind='connector') and AppListItem
+  // (collapsed App rows for github-app, kind='app'). The 4 github-app-*
+  // connectors are NOT returned individually at the top level — they appear
+  // nested inside the parent AppListItem.
   route.get('/', (c) => {
     const all = deps.connectors.list();
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const items = all.map((connector) => {
+
+    // Partition: connectors with appId set are nested inside an App row;
+    // others are emitted as standalone ConnectorListItems.
+    const connectorsByAppId = new Map<string, Connector[]>();
+    const standalone: Connector[] = [];
+    for (const connector of all) {
+      if (connector.appId) {
+        const existing = connectorsByAppId.get(connector.appId) ?? [];
+        existing.push(connector);
+        connectorsByAppId.set(connector.appId, existing);
+      } else {
+        standalone.push(connector);
+      }
+    }
+
+    // Build standalone ConnectorListItems.
+    const items: Array<Record<string, unknown>> = standalone.map((connector) => {
       const tools = deps.connectors.getTools(connector.id);
       const invocations = deps.connectors.countInvocationsSince(connector.id, cutoff);
       return buildListItem(connector, tools.length, invocations, iconUrlForConnector(connector));
     });
+
+    // Build AppListItems by joining connector_apps + nested connectors.
+    if (deps.connectorApps) {
+      for (const app of deps.connectorApps.list()) {
+        const installations = connectorsByAppId.get(app.id) ?? [];
+        const githubEntry = (() => {
+          try {
+            return findCatalogEntry('github');
+          } catch {
+            return null;
+          }
+        })();
+        const iconUrl = githubEntry ? `/api/connectors/catalog/icons/${githubEntry.icon}` : null;
+        items.push({
+          kind: 'app',
+          appUuid: app.id,
+          appId: app.appId,
+          catalogId: app.catalogId,
+          appName: app.appName,
+          appSlug: app.appSlug,
+          iconUrl,
+          installationCount: installations.length,
+          statusAggregate: computeStatusAggregate(installations, app.lastRefreshErrorAt),
+          lastVerifiedAt: pickLatestVerified(installations),
+          // Spec 0048 Q2: surface refresh-failure for the dashboard.
+          lastRefreshErrorAt: app.lastRefreshErrorAt,
+          lastRefreshErrorMessage: app.lastRefreshErrorMessage,
+          installations: installations.map((i) => ({
+            connectorId: i.id,
+            slug: i.slug,
+            displayName: i.displayName,
+            status: i.status,
+            lastVerifiedAt: i.lastVerifiedAt,
+            lastError: i.lastError,
+            lastErrorAt: i.lastErrorAt,
+          })),
+        });
+      }
+    }
+
     return c.json(items);
   });
 
@@ -366,6 +964,55 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     return c.body(null, 204);
   });
 
+  // GET /apps/:appUuid — Spec 0045: rich App detail for the dashboard's
+  // C8 page. MUST be registered BEFORE the dynamic `:id` route below
+  // (Hono matches in registration order; static segments come first).
+  route.get('/apps/:appUuid', (c) => {
+    if (!deps.connectorApps) {
+      return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
+    }
+    const appUuid = c.req.param('appUuid');
+    const app = deps.connectorApps.get(appUuid);
+    if (!app) return c.json({ error: 'not_found' }, 404);
+    const installations = deps.connectors
+      .list({ source: 'catalog' })
+      .filter((cn) => cn.appId === app.id)
+      .map((cn) => {
+        const secrets = deps.connectors.getSecrets(cn.id);
+        const map = new Map(secrets.map((s) => [s.key, s.value]));
+        const tools = deps.connectors.getTools(cn.id);
+        return {
+          connectorId: cn.id,
+          slug: cn.slug,
+          displayName: cn.displayName,
+          installationId: map.get('__GITHUB_INSTALLATION_ID__') ?? null,
+          envVar: map.get('__GITHUB_ENV_VAR__') ?? null,
+          status: cn.status,
+          lastVerifiedAt: cn.lastVerifiedAt,
+          lastError: cn.lastError,
+          lastErrorAt: cn.lastErrorAt,
+          toolCount: tools.length,
+        };
+      });
+    return c.json({
+      app: {
+        id: app.id,
+        appId: app.appId,
+        catalogId: app.catalogId,
+        appName: app.appName,
+        appSlug: app.appSlug,
+        pemSha256: app.pemSha256,
+        pemRotatedAt: app.pemRotatedAt,
+        createdAt: app.createdAt,
+        updatedAt: app.updatedAt,
+        // Spec 0048 Q2: surface refresh failure for the C8 detail page header.
+        lastRefreshErrorAt: app.lastRefreshErrorAt,
+        lastRefreshErrorMessage: app.lastRefreshErrorMessage,
+      },
+      installations,
+    });
+  });
+
   // ── DYNAMIC :id PATHS (after all statics) ──
 
   // GET /:id
@@ -410,12 +1057,22 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     const secrets = deps.connectors.getSecrets(id);
     // Spec 0038 F#2: pass authCheckTool from the catalog entry if this
     // connector was installed from one. Custom connectors get no auth probe.
+    // Spec 0040: also pass authCheckArgs.
+    // Spec 0048 Q1: also pass categoryPrefixMap.
     let authCheckTool: string | undefined;
+    let authCheckArgs: Record<string, unknown> | undefined;
+    let categoryPrefixMap: Record<string, ToolCategory> | undefined;
     if (connector.source === 'catalog' && connector.catalogId) {
       const entry = findCatalogEntry(connector.catalogId);
       authCheckTool = entry?.authCheckTool;
+      authCheckArgs = entry?.authCheckArgs;
+      categoryPrefixMap = entry?.categoryPrefixMap;
     }
-    const result = await discoverTools(connector, secrets, authCheckTool ? { authCheckTool } : {});
+    const result = await discoverTools(connector, secrets, {
+      ...(authCheckTool ? { authCheckTool } : {}),
+      ...(authCheckArgs ? { authCheckArgs } : {}),
+      ...(categoryPrefixMap ? { categoryPrefixMap } : {}),
+    });
     if ('error' in result) {
       deps.connectors.update(id, { lastError: result.error, lastErrorAt: nowIso() });
       return c.json({ ok: false, errorKind: result.errorKind, error: result.error });
@@ -431,10 +1088,49 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // PATCH /:id (update — enqueues connector_update)
   route.patch('/:id', zValidator('json', patchSchema), (c) => {
     const id = c.req.param('id');
-    if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
+    const connector = deps.connectors.get(id);
+    if (!connector) return c.json({ error: 'not_found' }, 404);
+    const body = c.req.valid('json');
+    // Spec 0046: M11 sends `{envVar: 'NEW_NAME'}`. Translate to a secrets-only
+    // patch that updates the __GITHUB_ENV_VAR__ reserved key while preserving
+    // the other reserved keys. Only valid for github-app-* slugs.
+    let secrets = body.secrets;
+    if (body.envVar !== undefined) {
+      if (!connector.slug.startsWith('github-app-')) {
+        return c.json({ error: 'envVar_only_valid_for_github_app_installations' }, 400);
+      }
+      // Spec 0048 R3 F1: reject if another installation already uses this
+      // envVar. Self-update (same id) is allowed. Same envelope as the
+      // install-time 409 (errorKind:'conflict') for client uniformity.
+      const envVarsInUse = getInstallationEnvVarsInUse(deps.connectors, id);
+      if (envVarsInUse.has(body.envVar)) {
+        return c.json(
+          {
+            ok: false,
+            errorKind: 'conflict' as const,
+            error: 'env_var_in_use',
+            envVar: body.envVar,
+          },
+          409,
+        );
+      }
+      const existing = deps.connectors.getSecrets(id);
+      const hasEnvVar = existing.some((s) => s.key === '__GITHUB_ENV_VAR__');
+      // Map existing secrets, swapping __GITHUB_ENV_VAR__'s value. If the
+      // reserved key is somehow missing (legacy/partial install), append a
+      // new row so the rename is durable. Spec 0046 R1 F2.
+      const mapped = existing.map((s) =>
+        s.key === '__GITHUB_ENV_VAR__'
+          ? { key: s.key, value: body.envVar as string }
+          : { key: s.key, value: s.value },
+      );
+      secrets = hasEnvVar ? mapped : [...mapped, { key: '__GITHUB_ENV_VAR__', value: body.envVar }];
+    }
+    const { envVar: _drop, ...patch } = body;
+    void _drop;
     deps.commands.enqueue({
       type: 'connector_update',
-      payload: { id, patch: c.req.valid('json'), secrets: c.req.valid('json').secrets },
+      payload: { id, patch, secrets },
       correlationId: randomUUID(),
     });
     return c.body(null, 204);

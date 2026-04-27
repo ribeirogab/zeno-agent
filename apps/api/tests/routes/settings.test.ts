@@ -55,22 +55,16 @@ describe('GET /api/settings', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns backend + mcp + profile files', async () => {
+  it('returns backend + profile files', async () => {
     writeFileSync(join(profileDir, 'SOUL.md'), '# Zeno');
     writeFileSync(join(profileDir, 'crons.yaml'), 'crons: []');
-    writeFileSync(
-      join(profileDir, 'mcp.json'),
-      JSON.stringify({ mcpServers: { foo: { command: 'x' } } }),
-    );
     const res = await makeApp(db).request('/api/settings', { headers: authed() });
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       backend: { name: string };
-      mcpServers: Array<{ name: string; status: string }>;
       profileFiles: Array<{ path: string }>;
     };
     expect(body.backend.name).toBe('claude-code');
-    expect(body.mcpServers.some((server) => server.name === 'foo')).toBe(true);
     const paths = body.profileFiles.map((file) => file.path);
     expect(paths).toContain('SOUL.md');
     expect(paths).toContain('crons.yaml');

@@ -13,6 +13,13 @@ export const catalogSecretSchema = z.object({
   label: z.string(),
   help: z.string(),
   required: z.boolean(),
+  /**
+   * Optional rendering hint for the install modal. Spec 0042.
+   * - `password` (default): masked single-line input
+   * - `text`: visible single-line input
+   * - `pem`: textarea + file picker that loads file content into textarea
+   */
+  inputType: z.enum(['text', 'password', 'pem']).optional(),
 });
 
 export const catalogToolSchema = z.object({
@@ -44,6 +51,26 @@ export const catalogEntrySchema = z.object({
    * calling a real tool is the only deterministic auth check. Spec 0038 F#2.
    */
   authCheckTool: z.string().optional(),
+  /**
+   * Optional arguments to pass to the auth-check tool. Some MCPs (e.g. Klaviyo)
+   * require a non-empty argument shape on every tool call. Without this, the
+   * call returns a validation error and the auth check misclassifies. Spec 0040.
+   */
+  authCheckArgs: z.record(z.string(), z.unknown()).optional(),
+  /**
+   * Optional id of a custom install component registered in the dashboard.
+   * When set, the install modal renders that component instead of the default
+   * secret-fields layout. Spec 0042 (used by `github-app`).
+   */
+  customInstallComponent: z.string().optional(),
+  /**
+   * Spec 0048 Q1: optional per-prefix tool-category override. Used by MCPs
+   * whose tool-name convention doesn't match the default read_/list_/get_/etc.
+   * prefixes (e.g., Klaviyo prefixes everything `klaviyo_*`). The discovery
+   * layer + catalog regenerator consult this map BEFORE falling through to
+   * the default `classifyToolCategory` heuristic.
+   */
+  categoryPrefixMap: z.record(z.string(), z.enum(['read', 'write', 'interactive'])).optional(),
   tags: z.array(z.string()).optional(),
 });
 

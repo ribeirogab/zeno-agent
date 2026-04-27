@@ -24,21 +24,28 @@ afterEach(() => {
 
 describe('loadApprovalsConfig', () => {
   it('parses a valid approvals section into a typed object', () => {
+    // Spec 0048 Q5: always_sensitive removed from yaml — DB-managed via approval_rules.
     writeYaml(`
 approvals:
   owner_slack_user_id: U0123ABCDEF
-  always_sensitive:
-    - mcp__github__merge_pull_request
-    - "mcp__github__*"
   approval_timeout_sec: 600
   classifier_model: claude-haiku-4-5
 `);
     const config = loadApprovalsConfig();
     expect(config).not.toBeNull();
     expect(config?.owner_slack_user_id).toBe('U0123ABCDEF');
-    expect(config?.always_sensitive).toEqual(['mcp__github__merge_pull_request', 'mcp__github__*']);
     expect(config?.approval_timeout_sec).toBe(600);
     expect(config?.classifier_model).toBe('claude-haiku-4-5');
+  });
+
+  it('hard-fails if yaml still has always_sensitive (spec 0048 Q5)', () => {
+    writeYaml(`
+approvals:
+  owner_slack_user_id: U0123ABCDEF
+  always_sensitive:
+    - mcp__github__merge_pull_request
+`);
+    expect(() => loadApprovalsConfig()).toThrow(/always_sensitive.*no longer supported/);
   });
 
   it('returns null when the approvals section is missing', () => {

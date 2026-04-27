@@ -1,9 +1,19 @@
-import type { CommandRepo, ConnectorRepo, CronRepo, CronRunRepo, DB, LogRepo } from '@zeno/storage';
+import type {
+  ApprovalRulesRepo,
+  CommandRepo,
+  ConnectorAppRepo,
+  ConnectorRepo,
+  CronRepo,
+  CronRunRepo,
+  DB,
+  LogRepo,
+} from '@zeno/storage';
 import { SessionRepo } from '@zeno/storage';
 import { Hono } from 'hono';
 import { requireAuth } from '@/auth/middleware';
 import type { ApiConfig } from '@/config';
 import { buildActivityRoute } from '@/routes/activity';
+import { buildApprovalRulesRoute } from '@/routes/approval-rules';
 import { buildAuthRoutes } from '@/routes/auth';
 import { buildConnectorsRoute } from '@/routes/connectors';
 import { buildCronsRoute } from '@/routes/crons';
@@ -23,9 +33,13 @@ export interface AppDeps {
   logRepo: LogRepo;
   /** Optional in tests that don't exercise the /api/connectors/* routes. */
   connectorRepo?: ConnectorRepo;
+  /** Spec 0044: ConnectorApp repo for /api/connectors/catalog/github-app/* routes. */
+  connectorAppRepo?: ConnectorAppRepo;
+  /** Spec 0047: ApprovalRules repo for /api/approval-rules. */
+  approvalRulesRepo?: ApprovalRulesRepo;
   /** Directory holding Claude Code JSONL transcripts (e.g. `~/.claude/projects/-workspace`). */
   claudeHome: string;
-  /** Directory holding the agent profile files (SOUL.md, USER.md, crons.yaml, mcp.json). */
+  /** Directory holding the agent profile files (SOUL.md, USER.md, crons.yaml). */
   profileDir: string;
   /** Absolute path to the dashboard's built static assets (apps/dashboard/dist). Optional in tests. */
   spaDir?: string;
@@ -94,6 +108,20 @@ export function createApp(deps: AppDeps): Hono {
       buildConnectorsRoute({
         connectors: deps.connectorRepo,
         commands: deps.commandRepo,
+        ...(deps.connectorAppRepo ? { connectorApps: deps.connectorAppRepo } : {}),
+      }),
+    );
+  }
+  // Spec 0047: approval-rules endpoints. Mounted only when both repos are
+  // wired (the route's preview endpoint needs access to installed tools).
+  if (deps.approvalRulesRepo && deps.connectorRepo) {
+    app.use('/api/approval-rules', requireAuth({ secret: deps.config.sessionSecret, secure }));
+    app.use('/api/approval-rules/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
+    app.route(
+      '/api/approval-rules',
+      buildApprovalRulesRoute({
+        rules: deps.approvalRulesRepo,
+        connectors: deps.connectorRepo,
       }),
     );
   }

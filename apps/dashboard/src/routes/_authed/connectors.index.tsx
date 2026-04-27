@@ -4,7 +4,12 @@ import { useState } from 'react';
 import { CatalogInstallModal } from '@/components/connectors/catalog-install-modal';
 import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
 import { useCatalog } from '@/lib/use-catalog';
-import { type ConnectorListItem, useConnectors } from '@/lib/use-connectors';
+import {
+  type AppListItem,
+  type ConnectorListEntry,
+  type ConnectorListItem,
+  useConnectors,
+} from '@/lib/use-connectors';
 
 export const Route = createFileRoute('/_authed/connectors/')({
   component: ConnectorsListScreen,
@@ -18,12 +23,28 @@ function ConnectorsListScreen(): JSX.Element {
   const installed = connectors.data ?? [];
   const catalogEntries = catalog.data ?? [];
   const empty = !connectors.isLoading && installed.length === 0;
-  const counts = {
-    enabled: installed.filter((c) => c.status === 'enabled' && !c.lastError).length,
-    error: installed.filter((c) => c.status === 'enabled' && c.lastError).length,
-    disabled: installed.filter((c) => c.status === 'disabled').length,
-    pending: installed.filter((c) => c.status === 'pending').length,
-  };
+  // Spec 0045: counts span both connector rows and app rows. App rows
+  // contribute their installation children to the count (so a 4-installation
+  // App reads as 4 active in the headline).
+  const counts = installed.reduce(
+    (acc, entry) => {
+      if (entry.kind === 'connector') {
+        if (entry.status === 'enabled' && !entry.lastError) acc.enabled++;
+        else if (entry.status === 'enabled' && entry.lastError) acc.error++;
+        else if (entry.status === 'disabled') acc.disabled++;
+        else if (entry.status === 'pending') acc.pending++;
+      } else {
+        for (const inst of entry.installations) {
+          if (inst.status === 'enabled' && !inst.lastError) acc.enabled++;
+          else if (inst.status === 'enabled' && inst.lastError) acc.error++;
+          else if (inst.status === 'disabled') acc.disabled++;
+          else if (inst.status === 'pending') acc.pending++;
+        }
+      }
+      return acc;
+    },
+    { enabled: 0, error: 0, disabled: 0, pending: 0 },
+  );
 
   return (
     <div className="flex min-h-screen bg-canvas">
@@ -81,7 +102,7 @@ function InstalledSection({
   loading,
   counts,
 }: {
-  installed: ConnectorListItem[];
+  installed: ConnectorListEntry[];
   loading: boolean;
   counts: { enabled: number; error: number; disabled: number; pending: number };
 }): JSX.Element {
@@ -99,9 +120,13 @@ function InstalledSection({
       </div>
       <div className="bg-panel border border-border-subtle flex flex-col min-w-0 overflow-x-auto">
         <Thead />
-        {installed.map((connector, i) => (
-          <Row key={connector.id} c={connector} last={i === installed.length - 1} />
-        ))}
+        {installed.map((entry, i) => {
+          const last = i === installed.length - 1;
+          if (entry.kind === 'app') {
+            return <AppRow key={`app-${entry.appUuid}`} app={entry} last={last} />;
+          }
+          return <Row key={entry.id} c={entry} last={last} />;
+        })}
       </div>
     </section>
   );
@@ -177,6 +202,127 @@ function Row({ c, last }: { c: ConnectorListItem; last: boolean }): JSX.Element 
         ⋯
       </span>
     </Link>
+  );
+}
+
+// Spec 0045: collapsed App row in C7. Links to /connectors/github-app
+// (App detail page) instead of a per-installation route.
+function AppRow({ app, last }: { app: AppListItem; last: boolean }): JSX.Element {
+  const baseClasses = `flex items-center gap-4 px-5 py-3.5 ${
+    last ? '' : 'border-b border-border-subtle'
+  } min-w-[820px] cursor-pointer transition-colors duration-[120ms] hover:bg-panel-2`;
+  // Spec 0048 Q2: 'degraded' renders an amber pill distinct from 'pending'.
+  const visualStatus: 'active' | 'error' | 'pending' | 'degraded' =
+    app.statusAggregate === 'active'
+      ? 'active'
+      : app.statusAggregate === 'error'
+        ? 'error'
+        : app.statusAggregate === 'degraded'
+          ? 'degraded'
+          : 'pending';
+  const lastVerifiedLabel = app.lastVerifiedAt ? formatRelative(app.lastVerifiedAt) : '—';
+  const detail = `${app.installationCount} installations · github · catalog`;
+  // R3-restart F1: when there are zero installations, the "0/0 active" label
+  // contradicts the gold/pending pill styling. Show "no installations" instead.
+  // Spec 0048 Q2: a 'degraded' status (refresh failing) overrides the count.
+  const aggregateLabel = (() => {
+    if (visualStatus === 'degraded') return 'refresh failing';
+    if (app.installationCount === 0) return 'no installations';
+    const enabledCount = app.installations.filter(
+      (i) => i.status === 'enabled' && !i.lastError,
+    ).length;
+    return `${enabledCount}/${app.installationCount} active`;
+  })();
+  return (
+    <Link to="/connectors/github-app" className={baseClasses}>
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <AppIcon iconUrl={app.iconUrl} count={app.installationCount} appName={app.appName} />
+        <div className="flex flex-col gap-[2px] min-w-0">
+          <span className="font-mono text-[13px] font-medium tracking-[0.02em] leading-4 truncate text-text-primary">
+            GitHub App ·{' '}
+            <span className="italic text-gold not-italic-prevention">{app.appName}</span>
+          </span>
+          <span className="font-mono text-[10px] tracking-[0.04em] leading-3 truncate text-text-tertiary">
+            {detail}
+          </span>
+        </div>
+      </div>
+      <span className="w-[90px] shrink-0 inline-flex">
+        <OutlinePill>app</OutlinePill>
+      </span>
+      <span className="w-[140px] shrink-0 inline-flex">
+        <AggregateStatusPill status={visualStatus} label={aggregateLabel} />
+      </span>
+      <span className="w-[140px] shrink-0 font-mono text-[11px] leading-[14px] text-text-tertiary">
+        {lastVerifiedLabel}
+      </span>
+      <span className="w-6 shrink-0 text-center font-mono text-xs leading-4 text-text-tertiary">
+        ⋯
+      </span>
+    </Link>
+  );
+}
+
+function AppIcon({
+  iconUrl,
+  count,
+  appName,
+}: {
+  iconUrl: string | null;
+  count: number;
+  appName: string;
+}): JSX.Element {
+  return (
+    <span className="relative shrink-0 w-8 h-8 inline-flex items-center justify-center bg-text-primary border border-gold-line">
+      {iconUrl ? (
+        <img src={iconUrl} alt={appName} width={18} height={18} />
+      ) : (
+        <span className="font-mono text-sm font-semibold leading-[18px] text-gold">
+          {appName.slice(0, 1).toUpperCase()}
+        </span>
+      )}
+      {/* Spec 0045 C7: gold count badge in top-right corner */}
+      <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center bg-gold border border-gold-line font-mono text-[10px] font-semibold leading-[10px] text-text-ink">
+        {count}
+      </span>
+    </span>
+  );
+}
+
+function AggregateStatusPill({
+  status,
+  label,
+}: {
+  status: 'active' | 'error' | 'pending' | 'degraded';
+  label: string;
+}): JSX.Element {
+  const config = {
+    active: {
+      cls: 'bg-status-active/[0.06] border border-status-active/30 text-status-active',
+      dot: 'bg-status-active',
+    },
+    error: {
+      cls: 'bg-status-failed/[0.06] border border-status-failed/30 text-status-failed',
+      dot: 'bg-status-failed',
+    },
+    pending: {
+      cls: 'bg-gold/10 border border-gold-line text-gold',
+      dot: 'bg-gold',
+    },
+    // Spec 0048 Q2: degraded = transient refresh failure, distinct from
+    // 'pending' (configuration not done) and 'error' (hard failure).
+    degraded: {
+      cls: 'bg-[#C99F4F]/10 border border-[#C99F4F]/40 text-[#C99F4F]',
+      dot: 'bg-[#C99F4F]',
+    },
+  }[status];
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] font-mono text-[10px] tracking-[0.1em] leading-3 uppercase ${config.cls}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
+      {label}
+    </span>
   );
 }
 

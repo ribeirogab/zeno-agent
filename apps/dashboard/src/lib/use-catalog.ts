@@ -19,6 +19,8 @@ export interface CatalogEntryApi {
   secrets: CatalogSecretApi[];
   toolCount: number;
   isInstalled: boolean;
+  /** Spec 0042/0045: catalog entry's customInstallComponent id (e.g. 'github-app'). */
+  customInstallComponent: string | null;
 }
 
 export function useCatalog() {

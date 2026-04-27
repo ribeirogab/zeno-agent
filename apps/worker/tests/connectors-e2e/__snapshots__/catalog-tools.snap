@@ -1,4 +1,588 @@
 {
+  "github-app": [],
+  "github": [
+    {
+      "name": "add_issue_comment",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "add_pull_request_review_comment_to_pending_review",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "assign_copilot_to_issue",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "dismiss_notification",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "fork_repository",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "manage_notification_subscription",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "manage_repository_notification_subscription",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "mark_all_notifications_read",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "merge_pull_request",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "push_files",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "request_copilot_review",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "submit_pending_pull_request_review",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "get_code_scanning_alert",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_commit",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_file_contents",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_issue",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_issue_comments",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_me",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_notification_details",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_pull_request",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_pull_request_comments",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_pull_request_diff",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_pull_request_files",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_pull_request_reviews",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_pull_request_status",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_secret_scanning_alert",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_tag",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_branches",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_code_scanning_alerts",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_commits",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_issues",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_notifications",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_pull_requests",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_secret_scanning_alerts",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_tags",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "search_code",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "search_issues",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "search_repositories",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "search_users",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "create_and_submit_pull_request_review",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_branch",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_issue",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_or_update_file",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_pending_pull_request_review",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_pull_request",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_repository",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "delete_file",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "delete_pending_pull_request_review",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "update_issue",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "update_pull_request",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "update_pull_request_branch",
+      "category": "write",
+      "defaultPermission": "ask"
+    }
+  ],
+  "klaviyo": [
+    {
+      "name": "klaviyo_get_account_details",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_campaign",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_campaign_report",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_campaigns",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_catalog_items",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_email_template",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_events",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_flow",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_flow_report",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_flows",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_list",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_lists",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_metric",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_metrics",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_profile",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_profiles",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_segment",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_get_segments",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "klaviyo_assign_template_to_campaign_message",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_create_campaign",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_create_email_template",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_create_event",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_create_profile",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_subscribe_profile_to_marketing",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_unsubscribe_profile_from_marketing",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_update_profile",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_upload_image_from_file",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_upload_image_from_url",
+      "category": "write",
+      "defaultPermission": "ask"
+    }
+  ],
+  "linear": [
+    {
+      "name": "extract_images",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "save_comment",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "save_document",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "save_issue",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "save_milestone",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "save_project",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "get_attachment",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_document",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_issue",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_issue_status",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_milestone",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_project",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_team",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_user",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_comments",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_cycles",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_documents",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_issue_labels",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_issue_statuses",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_issues",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_milestones",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_project_labels",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_projects",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_teams",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_users",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "search_documentation",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "create_attachment",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "create_issue_label",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "delete_attachment",
+      "category": "write",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "delete_comment",
+      "category": "write",
+      "defaultPermission": "ask"
+    }
+  ],
+  "swarmia": [
+    {
+      "name": "get_capex",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_capex_employees",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_dora_metrics",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_fte",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_investment_balance",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_pull_requests",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    }
+  ],
   "sentry": [
     {
       "name": "analyze_issue_with_seer",

@@ -22,7 +22,24 @@ const DISCOVER_TIMEOUT_MS = 10_000;
 const READ_PREFIXES = ['read_', 'list_', 'get_', 'search_', 'find_'];
 const WRITE_PREFIXES = ['create_', 'update_', 'delete_', 'send_', 'post_', 'put_'];
 
-export function classifyToolCategory(name: string): ToolCategory {
+/**
+ * Spec 0048 Q1: optional per-prefix override map.
+ *
+ * Some MCPs prefix every tool with their own namespace (e.g., Klaviyo's
+ * `klaviyo_get_campaigns` instead of `get_campaigns`). The default
+ * read/write prefix lists don't match those tools. The catalog entry can
+ * declare a `categoryPrefixMap` (e.g., `{ 'klaviyo_get_': 'read', ... }`)
+ * which is checked FIRST, before the generic prefixes.
+ */
+export function classifyToolCategory(
+  name: string,
+  prefixMap?: Record<string, ToolCategory>,
+): ToolCategory {
+  if (prefixMap) {
+    for (const [prefix, category] of Object.entries(prefixMap)) {
+      if (name.startsWith(prefix)) return category;
+    }
+  }
   const lower = name.toLowerCase();
   if (READ_PREFIXES.some((p) => lower.startsWith(p))) return 'read';
   if (WRITE_PREFIXES.some((p) => lower.startsWith(p))) return 'write';
@@ -39,9 +56,11 @@ function classifyError(err: unknown): { error: string; errorKind: DiscoverErrorK
   const lower = message.toLowerCase();
   // Auth bucket: HTTP statuses, common error words, plus phrasings real MCPs
   // emit (Sentry uses "Authorization Expired ... rejected the stored access
-  // token"; others may use "invalid token" / "credentials"). Spec 0038 F#2.
+  // token"; Linear uses "invalid_token" / "Invalid access token"). Spec 0038 F#2 + spec 0039 + spec 0042.
+  // `authenticat` would false-positive on success payloads containing
+  // "two_factor_authentication". Restrict to error-context phrasings.
   if (
-    /401|403|unauthorized|forbidden|authenticat|authorization (expired|invalid|rejected)|invalid (token|credentials)|access token (rejected|invalid|expired)/.test(
+    /401|403|unauthorized|forbidden|unauthenticat|authentication (failed|invalid|required|expired|denied|error)|authorization (expired|invalid|rejected|denied|failed|error)|invalid (token|credentials|access token|api key)|invalid_token|access token (rejected|invalid|expired)/.test(
       lower,
     )
   ) {
@@ -88,7 +107,7 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 export interface DiscoverOptions {
   /**
    * If set and the tool exists in the result of `tools/list`, the discovery
-   * layer calls `client.callTool({ name: authCheckTool, arguments: {} })`
+   * layer calls `client.callTool({ name: authCheckTool, arguments: <see authCheckArgs> })`
    * with the same 10s timeout. An MCP-style or HTTP-style auth error from
    * that call returns `{ errorKind: 'auth' }`. If the named tool is not
    * present in the live `tools/list`, a warning is logged (best-effort)
@@ -96,6 +115,19 @@ export interface DiscoverOptions {
    * tools as if no auth check had been requested.
    */
   authCheckTool?: string;
+  /**
+   * Optional arguments to pass to the auth-check tool. Defaults to `{}`.
+   * Some MCPs (e.g. Klaviyo) require a non-empty argument shape on every
+   * tool call (validation errors otherwise) — without args the auth check
+   * misclassifies the validation error as `unknown`. Spec 0040.
+   */
+  authCheckArgs?: Record<string, unknown>;
+  /**
+   * Spec 0048 Q1: per-prefix tool-category override. Sourced from the
+   * catalog entry's `categoryPrefixMap` field. The classifier consults this
+   * map BEFORE falling through to the default read/write prefix heuristic.
+   */
+  categoryPrefixMap?: Record<string, ToolCategory>;
 }
 
 export async function discoverTools(
@@ -133,7 +165,9 @@ export async function discoverTools(
     const tools: DiscoveredTool[] = (result.tools as RawTool[]).map((t) => ({
       name: t.name,
       description: t.description ?? null,
-      category: classifyToolCategory(t.name),
+      // Spec 0048 Q1: pass categoryPrefixMap so MCPs with namespaced tool
+      // names (e.g., Klaviyo's klaviyo_*) classify correctly.
+      category: classifyToolCategory(t.name, options?.categoryPrefixMap),
     }));
 
     // Spec 0038 F#2: optional auth probe. After tools/list, call a designated
@@ -153,17 +187,29 @@ export async function discoverTools(
       } else {
         try {
           const callResult = (await withTimeout(
-            client.callTool({ name: options.authCheckTool, arguments: {} }),
+            client.callTool({
+              name: options.authCheckTool,
+              arguments: options.authCheckArgs ?? {},
+            }),
             DISCOVER_TIMEOUT_MS,
           )) as { isError?: boolean; content?: Array<{ type?: string; text?: string }> };
           // The SDK encodes tool-level errors as `{ isError: true, content: [...] }`
           // rather than throwing. We extract the error text and run it through
           // classifyError so 401/403/Unauthorized text → errorKind: 'auth'.
+          // Spec 0041: some MCPs (e.g. smattila/mcp-swarmia) return auth failures
+          // with `isError: false` and the error string embedded in content text.
+          // Also inspect content for auth patterns when isError is unset/false.
+          const contentText = Array.isArray(callResult?.content)
+            ? callResult.content.map((c) => (c?.type === 'text' ? (c.text ?? '') : '')).join(' ')
+            : '';
           if (callResult?.isError) {
-            const text = Array.isArray(callResult.content)
-              ? callResult.content.map((c) => (c?.type === 'text' ? (c.text ?? '') : '')).join(' ')
-              : '';
-            return classifyError(new Error(text || 'auth check tool returned an error'));
+            return classifyError(new Error(contentText || 'auth check tool returned an error'));
+          }
+          if (contentText) {
+            const probe = classifyError(new Error(contentText));
+            if (probe.errorKind === 'auth') {
+              return probe;
+            }
           }
         } catch (err) {
           // Synchronous throws (transport-level / MCP protocol errors).

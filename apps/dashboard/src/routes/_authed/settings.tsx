@@ -4,8 +4,8 @@ import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
 import { RestartWorkerModal } from '@/components/modals/restart-worker-modal';
 import { AboutRow } from '@/components/settings/about-row';
 import { BackendCard } from '@/components/settings/backend-card';
-import { McpServerRow } from '@/components/settings/mcp-server-row';
 import { ProfileFileRow } from '@/components/settings/profile-file-row';
+import { SensitiveToolsSection } from '@/components/settings/sensitive-tools-section';
 import { SettingsSectionSkeleton } from '@/components/skeletons/settings-section-skeleton';
 import { useRestartWorker } from '@/lib/mutations';
 import { useHealth } from '@/lib/use-health';
@@ -36,14 +36,14 @@ function SettingsScreen(): JSX.Element {
         {q.isLoading || !q.data ? (
           <>
             <SettingsSectionSkeleton title="backend" rows={1} />
-            <SettingsSectionSkeleton title="mcp servers" rows={5} />
+            <SettingsSectionSkeleton title="sensitive tools" rows={3} />
             <SettingsSectionSkeleton title="profile files" rows={5} />
             <SettingsSectionSkeleton title="about" rows={3} />
           </>
         ) : (
           <>
             <BackendSection backend={q.data.backend} />
-            <McpSection servers={q.data.mcpServers} />
+            <SensitiveToolsSection />
             <ProfileFilesSection files={q.data.profileFiles} />
             <AboutSection
               backend={q.data.backend.name}
@@ -78,8 +78,9 @@ function Header({ onRestart }: { onRestart: () => void }): JSX.Element {
           settings
         </h1>
         <p className="mt-2.5 max-w-[640px] m-0 font-sans text-sm leading-[1.6] text-text-secondary">
-          Read-only view. Most knobs live in <InlineCode>.env</InlineCode> and{' '}
-          <InlineCode>profile/</InlineCode>; edit there and Zeno hot-reloads.
+          Mostly read-only. Sensitive tool rules are managed below; other knobs live in{' '}
+          <InlineCode>.env</InlineCode> and <InlineCode>profile/</InlineCode> — edit there and Zeno
+          hot-reloads.
         </p>
       </div>
       <RestartWorkerButton onClick={onRestart} />
@@ -163,30 +164,6 @@ function BackendSection({ backend }: { backend: SettingsSnapshot['backend'] }): 
         name={backend.name}
         summary="Claude Agent SDK · OAuth · 300s timeout · gh + claude CLI verified at boot"
       />
-    </Section>
-  );
-}
-
-function McpSection({ servers }: { servers: SettingsSnapshot['mcpServers'] }): JSX.Element {
-  return (
-    <Section title="mcp servers" meta="loaded from profile/mcp.json">
-      <div className="bg-panel border border-border-subtle flex flex-col">
-        {servers.length === 0 ? (
-          <div className="px-5 py-4 font-mono text-xs text-text-tertiary">
-            no servers configured.
-          </div>
-        ) : (
-          servers.map((m, i) => (
-            <McpServerRow
-              key={m.name}
-              server={m}
-              description={m.reason ?? ''}
-              caption={m.status === 'enabled' ? 'process · running' : ''}
-              last={i === servers.length - 1}
-            />
-          ))
-        )}
-      </div>
     </Section>
   );
 }

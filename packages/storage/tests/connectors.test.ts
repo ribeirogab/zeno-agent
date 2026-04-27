@@ -82,7 +82,7 @@ describe('ConnectorRepo — create', () => {
     expect(created.slug).toBe('echo');
     expect(created.args).toEqual(['fixture.js']);
     expect(repo.getSecrets(created.id)).toEqual([
-      { connectorId: created.id, key: 'TOKEN', value: 'xyz' },
+      { connectorId: created.id, key: 'TOKEN', value: 'xyz', isPublic: false },
     ]);
     expect(repo.getTools(created.id)).toHaveLength(2);
     closeDatabase(db);

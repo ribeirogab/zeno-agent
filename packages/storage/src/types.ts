@@ -72,7 +72,11 @@ export type CommandType =
   | 'connector_create'
   | 'connector_update'
   | 'connector_refresh_tools'
-  | 'connector_uninstall';
+  | 'connector_uninstall'
+  // Spec 0044: GitHub App lifecycle commands.
+  | 'app_install'
+  | 'app_pem_rotated'
+  | 'app_uninstall';
 
 export type CommandStatus = 'pending' | 'processing' | 'success' | 'failed';
 
@@ -186,12 +190,65 @@ export interface Connector {
   lastVerifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Spec 0044: FK to connector_apps.id for github-app-* rows. Null otherwise. */
+  appId: string | null;
+}
+
+// Spec 0044: github App row. One per (catalog_id, app_id). Holds the PEM
+// once instead of duplicating it across each installation row.
+export interface ConnectorApp {
+  id: string;
+  catalogId: string;
+  /** Numeric GitHub App id (e.g. '12345'). */
+  appId: string;
+  /** Slug returned by GET /app (e.g. 'acme-bot'). */
+  appSlug: string;
+  /** Display name returned by GET /app. */
+  appName: string;
+  /** Full PEM body (RSA private key). Treated as a secret. */
+  pem: string;
+  /** sha256 of the trimmed PEM body. Used by the UI to display fingerprints. */
+  pemSha256: string;
+  /** ISO timestamp of the last rotation, or null if never rotated. */
+  pemRotatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** Spec 0048 Q2: ISO timestamp of the most recent refresh failure (null on success). */
+  lastRefreshErrorAt: string | null;
+  /** Spec 0048 Q2: brief error message from the most recent failure (null on success). */
+  lastRefreshErrorMessage: string | null;
+}
+
+export interface CreateConnectorAppInput {
+  id?: string;
+  catalogId: string;
+  appId: string;
+  appSlug: string;
+  appName: string;
+  pem: string;
+  pemSha256: string;
+}
+
+export interface UpdateConnectorAppInput {
+  appSlug?: string;
+  appName?: string;
+  pem?: string;
+  pemSha256?: string;
+  pemRotatedAt?: string | null;
+  lastRefreshErrorAt?: string | null;
+  lastRefreshErrorMessage?: string | null;
 }
 
 export interface ConnectorSecret {
   connectorId: string;
   key: string;
   value: string;
+  /**
+   * Spec 0044: when true, the dashboard renders this secret unmasked (e.g.
+   * GitHub App ID). Storage layer treats it identically to other secrets;
+   * the masking decision is UI-only.
+   */
+  isPublic?: boolean;
 }
 
 export interface ConnectorToolPermission {
@@ -226,8 +283,10 @@ export interface CreateConnectorInput {
   args?: string[] | null;
   url?: string | null;
   status?: ConnectorStatus;
-  secrets: Array<{ key: string; value: string }>;
+  secrets: Array<{ key: string; value: string; isPublic?: boolean }>;
   tools: Array<Omit<ConnectorToolPermission, 'connectorId'>>;
+  /** Spec 0044: optional FK to connector_apps.id (github-app-* rows). */
+  appId?: string | null;
 }
 
 export interface UpdateConnectorInput {
@@ -256,4 +315,26 @@ export interface RecordInvocationInput {
   result: InvocationResult;
   durationMs: number;
   errorMessage?: string | null;
+}
+
+// ───────────────────────────────────────────────────────────────────
+// Approval rules (spec 0047)
+// ───────────────────────────────────────────────────────────────────
+
+export type ApprovalRuleSource = 'manual' | 'auto' | 'yaml-migrated';
+
+export interface ApprovalRule {
+  id: string;
+  pattern: string;
+  source: ApprovalRuleSource;
+  createdAt: string;
+  updatedAt: string;
+  notes: string | null;
+}
+
+export interface CreateApprovalRuleInput {
+  id?: string;
+  pattern: string;
+  source: ApprovalRuleSource;
+  notes?: string | null;
 }

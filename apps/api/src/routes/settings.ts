@@ -3,9 +3,8 @@ import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CommandRepo } from '@zeno/storage';
 import { Hono } from 'hono';
-import { mcpSnapshot } from '@/lib/mcp-snapshot';
 
-const TRACKED_FILES = ['SOUL.md', 'USER.md', 'crons.yaml', 'mcp.json'] as const;
+const TRACKED_FILES = ['SOUL.md', 'USER.md', 'crons.yaml'] as const;
 
 export interface SettingsRouteDeps {
   commands: CommandRepo;
@@ -36,7 +35,6 @@ export function buildSettingsRoute(deps: SettingsRouteDeps): Hono {
     const backendName = process.env.ZENO_BACKEND ?? 'claude-code';
     return c.json({
       backend: { name: backendName, selectedVia: 'ZENO_BACKEND env' },
-      mcpServers: mcpSnapshot(deps.profileDir),
       profileFiles: readProfileFiles(deps.profileDir),
     });
   });

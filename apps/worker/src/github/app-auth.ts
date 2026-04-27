@@ -368,10 +368,6 @@ export class GitHubAppAuth {
 
   // ─── Private helpers ────────────────────────────────────────────────────
 
-  private installationByIndex(index: number): string | null {
-    return [...this.installations.keys()][index] ?? null;
-  }
-
   private async refreshAll(): Promise<void> {
     // Spec 0048 Q4: log noise reduction. Routine-success refreshes are
     // silent. Logs fire on:
@@ -526,10 +522,7 @@ export async function loadGitHubAppFromDb(deps: LoadGitHubAppDeps): Promise<GitH
         {
           event: 'github_app_db_row_incomplete',
           slug: connector.slug,
-          missing: [
-            !instId && 'installation_id',
-            !instName && 'installation_name',
-          ].filter(Boolean),
+          missing: [!instId && 'installation_id', !instName && 'installation_name'].filter(Boolean),
         },
         'skipping incomplete github-app connector row',
       );

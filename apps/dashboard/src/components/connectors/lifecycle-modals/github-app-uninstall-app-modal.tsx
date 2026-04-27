@@ -118,11 +118,7 @@ function Header({ appName }: { appName: string }): JSX.Element {
   );
 }
 
-function ConsequencesCallout({
-  installationCount,
-}: {
-  installationCount: number;
-}): JSX.Element {
+function ConsequencesCallout({ installationCount }: { installationCount: number }): JSX.Element {
   return (
     <div className="flex items-start gap-3 px-4 py-3 bg-status-failed/[0.04] border border-status-failed/30 border-l-2 border-l-status-failed">
       <span className="font-mono text-xs leading-4 text-status-failed mt-0.5">!</span>

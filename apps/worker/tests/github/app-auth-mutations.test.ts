@@ -143,9 +143,7 @@ describe('GitHubAppAuth mutations', () => {
         installations: [],
         disableAutoRefresh: true,
       });
-      expect(() =>
-        auth.renameInstallation({ oldName: 'GhostRider', newName: 'X' }),
-      ).not.toThrow();
+      expect(() => auth.renameInstallation({ oldName: 'GhostRider', newName: 'X' })).not.toThrow();
     });
   });
 

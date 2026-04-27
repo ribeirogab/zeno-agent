@@ -19,6 +19,10 @@ RUN set -eux; \
     unzip -q /tmp/awscliv2.zip -d /tmp; \
     /tmp/aws/install; \
     rm -rf /tmp/awscliv2.zip /tmp/aws
+
+# Spec 0040: install `uv` for Python-based MCP servers (Klaviyo, Swarmia).
+RUN curl -LsSf https://astral.sh/uv/0.11.7/install.sh | UV_INSTALL_DIR=/usr/local/bin sh
+
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /app
 

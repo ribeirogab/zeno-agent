@@ -3,6 +3,206 @@
   "version": 1,
   "connectors": [
     {
+      "id": "klaviyo",
+      "name": "Klaviyo",
+      "description": "Email/SMS marketing — campaigns, lists, segments, profiles, events.",
+      "icon": "klaviyo.svg",
+      "docsUrl": "https://developers.klaviyo.com/en/docs/klaviyo_mcp_server",
+      "transport": "stdio",
+      "transportConfig": {
+        "command": "uvx",
+        "args": [
+          "klaviyo-mcp-server@latest"
+        ]
+      },
+      "authCheckTool": "klaviyo_get_account_details",
+      "authCheckArgs": {
+        "model": "other"
+      },
+      "secrets": [
+        {
+          "key": "PRIVATE_API_KEY",
+          "label": "Private API Key",
+          "help": "Klaviyo private API key (pk_…). Create at klaviyo.com/settings/api-keys with at least read scopes for accounts, campaigns, lists.",
+          "required": true
+        }
+      ],
+      "tools": [
+        {
+          "name": "klaviyo_assign_template_to_campaign_message",
+          "description": "Assigns an email template to a campaign message.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_create_campaign",
+          "description": "Creates a new draft campaign.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_create_email_template",
+          "description": "Create a new email template from the given HTML.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_create_event",
+          "description": "Create an event.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_create_profile",
+          "description": "Create a new profile.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_account_details",
+          "description": "Get the details of the account.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_campaign",
+          "description": "Returns a specific campaign based on a required id.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_campaign_report",
+          "description": "Returns metrics data for campaigns with the given filters and within the given timeframe.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_campaigns",
+          "description": "Returns some or all campaigns based on filters.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_catalog_items",
+          "description": "Get all catalog items in an account.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_email_template",
+          "description": "Get an email template with the given data.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_events",
+          "description": "Get events for a given filter such as a profile ID or metric ID.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_flow",
+          "description": "Returns a flow by ID.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_flow_report",
+          "description": "Returns metrics data for flows with the given filters and within the given timeframe.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_flows",
+          "description": "Returns some or all flows based on filters.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_list",
+          "description": "Get a list with the given list ID.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_lists",
+          "description": "Get all lists in an account.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_metric",
+          "description": "Get a metric with the given metric ID.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_metrics",
+          "description": "Get all metrics in an account.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_profile",
+          "description": "Get details of the profile with the given profile ID.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_profiles",
+          "description": "Get all profiles in an account.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_segment",
+          "description": "Get a segment with the given segment ID.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_get_segments",
+          "description": "Get all segments in an account.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_subscribe_profile_to_marketing",
+          "description": "Subscribe a profile to marketing for a given channel.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_unsubscribe_profile_from_marketing",
+          "description": "Unsubscribe a profile from marketing for a given channel.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_update_profile",
+          "description": "Update the profile with the given profile ID.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_upload_image_from_file",
+          "description": "Upload an image from a file.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "klaviyo_upload_image_from_url",
+          "description": "Upload an image from a URL or data URI.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        }
+      ],
+      "tags": [
+        "marketing",
+        "email"
+      ]
+    },
+    {
       "id": "linear",
       "name": "Linear",
       "description": "Issues, projects, cycles, docs, and team metadata.",
@@ -206,6 +406,76 @@
       "tags": [
         "issues",
         "project-management"
+      ]
+    },
+    {
+      "id": "swarmia",
+      "name": "Swarmia",
+      "description": "Engineering metrics — DORA, throughput, code review.",
+      "icon": "swarmia.svg",
+      "docsUrl": "https://help.swarmia.com/settings/integrations/data-export/export-api",
+      "transport": "stdio",
+      "transportConfig": {
+        "command": "uvx",
+        "args": [
+          "--from",
+          "git+https://github.com/smattila/mcp-swarmia",
+          "python",
+          "-m",
+          "server"
+        ]
+      },
+      "authCheckTool": "get_dora_metrics",
+      "secrets": [
+        {
+          "key": "SWARMIA_API_TOKEN",
+          "label": "API Token",
+          "help": "Personal API token from your Swarmia profile (Settings → API tokens). Read-only access to Export API.",
+          "required": true
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_capex",
+          "description": "Fetch the software capitalisation (CapEx) report from Swarmia.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_capex_employees",
+          "description": "Fetch the capitalisation employee breakdown from Swarmia for a given year.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_dora_metrics",
+          "description": "Fetch organisation-level DORA metrics from Swarmia (deployment frequency, lead time for changes, change failure rate, mean time to restore).",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_fte",
+          "description": "Fetch monthly engineering effort (FTE) by author from Swarmia.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_investment_balance",
+          "description": "Fetch monthly FTE investment balance from Swarmia showing how engineering effort is distributed across investment categories.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_pull_requests",
+          "description": "Fetch team-level pull request metrics from Swarmia.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        }
+      ],
+      "tags": [
+        "engineering",
+        "metrics",
+        "dora"
       ]
     },
     {

@@ -88,7 +88,7 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 export interface DiscoverOptions {
   /**
    * If set and the tool exists in the result of `tools/list`, the discovery
-   * layer calls `client.callTool({ name: authCheckTool, arguments: {} })`
+   * layer calls `client.callTool({ name: authCheckTool, arguments: <see authCheckArgs> })`
    * with the same 10s timeout. An MCP-style or HTTP-style auth error from
    * that call returns `{ errorKind: 'auth' }`. If the named tool is not
    * present in the live `tools/list`, a warning is logged (best-effort)
@@ -96,6 +96,13 @@ export interface DiscoverOptions {
    * tools as if no auth check had been requested.
    */
   authCheckTool?: string;
+  /**
+   * Optional arguments to pass to the auth-check tool. Defaults to `{}`.
+   * Some MCPs (e.g. Klaviyo) require a non-empty argument shape on every
+   * tool call (validation errors otherwise) — without args the auth check
+   * misclassifies the validation error as `unknown`. Spec 0040.
+   */
+  authCheckArgs?: Record<string, unknown>;
 }
 
 export async function discoverTools(
@@ -153,17 +160,29 @@ export async function discoverTools(
       } else {
         try {
           const callResult = (await withTimeout(
-            client.callTool({ name: options.authCheckTool, arguments: {} }),
+            client.callTool({
+              name: options.authCheckTool,
+              arguments: options.authCheckArgs ?? {},
+            }),
             DISCOVER_TIMEOUT_MS,
           )) as { isError?: boolean; content?: Array<{ type?: string; text?: string }> };
           // The SDK encodes tool-level errors as `{ isError: true, content: [...] }`
           // rather than throwing. We extract the error text and run it through
           // classifyError so 401/403/Unauthorized text → errorKind: 'auth'.
+          // Spec 0041: some MCPs (e.g. smattila/mcp-swarmia) return auth failures
+          // with `isError: false` and the error string embedded in content text.
+          // Also inspect content for auth patterns when isError is unset/false.
+          const contentText = Array.isArray(callResult?.content)
+            ? callResult.content.map((c) => (c?.type === 'text' ? (c.text ?? '') : '')).join(' ')
+            : '';
           if (callResult?.isError) {
-            const text = Array.isArray(callResult.content)
-              ? callResult.content.map((c) => (c?.type === 'text' ? (c.text ?? '') : '')).join(' ')
-              : '';
-            return classifyError(new Error(text || 'auth check tool returned an error'));
+            return classifyError(new Error(contentText || 'auth check tool returned an error'));
+          }
+          if (contentText) {
+            const probe = classifyError(new Error(contentText));
+            if (probe.errorKind === 'auth') {
+              return probe;
+            }
           }
         } catch (err) {
           // Synchronous throws (transport-level / MCP protocol errors).

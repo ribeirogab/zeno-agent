@@ -44,6 +44,12 @@ export const catalogEntrySchema = z.object({
    * calling a real tool is the only deterministic auth check. Spec 0038 F#2.
    */
   authCheckTool: z.string().optional(),
+  /**
+   * Optional arguments to pass to the auth-check tool. Some MCPs (e.g. Klaviyo)
+   * require a non-empty argument shape on every tool call. Without this, the
+   * call returns a validation error and the auth check misclassifies. Spec 0040.
+   */
+  authCheckArgs: z.record(z.string(), z.unknown()).optional(),
   tags: z.array(z.string()).optional(),
 });
 

@@ -259,10 +259,16 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     }));
     // Spec 0038 F#2: pass authCheckTool from the catalog entry so the
     // test endpoint actually validates credentials (not just tools/list).
+    // Spec 0040: also pass authCheckArgs for MCPs requiring non-empty input.
     const result = await discoverTools(
       transient,
       secrets,
-      entry.authCheckTool ? { authCheckTool: entry.authCheckTool } : {},
+      entry.authCheckTool
+        ? {
+            authCheckTool: entry.authCheckTool,
+            ...(entry.authCheckArgs ? { authCheckArgs: entry.authCheckArgs } : {}),
+          }
+        : {},
     );
     if ('error' in result) {
       return c.json({ ok: false, errorKind: result.errorKind, error: result.error });
@@ -410,12 +416,19 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     const secrets = deps.connectors.getSecrets(id);
     // Spec 0038 F#2: pass authCheckTool from the catalog entry if this
     // connector was installed from one. Custom connectors get no auth probe.
+    // Spec 0040: also pass authCheckArgs.
     let authCheckTool: string | undefined;
+    let authCheckArgs: Record<string, unknown> | undefined;
     if (connector.source === 'catalog' && connector.catalogId) {
       const entry = findCatalogEntry(connector.catalogId);
       authCheckTool = entry?.authCheckTool;
+      authCheckArgs = entry?.authCheckArgs;
     }
-    const result = await discoverTools(connector, secrets, authCheckTool ? { authCheckTool } : {});
+    const result = await discoverTools(
+      connector,
+      secrets,
+      authCheckTool ? { authCheckTool, ...(authCheckArgs ? { authCheckArgs } : {}) } : {},
+    );
     if ('error' in result) {
       deps.connectors.update(id, { lastError: result.error, lastErrorAt: nowIso() });
       return c.json({ ok: false, errorKind: result.errorKind, error: result.error });

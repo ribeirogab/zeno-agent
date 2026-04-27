@@ -1,8 +1,8 @@
 ---
-status: approved
+status: shipped
 feature: connector-swarmia
 created: 2026-04-27
-shipped: null
+shipped: 2026-04-27
 ---
 # Swarmia Connector — Spec
 
@@ -111,6 +111,14 @@ Add Swarmia as a catalog connector. Operator pastes API token, dashboard tests, 
 
 - Same as Linear / Klaviyo: non-owner runtime path unobservable.
 - Swarmia's MCP is community-maintained; less stability guarantee than Sentry/Linear. Documented.
+
+## Findings during implementation
+
+- **Finding #1: Pivoted upstream variant**. Original `mattjegan/swarmia-mcp` is a single Python script with no `pyproject.toml`, so `uvx --from git+...` can't install it. Switched to `smattila/mcp-swarmia` which has `pyproject.toml`. The catalog command becomes `uvx --from git+https://github.com/smattila/mcp-swarmia python -m server` (uvx installs the package then invokes the `server` module as `__main__`). Tools are renamed: `dora_metrics` → `get_dora_metrics`, `team_metrics` → (n/a; smattila exposes pull request, DORA, investment, capex, fte). 6 tools total, all with `get_` prefix → classify as `read`. Updated `authCheckTool` to `get_dora_metrics`.
+
+- **Finding #2: smattila MCP returns auth errors with `isError: false`**. The MCP wraps HTTP failures in success-shaped responses with the error text in `content`. `discoverTools`'s auth-check probe only fired on `isError: true`. Fix landed in this spec: when `isError` is unset/false but `content` text matches the auth regex, classify as `auth`. Benefits any MCP that returns errors-as-content (community MCPs frequently do).
+
+- **Finding #3: `authCheckArgs` plumbing**. Klaviyo (spec 0040) had similar issue and led to `authCheckArgs` field in `catalogEntrySchema`. Swarmia's `get_dora_metrics` works with empty args, so doesn't use `authCheckArgs`.
 
 ## Review procedure
 

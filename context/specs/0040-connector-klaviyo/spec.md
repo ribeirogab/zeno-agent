@@ -1,8 +1,8 @@
 ---
-status: approved
+status: shipped
 feature: connector-klaviyo
 created: 2026-04-27
-shipped: null
+shipped: 2026-04-27
 ---
 # Klaviyo Connector — Spec
 
@@ -117,6 +117,14 @@ Add Klaviyo as a catalog connector. Operator pastes API key, dashboard tests, in
 
 - Same as Linear: non-owner runtime path for write tools unobservable in single-tenant `fn`.
 - OAuth flow path unobservable.
+
+## Findings during implementation
+
+- **Finding #1: Klaviyo MCP requires non-empty args on every tool call**. Every tool in `klaviyo-mcp-server@latest` requires structured input (Pydantic-validated). The existing `discoverTools.authCheckTool` plumbing called the tool with `arguments: {}`, which surfaced as a Pydantic validation error rather than an auth error. Fix: extended `DiscoverOptions` and `catalogEntrySchema` with `authCheckArgs?: Record<string, unknown>` (passed through `discoverTools` and the catalog test endpoint). Klaviyo's catalog entry sets `authCheckArgs: { model: "other" }` (the MCP requires a literal `model` of `'claude' | 'gpt' | 'gemini' | 'other'` on every call). Bad token now correctly returns `errorKind: 'auth'` (HTTP 401 from Klaviyo's API).
+
+- **Finding #2: Klaviyo tool prefix breaks default classification**. All tools are named `klaviyo_*` (e.g., `klaviyo_get_campaigns`, `klaviyo_create_event`). The standard prefix matcher in `classifyToolCategory` (read=`get_/list_/...`, write=`create_/...`) doesn't fire because the leading prefix is `klaviyo_`, so all 28 tools classify as `interactive` (default `ask` permission). Owner DM auto-allows via classifier_gate, so functionally fine; ergonomics could be improved later with a per-connector classification override.
+
+- **Finding #3: Auth tool name has prefix too**. Initial spec used `authCheckTool: 'get_account'`, but the actual tool name from the live MCP is `klaviyo_get_account_details`. Fixed in catalog entry.
 
 ## Review procedure
 

@@ -1,4 +1,146 @@
 {
+  "klaviyo": [
+    {
+      "name": "klaviyo_assign_template_to_campaign_message",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_create_campaign",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_create_email_template",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_create_event",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_create_profile",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_account_details",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_campaign",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_campaign_report",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_campaigns",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_catalog_items",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_email_template",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_events",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_flow",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_flow_report",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_flows",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_list",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_lists",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_metric",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_metrics",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_profile",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_profiles",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_segment",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_get_segments",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_subscribe_profile_to_marketing",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_unsubscribe_profile_from_marketing",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_update_profile",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_upload_image_from_file",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "klaviyo_upload_image_from_url",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    }
+  ],
   "linear": [
     {
       "name": "extract_images",
@@ -149,6 +291,38 @@
       "name": "delete_comment",
       "category": "write",
       "defaultPermission": "ask"
+    }
+  ],
+  "swarmia": [
+    {
+      "name": "get_capex",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_capex_employees",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_dora_metrics",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_fte",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_investment_balance",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_pull_requests",
+      "category": "read",
+      "defaultPermission": "always_allow"
     }
   ],
   "sentry": [

@@ -47,3 +47,16 @@ When validating a feature against a live integration:
 2. **Don't assume "Test" buttons validate auth** — for any MCP, manually run a tool-use call with a known-bad token to see what happens. If `tools/list` returns OK without auth, the test endpoint isn't actually testing.
 3. **Trust durable observability paths** — `approvals_log` (DB) is more reliable than worker stdout/log greps for assertion paths, and more durable than `connector_invocations` for permission-policy outcomes (which mix runtime errors and policy denies).
 4. **The spec is a hypothesis; the live system is the truth.** When they diverge, update the spec to reflect reality, then re-run the validation. Don't try to bend reality to the spec.
+
+## Resolved 2026-04-26
+
+All three findings resolved by [[../specs/0038-connectors-three-findings/spec]] (status: shipped). Each fix landed with a regression test in [[../specs/0037-connectors-test-strategy/spec]] Phase A:
+
+- **#1**: catalog regenerated to match live `@sentry/mcp-server` (22 tools). Test: `apps/worker/tests/connectors-e2e/p1-catalog.test.ts` P1.5 (snapshot self-consistency).
+- **#2**: `authCheckTool` field added to catalog schema; `discoverTools` calls it after `tools/list` and surfaces auth errors via the broadened classifyError regex (now matches Sentry's "Authorization Expired" phrasing). Sentry catalog uses `whoami`. Test: P1.3 (fixture `FIXTURE_FAIL=auth` mode + `authCheckTool: 'read_echo'` returns `errorKind: 'auth'`).
+- **#3**: `guarded-backend.ts` PreToolUse hook prepends `policy_denied: ` to `permissionDecisionReason` on the deny branch. `connector_invocations.error_message` now distinguishes policy denies from MCP errors at a glance. Test: P4.2 (asserts `error_message LIKE 'policy_denied:%'`).
+
+Live profile manual smoke (2026-04-26, post-rebuild):
+- catalog test bad token → `{ ok: false, errorKind: 'auth' }` ✓ (Finding #2 fix)
+- catalog test real token → `{ ok: true, toolCount: 22, durationMs: 1285 }` ✓
+- Slack DM with `list_issues=never` → agent replied "Ação negada — connector sentry permission=never for list_issues"; DB row in `connector_invocations` has `error_message='policy_denied: connector sentry permission=never for list_issues'` ✓ (Finding #3 fix)

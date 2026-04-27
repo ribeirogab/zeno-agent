@@ -1,8 +1,8 @@
 ---
-status: approved
+status: shipped
 feature: connectors-three-findings
 created: 2026-04-26
-shipped: null
+shipped: 2026-04-26
 depends_on: "[[../0037-connectors-test-strategy/spec]]"
 ---
 # Connectors Three Findings — Spec

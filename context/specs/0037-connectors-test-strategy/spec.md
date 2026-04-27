@@ -1,8 +1,8 @@
 ---
-status: approved
+status: shipped
 feature: connectors-test-strategy
 created: 2026-04-26
-shipped: null
+shipped: 2026-04-26
 supersedes: "[[../0035-connectors-e2e/spec]]"
 ---
 # Connectors Test Strategy — Spec

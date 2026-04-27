@@ -2,6 +2,7 @@ export { closeDatabase, type DB, openDatabase } from './db.js';
 export { runMigrations } from './migrations.js';
 export { ApprovalsLogRepo } from './repos/approvals-log.js';
 export { CommandRepo } from './repos/commands.js';
+export { ConnectorAppRepo } from './repos/connector-apps.js';
 export { ConnectorRepo, type ListConnectorsFilter } from './repos/connectors.js';
 export { CronRunRepo } from './repos/cron-runs.js';
 export { CronRepo } from './repos/crons.js';
@@ -14,6 +15,7 @@ export type {
   CommandStatus,
   CommandType,
   Connector,
+  ConnectorApp,
   ConnectorInvocation,
   ConnectorSecret,
   ConnectorSource,
@@ -23,6 +25,7 @@ export type {
   ConnectorWithRelations,
   CreateApprovalsLogEntry,
   CreateCommandInput,
+  CreateConnectorAppInput,
   CreateConnectorInput,
   CreateCronInput,
   CreateLogInput,
@@ -39,6 +42,7 @@ export type {
   Session,
   ToolCategory,
   ToolPermission,
+  UpdateConnectorAppInput,
   UpdateConnectorInput,
   UpdateCronInput,
 } from './types.js';

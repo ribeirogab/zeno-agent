@@ -6,6 +6,7 @@ import { serve } from '@hono/node-server';
 import { createLogger } from '@zeno/logger';
 import {
   CommandRepo,
+  ConnectorAppRepo,
   ConnectorRepo,
   CronRepo,
   CronRunRepo,
@@ -43,6 +44,7 @@ function main(): void {
   const commandRepo = new CommandRepo(db);
   const logRepo = new LogRepo(db);
   const connectorRepo = new ConnectorRepo(db);
+  const connectorAppRepo = new ConnectorAppRepo(db);
   const logger = createLogger({ service: 'api', dbSink: logRepo });
   const here = dirname(fileURLToPath(import.meta.url));
   // After build: apps/api/dist/index.js → ../.. → apps → /dashboard/dist
@@ -59,6 +61,7 @@ function main(): void {
     commandRepo,
     logRepo,
     connectorRepo,
+    connectorAppRepo,
     claudeHome,
     profileDir,
     spaDir,

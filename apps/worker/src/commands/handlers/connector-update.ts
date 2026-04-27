@@ -1,7 +1,12 @@
+import { createLogger } from '@zeno/logger';
 import { discoverTools } from '@zeno/mcp-discover';
 import type { ConnectorRepo } from '@zeno/storage';
 import { z } from 'zod';
 import type { Handler } from '@/commands/dispatcher';
+import type { HandlerDeps } from '@/commands/handlers';
+import { GITHUB_APP_RESERVED_KEYS } from '@/github/app-auth';
+
+const logger = createLogger({ service: 'worker' });
 
 const payloadSchema = z.object({
   id: z.string(),
@@ -14,38 +19,81 @@ const payloadSchema = z.object({
       url: z.string().nullable().optional(),
     })
     .optional(),
-  secrets: z.array(z.object({ key: z.string(), value: z.string() })).optional(),
+  secrets: z
+    .array(z.object({ key: z.string(), value: z.string(), isPublic: z.boolean().optional() }))
+    .optional(),
 });
 
-export function buildConnectorUpdateHandler(connectors: ConnectorRepo): Handler {
+type Deps = Pick<HandlerDeps, 'connectors' | 'getGithubApp'>;
+
+export function buildConnectorUpdateHandler(deps: Deps): Handler;
+export function buildConnectorUpdateHandler(connectors: ConnectorRepo): Handler;
+export function buildConnectorUpdateHandler(arg: Deps | ConnectorRepo): Handler {
+  const deps: Deps =
+    'connectors' in (arg as Deps)
+      ? (arg as Deps)
+      : { connectors: arg as ConnectorRepo, getGithubApp: () => null };
   return async (cmd) => {
     const parsed = payloadSchema.safeParse(cmd.payload ? JSON.parse(cmd.payload) : null);
     if (!parsed.success) return { ok: false, error: `invalid payload: ${parsed.error.message}` };
     const { id, patch, secrets } = parsed.data;
-    const connector = connectors.get(id);
+    const connector = deps.connectors.get(id);
     if (!connector) return { ok: false, error: 'connector_not_found' };
 
+    // Spec 0044: capture old github-app reserved values BEFORE we mutate, so
+    // we can compare against the new ones and dispatch renameInstallation if
+    // env_var or name changed.
+    let oldName: string | null = null;
+    let oldEnvVar: string | null = null;
+    if (connector.slug.startsWith('github-app-')) {
+      const before = deps.connectors.getSecrets(id);
+      oldName =
+        before.find((s) => s.key === GITHUB_APP_RESERVED_KEYS.INSTALLATION_NAME)?.value ?? null;
+      oldEnvVar = before.find((s) => s.key === GITHUB_APP_RESERVED_KEYS.ENV_VAR)?.value ?? null;
+    }
+
     if (patch && Object.keys(patch).length > 0) {
-      connectors.update(id, patch);
+      deps.connectors.update(id, patch);
     }
     if (secrets !== undefined) {
-      connectors.replaceSecrets(id, secrets);
-      // Internal test on the new credentials. Inherits the 10s timeout from
-      // discoverTools — acceptable at single-user scale (rare event, single connector).
-      const refreshed = connectors.get(id);
-      if (refreshed) {
-        const result = await discoverTools(refreshed, connectors.getSecrets(id));
-        if ('error' in result) {
-          connectors.update(id, {
-            lastError: result.error,
-            lastErrorAt: new Date().toISOString(),
-          });
-        } else {
-          connectors.update(id, {
-            lastError: null,
-            lastErrorAt: null,
-            lastVerifiedAt: new Date().toISOString(),
-          });
+      deps.connectors.replaceSecrets(id, secrets);
+
+      // Spec 0044: if this is a github-app-* connector, surgically update the
+      // singleton instead of re-running discoverTools (the github-app slugs
+      // pull tools from the catalog, not from the live MCP — and discoverTools
+      // would fail anyway since the secrets shape is reserved).
+      if (connector.slug.startsWith('github-app-')) {
+        const githubApp = deps.getGithubApp();
+        const map = new Map(secrets.map((s) => [s.key, s.value]));
+        const newName = map.get(GITHUB_APP_RESERVED_KEYS.INSTALLATION_NAME) ?? oldName ?? null;
+        const newEnvVar = map.get(GITHUB_APP_RESERVED_KEYS.ENV_VAR) ?? oldEnvVar ?? null;
+        if (githubApp && oldName && oldEnvVar && newName && newEnvVar) {
+          if (oldName !== newName || oldEnvVar !== newEnvVar) {
+            githubApp.renameInstallation({ oldName, newName, oldEnvVar, newEnvVar });
+          }
+        } else if (!githubApp) {
+          logger.warn(
+            { event: 'connector_update_no_github_app', slug: connector.slug },
+            'connector_update for github-app-* but GitHubAppAuth singleton is null',
+          );
+        }
+      } else {
+        // Non-github-app connector: re-run discoverTools to validate new secrets.
+        const refreshed = deps.connectors.get(id);
+        if (refreshed) {
+          const result = await discoverTools(refreshed, deps.connectors.getSecrets(id));
+          if ('error' in result) {
+            deps.connectors.update(id, {
+              lastError: result.error,
+              lastErrorAt: new Date().toISOString(),
+            });
+          } else {
+            deps.connectors.update(id, {
+              lastError: null,
+              lastErrorAt: null,
+              lastVerifiedAt: new Date().toISOString(),
+            });
+          }
         }
       }
     }

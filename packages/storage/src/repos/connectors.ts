@@ -34,12 +34,14 @@ interface ConnectorRow {
   last_verified_at: string | null;
   created_at: string;
   updated_at: string;
+  app_id: string | null;
 }
 
 interface SecretRow {
   connector_id: string;
   key: string;
   value: string;
+  is_public: number | null;
 }
 
 interface ToolRow {
@@ -88,11 +90,17 @@ function rowToConnector(row: ConnectorRow): Connector {
     lastVerifiedAt: row.last_verified_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    appId: row.app_id,
   };
 }
 
 function rowToSecret(row: SecretRow): ConnectorSecret {
-  return { connectorId: row.connector_id, key: row.key, value: row.value };
+  return {
+    connectorId: row.connector_id,
+    key: row.key,
+    value: row.value,
+    isPublic: row.is_public === 1,
+  };
 }
 
 function rowToTool(row: ToolRow): ConnectorToolPermission {
@@ -197,8 +205,8 @@ export class ConnectorRepo {
         .prepare(
           `INSERT INTO connectors (
              id, slug, display_name, description, source, catalog_id,
-             transport, command, args, url, status
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             transport, command, args, url, status, app_id
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -212,13 +220,14 @@ export class ConnectorRepo {
           input.args ? JSON.stringify(input.args) : null,
           input.url ?? null,
           status,
+          input.appId ?? null,
         );
 
       const insertSecret = this.db.prepare(
-        'INSERT INTO connector_secrets (connector_id, key, value) VALUES (?, ?, ?)',
+        'INSERT INTO connector_secrets (connector_id, key, value, is_public) VALUES (?, ?, ?, ?)',
       );
       for (const secret of input.secrets) {
-        insertSecret.run(id, secret.key, secret.value);
+        insertSecret.run(id, secret.key, secret.value, secret.isPublic ? 1 : 0);
       }
 
       const insertTool = this.db.prepare(
@@ -291,14 +300,17 @@ export class ConnectorRepo {
     return updated;
   }
 
-  replaceSecrets(connectorId: string, secrets: Array<{ key: string; value: string }>): void {
+  replaceSecrets(
+    connectorId: string,
+    secrets: Array<{ key: string; value: string; isPublic?: boolean }>,
+  ): void {
     const replace = this.db.transaction(() => {
       this.db.prepare('DELETE FROM connector_secrets WHERE connector_id = ?').run(connectorId);
       const insert = this.db.prepare(
-        'INSERT INTO connector_secrets (connector_id, key, value) VALUES (?, ?, ?)',
+        'INSERT INTO connector_secrets (connector_id, key, value, is_public) VALUES (?, ?, ?, ?)',
       );
       for (const secret of secrets) {
-        insert.run(connectorId, secret.key, secret.value);
+        insert.run(connectorId, secret.key, secret.value, secret.isPublic ? 1 : 0);
       }
     });
     replace();

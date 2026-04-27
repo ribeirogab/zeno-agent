@@ -317,4 +317,88 @@ describe('buildMcpServersMap', () => {
     spy.mockRestore();
     close();
   });
+
+  // Spec 0042/0044: github-app-* intercept covers runtime spawn path.
+  describe('github-app intercept', () => {
+    function makeFakeGithubApp(cachedToken: string | null) {
+      return {
+        getCachedToken: vi.fn(() => cachedToken),
+        getToken: vi.fn(),
+        invalidateCache: vi.fn(),
+        getInstallationNames: vi.fn(() => ['Test']),
+        getAppId: vi.fn(() => '1'),
+        bootstrap: vi.fn(),
+        stop: vi.fn(),
+        addInstallation: vi.fn(),
+        removeInstallation: vi.fn(),
+        renameInstallation: vi.fn(),
+        rotatePem: vi.fn(),
+        appUninstall: vi.fn(),
+      } as unknown as Parameters<typeof buildMcpServersMap>[0]['githubApp'];
+    }
+
+    function seedGithubAppConnector(
+      repo: ConnectorRepo,
+      installationName: string,
+      envVar: string,
+    ): void {
+      repo.create({
+        slug: `github-app-${installationName.toLowerCase()}`,
+        displayName: `GitHub App — ${installationName}`,
+        source: 'catalog',
+        catalogId: 'github-app',
+        transport: 'stdio',
+        command: 'github-mcp-server',
+        args: ['stdio'],
+        secrets: [
+          { key: '__GITHUB_INSTALLATION_ID__', value: '999' },
+          { key: '__GITHUB_INSTALLATION_NAME__', value: installationName },
+          { key: '__GITHUB_ENV_VAR__', value: envVar },
+        ],
+        tools: [],
+      });
+    }
+
+    it('synthesizes GITHUB_PERSONAL_ACCESS_TOKEN from cached token', () => {
+      const { repo, close } = makeRepo();
+      seedGithubAppConnector(repo, 'Acme', 'GITHUB_TOKEN_ACME');
+      const githubApp = makeFakeGithubApp('ghs_live_token');
+      const result = buildMcpServersMap({ connectorRepo: repo, githubApp, logger });
+      expect(result['github-app-acme']).toMatchObject({
+        type: 'stdio',
+        command: 'github-mcp-server',
+        env: { GITHUB_PERSONAL_ACCESS_TOKEN: 'ghs_live_token' },
+      });
+      // Reserved keys MUST NOT be forwarded as env vars.
+      const env = (result['github-app-acme'] as { env?: Record<string, string> } | undefined)?.env;
+      expect(env).toBeDefined();
+      if (env) {
+        expect(env.__GITHUB_INSTALLATION_ID__).toBeUndefined();
+        expect(env.__GITHUB_INSTALLATION_NAME__).toBeUndefined();
+        expect(env.__GITHUB_ENV_VAR__).toBeUndefined();
+      }
+      close();
+    });
+
+    it('records last_error and skips when github-app singleton is null', () => {
+      const { repo, close } = makeRepo();
+      seedGithubAppConnector(repo, 'Acme', 'GITHUB_TOKEN_ACME');
+      const result = buildMcpServersMap({ connectorRepo: repo, logger });
+      expect(result['github-app-acme']).toBeUndefined();
+      const updated = repo.getBySlug('github-app-acme');
+      expect(updated?.lastError).toMatch(/githubApp/);
+      close();
+    });
+
+    it('records last_error on cache miss (not a fatal exception)', () => {
+      const { repo, close } = makeRepo();
+      seedGithubAppConnector(repo, 'Acme', 'GITHUB_TOKEN_ACME');
+      const githubApp = makeFakeGithubApp(null); // cache miss
+      const result = buildMcpServersMap({ connectorRepo: repo, githubApp, logger });
+      expect(result['github-app-acme']).toBeUndefined();
+      const updated = repo.getBySlug('github-app-acme');
+      expect(updated?.lastError).toMatch(/cache miss/);
+      close();
+    });
+  });
 });

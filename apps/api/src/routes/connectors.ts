@@ -11,10 +11,20 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { zValidator } from '@hono/zod-validator';
+import {
+  computePemSha256,
+  fetchAppMetadata,
+  fetchInstallations,
+  GitHubAppError,
+  looksLikePem,
+  mintInstallationToken,
+  signAppJwt,
+} from '@zeno/github-app';
 import { discoverTools } from '@zeno/mcp-discover';
 import type {
   CommandRepo,
   Connector,
+  ConnectorAppRepo,
   ConnectorRepo,
   ConnectorSecret,
   ToolCategory,
@@ -114,18 +124,26 @@ function iconUrlForConnector(connector: Connector): string | null {
 
 // ─── Schemas ─────────────────────────────────────────────────────────────
 
+// Spec 0044: secrets carry an optional `isPublic` flag that the dashboard uses
+// to skip masking on safe-to-display fields (e.g., GitHub App ID).
+const apiSecretSchema = z.object({
+  key: z.string(),
+  value: z.string(),
+  isPublic: z.boolean().optional(),
+});
+
 const testConnectionSchema = z.object({
   transport: z.enum(['stdio', 'remote']),
   command: z.string().optional(),
   args: z.array(z.string()).optional(),
   url: z.string().optional(),
-  secrets: z.array(z.object({ key: z.string(), value: z.string() })),
+  secrets: z.array(apiSecretSchema),
 });
 
 const createCatalogSchema = z.object({
   source: z.literal('catalog'),
   catalogId: z.string(),
-  secrets: z.array(z.object({ key: z.string(), value: z.string() })),
+  secrets: z.array(apiSecretSchema),
 });
 
 const createCustomSchema = z.object({
@@ -135,7 +153,7 @@ const createCustomSchema = z.object({
   command: z.string().optional(),
   args: z.array(z.string()).optional(),
   url: z.string().optional(),
-  secrets: z.array(z.object({ key: z.string(), value: z.string() })),
+  secrets: z.array(apiSecretSchema),
   tools: z
     .array(
       z.object({
@@ -156,7 +174,7 @@ const patchSchema = z.object({
   command: z.string().nullable().optional(),
   args: z.array(z.string()).nullable().optional(),
   url: z.string().nullable().optional(),
-  secrets: z.array(z.object({ key: z.string(), value: z.string() })).optional(),
+  secrets: z.array(apiSecretSchema).optional(),
 });
 
 const permissionSchema = z.object({
@@ -173,6 +191,8 @@ const bulkPermissionSchema = z.object({
 export interface ConnectorsRouteDeps {
   connectors: ConnectorRepo;
   commands: CommandRepo;
+  /** Spec 0044: optional ConnectorApp repo enables /catalog/github-app/* endpoints. */
+  connectorApps?: ConnectorAppRepo;
   rateLimiter?: SecretRateLimiter;
 }
 
@@ -239,7 +259,374 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     });
   });
 
+  // ── Spec 0044: GitHub App v2 endpoints ─────────────────────────────────
+  //
+  // These STATIC routes MUST come before `/catalog/:id/test` since Hono
+  // matches in registration order — without this, `/catalog/github-app/test`
+  // would hit the dynamic `:id='github-app'` handler.
+  //
+  // The v1 endpoint (commit dcfcd2a) created N installation rows in one shot
+  // by enqueuing `connector_create` commands; the App PEM was duplicated
+  // across each row, and discoverability + lifecycle ops were impossible. v2
+  // splits responsibility:
+  //   POST /catalog/github-app/test          — validate {appId, pem} (no DB write)
+  //   POST /catalog/github-app/install       — sync DB write + async worker bootstrap
+  //   POST /catalog/github-app/installations/discover — list installs from GitHub
+  //   POST /catalog/github-app/installations  — add 1 installation (creates connector row)
+  //   POST /catalog/github-app/rotate-pem     — atomic PEM swap
+  //   POST /catalog/github-app/uninstall-app  — tear down App + cascade
+  //   GET  /catalog/github-app/app            — read installed App metadata
+  //
+  // All endpoints require `deps.connectorApps` to be wired (server.ts).
+
+  const githubAppTestSchema = z.object({
+    appId: z.string().min(1),
+    pem: z
+      .string()
+      .min(1)
+      .refine(looksLikePem, { message: 'pem must be a PEM-formatted private key' }),
+  });
+  route.post('/catalog/github-app/test', zValidator('json', githubAppTestSchema), async (c) => {
+    const body = c.req.valid('json');
+    let jwt: string;
+    try {
+      jwt = signAppJwt({ appId: body.appId, privateKey: body.pem });
+    } catch (err) {
+      return c.json({
+        ok: false,
+        errorKind: 'auth' as const,
+        error: `pem could not sign a JWT: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+    try {
+      const meta = await fetchAppMetadata(jwt);
+      if (meta.appId !== body.appId) {
+        return c.json({
+          ok: false,
+          errorKind: 'auth' as const,
+          error: `appId mismatch: pem signs JWT for ${meta.appId}, not ${body.appId}`,
+        });
+      }
+      const installations = await fetchInstallations(jwt);
+      return c.json({
+        ok: true,
+        appName: meta.name,
+        appSlug: meta.slug,
+        installationsAvailable: installations.map((i) => ({
+          name: i.account,
+          id: i.id,
+          accountType: i.accountType,
+          repoCount: i.repoCount,
+          permissions: i.permissions,
+        })),
+      });
+    } catch (err) {
+      const kind = err instanceof GitHubAppError ? err.kind : 'unknown';
+      return c.json({
+        ok: false,
+        errorKind: kind,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  });
+
+  route.post('/catalog/github-app/install', zValidator('json', githubAppTestSchema), async (c) => {
+    if (!deps.connectorApps) {
+      return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
+    }
+    const body = c.req.valid('json');
+
+    let jwt: string;
+    try {
+      jwt = signAppJwt({ appId: body.appId, privateKey: body.pem });
+    } catch (err) {
+      return c.json({
+        ok: false,
+        errorKind: 'auth' as const,
+        error: `pem could not sign a JWT: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+    let appName: string;
+    let appSlug: string;
+    try {
+      const meta = await fetchAppMetadata(jwt);
+      if (meta.appId !== body.appId) {
+        return c.json({
+          ok: false,
+          errorKind: 'auth' as const,
+          error: `appId mismatch: pem signs JWT for ${meta.appId}, not ${body.appId}`,
+        });
+      }
+      appName = meta.name;
+      appSlug = meta.slug;
+    } catch (err) {
+      const kind = err instanceof GitHubAppError ? err.kind : 'unknown';
+      return c.json({
+        ok: false,
+        errorKind: kind,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    const existing = deps.connectorApps.getByCatalogAndAppId('github-app', body.appId);
+    if (existing) {
+      return c.json(
+        { ok: false, errorKind: 'conflict' as const, error: 'app_already_installed' },
+        409,
+      );
+    }
+
+    const created = deps.connectorApps.create({
+      catalogId: 'github-app',
+      appId: body.appId,
+      appSlug,
+      appName,
+      pem: body.pem,
+      pemSha256: computePemSha256(body.pem),
+    });
+
+    deps.commands.enqueue({
+      type: 'app_install',
+      payload: { appUuid: created.id },
+      correlationId: randomUUID(),
+    });
+
+    return c.json({
+      ok: true,
+      appUuid: created.id,
+      appId: created.appId,
+      appName: created.appName,
+      appSlug: created.appSlug,
+    });
+  });
+
+  route.post('/catalog/github-app/installations/discover', async (c) => {
+    if (!deps.connectorApps) {
+      return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
+    }
+    const app = deps.connectorApps.getOneByCatalog('github-app');
+    if (!app) return c.json({ error: 'app_not_installed' }, 404);
+    let jwt: string;
+    try {
+      jwt = signAppJwt({ appId: app.appId, privateKey: app.pem });
+    } catch (err) {
+      return c.json({ error: 'pem_invalid', detail: String(err) }, 500);
+    }
+    try {
+      const installs = await fetchInstallations(jwt);
+      const wired = new Set(
+        deps.connectors
+          .list({ source: 'catalog' })
+          .filter((c2) => c2.catalogId === 'github-app')
+          .map((c2) => {
+            const secrets = deps.connectors.getSecrets(c2.id);
+            return secrets.find((s) => s.key === '__GITHUB_INSTALLATION_ID__')?.value ?? null;
+          })
+          .filter((id): id is string => id !== null),
+      );
+      return c.json({
+        installations: installs.map((i) => ({
+          id: i.id,
+          name: i.account,
+          accountType: i.accountType,
+          repoCount: i.repoCount,
+          permissions: i.permissions,
+          alreadyWired: wired.has(i.id),
+        })),
+      });
+    } catch (err) {
+      const kind = err instanceof GitHubAppError ? err.kind : 'unknown';
+      return c.json({ error: kind, detail: err instanceof Error ? err.message : String(err) }, 502);
+    }
+  });
+
+  const addInstallationSchema = z.object({
+    installationId: z.string().min(1),
+    displayName: z.string().min(1),
+    envVar: z
+      .string()
+      .min(1)
+      .regex(/^[A-Z][A-Z0-9_]*$/, 'envVar must be UPPER_SNAKE_CASE'),
+  });
+  route.post(
+    '/catalog/github-app/installations',
+    zValidator('json', addInstallationSchema),
+    (c) => {
+      if (!deps.connectorApps) {
+        return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
+      }
+      const body = c.req.valid('json');
+      const app = deps.connectorApps.getOneByCatalog('github-app');
+      if (!app) return c.json({ error: 'app_not_installed' }, 404);
+
+      const githubAppEntry = findCatalogEntry('github-app');
+      if (!githubAppEntry) {
+        return c.json({ error: 'github_app_catalog_entry_missing' }, 500);
+      }
+
+      const slug = resolveSlugCollision(
+        deps.connectors,
+        `github-app-${kebabLower(body.displayName)}`,
+      );
+      const payload = {
+        source: 'catalog' as const,
+        catalogId: 'github-app',
+        slug,
+        displayName: `GitHub App — ${body.displayName}`,
+        description: githubAppEntry.description,
+        transport: githubAppEntry.transport,
+        command: githubAppEntry.transportConfig.command ?? null,
+        args: githubAppEntry.transportConfig.args ?? null,
+        url: githubAppEntry.transportConfig.url ?? null,
+        secrets: [
+          { key: '__GITHUB_INSTALLATION_ID__', value: body.installationId },
+          { key: '__GITHUB_INSTALLATION_NAME__', value: body.displayName },
+          { key: '__GITHUB_ENV_VAR__', value: body.envVar },
+        ],
+        tools: githubAppEntry.tools.map((t) => ({
+          toolName: t.name,
+          description: t.description,
+          category: t.category,
+          permission: t.defaultPermission,
+        })),
+        appId: app.id,
+      };
+      deps.commands.enqueue({
+        type: 'connector_create',
+        payload,
+        correlationId: randomUUID(),
+      });
+      return c.json({ ok: true, slug });
+    },
+  );
+
+  const rotatePemSchema = z.object({
+    newPem: z
+      .string()
+      .min(1)
+      .refine(looksLikePem, { message: 'pem must be a PEM-formatted private key' }),
+    confirmAppId: z.string().min(1),
+  });
+  route.post('/catalog/github-app/rotate-pem', zValidator('json', rotatePemSchema), async (c) => {
+    if (!deps.connectorApps) {
+      return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
+    }
+    const body = c.req.valid('json');
+    const app = deps.connectorApps.getOneByCatalog('github-app');
+    if (!app) return c.json({ error: 'app_not_installed' }, 404);
+    if (body.confirmAppId !== app.appId) {
+      return c.json({ error: 'confirm_app_id_mismatch' }, 400);
+    }
+
+    let jwt: string;
+    try {
+      jwt = signAppJwt({ appId: app.appId, privateKey: body.newPem });
+    } catch (err) {
+      return c.json({
+        ok: false,
+        errorKind: 'auth' as const,
+        error: `new pem could not sign a JWT: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+    try {
+      const meta = await fetchAppMetadata(jwt);
+      if (meta.appId !== app.appId) {
+        return c.json({
+          ok: false,
+          errorKind: 'auth' as const,
+          error: `new pem signs for ${meta.appId}, expected ${app.appId}`,
+        });
+      }
+    } catch (err) {
+      const kind = err instanceof GitHubAppError ? err.kind : 'unknown';
+      return c.json({
+        ok: false,
+        errorKind: kind,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    const installRows = deps.connectors
+      .list({ source: 'catalog' })
+      .filter((r) => r.appId === app.id);
+    for (const row of installRows) {
+      const secrets = deps.connectors.getSecrets(row.id);
+      const instId = secrets.find((s) => s.key === '__GITHUB_INSTALLATION_ID__')?.value;
+      if (!instId) continue;
+      try {
+        await mintInstallationToken(jwt, instId);
+      } catch (err) {
+        const kind = err instanceof GitHubAppError ? err.kind : 'unknown';
+        return c.json({
+          ok: false,
+          errorKind: kind,
+          error: `installation ${row.slug} token mint failed: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        });
+      }
+    }
+
+    deps.connectorApps.update(app.id, {
+      pem: body.newPem,
+      pemSha256: computePemSha256(body.newPem),
+      pemRotatedAt: new Date().toISOString(),
+    });
+    // Spec 0044 review F1: DO NOT include the PEM in the command payload.
+    // `commands.payload` is a TEXT column with no TTL — duplicating the PEM
+    // there would defeat the "single source of truth" rationale for the
+    // connector_apps table (Q1). The handler reads the new PEM back from
+    // connector_apps via the deps that are already wired in.
+    deps.commands.enqueue({
+      type: 'app_pem_rotated',
+      payload: { appUuid: app.id },
+      correlationId: randomUUID(),
+    });
+    return c.json({ ok: true });
+  });
+
+  // Spec 0046 supersedes spec 0044 §API-Endpoints body shape: confirmAppName
+  // (not confirmAppId) — the dashboard M12 modal uses italic-gold app NAME for
+  // the type-to-confirm gesture, not the numeric App ID.
+  const uninstallAppSchema = z.object({ confirmAppName: z.string().min(1) });
+  route.post('/catalog/github-app/uninstall-app', zValidator('json', uninstallAppSchema), (c) => {
+    if (!deps.connectorApps) {
+      return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
+    }
+    const body = c.req.valid('json');
+    const app = deps.connectorApps.getOneByCatalog('github-app');
+    if (!app) return c.json({ error: 'app_not_installed' }, 404);
+    if (body.confirmAppName !== app.appName) {
+      return c.json({ error: 'confirm_app_name_mismatch' }, 400);
+    }
+    deps.connectorApps.delete(app.id);
+    deps.commands.enqueue({
+      type: 'app_uninstall',
+      payload: { appUuid: app.id },
+      correlationId: randomUUID(),
+    });
+    return c.json({ ok: true });
+  });
+
+  route.get('/catalog/github-app/app', (c) => {
+    if (!deps.connectorApps) {
+      return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
+    }
+    const app = deps.connectorApps.getOneByCatalog('github-app');
+    if (!app) return c.json({ error: 'app_not_installed' }, 404);
+    return c.json({
+      appUuid: app.id,
+      appId: app.appId,
+      appName: app.appName,
+      appSlug: app.appSlug,
+      pemSha256: app.pemSha256,
+      pemRotatedAt: app.pemRotatedAt,
+      createdAt: app.createdAt,
+      updatedAt: app.updatedAt,
+    });
+  });
+
   // POST /catalog/:id/test (resolves transportConfig server-side; for catalog installs)
+  // MUST be registered AFTER the github-app static routes above.
   route.post('/catalog/:id/test', async (c) => {
     const id = c.req.param('id');
     const entry = findCatalogEntry(id);
@@ -264,6 +651,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       lastVerifiedAt: null,
       createdAt: '',
       updatedAt: '',
+      appId: null,
     };
     const secrets: ConnectorSecret[] = (body.secrets ?? []).map((s) => ({
       connectorId: 'transient',
@@ -289,96 +677,6 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     return c.json({ ok: true, tools: result.tools, durationMs: result.durationMs });
   });
 
-  // POST /catalog/github-app/install — Spec 0042: installs N github-app connectors
-  // (one per installation) with the five reserved-key secrets. The runtime
-  // (`mcp-build.ts` + `app-auth.ts`) recognizes `github-app-*` slugs and mints
-  // installation tokens at MCP spawn time.
-  //
-  // Important: after a successful install, the worker must be restarted so
-  // `loadGitHubAppConfig(connectors)` re-reads the DB rows and bootstraps the
-  // token cache. Until then, the new github-app-* connectors will fail at MCP
-  // spawn with "github-app token cache miss".
-  route.post(
-    '/catalog/github-app/install',
-    zValidator(
-      'json',
-      z.object({
-        appId: z.string().min(1),
-        pem: z
-          .string()
-          .min(1)
-          .refine((v) => v.includes('BEGIN RSA PRIVATE KEY') || v.includes('BEGIN PRIVATE KEY'), {
-            message: 'pem must be a PEM-formatted RSA private key',
-          }),
-        installations: z
-          .array(
-            z.object({
-              name: z.string().min(1),
-              id: z.string().min(1),
-              envVar: z
-                .string()
-                .min(1)
-                .regex(/^[A-Z][A-Z0-9_]*$/, 'envVar must be UPPER_SNAKE_CASE'),
-            }),
-          )
-          .min(1),
-      }),
-    ),
-    (c) => {
-      const body = c.req.valid('json');
-      const slugs = new Set<string>();
-      for (const inst of body.installations) {
-        const slugCandidate = `github-app-${kebabLower(inst.name)}`;
-        if (slugs.has(slugCandidate)) {
-          return c.json({ error: 'duplicate_installation_name', name: inst.name }, 400);
-        }
-        slugs.add(slugCandidate);
-      }
-
-      const githubAppEntry = findCatalogEntry('github-app');
-      if (!githubAppEntry) {
-        return c.json({ error: 'github_app_catalog_entry_missing' }, 500);
-      }
-
-      // Enqueue one connector_create command per installation. Each row carries
-      // the five __GITHUB_*__ reserved-key secrets. Worker handler creates the
-      // row; mcp-build intercepts at MCP spawn to mint the actual PAT.
-      for (const inst of body.installations) {
-        const slug = resolveSlugCollision(deps.connectors, `github-app-${kebabLower(inst.name)}`);
-        const payload = {
-          source: 'catalog',
-          catalogId: 'github-app',
-          slug,
-          displayName: `GitHub App — ${inst.name}`,
-          description: githubAppEntry.description,
-          transport: githubAppEntry.transport,
-          command: githubAppEntry.transportConfig.command ?? null,
-          args: githubAppEntry.transportConfig.args ?? null,
-          url: githubAppEntry.transportConfig.url ?? null,
-          secrets: [
-            { key: '__GITHUB_APP_ID__', value: body.appId },
-            { key: '__GITHUB_APP_PEM__', value: body.pem },
-            { key: '__GITHUB_INSTALLATION_ID__', value: inst.id },
-            { key: '__GITHUB_INSTALLATION_NAME__', value: inst.name },
-            { key: '__GITHUB_ENV_VAR__', value: inst.envVar },
-          ],
-          tools: githubAppEntry.tools.map((t) => ({
-            toolName: t.name,
-            description: t.description,
-            category: t.category,
-            permission: t.defaultPermission,
-          })),
-        };
-        deps.commands.enqueue({
-          type: 'connector_create',
-          payload,
-          correlationId: randomUUID(),
-        });
-      }
-      return c.json({ ok: true, count: body.installations.length });
-    },
-  );
-
   // POST /test (transient — not yet saved)
   route.post('/test', zValidator('json', testConnectionSchema), async (c) => {
     const body = c.req.valid('json');
@@ -399,6 +697,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       lastVerifiedAt: null,
       createdAt: '',
       updatedAt: '',
+      appId: null,
     };
     const secrets: ConnectorSecret[] = body.secrets.map((s) => ({
       connectorId: 'transient',

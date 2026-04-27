@@ -46,9 +46,16 @@ export function buildMcpServersMap(opts: BuildMcpServersOptions): Record<string,
   const merged: Record<string, McpServerConfig> = { ...agentServers };
   for (const { connector, secrets } of userLayer) {
     try {
-      // Spec 0042: github-app-* connectors get a synthetic PAT secret minted
-      // from the cached installation token. The five __GITHUB_*__ reserved
+      // Spec 0042 + 0044: github-app-* connectors get a synthetic PAT secret
+      // minted from the cached installation token. The reserved __GITHUB_*__
       // keys are NEVER forwarded to the github-mcp-server subprocess.
+      //
+      // Note: the SDK's mcpServers getter is sync, so we cannot await a fresh
+      // mint here. Cache-miss is recovered on the next 55-min refresh tick
+      // (or by the operator clicking refresh-tools in the dashboard, which
+      // routes through `connector-refresh-tools.ts` and CAN await a fresh
+      // mint). Spec 0044 §"Files Modified" mentioned an inline fallback —
+      // that's only realizable in the async refresh-tools handler, not here.
       let effectiveSecrets: ConnectorSecret[] = secrets;
       if (connector.slug.startsWith('github-app-')) {
         if (!opts.githubApp) {

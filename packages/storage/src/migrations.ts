@@ -178,6 +178,81 @@ CREATE INDEX idx_connector_invocations_connector_created ON connector_invocation
 CREATE INDEX idx_connector_invocations_thread ON connector_invocations(thread_id);
 `,
   },
+  {
+    id: 6,
+    name: 'github_app_v2_dedup',
+    // Spec 0044: introduce a dedicated `connector_apps` table so the App PEM /
+    // app id / metadata is held once (not duplicated across N installation
+    // rows), enable atomic PEM rotation, and let the dashboard render the
+    // App as a first-class entity. Backfills the existing 4 `github-app-*`
+    // rows in-place during the same transaction; subsequent boots are no-ops.
+    sql: `
+CREATE TABLE connector_apps (
+  id              TEXT PRIMARY KEY,
+  catalog_id      TEXT NOT NULL,
+  app_id          TEXT NOT NULL,
+  app_slug        TEXT NOT NULL,
+  app_name        TEXT NOT NULL,
+  pem             TEXT NOT NULL,
+  pem_sha256      TEXT NOT NULL,
+  pem_rotated_at  TEXT,
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  UNIQUE (catalog_id, app_id)
+);
+CREATE INDEX idx_connector_apps_catalog ON connector_apps(catalog_id);
+
+ALTER TABLE connectors ADD COLUMN app_id TEXT REFERENCES connector_apps(id) ON DELETE CASCADE;
+ALTER TABLE connector_secrets ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0;
+
+-- Data migration. Idempotent: gated on connector_apps having no row for
+-- catalog_id='github-app'. Reads __GITHUB_APP_ID__ + __GITHUB_APP_PEM__ from
+-- the first existing github-app-* connector and inserts a single row;
+-- app_slug / app_name / pem_sha256 are left as empty strings here and
+-- backfilled lazily on first worker boot via loadGitHubAppFromDb (see
+-- spec 0044 §Migration). connectors.app_id is then pointed at this new row.
+-- The five reserved-key secrets that are now redundant (__GITHUB_APP_ID__,
+-- __GITHUB_APP_PEM__) are deleted; the per-installation keys
+-- (__GITHUB_INSTALLATION_ID__, __GITHUB_INSTALLATION_NAME__,
+-- __GITHUB_ENV_VAR__) stay.
+-- Generate a UUID v4-shaped id so migration-bootstrapped rows match the
+-- format produced by node:crypto.randomUUID() at runtime
+-- (8-4-4-4-12 lowercase hex). Spec 0044 review F3.
+INSERT INTO connector_apps (id, catalog_id, app_id, app_slug, app_name, pem, pem_sha256)
+SELECT
+  lower(
+    substr(hex(randomblob(4)), 1, 8) || '-' ||
+    substr(hex(randomblob(2)), 1, 4) || '-' ||
+    '4' || substr(hex(randomblob(2)), 2, 3) || '-' ||
+    substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2, 3) || '-' ||
+    substr(hex(randomblob(6)), 1, 12)
+  ),
+  'github-app',
+  (SELECT s.value FROM connector_secrets s
+     JOIN connectors c2 ON c2.id = s.connector_id
+     WHERE c2.slug LIKE 'github-app-%' AND s.key = '__GITHUB_APP_ID__' LIMIT 1),
+  '',
+  '',
+  (SELECT s.value FROM connector_secrets s
+     JOIN connectors c2 ON c2.id = s.connector_id
+     WHERE c2.slug LIKE 'github-app-%' AND s.key = '__GITHUB_APP_PEM__' LIMIT 1),
+  ''
+WHERE NOT EXISTS (SELECT 1 FROM connector_apps WHERE catalog_id = 'github-app')
+  AND EXISTS (
+    SELECT 1 FROM connectors c2
+    JOIN connector_secrets s ON s.connector_id = c2.id
+    WHERE c2.slug LIKE 'github-app-%' AND s.key = '__GITHUB_APP_ID__'
+  );
+
+UPDATE connectors
+SET app_id = (SELECT id FROM connector_apps WHERE catalog_id = 'github-app' LIMIT 1)
+WHERE slug LIKE 'github-app-%' AND app_id IS NULL;
+
+DELETE FROM connector_secrets
+WHERE key IN ('__GITHUB_APP_ID__', '__GITHUB_APP_PEM__')
+  AND connector_id IN (SELECT id FROM connectors WHERE slug LIKE 'github-app-%');
+`,
+  },
 ];
 
 /**

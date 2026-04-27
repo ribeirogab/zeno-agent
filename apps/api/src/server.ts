@@ -1,4 +1,12 @@
-import type { CommandRepo, ConnectorRepo, CronRepo, CronRunRepo, DB, LogRepo } from '@zeno/storage';
+import type {
+  CommandRepo,
+  ConnectorAppRepo,
+  ConnectorRepo,
+  CronRepo,
+  CronRunRepo,
+  DB,
+  LogRepo,
+} from '@zeno/storage';
 import { SessionRepo } from '@zeno/storage';
 import { Hono } from 'hono';
 import { requireAuth } from '@/auth/middleware';
@@ -23,6 +31,8 @@ export interface AppDeps {
   logRepo: LogRepo;
   /** Optional in tests that don't exercise the /api/connectors/* routes. */
   connectorRepo?: ConnectorRepo;
+  /** Spec 0044: ConnectorApp repo for /api/connectors/catalog/github-app/* routes. */
+  connectorAppRepo?: ConnectorAppRepo;
   /** Directory holding Claude Code JSONL transcripts (e.g. `~/.claude/projects/-workspace`). */
   claudeHome: string;
   /** Directory holding the agent profile files (SOUL.md, USER.md, crons.yaml). */
@@ -94,6 +104,7 @@ export function createApp(deps: AppDeps): Hono {
       buildConnectorsRoute({
         connectors: deps.connectorRepo,
         commands: deps.commandRepo,
+        ...(deps.connectorAppRepo ? { connectorApps: deps.connectorAppRepo } : {}),
       }),
     );
   }

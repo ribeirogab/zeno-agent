@@ -4,6 +4,7 @@ import { createLogger, type Logger } from '@zeno/logger';
 import {
   ApprovalsLogRepo,
   CommandRepo,
+  ConnectorAppRepo,
   ConnectorRepo,
   CronRepo,
   CronRunRepo,
@@ -35,7 +36,7 @@ import { loadAlwaysActiveSkillNames } from '@/config/always-active-skills';
 import { CronRunner } from '@/cron/runner';
 import { loadStaticCrons } from '@/cron/static-loader';
 import { buildCronMcpServer } from '@/cron/tools';
-import { loadGitHubAppConfig } from '@/github/app-auth';
+import { type GitHubAppAuth, loadGitHubAppFromDb } from '@/github/app-auth';
 import { resolveGitIdentity } from '@/github/git-identity';
 import { SlackApprover } from '@/guardrails/approver/slack-approver';
 import { HaikuClassifier } from '@/guardrails/classifier/haiku';
@@ -111,6 +112,20 @@ async function healthChecks(logger: Logger, config: Config): Promise<void> {
   }
   logger.info({ event: 'claude_cli_ok', version: claudeResult.out.trim() }, 'claude CLI available');
 
+  // Spec 0044: github-mcp-server is the binary spawned by github-app-* connectors.
+  // If the binary is missing, every github-app turn would fail with an opaque
+  // ENOENT mid-conversation. Fail-fast at boot instead per spec §"Phase 7".
+  // Dev environments that don't need github-app can run with ZENO_BACKEND=mock,
+  // which already skips healthChecks entirely (line above).
+  const ghMcpResult = await run('github-mcp-server', ['--version']);
+  if (ghMcpResult.code !== 0) {
+    throw new Error(`github-mcp-server --version failed: ${ghMcpResult.err.slice(0, 200)}`);
+  }
+  logger.info(
+    { event: 'github_mcp_server_ok', version: ghMcpResult.out.trim() },
+    'github-mcp-server available',
+  );
+
   logger.info({ event: 'claude_oauth_token_present' }, 'Claude OAuth token configured');
 }
 
@@ -158,6 +173,7 @@ async function main(): Promise<void> {
   const logs = new LogRepo(db);
   const approvalsLog = new ApprovalsLogRepo(db);
   const connectors = new ConnectorRepo(db);
+  const connectorApps = new ConnectorAppRepo(db);
 
   // Real logger now that the sink is available. Every log from here on is
   // persisted for the dashboard Logs page.
@@ -181,22 +197,46 @@ async function main(): Promise<void> {
   logger.info({ event: 'cron_static_loaded', count: staticCrons.length }, 'static crons loaded');
 
   // GitHub App auth — generates installation tokens and sets env vars (ACME_GH_TOKEN, etc.)
-  // Spec 0042: prefer DB-sourced github-app-* connectors; fall back to yaml.
-  const githubApp = loadGitHubAppConfig(connectors);
-  if (githubApp) {
-    await githubApp.bootstrap();
+  // Spec 0044: read from connector_apps + connectors tables.
+  // The instance is mutable across the worker lifetime; lifecycle commands
+  // call the surgical mutations on this same instance.
+  const githubAppHolder: { value: GitHubAppAuth | null } = {
+    value: await loadGitHubAppFromDb({ connectors, connectorApps: connectorApps }),
+  };
+  if (githubAppHolder.value) {
+    await githubAppHolder.value.bootstrap();
   } else {
     logger.info(
       { event: 'github_app_skipped' },
-      'no github_app config (DB or yaml), using GH_TOKEN only',
+      'no github_app installed yet — use the dashboard to install one',
     );
   }
+  // Bootstrap helper called by the `app_install` handler when an App is
+  // installed AFTER the worker booted (cold-start case). Keeps the singleton
+  // pattern simple from the handlers' perspective.
+  const bootstrapGithubApp = async (): Promise<GitHubAppAuth | null> => {
+    if (githubAppHolder.value) return githubAppHolder.value;
+    const app = await loadGitHubAppFromDb({ connectors, connectorApps });
+    if (app) {
+      await app.bootstrap();
+      githubAppHolder.value = app;
+    }
+    return githubAppHolder.value;
+  };
+  // Tear-down helper for app_uninstall: call appUninstall() on the instance,
+  // then drop the singleton so the worker resumes from null state.
+  const tearDownGithubApp = (): void => {
+    if (!githubAppHolder.value) return;
+    githubAppHolder.value.appUninstall();
+    githubAppHolder.value = null;
+  };
 
   // The MCP map is built per agent turn from the DB so connector edits land
   // without restart. We resolve once at boot just for the log line.
   // Spec 0042: pass githubApp so buildMcpServersMap can intercept github-app-*
   // connectors and synthesize a fresh GITHUB_PERSONAL_ACCESS_TOKEN per turn.
-  const getMcpServers = () => buildMcpServersMap({ connectorRepo: connectors, githubApp, logger });
+  const getMcpServers = () =>
+    buildMcpServersMap({ connectorRepo: connectors, githubApp: githubAppHolder.value, logger });
   const initialServers = getMcpServers();
   logger.info(
     {
@@ -283,8 +323,14 @@ async function main(): Promise<void> {
       crons,
       cronRuns,
       connectors,
+      connectorApps,
       runner,
       exit: (code) => process.exit(code),
+      // Spec 0044: pass getter so handlers observe the current value of the
+      // (mutable) singleton. bootstrap/tearDown wired through the helpers above.
+      getGithubApp: () => githubAppHolder.value,
+      bootstrapGithubApp,
+      tearDownGithubApp,
     }),
   );
 
@@ -431,6 +477,14 @@ async function main(): Promise<void> {
     }
     try {
       commandsPoller.stop();
+    } catch {
+      // best effort
+    }
+    try {
+      // Spec 0044 review F1: clear the GitHub App refresh interval so the
+      // event loop drains cleanly. process.exit(0) below masks this in
+      // practice, but graceful-drain code paths in the future will rely on it.
+      githubAppHolder.value?.stop();
     } catch {
       // best effort
     }

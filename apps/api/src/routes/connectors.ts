@@ -581,9 +581,19 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
       // Spec 0048 R3 F1: reject duplicate envVar across installations.
       // Two installs sharing one envVar clobber each other on every refresh.
+      // Response shape mirrors the install-time `app_already_installed`
+      // 409 above (errorKind:'conflict' envelope) for client uniformity.
       const envVarsInUse = getInstallationEnvVarsInUse(deps.connectors);
       if (envVarsInUse.has(body.envVar)) {
-        return c.json({ error: 'env_var_in_use', envVar: body.envVar }, 409);
+        return c.json(
+          {
+            ok: false,
+            errorKind: 'conflict' as const,
+            error: 'env_var_in_use',
+            envVar: body.envVar,
+          },
+          409,
+        );
       }
 
       const slug = resolveSlugCollision(
@@ -1090,10 +1100,19 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         return c.json({ error: 'envVar_only_valid_for_github_app_installations' }, 400);
       }
       // Spec 0048 R3 F1: reject if another installation already uses this
-      // envVar. Self-update (same id) is allowed.
+      // envVar. Self-update (same id) is allowed. Same envelope as the
+      // install-time 409 (errorKind:'conflict') for client uniformity.
       const envVarsInUse = getInstallationEnvVarsInUse(deps.connectors, id);
       if (envVarsInUse.has(body.envVar)) {
-        return c.json({ error: 'env_var_in_use', envVar: body.envVar }, 409);
+        return c.json(
+          {
+            ok: false,
+            errorKind: 'conflict' as const,
+            error: 'env_var_in_use',
+            envVar: body.envVar,
+          },
+          409,
+        );
       }
       const existing = deps.connectors.getSecrets(id);
       const hasEnvVar = existing.some((s) => s.key === '__GITHUB_ENV_VAR__');

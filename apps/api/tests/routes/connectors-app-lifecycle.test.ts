@@ -239,7 +239,14 @@ describe('PATCH /api/connectors/:id with {envVar} (M11 rename)', () => {
       headers: authed(),
     });
     expect(res.status).toBe(409);
-    const body = (await res.json()) as { error: string; envVar: string };
+    const body = (await res.json()) as {
+      ok: boolean;
+      errorKind: string;
+      error: string;
+      envVar: string;
+    };
+    expect(body.ok).toBe(false);
+    expect(body.errorKind).toBe('conflict');
     expect(body.error).toBe('env_var_in_use');
     expect(body.envVar).toBe('GITHUB_TOKEN_A');
   });

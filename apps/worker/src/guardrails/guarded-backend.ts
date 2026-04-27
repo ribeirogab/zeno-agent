@@ -63,6 +63,11 @@ export class GuardedBackend implements AgentBackend {
 
       const callCtx = callStorage.getStore();
       if (!callCtx) {
+        // Fail-safe deny: missing call context means the agent SDK invoked
+        // the hook outside of a recognized turn — internal failure, not a
+        // policy denial. Spec 0038 F#3 deliberately does NOT prefix this
+        // with `policy_denied:` because operators querying policy-deny
+        // counts should not see infrastructure failures mixed in.
         return {
           continue: true,
           hookSpecificOutput: {
@@ -99,13 +104,24 @@ export class GuardedBackend implements AgentBackend {
       const denyContext = decision.allow
         ? undefined
         : `GUARDRAIL DENIAL — this is NOT a system permission error. The tool call was reviewed through the human-in-the-loop approval flow and was DENIED. Reason: "${decision.reason}". Do NOT retry the tool, do NOT suggest adjusting permissions or hooks, do NOT troubleshoot. Simply tell the user: "ação negada — ${decision.reason}".`;
+      // Spec 0038 F#3: prefix the deny reason with `policy_denied: ` so the
+      // SDK propagates an unambiguous marker into the tool_result block. The
+      // claude-code backend's `extractErrorMessage` then writes that prefix
+      // verbatim to `connector_invocations.error_message`, letting operators
+      // tell policy denies apart from MCP errors at a glance. Allow path is
+      // unchanged. The earlier fail-safe deny path at the top of this method
+      // (around `'guardrails: missing call context'`) is intentionally NOT
+      // prefixed — it represents an internal failure, not a policy denial.
+      const propagatedReason = decision.allow
+        ? decision.reason
+        : `policy_denied: ${decision.reason}`;
       return {
         continue: true,
         ...(denyContext ? { reason: denyContext } : {}),
         hookSpecificOutput: {
           hookEventName: 'PreToolUse' as const,
           permissionDecision: (decision.allow ? 'allow' : 'deny') as 'allow' | 'deny',
-          permissionDecisionReason: decision.reason,
+          permissionDecisionReason: propagatedReason,
           ...(denyContext ? { additionalContext: denyContext } : {}),
         },
       };

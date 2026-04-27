@@ -54,22 +54,32 @@ describe('P4 — connector_invocations logging', () => {
     expect(rows[0]?.errorMessage).toBeNull();
   });
 
-  // P4.2 — Spec 0038 F#3 regression test. Ships skipped from spec 0037.
-  // Spec 0038 unskips and asserts `error_message LIKE 'policy_denied:%'`
-  // after modifying `guarded-backend.ts` to prepend the prefix on deny.
-  // Asserting today would be premature (the prefix doesn't exist yet).
-  it.skip('P4.2: policy-deny tool call → row with error_message LIKE policy_denied:% (unskipped by 0038 F#3)', () => {
-    // Placeholder. 0038 will replace this body with:
-    //   const conn = seedConnector();
-    //   testDb.connectorRepo.recordInvocation({
-    //     connectorId: conn.id,
-    //     toolName: 'read_echo',
-    //     result: 'error',
-    //     durationMs: 5,
-    //     errorMessage: 'policy_denied: connector echo permission=never for read_echo',
-    //   });
-    //   const rows = testDb.connectorRepo.recentInvocations(conn.id, 10);
-    //   expect(rows[0]!.errorMessage).toMatch(/^policy_denied:/);
+  // P4.2 — Unskipped by 0038 F#3. The fix: `guarded-backend.ts` prefixes
+  // `permissionDecisionReason` with `policy_denied: ` on the deny branch.
+  // The SDK propagates this verbatim into the tool_result block content;
+  // `claude-code.ts:extractErrorMessage` writes it to
+  // `connector_invocations.error_message`. Until F#3 lands, deny rows
+  // would have `error_message: 'connector ... permission=never for ...'`
+  // (no prefix); after F#3 they have `policy_denied: connector ...`.
+  //
+  // We test the contract at the repo layer: a deny-shaped errorMessage
+  // (already prefixed by guarded-backend.ts) lands in connector_invocations
+  // with the prefix preserved. The end-to-end propagation through the SDK
+  // is exercised by manual smoke (spec 0036 G8.2).
+  it('P4.2: policy-deny tool call → row with error_message LIKE policy_denied:%', () => {
+    const conn = seedConnector();
+    testDb.connectorRepo.recordInvocation({
+      connectorId: conn.id,
+      toolName: 'read_echo',
+      result: 'error',
+      durationMs: 5,
+      errorMessage: 'policy_denied: connector echo permission=never for read_echo',
+    });
+    const rows = testDb.connectorRepo.recentInvocations(conn.id, 10);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.result).toBe('error');
+    expect(rows[0]?.errorMessage).toMatch(/^policy_denied:/);
+    expect(rows[0]?.errorMessage).toContain('permission=never');
   });
 
   it('P4.3: generic MCP error → row with result=error, error_message set, no policy_denied prefix', () => {

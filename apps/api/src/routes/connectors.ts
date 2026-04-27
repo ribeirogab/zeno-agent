@@ -203,6 +203,15 @@ const patchSchema = z.object({
   args: z.array(z.string()).nullable().optional(),
   url: z.string().nullable().optional(),
   secrets: z.array(apiSecretSchema).optional(),
+  // Spec 0046: M11 (edit env_var) sends the new env var name on a github-app-*
+  // PATCH. The worker handler reads `secrets[].value` for env_var rather than
+  // a top-level field, so this is a convenience: the dashboard sends
+  // `{envVar: 'NEW_NAME'}` and the API translates it to a secrets-only patch.
+  envVar: z
+    .string()
+    .min(1)
+    .regex(/^[A-Z][A-Z0-9_]*$/, 'envVar must be UPPER_SNAKE_CASE')
+    .optional(),
 });
 
 const permissionSchema = z.object({
@@ -1012,10 +1021,34 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // PATCH /:id (update — enqueues connector_update)
   route.patch('/:id', zValidator('json', patchSchema), (c) => {
     const id = c.req.param('id');
-    if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
+    const connector = deps.connectors.get(id);
+    if (!connector) return c.json({ error: 'not_found' }, 404);
+    const body = c.req.valid('json');
+    // Spec 0046: M11 sends `{envVar: 'NEW_NAME'}`. Translate to a secrets-only
+    // patch that updates the __GITHUB_ENV_VAR__ reserved key while preserving
+    // the other reserved keys. Only valid for github-app-* slugs.
+    let secrets = body.secrets;
+    if (body.envVar !== undefined) {
+      if (!connector.slug.startsWith('github-app-')) {
+        return c.json({ error: 'envVar_only_valid_for_github_app_installations' }, 400);
+      }
+      const existing = deps.connectors.getSecrets(id);
+      const hasEnvVar = existing.some((s) => s.key === '__GITHUB_ENV_VAR__');
+      // Map existing secrets, swapping __GITHUB_ENV_VAR__'s value. If the
+      // reserved key is somehow missing (legacy/partial install), append a
+      // new row so the rename is durable. Spec 0046 R1 F2.
+      const mapped = existing.map((s) =>
+        s.key === '__GITHUB_ENV_VAR__'
+          ? { key: s.key, value: body.envVar as string }
+          : { key: s.key, value: s.value },
+      );
+      secrets = hasEnvVar ? mapped : [...mapped, { key: '__GITHUB_ENV_VAR__', value: body.envVar }];
+    }
+    const { envVar: _drop, ...patch } = body;
+    void _drop;
     deps.commands.enqueue({
       type: 'connector_update',
-      payload: { id, patch: c.req.valid('json'), secrets: c.req.valid('json').secrets },
+      payload: { id, patch, secrets },
       correlationId: randomUUID(),
     });
     return c.body(null, 204);

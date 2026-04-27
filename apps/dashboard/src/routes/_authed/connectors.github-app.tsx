@@ -9,9 +9,22 @@
 
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import type { JSX } from 'react';
+import { useState } from 'react';
+import { GitHubAppAddInstallationModal } from '@/components/connectors/lifecycle-modals/github-app-add-installation-modal';
+import { GitHubAppEditEnvVarModal } from '@/components/connectors/lifecycle-modals/github-app-edit-env-var-modal';
+import { GitHubAppRemoveInstallationModal } from '@/components/connectors/lifecycle-modals/github-app-remove-installation-modal';
+import { GitHubAppRotatePemModal } from '@/components/connectors/lifecycle-modals/github-app-rotate-pem-modal';
+import { GitHubAppUninstallAppModal } from '@/components/connectors/lifecycle-modals/github-app-uninstall-app-modal';
 import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
 import { type AppDetail, useAppDetail } from '@/lib/use-app-detail';
 import { useConnectors } from '@/lib/use-connectors';
+
+type ModalKind =
+  | { kind: 'add' }
+  | { kind: 'rotate-pem' }
+  | { kind: 'uninstall-app' }
+  | { kind: 'remove-installation'; connectorId: string }
+  | { kind: 'edit-env-var'; connectorId: string };
 
 export const Route = createFileRoute('/_authed/connectors/github-app')({
   component: GitHubAppDetailScreen,
@@ -25,6 +38,7 @@ function GitHubAppDetailScreen(): JSX.Element {
   const appEntry = list.data?.find((e) => e.kind === 'app' && e.catalogId === 'github-app');
   const appUuid = appEntry && appEntry.kind === 'app' ? appEntry.appUuid : undefined;
   const detail = useAppDetail(appUuid);
+  const [modal, setModal] = useState<ModalKind | null>(null);
 
   if (list.isLoading || (appUuid && detail.isLoading)) {
     return (
@@ -103,17 +117,93 @@ function GitHubAppDetailScreen(): JSX.Element {
           ]}
         />
         <div className="max-w-[1080px] w-full mx-auto px-12 pt-10 pb-20 flex flex-col gap-8 min-w-0">
-          <Header detail={detail.data} />
-          <AppConfigSection detail={detail.data} />
-          <InstallationsSection detail={detail.data} />
+          <Header detail={detail.data} onUninstall={() => setModal({ kind: 'uninstall-app' })} />
+          <AppConfigSection
+            detail={detail.data}
+            onRotatePem={() => setModal({ kind: 'rotate-pem' })}
+            onUninstall={() => setModal({ kind: 'uninstall-app' })}
+          />
+          <InstallationsSection
+            detail={detail.data}
+            onAdd={() => setModal({ kind: 'add' })}
+            onRemove={(connectorId) => setModal({ kind: 'remove-installation', connectorId })}
+            onEditEnvVar={(connectorId) => setModal({ kind: 'edit-env-var', connectorId })}
+          />
           <Footnote />
         </div>
       </main>
+      {modal?.kind === 'add' && appUuid && (
+        <GitHubAppAddInstallationModal
+          appUuid={appUuid}
+          appName={detail.data.app.appName}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {modal?.kind === 'rotate-pem' && appUuid && (
+        <GitHubAppRotatePemModal
+          appUuid={appUuid}
+          appId={detail.data.app.appId}
+          appName={detail.data.app.appName}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {modal?.kind === 'uninstall-app' && appUuid && (
+        <GitHubAppUninstallAppModal
+          appUuid={appUuid}
+          appName={detail.data.app.appName}
+          installationCount={detail.data.installations.length}
+          installationEnvVars={detail.data.installations
+            .map((i) => i.envVar)
+            .filter((v): v is string => v !== null)}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {modal?.kind === 'remove-installation' &&
+        appUuid &&
+        (() => {
+          const inst = detail.data.installations.find((i) => i.connectorId === modal.connectorId);
+          if (!inst) return null;
+          return (
+            <GitHubAppRemoveInstallationModal
+              appUuid={appUuid}
+              installation={{
+                connectorId: inst.connectorId,
+                displayName: inst.displayName,
+                envVar: inst.envVar,
+                toolCount: inst.toolCount,
+              }}
+              onClose={() => setModal(null)}
+            />
+          );
+        })()}
+      {modal?.kind === 'edit-env-var' &&
+        appUuid &&
+        (() => {
+          const inst = detail.data.installations.find((i) => i.connectorId === modal.connectorId);
+          if (!inst) return null;
+          return (
+            <GitHubAppEditEnvVarModal
+              appUuid={appUuid}
+              installation={{
+                connectorId: inst.connectorId,
+                displayName: inst.displayName,
+                envVar: inst.envVar,
+              }}
+              onClose={() => setModal(null)}
+            />
+          );
+        })()}
     </div>
   );
 }
 
-function Header({ detail }: { detail: AppDetail }): JSX.Element {
+function Header({
+  detail,
+  onUninstall,
+}: {
+  detail: AppDetail;
+  onUninstall: () => void;
+}): JSX.Element {
   return (
     <header className="flex items-end justify-between gap-6 border-b border-border-subtle pb-6">
       <div className="flex flex-col flex-1">
@@ -129,11 +219,26 @@ function Header({ detail }: { detail: AppDetail }): JSX.Element {
           tool permissions.
         </p>
       </div>
+      <button
+        type="button"
+        onClick={onUninstall}
+        className="font-mono text-[10px] tracking-[0.08em] uppercase text-status-failed hover:underline"
+      >
+        uninstall app
+      </button>
     </header>
   );
 }
 
-function AppConfigSection({ detail }: { detail: AppDetail }): JSX.Element {
+function AppConfigSection({
+  detail,
+  onRotatePem,
+  onUninstall,
+}: {
+  detail: AppDetail;
+  onRotatePem: () => void;
+  onUninstall: () => void;
+}): JSX.Element {
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-baseline justify-between border-b border-dashed border-border-subtle pb-2.5">
@@ -147,7 +252,12 @@ function AppConfigSection({ detail }: { detail: AppDetail }): JSX.Element {
       <div className="bg-panel border border-border-subtle p-5 flex flex-col gap-4">
         <ConfigField label="App ID" value={detail.app.appId} mono />
         <ConfigField label="Slug" value={detail.app.appSlug} mono />
-        <PemField sha256={detail.app.pemSha256} rotatedAt={detail.app.pemRotatedAt} />
+        <PemField
+          sha256={detail.app.pemSha256}
+          rotatedAt={detail.app.pemRotatedAt}
+          onRotate={onRotatePem}
+          onUninstall={onUninstall}
+        />
       </div>
     </section>
   );
@@ -179,9 +289,13 @@ function ConfigField({
 function PemField({
   sha256,
   rotatedAt,
+  onRotate,
+  onUninstall,
 }: {
   sha256: string;
   rotatedAt: string | null;
+  onRotate: () => void;
+  onUninstall: () => void;
 }): JSX.Element {
   // Display the fingerprint in 4-char chunks separated by middle-dots for
   // visual scannability. Spec 0045 (artboard C8 design).
@@ -199,24 +313,59 @@ function PemField({
         ••••••••••••••••
         <span className="ml-3 text-text-tertiary text-[11px]">fingerprint {chunked}…</span>
       </span>
-      <span className="font-mono text-[10px] tracking-[0.04em] leading-3 text-text-tertiary">
-        {rotatedAt ? `rotated ${formatRelative(rotatedAt)}` : 'never rotated'}
-        <span className="ml-3 text-gold">rotate · uninstall app</span>
-      </span>
+      <div className="flex items-center gap-3 mt-1">
+        <span className="font-mono text-[10px] tracking-[0.04em] leading-3 text-text-tertiary">
+          {rotatedAt ? `rotated ${formatRelative(rotatedAt)}` : 'never rotated'}
+        </span>
+        <button
+          type="button"
+          onClick={onRotate}
+          className="font-mono text-[10px] tracking-[0.08em] uppercase text-gold hover:underline"
+        >
+          rotate
+        </button>
+        <span className="text-text-tertiary text-[10px]">·</span>
+        <button
+          type="button"
+          onClick={onUninstall}
+          className="font-mono text-[10px] tracking-[0.08em] uppercase text-status-failed hover:underline"
+        >
+          uninstall app
+        </button>
+      </div>
     </div>
   );
 }
 
-function InstallationsSection({ detail }: { detail: AppDetail }): JSX.Element {
+function InstallationsSection({
+  detail,
+  onAdd,
+  onRemove,
+  onEditEnvVar,
+}: {
+  detail: AppDetail;
+  onAdd: () => void;
+  onRemove: (connectorId: string) => void;
+  onEditEnvVar: (connectorId: string) => void;
+}): JSX.Element {
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-baseline justify-between border-b border-dashed border-border-subtle pb-2.5">
         <h2 className="m-0 font-sans text-lg font-medium tracking-[-0.005em] leading-[22px] text-text-primary">
           installations
         </h2>
-        <span className="font-mono text-[10px] tracking-[0.2em] leading-3 uppercase text-text-tertiary">
-          {detail.installations.length} active
-        </span>
+        <div className="flex items-center gap-4">
+          <span className="font-mono text-[10px] tracking-[0.2em] leading-3 uppercase text-text-tertiary">
+            {detail.installations.length} active
+          </span>
+          <button
+            type="button"
+            onClick={onAdd}
+            className="font-mono text-[10px] tracking-[0.08em] uppercase text-gold hover:underline"
+          >
+            + add installation
+          </button>
+        </div>
       </div>
       <div className="bg-panel border border-border-subtle flex flex-col min-w-0 overflow-x-auto">
         <div className="flex items-center gap-4 px-5 py-3 border-b border-border-subtle bg-sidebar font-mono text-[10px] tracking-[0.18em] leading-3 uppercase text-text-tertiary min-w-[820px]">
@@ -224,29 +373,39 @@ function InstallationsSection({ detail }: { detail: AppDetail }): JSX.Element {
           <span className="w-[160px] shrink-0">env var</span>
           <span className="w-[100px] shrink-0">tools</span>
           <span className="w-[120px] shrink-0">last verified</span>
+          <span className="w-[80px] shrink-0">actions</span>
         </div>
         {detail.installations.length === 0 ? (
-          <div className="px-5 py-6 font-mono text-xs text-text-tertiary text-center">
-            No installations yet. Lifecycle modals (M7-M12) ship in spec 0046.
+          <div className="px-5 py-8 flex flex-col items-center gap-3">
+            <span className="font-mono text-xs text-text-tertiary">No installations yet.</span>
+            <button
+              type="button"
+              onClick={onAdd}
+              className="inline-flex items-center px-3.5 py-2 bg-gold border border-gold font-mono text-xs font-semibold tracking-[0.06em] leading-4 uppercase text-text-ink hover:bg-gold-bright hover:border-gold-bright transition-colors duration-[120ms]"
+            >
+              + add your first installation
+            </button>
           </div>
         ) : (
           detail.installations.map((inst, i) => (
-            <Link
+            <div
               key={inst.connectorId}
-              to="/connectors/$id"
-              params={{ id: inst.connectorId }}
               className={`flex items-center gap-4 px-5 py-3.5 ${
                 i === detail.installations.length - 1 ? '' : 'border-b border-border-subtle'
-              } min-w-[820px] cursor-pointer transition-colors duration-[120ms] hover:bg-panel-2`}
+              } min-w-[820px] transition-colors duration-[120ms] hover:bg-panel-2`}
             >
-              <div className="flex-1 min-w-0 flex flex-col gap-[2px]">
+              <Link
+                to="/connectors/$id"
+                params={{ id: inst.connectorId }}
+                className="flex-1 min-w-0 flex flex-col gap-[2px] cursor-pointer"
+              >
                 <span className="font-mono text-[13px] font-medium tracking-[0.02em] leading-4 text-text-primary truncate">
                   {inst.displayName.replace(/^GitHub App — /, '')}
                 </span>
                 <span className="font-mono text-[10px] tracking-[0.04em] leading-3 text-text-tertiary truncate">
                   installation {inst.installationId ?? '—'}
                 </span>
-              </div>
+              </Link>
               <span className="w-[160px] shrink-0 font-mono text-[11px] leading-[14px] text-text-tertiary truncate">
                 {inst.envVar ?? '—'}
               </span>
@@ -256,7 +415,26 @@ function InstallationsSection({ detail }: { detail: AppDetail }): JSX.Element {
               <span className="w-[120px] shrink-0 font-mono text-[11px] leading-[14px] text-text-tertiary">
                 {inst.lastVerifiedAt ? formatRelative(inst.lastVerifiedAt) : 'never'}
               </span>
-            </Link>
+              <div className="w-[80px] shrink-0 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onEditEnvVar(inst.connectorId)}
+                  className="font-mono text-[10px] tracking-[0.08em] uppercase text-gold hover:underline"
+                  title="edit env var"
+                >
+                  edit
+                </button>
+                <span className="text-text-tertiary text-[10px]">·</span>
+                <button
+                  type="button"
+                  onClick={() => onRemove(inst.connectorId)}
+                  className="font-mono text-[10px] tracking-[0.08em] uppercase text-status-failed hover:underline"
+                  title="remove installation"
+                >
+                  remove
+                </button>
+              </div>
+            </div>
           ))
         )}
       </div>

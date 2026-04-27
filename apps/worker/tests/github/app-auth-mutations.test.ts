@@ -118,36 +118,8 @@ describe('GitHubAppAuth mutations', () => {
     });
   });
 
-  describe('renameInstallation', () => {
-    it('preserves cached token when changing name', async () => {
-      const auth = new GitHubAppAuth({
-        appId: '1',
-        privateKey: newPem(),
-        installations: [{ name: 'Acme', id: '100' }],
-        disableAutoRefresh: true,
-      });
-      await auth.bootstrap();
-      expect(auth.getCachedToken('Acme')).toBe('tok-100');
-
-      auth.renameInstallation({ oldName: 'Acme', newName: 'Acme New' });
-
-      expect(auth.getCachedToken('Acme')).toBeNull();
-      expect(auth.getCachedToken('Acme New')).toBe('tok-100');
-      expect(auth.getInstallationNames()).toEqual(['Acme New']);
-    });
-
-    it('is a no-op when name is unknown', () => {
-      const auth = new GitHubAppAuth({
-        appId: '1',
-        privateKey: newPem(),
-        installations: [],
-        disableAutoRefresh: true,
-      });
-      expect(() => auth.renameInstallation({ oldName: 'GhostRider', newName: 'X' })).not.toThrow();
-    });
-  });
-
-  // Spec 0051: rotatePem describe block removed alongside the feature.
+  // Spec 0051: renameInstallation + rotatePem describe blocks removed
+  // alongside the features.
 
   describe('appUninstall', () => {
     it('clears caches and installation entries', async () => {

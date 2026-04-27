@@ -24,7 +24,6 @@ function makeFakeGithubApp(): GitHubAppAuth {
     stop: vi.fn(),
     addInstallation: vi.fn(),
     removeInstallation: vi.fn(),
-    renameInstallation: vi.fn(),
   } as unknown as GitHubAppAuth;
 }
 

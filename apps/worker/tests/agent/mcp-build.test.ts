@@ -331,7 +331,6 @@ describe('buildMcpServersMap', () => {
         stop: vi.fn(),
         addInstallation: vi.fn(),
         removeInstallation: vi.fn(),
-        renameInstallation: vi.fn(),
         appUninstall: vi.fn(),
       } as unknown as Parameters<typeof buildMcpServersMap>[0]['githubApp'];
     }

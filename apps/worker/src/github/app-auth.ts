@@ -15,11 +15,11 @@
  * worker:
  *   - addInstallation     → bootstrap a token for one new installation
  *   - removeInstallation  → drop cache + remove installation entry
- *   - renameInstallation  → rename only (no env-var rewiring; spec 0051)
  *   - appUninstall        → tear-down (cache, refresh interval)
  *
- * Spec 0051: `rotatePem` removed. PEM rotation is handled via uninstall +
- * reinstall (rare event).
+ * Spec 0051: `renameInstallation` and `rotatePem` removed. Installation
+ * aliases are immutable post-create; PEM rotation is handled via uninstall +
+ * reinstall (a rare event).
  *
  * Loaded from DB on worker boot via `loadGitHubAppFromDb(repos, logger)`. The
  * yaml fallback was removed per spec 0044.
@@ -318,39 +318,9 @@ export class GitHubAppAuth {
     logger.info({ event: 'github_app_installation_removed', name }, 'installation removed');
   }
 
-  /**
-   * Rename an installation. Preserves the cached token (the underlying
-   * GitHub installation is the same — only the alias name changes).
-   *
-   * Spec 0051: env-var rewiring removed (operator-picked envVar dropped).
-   */
-  renameInstallation(args: { oldName: string; newName: string }): void {
-    const inst = this.installations.get(args.oldName);
-    if (!inst) {
-      logger.warn(
-        { event: 'github_app_rename_installation_not_found', name: args.oldName },
-        'renameInstallation called with an unknown name',
-      );
-      return;
-    }
-    if (args.oldName !== args.newName) {
-      const cached = this.cache.get(args.oldName);
-      if (cached) {
-        this.cache.set(args.newName, cached);
-        this.cache.delete(args.oldName);
-      }
-      this.installations.delete(args.oldName);
-    }
-    const updated: Installation = { ...inst, name: args.newName };
-    this.installations.set(args.newName, updated);
-    logger.info(
-      { event: 'github_app_installation_renamed', oldName: args.oldName, newName: args.newName },
-      'installation renamed',
-    );
-  }
-
-  // Spec 0051: `rotatePem()` removed. PEM rotation is handled by
-  // uninstalling the App and reinstalling it (a rare event).
+  // Spec 0051: `renameInstallation()` and `rotatePem()` removed. PEM
+  // rotation is handled by uninstalling the App and reinstalling it (a rare
+  // event); installation aliases are immutable post-create.
 
   /**
    * Tear down the App entirely: stop refresh, clear cache, drop every

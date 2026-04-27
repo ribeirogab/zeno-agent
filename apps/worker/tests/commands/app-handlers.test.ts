@@ -1,5 +1,6 @@
 /**
- * Unit tests for the 3 GitHub App lifecycle handlers. Spec 0044.
+ * Unit tests for the 2 GitHub App lifecycle handlers (spec 0044, spec 0051
+ * retired the rotate-PEM handler).
  *
  * The handlers themselves are thin shells around the GitHubAppAuth singleton
  * and the connectorApps repo. These tests use fakes for both — they verify
@@ -8,13 +9,11 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { buildAppInstallHandler } from '@/commands/handlers/app-install';
-import { buildAppPemRotatedHandler } from '@/commands/handlers/app-pem-rotated';
 import { buildAppUninstallHandler } from '@/commands/handlers/app-uninstall';
 import type { GitHubAppAuth } from '@/github/app-auth';
 
 function makeFakeGithubApp(): GitHubAppAuth {
   return {
-    rotatePem: vi.fn(async () => undefined),
     appUninstall: vi.fn(),
     getAppId: vi.fn(() => '12345'),
     getCachedToken: vi.fn(() => null),
@@ -78,57 +77,7 @@ describe('app_install handler', () => {
   });
 });
 
-describe('app_pem_rotated handler', () => {
-  it('reads PEM from DB and calls rotatePem', async () => {
-    const githubApp = makeFakeGithubApp();
-    const connectorApps = {
-      get: vi.fn(() => ({
-        id: 'a-1',
-        catalogId: 'github-app',
-        appId: '12345',
-        appSlug: 'zen',
-        appName: 'Zen',
-        pem: '-----BEGIN PRIVATE KEY-----\nNEW\n-----END PRIVATE KEY-----',
-        pemSha256: 'sha',
-        pemRotatedAt: null,
-        createdAt: '',
-        updatedAt: '',
-      })),
-    } as unknown as Parameters<typeof buildAppPemRotatedHandler>[0]['connectorApps'];
-    const handler = buildAppPemRotatedHandler({
-      getGithubApp: () => githubApp,
-      connectorApps,
-    });
-    const res = await handler(fakeCommand('app_pem_rotated', { appUuid: 'a-1' }));
-    expect(res).toEqual({ ok: true });
-    expect(githubApp.rotatePem).toHaveBeenCalledWith(
-      '-----BEGIN PRIVATE KEY-----\nNEW\n-----END PRIVATE KEY-----',
-    );
-  });
-
-  it('returns error when singleton is null', async () => {
-    const handler = buildAppPemRotatedHandler({
-      getGithubApp: () => null,
-      connectorApps: { get: vi.fn() } as unknown as Parameters<
-        typeof buildAppPemRotatedHandler
-      >[0]['connectorApps'],
-    });
-    const res = await handler(fakeCommand('app_pem_rotated', { appUuid: 'a-1' }));
-    expect(res.ok).toBe(false);
-  });
-
-  it('returns error when DB row is missing', async () => {
-    const githubApp = makeFakeGithubApp();
-    const handler = buildAppPemRotatedHandler({
-      getGithubApp: () => githubApp,
-      connectorApps: { get: vi.fn(() => null) } as unknown as Parameters<
-        typeof buildAppPemRotatedHandler
-      >[0]['connectorApps'],
-    });
-    const res = await handler(fakeCommand('app_pem_rotated', { appUuid: 'a-1' }));
-    expect(res.ok).toBe(false);
-  });
-});
+// Spec 0051: app_pem_rotated handler tests removed alongside the feature.
 
 describe('app_uninstall handler', () => {
   it('calls tearDown when singleton exists', async () => {

@@ -17,7 +17,6 @@ import {
   fetchInstallations,
   GitHubAppError,
   looksLikePem,
-  mintInstallationToken,
   signAppJwt,
 } from '@zeno/github-app';
 import { discoverTools } from '@zeno/mcp-discover';
@@ -634,89 +633,10 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     },
   );
 
-  const rotatePemSchema = z.object({
-    newPem: z
-      .string()
-      .min(1)
-      .refine(looksLikePem, { message: 'pem must be a PEM-formatted private key' }),
-    confirmAppId: z.string().min(1),
-  });
-  route.post('/catalog/github-app/rotate-pem', zValidator('json', rotatePemSchema), async (c) => {
-    if (!deps.connectorApps) {
-      return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
-    }
-    const body = c.req.valid('json');
-    const app = deps.connectorApps.getOneByCatalog('github-app');
-    if (!app) return c.json({ error: 'app_not_installed' }, 404);
-    if (body.confirmAppId !== app.appId) {
-      return c.json({ error: 'confirm_app_id_mismatch' }, 400);
-    }
-
-    let jwt: string;
-    try {
-      jwt = signAppJwt({ appId: app.appId, privateKey: body.newPem });
-    } catch (err) {
-      return c.json({
-        ok: false,
-        errorKind: 'auth' as const,
-        error: `new pem could not sign a JWT: ${err instanceof Error ? err.message : String(err)}`,
-      });
-    }
-    try {
-      const meta = await fetchAppMetadata(jwt);
-      if (meta.appId !== app.appId) {
-        return c.json({
-          ok: false,
-          errorKind: 'auth' as const,
-          error: `new pem signs for ${meta.appId}, expected ${app.appId}`,
-        });
-      }
-    } catch (err) {
-      const kind = err instanceof GitHubAppError ? err.kind : 'unknown';
-      return c.json({
-        ok: false,
-        errorKind: kind,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-    const installRows = deps.connectors
-      .list({ source: 'catalog' })
-      .filter((r) => r.appId === app.id);
-    for (const row of installRows) {
-      const secrets = deps.connectors.getSecrets(row.id);
-      const instId = secrets.find((s) => s.key === '__GITHUB_INSTALLATION_ID__')?.value;
-      if (!instId) continue;
-      try {
-        await mintInstallationToken(jwt, instId);
-      } catch (err) {
-        const kind = err instanceof GitHubAppError ? err.kind : 'unknown';
-        return c.json({
-          ok: false,
-          errorKind: kind,
-          error: `installation ${row.slug} token mint failed: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        });
-      }
-    }
-
-    deps.connectorApps.update(app.id, {
-      pem: body.newPem,
-      pemSha256: computePemSha256(body.newPem),
-      pemRotatedAt: new Date().toISOString(),
-    });
-    // Spec 0044 review F1: DO NOT include the PEM in the command payload.
-    // `commands.payload` is a TEXT column with no TTL — duplicating the PEM
-    // there would defeat the "single source of truth" rationale for the
-    // connector_apps table (Q1). The handler reads the new PEM back from
-    // connector_apps via the deps that are already wired in.
-    deps.commands.enqueue({
-      type: 'app_pem_rotated',
-      payload: { appUuid: app.id },
-      correlationId: randomUUID(),
-    });
-    return c.json({ ok: true });
-  });
+  // Spec 0051: rotate-PEM endpoint removed. Operators rotate PEMs by
+  // uninstalling the App and reinstalling it with the new private key (a
+  // rare event; the cost of re-creating per-tool permissions is acceptable
+  // given the maintenance burden of a separate rotation flow).
 
   // Spec 0046 supersedes spec 0044 §API-Endpoints body shape: confirmAppName
   // (not confirmAppId) — the dashboard M12 modal uses italic-gold app NAME for
@@ -753,7 +673,6 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       appName: app.appName,
       appSlug: app.appSlug,
       pemSha256: app.pemSha256,
-      pemRotatedAt: app.pemRotatedAt,
       createdAt: app.createdAt,
       updatedAt: app.updatedAt,
     });
@@ -1002,7 +921,6 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         appName: app.appName,
         appSlug: app.appSlug,
         pemSha256: app.pemSha256,
-        pemRotatedAt: app.pemRotatedAt,
         createdAt: app.createdAt,
         updatedAt: app.updatedAt,
         // Spec 0048 Q2: surface refresh failure for the C8 detail page header.

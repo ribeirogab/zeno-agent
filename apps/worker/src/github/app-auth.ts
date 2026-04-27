@@ -7,13 +7,16 @@
  *   - N installations (`{name, id, envVar}`)
  *   - a per-installation token cache + auto-refresh interval
  *
- * Five surgical mutations let the dashboard mutate state without restarting
- * the worker:
+ * Surgical mutations let the dashboard mutate state without restarting the
+ * worker:
  *   - addInstallation     → bootstrap a token for one new installation
  *   - removeInstallation  → drop cache + unset env var
  *   - renameInstallation  → preserve token cache, re-alias env var only
- *   - rotatePem           → swap key in memory, invalidate ALL caches
  *   - appUninstall        → tear-down (cache, env vars, refresh interval)
+ *
+ * Spec 0051: `rotatePem` removed. PEM rotation is handled via uninstall +
+ * reinstall (rare event; cost of re-creating per-tool permissions accepted
+ * given the maintenance burden of a separate rotation flow).
  *
  * Loaded from DB on worker boot via `loadGitHubAppFromDb(repos, logger)`. The
  * yaml fallback was removed per spec 0044.
@@ -362,30 +365,8 @@ export class GitHubAppAuth {
     );
   }
 
-  /**
-   * Atomically swap the in-memory PEM, invalidate ALL cached tokens, then
-   * re-mint asynchronously. Caller is responsible for persisting the new PEM
-   * to `connector_apps.pem` BEFORE calling this method (so a refresh failure
-   * doesn't leave us with a key the DB doesn't know about).
-   *
-   * `appUninstall` semantics: rotatePem on the same App keeps installations
-   * registered; only the credential changes.
-   */
-  async rotatePem(newPem: string): Promise<void> {
-    this.privateKey = newPem;
-    this.cache.clear();
-    // Re-mint all installations in parallel; tolerate failures.
-    const results = await Promise.allSettled(
-      [...this.installations.values()].map((inst) => this.mintAndCache(inst)),
-    );
-    const failed = results
-      .map((r, i) => (r.status === 'rejected' ? this.installationByIndex(i) : null))
-      .filter((x): x is string => x !== null);
-    logger.info(
-      { event: 'github_app_pem_rotated', failedInstallations: failed },
-      'PEM rotated; caches invalidated',
-    );
-  }
+  // Spec 0051: `rotatePem()` removed. PEM rotation is handled by
+  // uninstalling the App and reinstalling it (a rare event).
 
   /**
    * Tear down the App entirely: stop refresh, clear cache, unset every env

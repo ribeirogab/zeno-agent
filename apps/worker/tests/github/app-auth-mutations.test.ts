@@ -184,31 +184,7 @@ describe('GitHubAppAuth mutations', () => {
     });
   });
 
-  describe('rotatePem', () => {
-    it('invalidates ALL caches and re-mints', async () => {
-      const auth = new GitHubAppAuth({
-        appId: '1',
-        privateKey: newPem(),
-        installations: [
-          { name: 'Acme', id: '100', envVar: 'GITHUB_TOKEN_ACME' },
-          { name: 'Beta', id: '200', envVar: 'GITHUB_TOKEN_BETA' },
-        ],
-        disableAutoRefresh: true,
-      });
-      await auth.bootstrap();
-      expect(auth.getCachedToken('Acme')).toBe('tok-100');
-      expect(auth.getCachedToken('Beta')).toBe('tok-200');
-
-      const newPemKey = newPem();
-      await auth.rotatePem(newPemKey);
-      // Both caches should still be valid (re-minted)
-      expect(auth.getCachedToken('Acme')).toBe('tok-100');
-      expect(auth.getCachedToken('Beta')).toBe('tok-200');
-      // Env vars updated
-      expect(process.env.GITHUB_TOKEN_ACME).toBe('tok-100');
-      expect(process.env.GITHUB_TOKEN_BETA).toBe('tok-200');
-    });
-  });
+  // Spec 0051: rotatePem describe block removed alongside the feature.
 
   describe('appUninstall', () => {
     it('clears caches, env vars, and installation entries', async () => {

@@ -210,7 +210,11 @@ export function useUninstallConnector() {
     optimisticUpdate: ({ id }) => [
       cacheChange<ConnectorListItem[]>(['connectors'], (prev) => prev?.filter((c) => c.id !== id)),
     ],
-    invalidateKeys: () => [['connectors'], ['catalog']],
+    // Spec 0051 Phase C lands the user on `/connectors/github-app` after
+    // uninstalling a github-app installation. The App-detail cache key is
+    // `['app', appUuid]` (see `use-app-detail.ts`); invalidate the whole
+    // `['app']` prefix so every variant gets refetched on arrival.
+    invalidateKeys: () => [['connectors'], ['catalog'], ['app']],
     invalidateDelayMs: 1500,
     successToast: 'connector removido',
   });

@@ -438,6 +438,59 @@ INSERT OR IGNORE INTO agent_capabilities (tool_name, enabled) VALUES
   ('ToolSearch', 1);
 `,
   },
+  {
+    id: 13,
+    name: 'spec 0053 — flip dev capabilities (Bash/Read/Edit/Write/Glob/Grep) to enabled-by-default. Aligns with the zeno-development default skill that Zeno ships with: every fresh install needs filesystem + shell to deliver dev work without operator setup. Sensitive/situational tools (Task/WebFetch/WebSearch) stay off, opt-in via /settings.',
+    sql: `
+UPDATE agent_capabilities SET enabled = 1, updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+ WHERE tool_name IN ('Bash','Read','Edit','Write','Glob','Grep');
+`,
+  },
+  {
+    id: 14,
+    name: "spec 0053 — add 'source' column to skills (zeno_default | profile | dashboard). Source defaults to 'dashboard' for backward compat with spec 0052 uploads. CHECK constraint enforces the enum. SQLite cannot add a CHECK to an existing column directly, so the table is recreated. Connector_skills rows are saved + restored around the recreate because FK with ON DELETE CASCADE would otherwise wipe them when the old skills table is dropped (db.ts opens with `foreign_keys=ON`).",
+    sql: `
+-- Save connector_skills before recreating the skills table.
+-- DROP TABLE skills with foreign_keys=ON would cascade-delete every
+-- connector_skills row pointing at it; we restore them after the rebuild
+-- (the new table preserves the same id values).
+CREATE TEMP TABLE _spec0053_cs_backup AS SELECT * FROM connector_skills;
+DELETE FROM connector_skills;
+
+ALTER TABLE skills ADD COLUMN source TEXT;
+UPDATE skills SET source = 'dashboard' WHERE source IS NULL;
+CREATE TABLE skills_new (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT NOT NULL,
+  body TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'dashboard' CHECK (source IN ('zeno_default','profile','dashboard')),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+INSERT INTO skills_new (id, name, description, body, source, created_at, updated_at)
+  SELECT id, name, description, body, source, created_at, updated_at FROM skills;
+DROP TABLE skills;
+ALTER TABLE skills_new RENAME TO skills;
+CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name);
+CREATE INDEX IF NOT EXISTS idx_skills_source ON skills(source);
+
+-- Restore connector_skills now that the skills table is rebuilt with the
+-- same id values. The FK to connectors stays valid throughout (we never
+-- touched the connectors table).
+INSERT INTO connector_skills (connector_id, skill_id, created_at)
+  SELECT connector_id, skill_id, created_at FROM _spec0053_cs_backup;
+DROP TABLE _spec0053_cs_backup;
+`,
+  },
+  {
+    id: 15,
+    name: "spec 0053 follow-up — seed `Skill` capability enabled-by-default. The `Skill` tool is the Claude Code harness mechanism for invoking a skill (loading its SKILL.md body into context); without it the SDK's auto-discovery may fall back to explicit `Skill` calls which our gate denies, leaving the agent to act without the skill content. Same rationale as ToolSearch (migration 12): harness internals, not a real capability — actual tool calls still pass the gate. Operators can disable in /settings if they want strict harness lockdown. Without this, every fn-code-review test produced free-form output (## Review headers, emojis, praise) because the skill body never reached context.",
+    sql: `
+INSERT OR IGNORE INTO agent_capabilities (tool_name, enabled) VALUES
+  ('Skill', 1);
+`,
+  },
 ];
 
 /**

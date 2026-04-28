@@ -1011,6 +1011,155 @@
         "observability",
         "errors"
       ]
+    },
+    {
+      "id": "playwright",
+      "name": "Playwright",
+      "description": "Browser automation — navigate, snapshot, click, fill, and run JavaScript on real web pages. Powered by Microsoft Playwright. Chromium ships pre-installed in the Zeno container.",
+      "icon": "playwright.svg",
+      "docsUrl": "https://github.com/microsoft/playwright-mcp",
+      "transport": "stdio",
+      "transportConfig": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@playwright/mcp@latest"
+        ]
+      },
+      "secrets": [],
+      "tools": [
+        {
+          "name": "browser_navigate",
+          "description": "Navigate to a URL in the browser.",
+          "category": "read",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_navigate_back",
+          "description": "Navigate back to the previous page in the browser history.",
+          "category": "read",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_snapshot",
+          "description": "Capture an accessibility snapshot of the current page (preferred over screenshot for structural inspection).",
+          "category": "read",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_take_screenshot",
+          "description": "Take a screenshot of the current page or a specific element.",
+          "category": "read",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_console_messages",
+          "description": "Return all console messages from the current browser session.",
+          "category": "read",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_network_requests",
+          "description": "List the network requests made since the page loaded.",
+          "category": "read",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_click",
+          "description": "Perform a click on a web page element.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_type",
+          "description": "Type text into an editable element.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_fill_form",
+          "description": "Fill multiple form fields in a single call.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_select_option",
+          "description": "Select an option in a dropdown.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_press_key",
+          "description": "Press a keyboard key.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_hover",
+          "description": "Hover over an element on the page.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_drag",
+          "description": "Drag and drop an element onto another.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_evaluate",
+          "description": "Evaluate JavaScript expression on the page or on an element.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_wait_for",
+          "description": "Wait for text to appear or disappear, or for a duration to pass.",
+          "category": "read",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_resize",
+          "description": "Resize the browser window.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_handle_dialog",
+          "description": "Accept or dismiss a browser dialog.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_file_upload",
+          "description": "Upload one or multiple files via a file input.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_tabs",
+          "description": "List, open, close, or switch browser tabs.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_install",
+          "description": "Install the browser binary if it is missing (rarely needed: Chromium ships pre-installed in the Zeno image).",
+          "category": "write",
+          "defaultPermission": "ask"
+        },
+        {
+          "name": "browser_close",
+          "description": "Close the current browser session.",
+          "category": "interactive",
+          "defaultPermission": "ask"
+        }
+      ],
+      "tags": [
+        "browser",
+        "automation",
+        "testing"
+      ]
     }
   ]
 }

@@ -65,6 +65,8 @@ function SkillDetailScreen(): JSX.Element {
             <div className="flex items-center flex-wrap gap-3">
               <Pill outline>skill</Pill>
               <Pill outline>markdown</Pill>
+              {s.source === 'zeno_default' && <Pill source="zeno_default">default · zeno</Pill>}
+              {s.source === 'profile' && <Pill source="profile">profile</Pill>}
               <span className="font-sans text-[13px] leading-4 text-text-secondary">
                 {s.description}
               </span>
@@ -97,36 +99,47 @@ function SkillDetailScreen(): JSX.Element {
             </svg>
             download
           </a>
-          <button
-            type="button"
-            onClick={() => setEditOpen(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 border border-border-strong font-mono text-[11px] font-medium tracking-[0.06em] uppercase text-text-primary hover:bg-panel-2 transition-colors duration-[120ms]"
-          >
-            <svg
-              width="11"
-              height="11"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              role="img"
-              aria-label="Edit"
+          {s.source === 'zeno_default' ? (
+            <span
+              className="inline-flex items-center gap-2 px-3.5 py-2 border border-gold-line bg-gold-soft font-mono text-[10px] tracking-[0.12em] uppercase text-gold"
+              title="This skill ships with Zeno. To customize, copy the file to your profile and rename it (drop the zeno- prefix)."
             >
-              <title>Edit</title>
-              <path d="M4 20 L8 19 L20 7 L17 4 L5 16 Z" />
-            </svg>
-            edit
-          </button>
-          <button
-            type="button"
-            onClick={() => setDeleteOpen(true)}
-            className="inline-flex items-center justify-center w-8 h-8 border border-border-subtle font-mono text-sm text-text-secondary hover:text-status-failed hover:border-status-failed/30"
-            title="delete skill"
-          >
-            ⋯
-          </button>
+              managed by zeno
+            </span>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setEditOpen(true)}
+                className="inline-flex items-center gap-2 px-3.5 py-2 border border-border-strong font-mono text-[11px] font-medium tracking-[0.06em] uppercase text-text-primary hover:bg-panel-2 transition-colors duration-[120ms]"
+              >
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  role="img"
+                  aria-label="Edit"
+                >
+                  <title>Edit</title>
+                  <path d="M4 20 L8 19 L20 7 L17 4 L5 16 Z" />
+                </svg>
+                edit
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(true)}
+                className="inline-flex items-center justify-center w-8 h-8 border border-border-subtle font-mono text-sm text-text-secondary hover:text-status-failed hover:border-status-failed/30"
+                title="delete skill"
+              >
+                ⋯
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -196,17 +209,25 @@ function Main({
 function Pill({
   children,
   outline,
+  source,
 }: {
   children: React.ReactNode;
   outline?: boolean;
+  source?: 'zeno_default' | 'profile';
 }): JSX.Element {
+  let classes: string;
+  if (source === 'zeno_default') {
+    classes = 'border border-gold-line bg-gold-soft text-gold';
+  } else if (source === 'profile') {
+    classes = 'border border-border-subtle bg-panel-2 text-text-secondary';
+  } else if (outline) {
+    classes = 'border border-border-subtle text-text-tertiary';
+  } else {
+    classes = 'bg-status-active/[0.06] border border-status-active/30 text-status-active';
+  }
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 font-mono text-[10px] tracking-[0.1em] leading-3 uppercase ${
-        outline
-          ? 'border border-border-subtle text-text-tertiary'
-          : 'bg-status-active/[0.06] border border-status-active/30 text-status-active'
-      }`}
+      className={`inline-flex items-center px-2 py-0.5 font-mono text-[10px] tracking-[0.1em] leading-3 uppercase ${classes}`}
     >
       {children}
     </span>

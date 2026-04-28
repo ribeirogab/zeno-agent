@@ -12,11 +12,16 @@ export function DeleteSkillModal({
   skill: SkillDetail;
   onClose: () => void;
   onDeleted: () => void;
-}): JSX.Element {
+}): JSX.Element | null {
   const remove = useDeleteSkill();
   const [typed, setTyped] = useState('');
   const [error, setError] = useState<string | null>(null);
   const matches = typed === skill.name;
+
+  // Spec 0053 — defense in depth: refuse to render the delete modal for
+  // zeno_default skills. The detail page hides the trigger button, but a
+  // programmatic caller would otherwise hit a 403 on submit.
+  if (skill.source === 'zeno_default') return null;
 
   const handleDelete = async () => {
     setError(null);

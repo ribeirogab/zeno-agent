@@ -287,11 +287,20 @@ export interface RecordInvocationInput {
 
 // Spec 0052: skills are content-only markdown playbooks. Capabilities are
 // global (see AgentCapability below), not per-skill.
+//
+// Spec 0053: `source` tracks origin so the boot seeder + API can apply the
+// right ownership rules. `zeno_default` is shipped with Zeno (immutable via
+// API, UPSERT'd from `agent/skills/`); `profile` is shipped with the active
+// profile (INSERT OR IGNORE seed; editable via dashboard); `dashboard` is
+// uploaded via the API like in spec 0052.
+export type SkillSource = 'zeno_default' | 'profile' | 'dashboard';
+
 export interface Skill {
   id: string;
   name: string;
   description: string;
   body: string;
+  source: SkillSource;
   createdAt: string;
   updatedAt: string;
 }
@@ -300,6 +309,8 @@ export interface CreateSkillInput {
   name: string;
   description: string;
   body: string;
+  /** Spec 0053. Defaults to 'dashboard' for backward compat with spec 0052 uploads. */
+  source?: SkillSource;
 }
 
 export interface UpdateSkillInput {

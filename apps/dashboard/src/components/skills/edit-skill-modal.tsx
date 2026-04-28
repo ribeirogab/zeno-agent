@@ -10,10 +10,16 @@ export function EditSkillModal({
 }: {
   skill: SkillDetail;
   onClose: () => void;
-}): JSX.Element {
+}): JSX.Element | null {
   const edit = useEditSkill();
   const [content, setContent] = useState(recompose(skill));
   const [error, setError] = useState<string | null>(null);
+
+  // Spec 0053 — defense in depth. The detail page hides the edit button on
+  // zeno_default skills, but if the modal is ever instantiated for one anyway
+  // (legacy callers, programmatic open), refuse to render so the operator
+  // can't even attempt the API call.
+  if (skill.source === 'zeno_default') return null;
 
   const handleSave = async () => {
     setError(null);

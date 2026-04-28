@@ -7,13 +7,25 @@ context/.obsidian/plugins/*/data.json
 # OS
 .DS_Store
 
-# Profiles — only default's examples are committed
+# Profiles — only default's examples are committed by default
 profiles/*/
 !profiles/default/
 profiles/default/*
 !profiles/default/.env.example
 !profiles/default/USER.example.md
 !profiles/default/config.example.yaml
+
+# Spec 0053 — profile skills are file-seeded source of truth (boot
+# seeder reads them into the DB), so they MUST live in git. Each
+# profile that ships skills opts in explicitly here:
+#   !profiles/<name>/                 — un-ignore the dir
+#   profiles/<name>/*                 — re-ignore its top-level (.env, etc.)
+#   !profiles/<name>/skills/          — un-ignore the skills dir
+#   !profiles/<name>/skills/**        — un-ignore everything inside
+!profiles/fn/
+profiles/fn/*
+!profiles/fn/skills/
+!profiles/fn/skills/**
 
 # Profile-specific compose files (only default is committed)
 infra/docker-compose.*.yml

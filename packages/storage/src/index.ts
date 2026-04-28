@@ -43,6 +43,7 @@ export type {
   RecordInvocationInput,
   Session,
   Skill,
+  SkillSource,
   ToolCategory,
   ToolPermission,
   UpdateConnectorAppInput,

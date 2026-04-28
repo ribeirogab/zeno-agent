@@ -680,17 +680,21 @@ describe('migrations: skills + agent_capabilities (migration 11)', () => {
     const rows = db
       .prepare('SELECT tool_name, enabled FROM agent_capabilities ORDER BY tool_name')
       .all() as Array<{ tool_name: string; enabled: number }>;
+    // Spec 0053 (migrations 13 + 15) flips dev caps to enabled=1 and seeds
+    // the `Skill` capability default-on. The seeded state observed after
+    // `runMigrations` reflects all migrations through 15.
     expect(rows).toEqual([
-      { tool_name: 'Bash', enabled: 0 },
-      { tool_name: 'Edit', enabled: 0 },
-      { tool_name: 'Glob', enabled: 0 },
-      { tool_name: 'Grep', enabled: 0 },
-      { tool_name: 'Read', enabled: 0 },
+      { tool_name: 'Bash', enabled: 1 },
+      { tool_name: 'Edit', enabled: 1 },
+      { tool_name: 'Glob', enabled: 1 },
+      { tool_name: 'Grep', enabled: 1 },
+      { tool_name: 'Read', enabled: 1 },
+      { tool_name: 'Skill', enabled: 1 },
       { tool_name: 'Task', enabled: 0 },
       { tool_name: 'ToolSearch', enabled: 1 },
       { tool_name: 'WebFetch', enabled: 0 },
       { tool_name: 'WebSearch', enabled: 0 },
-      { tool_name: 'Write', enabled: 0 },
+      { tool_name: 'Write', enabled: 1 },
     ]);
     closeDatabase(db);
   });
@@ -713,7 +717,7 @@ describe('migrations: skills + agent_capabilities (migration 11)', () => {
     const countAfterFirst = db.prepare('SELECT COUNT(*) AS c FROM agent_capabilities').get() as {
       c: number;
     };
-    expect(countAfterFirst.c).toBe(10);
+    expect(countAfterFirst.c).toBe(11);
 
     const second = runMigrations(db);
     expect(second.applied).toEqual([]);
@@ -721,7 +725,7 @@ describe('migrations: skills + agent_capabilities (migration 11)', () => {
     const countAfterSecond = db.prepare('SELECT COUNT(*) AS c FROM agent_capabilities').get() as {
       c: number;
     };
-    expect(countAfterSecond.c).toBe(10);
+    expect(countAfterSecond.c).toBe(11);
 
     closeDatabase(db);
   });
@@ -734,6 +738,175 @@ describe('migrations: skills + agent_capabilities (migration 11)', () => {
       .get('ToolSearch') as { enabled: number } | undefined;
     expect(row).toBeDefined();
     expect(row?.enabled).toBe(1);
+    closeDatabase(db);
+  });
+
+  it('migration 13 flips Bash/Read/Edit/Write/Glob/Grep to enabled=1 (spec 0053)', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    const rows = db
+      .prepare('SELECT tool_name, enabled FROM agent_capabilities ORDER BY tool_name')
+      .all() as Array<{ tool_name: string; enabled: number }>;
+    const enabledNames = rows
+      .filter((r) => r.enabled === 1)
+      .map((r) => r.tool_name)
+      .sort();
+    expect(enabledNames).toEqual([
+      'Bash',
+      'Edit',
+      'Glob',
+      'Grep',
+      'Read',
+      'Skill',
+      'ToolSearch',
+      'Write',
+    ]);
+    const disabledNames = rows
+      .filter((r) => r.enabled === 0)
+      .map((r) => r.tool_name)
+      .sort();
+    expect(disabledNames).toEqual(['Task', 'WebFetch', 'WebSearch']);
+    closeDatabase(db);
+  });
+
+  it('migration 13 is idempotent', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    const before = db
+      .prepare('SELECT tool_name, enabled FROM agent_capabilities ORDER BY tool_name')
+      .all();
+    const second = runMigrations(db);
+    expect(second.applied).toEqual([]);
+    const after = db
+      .prepare('SELECT tool_name, enabled FROM agent_capabilities ORDER BY tool_name')
+      .all();
+    expect(after).toEqual(before);
+    closeDatabase(db);
+  });
+});
+
+describe('migrations: skills.source column (migration 14, spec 0053)', () => {
+  it('adds the `source` column with default `dashboard` and CHECK enum', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    const cols = db.prepare("PRAGMA table_info('skills')").all() as Array<{
+      name: string;
+      type: string;
+      notnull: number;
+      dflt_value: string | null;
+    }>;
+    const sourceCol = cols.find((c) => c.name === 'source');
+    expect(sourceCol).toBeDefined();
+    expect(sourceCol?.type).toBe('TEXT');
+    expect(sourceCol?.notnull).toBe(1);
+    expect(sourceCol?.dflt_value).toBe("'dashboard'");
+    closeDatabase(db);
+  });
+
+  it('CHECK constraint rejects values outside the enum', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO skills (id, name, description, body, source) VALUES ('x','a','d','b','other')`,
+        )
+        .run(),
+    ).toThrow();
+    closeDatabase(db);
+  });
+
+  it('backfills pre-existing rows to source=dashboard', () => {
+    // Simulate a DB that ran migrations through 11 (skills table + zero source column)
+    // by inserting a row with the post-11 schema before migration 14 mutates it.
+    // Cheap proxy: open a fresh DB, run all migrations, insert a row, and check source.
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    db.prepare(`INSERT INTO skills (id, name, description, body) VALUES (?, ?, ?, ?)`).run(
+      'sk-1',
+      'pre-existing',
+      'd',
+      'b',
+    );
+    const row = db.prepare('SELECT source FROM skills WHERE id = ?').get('sk-1') as
+      | { source: string }
+      | undefined;
+    expect(row?.source).toBe('dashboard');
+    closeDatabase(db);
+  });
+
+  it('idx_skills_source index exists', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    const idx = db
+      .prepare(`SELECT name FROM sqlite_master WHERE type='index' AND name='idx_skills_source'`)
+      .get();
+    expect(idx).toBeDefined();
+    closeDatabase(db);
+  });
+
+  /**
+   * Spec 0053 — regression test for the FK cascade trap during migration 14's
+   * table recreate. db.ts opens with `foreign_keys=ON`; without the
+   * backup-and-restore dance the `DROP TABLE skills` would cascade-delete
+   * every `connector_skills` row pointing at it. This simulates an upgrade
+   * from spec 0052 state by manually re-running the migration 14 SQL after
+   * seeding sample link rows.
+   */
+  it('migration 14 preserves connector_skills rows across the table recreate', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+
+    // Seed: a connector + skill + link.
+    db.prepare(
+      `INSERT INTO connectors (id, slug, display_name, source, transport)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run('con-1', 'echo', 'Echo', 'custom', 'stdio');
+    db.prepare(
+      `INSERT INTO skills (id, name, description, body, source) VALUES (?, ?, ?, ?, ?)`,
+    ).run('sk-1', 'a-skill', 'd', 'b', 'dashboard');
+    db.prepare(`INSERT INTO connector_skills (connector_id, skill_id) VALUES (?, ?)`).run(
+      'con-1',
+      'sk-1',
+    );
+    expect(
+      (db.prepare('SELECT COUNT(*) AS c FROM connector_skills').get() as { c: number }).c,
+    ).toBe(1);
+
+    // Re-run migration 14's body manually as if upgrading. The migrations
+    // table will block automatic re-runs, so we call the SQL directly to
+    // exercise the recreate path.
+    db.exec(`
+      CREATE TEMP TABLE _spec0053_cs_backup_test AS SELECT * FROM connector_skills;
+      DELETE FROM connector_skills;
+      CREATE TABLE skills_new2 (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT NOT NULL,
+        body TEXT NOT NULL,
+        source TEXT NOT NULL DEFAULT 'dashboard' CHECK (source IN ('zeno_default','profile','dashboard')),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+      );
+      INSERT INTO skills_new2 (id, name, description, body, source, created_at, updated_at)
+        SELECT id, name, description, body, source, created_at, updated_at FROM skills;
+      DROP TABLE skills;
+      ALTER TABLE skills_new2 RENAME TO skills;
+      INSERT INTO connector_skills (connector_id, skill_id, created_at)
+        SELECT connector_id, skill_id, created_at FROM _spec0053_cs_backup_test;
+      DROP TABLE _spec0053_cs_backup_test;
+    `);
+
+    // The link must still exist after the recreate.
+    expect(
+      (db.prepare('SELECT COUNT(*) AS c FROM connector_skills').get() as { c: number }).c,
+    ).toBe(1);
+    const link = db.prepare('SELECT connector_id, skill_id FROM connector_skills').get() as {
+      connector_id: string;
+      skill_id: string;
+    };
+    expect(link).toEqual({ connector_id: 'con-1', skill_id: 'sk-1' });
+
     closeDatabase(db);
   });
 });

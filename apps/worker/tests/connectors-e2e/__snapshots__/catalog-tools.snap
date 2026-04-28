@@ -694,5 +694,112 @@
       "category": "write",
       "defaultPermission": "ask"
     }
+  ],
+  "playwright": [
+    {
+      "name": "browser_click",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_close",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_drag",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_evaluate",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_file_upload",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_fill_form",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_handle_dialog",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_hover",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_press_key",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_resize",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_select_option",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_tabs",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_type",
+      "category": "interactive",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_console_messages",
+      "category": "read",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_navigate",
+      "category": "read",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_navigate_back",
+      "category": "read",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_network_requests",
+      "category": "read",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_snapshot",
+      "category": "read",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_take_screenshot",
+      "category": "read",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_wait_for",
+      "category": "read",
+      "defaultPermission": "ask"
+    },
+    {
+      "name": "browser_install",
+      "category": "write",
+      "defaultPermission": "ask"
+    }
   ]
 }

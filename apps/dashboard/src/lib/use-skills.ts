@@ -2,10 +2,15 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api-client';
 import { cacheChange, useOptimisticMutation } from '@/lib/use-optimistic-mutation';
 
+/** Spec 0053: skills are tagged by origin so the dashboard can hide edit/delete on
+ * `zeno_default` rows and show a "managed by Zeno" badge instead. */
+export type SkillSource = 'zeno_default' | 'profile' | 'dashboard';
+
 export interface SkillListItem {
   id: string;
   name: string;
   description: string;
+  source: SkillSource;
   createdAt: string;
   updatedAt: string;
 }

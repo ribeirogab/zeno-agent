@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createLogger, type Logger } from '@zeno/logger';
@@ -39,6 +40,7 @@ import { ConnectorGatedBackend } from '@/guardrails/connector-gated-backend';
 import { LogsRetention } from '@/logs/retention';
 import { ProfileWatcher } from '@/profile/watcher';
 import { materializeSkillsToFs } from '@/skills/materialize';
+import { bootSkillsReconcile } from '@/skills/seed';
 
 interface RunResult {
   code: number | null;
@@ -116,6 +118,34 @@ async function healthChecks(logger: Logger, config: Config): Promise<void> {
   logger.info({ event: 'claude_oauth_token_present' }, 'Claude OAuth token configured');
 }
 
+/**
+ * Spec 0053 — resolve `agent/skills/` for the boot seeder. Mirrors the
+ * candidate list used elsewhere (system-prompt, mcp, watcher): container
+ * mount first (`/app/agent`), then repo-relative fallback for local dev.
+ * Returns the absolute path even if the `skills/` dir doesn't exist; the
+ * seeder tolerates a missing directory and reports zero defaults.
+ */
+function resolveAgentSkillsRoot(): string {
+  const candidates = ['/app/agent', 'agent'];
+  for (const base of candidates) {
+    if (existsSync(base)) return `${base}/skills`;
+  }
+  return 'agent/skills';
+}
+
+/**
+ * Spec 0053 — resolve `profile/skills/` for the boot seeder. `null` if no
+ * profile is mounted. The mount point in Docker is `/app/profile`;
+ * locally it's `profile/`.
+ */
+function resolveProfileSkillsRoot(): string | null {
+  const candidates = ['/app/profile', 'profile'];
+  for (const base of candidates) {
+    if (existsSync(base)) return `${base}/skills`;
+  }
+  return null;
+}
+
 async function main(): Promise<void> {
   const config = loadConfig();
   // Bootstrap logger for pre-DB events. The real logger (with dbSink) is
@@ -188,8 +218,23 @@ async function main(): Promise<void> {
   // auto-discovers them from there (Path A; see mcp-build.ts gate-zero
   // note). Boot-time materialization keeps DB ↔ FS in sync after any
   // crash recovery.
+  //
+  // Spec 0053: before materializing, run the seeder. It reads files
+  // shipped with the binary (`agent/skills/`) and the active profile
+  // (`profile/skills/`) and reconciles them into the DB:
+  // `zeno_default` UPSERT (file is canonical), `profile` INSERT OR
+  // IGNORE (operator-editable after first seed). Then the materializer
+  // writes the resulting DB state to FS.
   const claudeHome = join(homedir(), '.claude');
   const skillsPath = join(claudeHome, 'skills');
+  const agentSkillsRoot = resolveAgentSkillsRoot();
+  const profileSkillsRoot = resolveProfileSkillsRoot();
+  bootSkillsReconcile({
+    skills: skillRepo,
+    agentSkillsRoot,
+    profileSkillsRoot,
+    logger,
+  });
   const initialMaterialize = await materializeSkillsToFs({ skillRepo, claudeHome, logger });
   logger.info(
     { event: 'skills_loaded', count: initialMaterialize.written },

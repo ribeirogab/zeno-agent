@@ -58,14 +58,24 @@ function makeApp(database: DB) {
 }
 
 describe('GET /api/agent-capabilities', () => {
-  it('returns all 10 seeded tools — 9 disabled + ToolSearch enabled', async () => {
+  it('returns all 11 seeded tools — 8 enabled by default after spec 0053 + Skill seed (Bash/Edit/Glob/Grep/Read/Skill/ToolSearch/Write); 3 disabled (Task/WebFetch/WebSearch)', async () => {
     const app = makeApp(db);
     const res = await app.request('/api/agent-capabilities', { headers: authed() });
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<{ toolName: string; enabled: boolean }>;
-    expect(body).toHaveLength(10);
+    expect(body).toHaveLength(11);
+    const enabledByDefault = new Set([
+      'Bash',
+      'Edit',
+      'Glob',
+      'Grep',
+      'Read',
+      'Skill',
+      'ToolSearch',
+      'Write',
+    ]);
     for (const c of body) {
-      expect(c.enabled).toBe(c.toolName === 'ToolSearch');
+      expect(c.enabled).toBe(enabledByDefault.has(c.toolName));
     }
     expect(body.map((c) => c.toolName).sort()).toEqual([
       'Bash',
@@ -73,6 +83,7 @@ describe('GET /api/agent-capabilities', () => {
       'Glob',
       'Grep',
       'Read',
+      'Skill',
       'Task',
       'ToolSearch',
       'WebFetch',
@@ -115,11 +126,32 @@ describe('PATCH /api/agent-capabilities', () => {
       .filter((c) => c.enabled)
       .map((c) => c.toolName)
       .sort();
-    expect(enabled).toEqual(['Bash', 'Edit', 'Read', 'ToolSearch']);
+    // Spec 0053: Bash/Edit/Glob/Grep/Read/ToolSearch/Write are all enabled by default.
+    // PATCHing them all to true is a no-op effectively, so the resulting list is
+    // identical to the default-on set.
+    expect(enabled).toEqual([
+      'Bash',
+      'Edit',
+      'Glob',
+      'Grep',
+      'Read',
+      'Skill',
+      'ToolSearch',
+      'Write',
+    ]);
   });
 
   it('returns 400 for unknown tool name and rolls back the whole batch', async () => {
     const app = makeApp(db);
+    // Pre-spec-0053 Read defaulted to false. Now it defaults to true. To test
+    // the rollback semantics we first flip it to false, verify, then attempt
+    // a batch with a bad tool name.
+    await app.request('/api/agent-capabilities', {
+      method: 'PATCH',
+      body: JSON.stringify({ updates: [{ toolName: 'Read', enabled: false }] }),
+      headers: authed(),
+    });
+
     const res = await app.request('/api/agent-capabilities', {
       method: 'PATCH',
       body: JSON.stringify({
@@ -133,7 +165,7 @@ describe('PATCH /api/agent-capabilities', () => {
     expect(res.status).toBe(400);
     expect((await res.json()) as { error: string }).toMatchObject({ error: 'unknown_tool' });
 
-    // Read change should have rolled back.
+    // Read change should have rolled back to its pre-call value (false).
     const list = (await (
       await app.request('/api/agent-capabilities', { headers: authed() })
     ).json()) as Array<{ toolName: string; enabled: boolean }>;

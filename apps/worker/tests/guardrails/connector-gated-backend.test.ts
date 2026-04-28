@@ -79,8 +79,10 @@ describe('ConnectorGatedBackend (spec 0050)', () => {
     close();
   });
 
-  it('PreToolUse hook DENIES a non-MCP tool with policy_denied prefix', async () => {
+  it('PreToolUse hook DENIES a non-MCP tool with policy_denied prefix when capability is off', async () => {
     const { repo, caps, skills, close } = makeRepo();
+    // Spec 0053 made Bash default-on. Use a still-default-off capability
+    // (Task) to exercise the deny path on a non-MCP tool.
     const inner = fakeInner();
     const gated = new ConnectorGatedBackend(inner, {
       connectorRepo: repo,
@@ -88,9 +90,13 @@ describe('ConnectorGatedBackend (spec 0050)', () => {
       connectorSkillRepo: skills,
     });
     const hook = gated.buildPreToolUseHook();
-    const result = await hook({ tool_name: 'Bash', tool_input: { cmd: 'ls' } } as never, '', {
-      signal: new AbortController().signal,
-    });
+    const result = await hook(
+      { tool_name: 'Task', tool_input: { description: 'x', prompt: 'y' } } as never,
+      '',
+      {
+        signal: new AbortController().signal,
+      },
+    );
     expect(result?.hookSpecificOutput?.permissionDecision).toBe('deny');
     expect(result?.hookSpecificOutput?.permissionDecisionReason).toMatch(/^policy_denied:/);
     expect(result?.hookSpecificOutput?.additionalContext).toContain('GUARDRAIL DENIAL');

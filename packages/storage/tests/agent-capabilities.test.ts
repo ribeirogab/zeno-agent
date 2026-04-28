@@ -13,30 +13,47 @@ beforeEach(() => {
 });
 
 describe('AgentCapabilityRepo', () => {
-  it('list returns all 10 seeded tools — 9 disabled + ToolSearch enabled (migrations 11+12)', () => {
+  it('list returns all 11 seeded tools — 8 enabled by default after spec 0053 (Bash/Edit/Glob/Grep/Read/Skill/ToolSearch/Write); 3 disabled (Task/WebFetch/WebSearch)', () => {
     const caps = repo.list();
-    expect(caps).toHaveLength(10);
+    expect(caps).toHaveLength(11);
     expect(caps.map((c) => c.toolName).sort()).toEqual([
       'Bash',
       'Edit',
       'Glob',
       'Grep',
       'Read',
+      'Skill',
       'Task',
       'ToolSearch',
       'WebFetch',
       'WebSearch',
       'Write',
     ]);
+    const enabledByDefault = new Set([
+      'Bash',
+      'Edit',
+      'Glob',
+      'Grep',
+      'Read',
+      'Skill',
+      'ToolSearch',
+      'Write',
+    ]);
     for (const c of caps) {
-      const expected = c.toolName === 'ToolSearch';
-      expect(c.enabled).toBe(expected);
+      expect(c.enabled).toBe(enabledByDefault.has(c.toolName));
     }
   });
 
-  it('isEnabled returns false initially for all seeded tools', () => {
-    expect(repo.isEnabled('Bash')).toBe(false);
-    expect(repo.isEnabled('Read')).toBe(false);
+  it('isEnabled returns true for default-on dev capabilities (spec 0053)', () => {
+    expect(repo.isEnabled('Bash')).toBe(true);
+    expect(repo.isEnabled('Read')).toBe(true);
+    expect(repo.isEnabled('Edit')).toBe(true);
+  });
+
+  it('isEnabled returns false for sensitive tools that stay opt-in (Task/WebFetch/WebSearch)', () => {
+    expect(repo.isEnabled('Task')).toBe(false);
+    expect(repo.isEnabled('WebFetch')).toBe(false);
+    expect(repo.isEnabled('WebSearch')).toBe(false);
   });
 
   it('isEnabled returns false (safe default) for unknown tool names', () => {
@@ -73,10 +90,19 @@ describe('AgentCapabilityRepo', () => {
     expect(repo.isEnabled('Read')).toBe(true);
     expect(repo.isEnabled('Edit')).toBe(true);
     expect(repo.isEnabled('Bash')).toBe(true);
-    expect(repo.isEnabled('Write')).toBe(false);
+    // Write was already enabled by default (spec 0053 migration 13). Verify it stays on.
+    expect(repo.isEnabled('Write')).toBe(true);
   });
 
   it('setMany rolls back if any update fails', () => {
+    // Pre-spec-0053 the seeded values for Read/Edit were 0, so post-rollback both were 0.
+    // After spec 0053 migration 13 they default to 1, so the rollback restores them to 1.
+    repo.setMany([
+      { toolName: 'Read', enabled: false },
+      { toolName: 'Edit', enabled: false },
+    ]);
+    expect(repo.isEnabled('Read')).toBe(false);
+    expect(repo.isEnabled('Edit')).toBe(false);
     expect(() =>
       repo.setMany([
         { toolName: 'Read', enabled: true },
@@ -84,7 +110,7 @@ describe('AgentCapabilityRepo', () => {
         { toolName: 'Edit', enabled: true },
       ]),
     ).toThrow();
-    // Read change should have rolled back.
+    // Read change should have rolled back to its pre-call value (false).
     expect(repo.isEnabled('Read')).toBe(false);
     expect(repo.isEnabled('Edit')).toBe(false);
   });

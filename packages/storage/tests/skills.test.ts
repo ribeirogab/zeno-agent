@@ -85,4 +85,89 @@ describe('SkillRepo', () => {
     expect(repo.get(created.id)).toBeNull();
     expect(repo.delete(created.id)).toBe(false);
   });
+
+  // Spec 0053 — source column tests
+  it('create defaults source to dashboard (spec 0053)', () => {
+    const skill = repo.create({ name: 'a-skill', description: 'd', body: 'b' });
+    expect(skill.source).toBe('dashboard');
+  });
+
+  it('create accepts an explicit source (spec 0053)', () => {
+    const profile = repo.create({
+      name: 'p-skill',
+      description: 'd',
+      body: 'b',
+      source: 'profile',
+    });
+    expect(profile.source).toBe('profile');
+    const def = repo.create({
+      name: 'z-skill',
+      description: 'd',
+      body: 'b',
+      source: 'zeno_default',
+    });
+    expect(def.source).toBe('zeno_default');
+  });
+
+  it('upsertBySource inserts then updates the same row (spec 0053)', () => {
+    const first = repo.upsertBySource({
+      name: 'x',
+      description: 'd1',
+      body: 'b1',
+      source: 'zeno_default',
+    });
+    const second = repo.upsertBySource({
+      name: 'x',
+      description: 'd2',
+      body: 'b2',
+      source: 'zeno_default',
+    });
+    expect(first.id).toBe(second.id);
+    expect(second.description).toBe('d2');
+    expect(second.body).toBe('b2');
+  });
+
+  it('deleteOrphans removes zeno_default rows whose name not in allowlist (spec 0053)', () => {
+    repo.upsertBySource({ name: 'a', description: 'd', body: 'b', source: 'zeno_default' });
+    repo.upsertBySource({ name: 'b', description: 'd', body: 'b', source: 'zeno_default' });
+    repo.create({ name: 'c-dash', description: 'd', body: 'b' }); // dashboard, must NOT be deleted
+    const result = repo.deleteOrphans('zeno_default', ['a']);
+    expect(result.removed).toEqual(['b']);
+    expect(
+      repo
+        .list()
+        .map((s) => s.name)
+        .sort(),
+    ).toEqual(['a', 'c-dash']);
+  });
+
+  it('deleteOrphans keeps zeno_default rows when allowlist is empty AND no rows exist of that source', () => {
+    // Verifies the zero-row branch.
+    repo.create({ name: 'd-only', description: 'd', body: 'b' });
+    const result = repo.deleteOrphans('zeno_default', []);
+    expect(result.removed).toEqual([]);
+    expect(repo.list()).toHaveLength(1);
+  });
+
+  it('deleteOrphans deletes EVERY zeno_default row when allowlist is empty (file tree empty)', () => {
+    repo.upsertBySource({ name: 'old-1', description: 'd', body: 'b', source: 'zeno_default' });
+    repo.upsertBySource({ name: 'old-2', description: 'd', body: 'b', source: 'zeno_default' });
+    const result = repo.deleteOrphans('zeno_default', []);
+    expect(result.removed.sort()).toEqual(['old-1', 'old-2']);
+    expect(repo.list()).toHaveLength(0);
+  });
+
+  it('deleteOrphans is a no-op for source=profile (profile orphans are kept)', () => {
+    repo.upsertBySource({ name: 'p1', description: 'd', body: 'b', source: 'profile' });
+    const result = repo.deleteOrphans('profile', []);
+    expect(result.removed).toEqual([]);
+    expect(repo.list()).toHaveLength(1);
+  });
+
+  it('deleteOrphans is a no-op for source=dashboard', () => {
+    repo.create({ name: 'd1', description: 'd', body: 'b' });
+    const result = repo.deleteOrphans('dashboard', []);
+    expect(result.removed).toEqual([]);
+    expect(repo.list()).toHaveLength(1);
+  });
 });

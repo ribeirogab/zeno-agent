@@ -17,8 +17,14 @@ function makeRepos() {
 }
 
 describe('checkConnectorPermission (spec 0050 + 0052)', () => {
-  it('denies non-MCP tools when capability is disabled (default)', () => {
+  it('denies non-MCP tools when capability is disabled (operator opted out via /settings)', () => {
     const { repo, caps, close } = makeRepos();
+    // Spec 0053 made Bash/Read/Edit/Write/Glob/Grep default-on. To exercise the
+    // deny path we explicitly disable the dev caps first; Task/WebFetch are
+    // already off by default.
+    for (const name of ['Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep']) {
+      caps.setEnabled(name, false);
+    }
     for (const name of ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'WebFetch', 'Task']) {
       const decision = checkConnectorPermission(repo, caps, name);
       expect(decision.allow).toBe(false);
@@ -28,21 +34,27 @@ describe('checkConnectorPermission (spec 0050 + 0052)', () => {
     close();
   });
 
+  it('allows default-on dev capabilities right out of the box (spec 0053)', () => {
+    const { repo, caps, close } = makeRepos();
+    for (const name of ['Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep']) {
+      const decision = checkConnectorPermission(repo, caps, name);
+      expect(decision.allow).toBe(true);
+      expect(decision.policyThatGated).toBe('agent_capability_allow');
+    }
+    close();
+  });
+
   it('allows non-MCP tools when capability is enabled (spec 0052)', () => {
     const { repo, caps, close } = makeRepos();
-    caps.setEnabled('Bash', true);
-    caps.setEnabled('Read', true);
+    // Toggle a sensitive-by-default capability on to verify the allow path.
+    caps.setEnabled('Task', true);
+    const taskDecision = checkConnectorPermission(repo, caps, 'Task');
+    expect(taskDecision.allow).toBe(true);
+    expect(taskDecision.policyThatGated).toBe('agent_capability_allow');
 
-    const bashDecision = checkConnectorPermission(repo, caps, 'Bash');
-    expect(bashDecision.allow).toBe(true);
-    expect(bashDecision.policyThatGated).toBe('agent_capability_allow');
-
-    const readDecision = checkConnectorPermission(repo, caps, 'Read');
-    expect(readDecision.allow).toBe(true);
-
-    // Edit still disabled.
-    const editDecision = checkConnectorPermission(repo, caps, 'Edit');
-    expect(editDecision.allow).toBe(false);
+    // WebFetch still default-disabled.
+    const webDecision = checkConnectorPermission(repo, caps, 'WebFetch');
+    expect(webDecision.allow).toBe(false);
     close();
   });
 

@@ -84,6 +84,21 @@ COPY --from=gh-mcp-builder /go/bin/github-mcp-server /usr/local/bin/
 # Persistent volume mount point (owned by node so the agent can write workspaces)
 RUN mkdir -p /workspace && chown -R node:node /workspace /app
 
+# Spec 0053: Playwright is now a catalog connector. Install Chromium + its
+# native deps at build time so the first navigation does not need to
+# download the browser. Has to run as root (apt-get under the hood);
+# switch back to `node` afterwards. Cache lives in `/ms-playwright`
+# (PLAYWRIGHT_BROWSERS_PATH) so the node user can read it without
+# owning the cache dir.
+#
+# We use `chromium` (the open-source build) instead of Google's branded
+# `chrome` because the latter is not published for Linux Arm64 and the
+# Zeno image is multi-arch.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN mkdir -p ${PLAYWRIGHT_BROWSERS_PATH} \
+    && npx -y playwright install --with-deps chromium \
+    && chmod -R a+rX ${PLAYWRIGHT_BROWSERS_PATH}
+
 # Switch to the non-root `node` user (uid 1000) — required because the Claude
 # Code CLI refuses --dangerously-skip-permissions when running as root.
 USER node

@@ -71,10 +71,13 @@ export function buildSkillsRoute(deps: SkillsRouteDeps): Hono {
 
   route.get('/', (c) => {
     // Return metadata only (no body) — the list page doesn't need the content.
+    // Spec 0053: include `source` so the dashboard can render the badge +
+    // hide edit/delete actions for `zeno_default` rows.
     const all = deps.skills.list().map((s) => ({
       id: s.id,
       name: s.name,
       description: s.description,
+      source: s.source,
       createdAt: s.createdAt,
       updatedAt: s.updatedAt,
     }));
@@ -156,6 +159,19 @@ export function buildSkillsRoute(deps: SkillsRouteDeps): Hono {
     const existing = deps.skills.get(id);
     if (!existing) return c.json({ error: 'not_found' }, 404);
 
+    // Spec 0053: zeno_default skills are managed by the binary, not the
+    // dashboard. The file in `agent/skills/` is canonical; editing via API
+    // would be silently overwritten on the next worker boot.
+    if (existing.source === 'zeno_default') {
+      return c.json(
+        {
+          error: 'zeno_default_immutable',
+          message: `Skill '${existing.name}' is shipped with Zeno and cannot be edited. To customize, copy it to your profile (drop the 'zeno-' prefix).`,
+        },
+        403,
+      );
+    }
+
     const parsed = parseSkillFrontmatter(c.req.valid('json').content);
     if (!parsed.ok) {
       return c.json({ error: 'invalid_frontmatter', errors: parsed.errors }, 400);
@@ -188,6 +204,19 @@ export function buildSkillsRoute(deps: SkillsRouteDeps): Hono {
     const id = c.req.param('id');
     const existing = deps.skills.get(id);
     if (!existing) return c.json({ error: 'not_found' }, 404);
+
+    // Spec 0053: zeno_default skills cannot be deleted. The file in
+    // `agent/skills/` is canonical; the boot seeder would resurrect the
+    // row on the next start anyway.
+    if (existing.source === 'zeno_default') {
+      return c.json(
+        {
+          error: 'zeno_default_immutable',
+          message: `Skill '${existing.name}' is shipped with Zeno and cannot be deleted. To stop using it, remove the file from agent/skills/ and redeploy.`,
+        },
+        403,
+      );
+    }
 
     deps.skills.delete(id);
     await deleteSkillFromFs(deps.claudeHome, existing.name);

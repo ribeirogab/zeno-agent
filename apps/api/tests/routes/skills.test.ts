@@ -99,6 +99,37 @@ describe('GET /api/skills', () => {
     expect(body[0]).toMatchObject({ name: 'frontend-design', description: 'd' });
     expect(body[0]).not.toHaveProperty('body');
   });
+
+  // Spec 0053
+  it('list response includes `source` for each skill', async () => {
+    const repo = new SkillRepo(db);
+    repo.create({ name: 'a-dash', description: 'd', body: 'b' });
+    repo.create({ name: 'a-prof', description: 'd', body: 'b', source: 'profile' });
+    repo.create({ name: 'a-default', description: 'd', body: 'b', source: 'zeno_default' });
+    const app = makeApp(db);
+    const res = await app.request('/api/skills', { headers: authed() });
+    const body = (await res.json()) as Array<{ name: string; source: string }>;
+    expect(body).toHaveLength(3);
+    const map = Object.fromEntries(body.map((s) => [s.name, s.source]));
+    expect(map['a-dash']).toBe('dashboard');
+    expect(map['a-prof']).toBe('profile');
+    expect(map['a-default']).toBe('zeno_default');
+  });
+
+  it('detail response includes `source`', async () => {
+    const repo = new SkillRepo(db);
+    const skill = repo.create({
+      name: 'def-skill',
+      description: 'd',
+      body: 'b',
+      source: 'zeno_default',
+    });
+    const app = makeApp(db);
+    const res = await app.request(`/api/skills/${skill.id}`, { headers: authed() });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { source: string };
+    expect(body.source).toBe('zeno_default');
+  });
 });
 
 describe('POST /api/skills', () => {
@@ -235,6 +266,66 @@ body`;
     expect(res.status).toBe(400);
     expect((await res.json()) as { error: string }).toMatchObject({ error: 'name_immutable' });
   });
+
+  // Spec 0053
+  it('returns 403 when trying to PATCH a zeno_default skill', async () => {
+    const repo = new SkillRepo(db);
+    const skill = repo.create({
+      name: 'zeno-development',
+      description: 'd',
+      body: 'b',
+      source: 'zeno_default',
+    });
+    const app = makeApp(db);
+    const editedMd = `---\nname: zeno-development\ndescription: d\n---\n\nedited body`;
+    const res = await app.request(`/api/skills/${skill.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ content: editedMd }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(403);
+    expect((await res.json()) as { error: string }).toMatchObject({
+      error: 'zeno_default_immutable',
+    });
+  });
+
+  it('PATCH still works for source=profile (operator-editable)', async () => {
+    const repo = new SkillRepo(db);
+    const skill = repo.create({
+      name: 'fn-code-review',
+      description: 'd',
+      body: 'old',
+      source: 'profile',
+    });
+    const app = makeApp(db);
+    const editedMd = `---\nname: fn-code-review\ndescription: d\n---\n\nnew body`;
+    const res = await app.request(`/api/skills/${skill.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ content: editedMd }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { body: string; source: string };
+    expect(body.body.trim()).toBe('new body');
+    expect(body.source).toBe('profile');
+  });
+
+  it('PATCH still works for source=dashboard (the spec 0052 path)', async () => {
+    const repo = new SkillRepo(db);
+    const skill = repo.create({
+      name: 'frontend-design',
+      description: 'd',
+      body: 'old',
+    });
+    const app = makeApp(db);
+    const editedMd = `---\nname: frontend-design\ndescription: d\n---\n\nnew`;
+    const res = await app.request(`/api/skills/${skill.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ content: editedMd }),
+      headers: authed(),
+    });
+    expect(res.status).toBe(200);
+  });
 });
 
 describe('DELETE /api/skills/:id', () => {
@@ -271,6 +362,45 @@ describe('DELETE /api/skills/:id', () => {
       headers: authed(),
     });
     expect(res.status).toBe(404);
+  });
+
+  // Spec 0053
+  it('returns 403 when trying to DELETE a zeno_default skill', async () => {
+    const repo = new SkillRepo(db);
+    const skill = repo.create({
+      name: 'zeno-development',
+      description: 'd',
+      body: 'b',
+      source: 'zeno_default',
+    });
+    const app = makeApp(db);
+    const res = await app.request(`/api/skills/${skill.id}`, {
+      method: 'DELETE',
+      headers: authed(),
+    });
+    expect(res.status).toBe(403);
+    expect((await res.json()) as { error: string }).toMatchObject({
+      error: 'zeno_default_immutable',
+    });
+    // Skill still exists.
+    const get = await app.request(`/api/skills/${skill.id}`, { headers: authed() });
+    expect(get.status).toBe(200);
+  });
+
+  it('DELETE still works for source=profile', async () => {
+    const repo = new SkillRepo(db);
+    const skill = repo.create({
+      name: 'fn-x',
+      description: 'd',
+      body: 'b',
+      source: 'profile',
+    });
+    const app = makeApp(db);
+    const res = await app.request(`/api/skills/${skill.id}`, {
+      method: 'DELETE',
+      headers: authed(),
+    });
+    expect(res.status).toBe(204);
   });
 });
 

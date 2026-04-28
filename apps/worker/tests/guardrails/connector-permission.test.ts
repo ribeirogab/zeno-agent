@@ -1,35 +1,69 @@
-import { ConnectorRepo, closeDatabase, openDatabase, runMigrations } from '@zeno/storage';
+import {
+  AgentCapabilityRepo,
+  ConnectorRepo,
+  closeDatabase,
+  openDatabase,
+  runMigrations,
+} from '@zeno/storage';
 import { describe, expect, it } from 'vitest';
 import { checkConnectorPermission } from '@/guardrails/policies/connector-permission';
 
-function makeRepo() {
+function makeRepos() {
   const db = openDatabase(':memory:');
   runMigrations(db);
   const repo = new ConnectorRepo(db);
-  return { repo, close: () => closeDatabase(db) };
+  const caps = new AgentCapabilityRepo(db);
+  return { repo, caps, close: () => closeDatabase(db) };
 }
 
-describe('checkConnectorPermission (spec 0050)', () => {
-  it('denies non-MCP tool names (Bash, Read, Write, Edit, etc.)', () => {
-    const { repo, close } = makeRepo();
+describe('checkConnectorPermission (spec 0050 + 0052)', () => {
+  it('denies non-MCP tools when capability is disabled (default)', () => {
+    const { repo, caps, close } = makeRepos();
     for (const name of ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'WebFetch', 'Task']) {
-      const decision = checkConnectorPermission(repo, name);
+      const decision = checkConnectorPermission(repo, caps, name);
       expect(decision.allow).toBe(false);
-      expect(decision.policyThatGated).toBe('non_mcp_deny');
+      expect(decision.policyThatGated).toBe('agent_capability_deny');
+      expect(decision.reason).toContain('disabled');
     }
     close();
   });
 
+  it('allows non-MCP tools when capability is enabled (spec 0052)', () => {
+    const { repo, caps, close } = makeRepos();
+    caps.setEnabled('Bash', true);
+    caps.setEnabled('Read', true);
+
+    const bashDecision = checkConnectorPermission(repo, caps, 'Bash');
+    expect(bashDecision.allow).toBe(true);
+    expect(bashDecision.policyThatGated).toBe('agent_capability_allow');
+
+    const readDecision = checkConnectorPermission(repo, caps, 'Read');
+    expect(readDecision.allow).toBe(true);
+
+    // Edit still disabled.
+    const editDecision = checkConnectorPermission(repo, caps, 'Edit');
+    expect(editDecision.allow).toBe(false);
+    close();
+  });
+
+  it('denies non-MCP tools that are not in the seed list (safe default)', () => {
+    const { repo, caps, close } = makeRepos();
+    const decision = checkConnectorPermission(repo, caps, 'NonexistentToolFromFutureSDK');
+    expect(decision.allow).toBe(false);
+    expect(decision.policyThatGated).toBe('agent_capability_deny');
+    close();
+  });
+
   it('allows MCP tools whose slug is not in connector_repo (built-in MCPs)', () => {
-    const { repo, close } = makeRepo();
-    const decision = checkConnectorPermission(repo, 'mcp__playwright__navigate');
+    const { repo, caps, close } = makeRepos();
+    const decision = checkConnectorPermission(repo, caps, 'mcp__playwright__navigate');
     expect(decision.allow).toBe(true);
     expect(decision.policyThatGated).toBe('builtin_mcp_allow');
     close();
   });
 
   it('denies MCP tool when slug is in DB but tool is NOT registered with the connector', () => {
-    const { repo, close } = makeRepo();
+    const { repo, caps, close } = makeRepos();
     repo.create({
       slug: 'echo',
       displayName: 'Echo',
@@ -38,14 +72,14 @@ describe('checkConnectorPermission (spec 0050)', () => {
       tools: [],
       secrets: [],
     });
-    const decision = checkConnectorPermission(repo, 'mcp__echo__missing_tool');
+    const decision = checkConnectorPermission(repo, caps, 'mcp__echo__missing_tool');
     expect(decision.allow).toBe(false);
     expect(decision.policyThatGated).toBe('unknown_tool_deny');
     close();
   });
 
   it('allows when permission=always_allow', () => {
-    const { repo, close } = makeRepo();
+    const { repo, caps, close } = makeRepos();
     repo.create({
       slug: 'echo',
       displayName: 'Echo',
@@ -56,14 +90,14 @@ describe('checkConnectorPermission (spec 0050)', () => {
       ],
       secrets: [],
     });
-    const decision = checkConnectorPermission(repo, 'mcp__echo__do_a');
+    const decision = checkConnectorPermission(repo, caps, 'mcp__echo__do_a');
     expect(decision.allow).toBe(true);
     expect(decision.policyThatGated).toBe('connector_allow');
     close();
   });
 
   it('denies when permission=never', () => {
-    const { repo, close } = makeRepo();
+    const { repo, caps, close } = makeRepos();
     repo.create({
       slug: 'echo',
       displayName: 'Echo',
@@ -72,14 +106,14 @@ describe('checkConnectorPermission (spec 0050)', () => {
       tools: [{ toolName: 'do_b', description: null, category: 'write', permission: 'never' }],
       secrets: [],
     });
-    const decision = checkConnectorPermission(repo, 'mcp__echo__do_b');
+    const decision = checkConnectorPermission(repo, caps, 'mcp__echo__do_b');
     expect(decision.allow).toBe(false);
     expect(decision.policyThatGated).toBe('connector_never');
     close();
   });
 
   it('allows when permission=ask (spec 0050: installation-time decision IS the approval)', () => {
-    const { repo, close } = makeRepo();
+    const { repo, caps, close } = makeRepos();
     repo.create({
       slug: 'echo',
       displayName: 'Echo',
@@ -88,14 +122,14 @@ describe('checkConnectorPermission (spec 0050)', () => {
       tools: [{ toolName: 'do_c', description: null, category: 'interactive', permission: 'ask' }],
       secrets: [],
     });
-    const decision = checkConnectorPermission(repo, 'mcp__echo__do_c');
+    const decision = checkConnectorPermission(repo, caps, 'mcp__echo__do_c');
     expect(decision.allow).toBe(true);
     expect(decision.policyThatGated).toBe('connector_ask_allow');
     close();
   });
 
   it('handles slugs with hyphens correctly', () => {
-    const { repo, close } = makeRepo();
+    const { repo, caps, close } = makeRepos();
     repo.create({
       slug: 'fn-scrum',
       displayName: 'FN Scrum',
@@ -106,17 +140,20 @@ describe('checkConnectorPermission (spec 0050)', () => {
       ],
       secrets: [],
     });
-    const decision = checkConnectorPermission(repo, 'mcp__fn-scrum__list');
+    const decision = checkConnectorPermission(repo, caps, 'mcp__fn-scrum__list');
     expect(decision.allow).toBe(true);
     expect(decision.policyThatGated).toBe('connector_allow');
     close();
   });
 
   it('denies malformed mcp tool names', () => {
-    const { repo, close } = makeRepo();
-    const d1 = checkConnectorPermission(repo, 'mcp__');
+    const { repo, caps, close } = makeRepos();
+    const d1 = checkConnectorPermission(repo, caps, 'mcp__');
     expect(d1.allow).toBe(false);
-    expect(d1.policyThatGated).toBe('non_mcp_deny');
+    // Malformed name doesn't match the regex, so it falls through to the
+    // non-MCP branch which consults agent_capabilities. With no seed for
+    // 'mcp__', returns disabled. Either way it denies.
+    expect(d1.policyThatGated).toBe('agent_capability_deny');
     close();
   });
 });

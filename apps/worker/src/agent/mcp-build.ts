@@ -7,6 +7,17 @@
  *   - reading agent/mcp.json (built-ins)
  *   - applying user connectors from the DB
  *   - persisting `last_error` when a connector fails to build
+ *
+ * Spec 0052 — Phase B gate-zero: Path A confirmed. The Claude Agent SDK
+ * (@anthropic-ai/claude-agent-sdk@0.2.110) auto-discovers skills from
+ * `~/.claude/skills/<name>/SKILL.md` natively (sdk.d.ts: `Options.skills`
+ * preload list, `getAvailableSkills()` method, session-state `skills:
+ * string[]` field, `permissionInputSpec.source: 'skills'` permission
+ * routing, plus `skillListingMaxDescChars` / `skillListingBudgetFraction`
+ * token budget controls). The worker's job is to materialize DB skills
+ * to that filesystem location (see `apps/worker/src/skills/materialize.ts`);
+ * the SDK handles listing + reading from there. NO custom MCP tools
+ * (`mcp__zeno__list_skills` / `read_skill`) are needed.
  */
 
 import type { Logger } from '@zeno/logger';

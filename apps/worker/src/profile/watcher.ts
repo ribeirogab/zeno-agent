@@ -4,9 +4,9 @@ import { createLogger } from '@zeno/logger';
 const logger = createLogger({ service: 'worker' });
 
 /** Logical groupings of identity/config files. The watcher dispatches one group per debounce window. */
-type FileGroup = 'prompt' | 'crons' | 'ignored';
+type FileGroup = 'prompt' | 'crons' | 'skills' | 'ignored';
 
-type SourceKind = 'agent' | 'profile';
+type SourceKind = 'agent' | 'profile' | 'skills';
 
 const AGENT_CANDIDATES = ['/app/agent', 'agent'];
 const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
@@ -16,6 +16,14 @@ interface ProfileWatcherOptions {
   onPromptFilesChanged: () => void;
   /** Called when profile/config.yaml changes. */
   onCronsChanged: () => void;
+  /** Spec 0052: called when ${claudeHome}/skills/<n>/SKILL.md changes. */
+  onSkillsChanged?: () => void;
+  /**
+   * Spec 0052: absolute path to ${claudeHome}/skills. When provided, the
+   * watcher monitors it as a third source and dispatches `skills` events.
+   * When undefined, skill changes are not watched (e.g., test contexts).
+   */
+  skillsPath?: string;
   /** Debounce window in ms. Defaults to 250 — enough to coalesce editor save bursts. */
   debounceMs?: number;
 }
@@ -51,6 +59,17 @@ export class ProfileWatcher {
       logger.info({ event: 'profile_watcher_started', source: 'profile', path: profilePath });
     } else {
       logger.warn({ event: 'profile_watcher_no_dir', source: 'profile' });
+    }
+
+    // Spec 0052: skills bucket watches ${claudeHome}/skills/. Only when
+    // both the path is configured and onSkillsChanged is provided.
+    if (this.opts.skillsPath && this.opts.onSkillsChanged && existsSync(this.opts.skillsPath)) {
+      this.watchers.push(this.openWatcher('skills', this.opts.skillsPath));
+      logger.info({
+        event: 'profile_watcher_started',
+        source: 'skills',
+        path: this.opts.skillsPath,
+      });
     }
   }
 
@@ -89,6 +108,9 @@ export class ProfileWatcher {
         case 'crons':
           this.opts.onCronsChanged();
           break;
+        case 'skills':
+          this.opts.onSkillsChanged?.();
+          break;
       }
     } catch (error) {
       logger.error(
@@ -109,12 +131,14 @@ function findSourceDir(candidates: string[]): string | null {
 /**
  * Map a (source, filename) pair to its reload group.
  * `mcp.json` is ignored after spec 0032 (DB is the source of truth for MCPs).
- * Spec 0050: skills/ branch removed — runtime no longer loads skill content.
+ * Spec 0052: any change in the `skills` source bucket maps to 'skills'
+ * (e.g. `${claudeHome}/skills/<n>/SKILL.md`).
  */
 export function classify(source: SourceKind, filename: string): FileGroup {
   const normalized = filename.replace(/\\/g, '/');
   if (source === 'agent' && normalized === 'SOUL.md') return 'prompt';
   if (source === 'profile' && normalized === 'USER.md') return 'prompt';
   if (source === 'profile' && normalized === 'config.yaml') return 'crons';
+  if (source === 'skills') return 'skills';
   return 'ignored';
 }

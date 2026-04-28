@@ -1,13 +1,18 @@
 export { closeDatabase, type DB, openDatabase } from './db.js';
 export { runMigrations } from './migrations.js';
+export { AgentCapabilityRepo } from './repos/agent-capabilities.js';
 export { CommandRepo } from './repos/commands.js';
 export { ConnectorAppRepo } from './repos/connector-apps.js';
+export { ConnectorSkillRepo } from './repos/connector-skills.js';
 export { ConnectorRepo, type ListConnectorsFilter } from './repos/connectors.js';
 export { CronRunRepo } from './repos/cron-runs.js';
 export { CronRepo } from './repos/crons.js';
 export { LogRepo } from './repos/logs.js';
 export { SessionRepo } from './repos/sessions.js';
+export { SkillRepo } from './repos/skills.js';
 export type {
+  AgentCapability,
+  AgentCapabilityUpdate,
   Command,
   CommandStatus,
   CommandType,
@@ -15,6 +20,7 @@ export type {
   ConnectorApp,
   ConnectorInvocation,
   ConnectorSecret,
+  ConnectorSkillLink,
   ConnectorSource,
   ConnectorStatus,
   ConnectorToolPermission,
@@ -25,6 +31,7 @@ export type {
   CreateConnectorInput,
   CreateCronInput,
   CreateLogInput,
+  CreateSkillInput,
   Cron,
   CronRun,
   CronRunStatus,
@@ -35,9 +42,11 @@ export type {
   LogLevel,
   RecordInvocationInput,
   Session,
+  Skill,
   ToolCategory,
   ToolPermission,
   UpdateConnectorAppInput,
   UpdateConnectorInput,
   UpdateCronInput,
+  UpdateSkillInput,
 } from './types.js';

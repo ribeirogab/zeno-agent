@@ -587,3 +587,153 @@ describe('migrations: github_app_v2_backfill_tools (migration 7)', () => {
     closeDatabase(db);
   });
 });
+
+// Spec 0052: skills + connector_skills + agent_capabilities tables.
+// Skills are content-only markdown playbooks; capabilities are global
+// non-MCP tool toggles seeded disabled-by-default.
+describe('migrations: skills + agent_capabilities (migration 11)', () => {
+  it('creates the skills table with the expected columns', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+
+    const cols = db.prepare('PRAGMA table_info(skills)').all() as PragmaTableInfoRow[];
+    const names = cols.map((c) => c.name);
+    for (const name of ['id', 'name', 'description', 'body', 'created_at', 'updated_at']) {
+      expect(names, `skills missing ${name}`).toContain(name);
+    }
+    closeDatabase(db);
+  });
+
+  it('enforces UNIQUE on skills.name', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    db.prepare('INSERT INTO skills (id, name, description, body) VALUES (?, ?, ?, ?)').run(
+      'a',
+      'frontend-design',
+      'desc',
+      'body',
+    );
+    expect(() =>
+      db
+        .prepare('INSERT INTO skills (id, name, description, body) VALUES (?, ?, ?, ?)')
+        .run('b', 'frontend-design', 'desc2', 'body2'),
+    ).toThrow();
+    closeDatabase(db);
+  });
+
+  it('creates the connector_skills table with FK cascade', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    db.exec('PRAGMA foreign_keys = ON;');
+
+    // Seed a connector + skill, link them, then delete the skill and assert link gone.
+    db.prepare(`
+      INSERT INTO connectors (id, slug, display_name, source, transport)
+      VALUES ('c1', 'sentry', 'Sentry', 'catalog', 'remote')
+    `).run();
+    db.prepare('INSERT INTO skills (id, name, description, body) VALUES (?, ?, ?, ?)').run(
+      's1',
+      'sentry-flow',
+      'desc',
+      'body',
+    );
+    db.prepare('INSERT INTO connector_skills (connector_id, skill_id) VALUES (?, ?)').run(
+      'c1',
+      's1',
+    );
+    expect(db.prepare('SELECT COUNT(*) AS c FROM connector_skills').get()).toEqual({ c: 1 });
+
+    db.prepare('DELETE FROM skills WHERE id = ?').run('s1');
+    expect(db.prepare('SELECT COUNT(*) AS c FROM connector_skills').get()).toEqual({ c: 0 });
+    closeDatabase(db);
+  });
+
+  it('cascades connector deletes to connector_skills links', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    db.exec('PRAGMA foreign_keys = ON;');
+
+    db.prepare(`
+      INSERT INTO connectors (id, slug, display_name, source, transport)
+      VALUES ('c2', 'linear', 'Linear', 'catalog', 'remote')
+    `).run();
+    db.prepare('INSERT INTO skills (id, name, description, body) VALUES (?, ?, ?, ?)').run(
+      's2',
+      'linear-tips',
+      'desc',
+      'body',
+    );
+    db.prepare('INSERT INTO connector_skills (connector_id, skill_id) VALUES (?, ?)').run(
+      'c2',
+      's2',
+    );
+
+    db.prepare('DELETE FROM connectors WHERE id = ?').run('c2');
+    expect(db.prepare('SELECT COUNT(*) AS c FROM connector_skills').get()).toEqual({ c: 0 });
+    closeDatabase(db);
+  });
+
+  it('creates the agent_capabilities table with seeded rows', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+
+    const rows = db
+      .prepare('SELECT tool_name, enabled FROM agent_capabilities ORDER BY tool_name')
+      .all() as Array<{ tool_name: string; enabled: number }>;
+    expect(rows).toEqual([
+      { tool_name: 'Bash', enabled: 0 },
+      { tool_name: 'Edit', enabled: 0 },
+      { tool_name: 'Glob', enabled: 0 },
+      { tool_name: 'Grep', enabled: 0 },
+      { tool_name: 'Read', enabled: 0 },
+      { tool_name: 'Task', enabled: 0 },
+      { tool_name: 'ToolSearch', enabled: 1 },
+      { tool_name: 'WebFetch', enabled: 0 },
+      { tool_name: 'WebSearch', enabled: 0 },
+      { tool_name: 'Write', enabled: 0 },
+    ]);
+    closeDatabase(db);
+  });
+
+  it('enforces enabled CHECK constraint', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    expect(() =>
+      db.prepare('UPDATE agent_capabilities SET enabled = 2 WHERE tool_name = ?').run('Bash'),
+    ).toThrow();
+    closeDatabase(db);
+  });
+
+  it('is idempotent — re-running migrations after migrations 11+12 does not duplicate seeds', () => {
+    const db = openDatabase(':memory:');
+    const first = runMigrations(db);
+    expect(first.applied).toContain(11);
+    expect(first.applied).toContain(12);
+
+    const countAfterFirst = db.prepare('SELECT COUNT(*) AS c FROM agent_capabilities').get() as {
+      c: number;
+    };
+    expect(countAfterFirst.c).toBe(10);
+
+    const second = runMigrations(db);
+    expect(second.applied).toEqual([]);
+
+    const countAfterSecond = db.prepare('SELECT COUNT(*) AS c FROM agent_capabilities').get() as {
+      c: number;
+    };
+    expect(countAfterSecond.c).toBe(10);
+
+    closeDatabase(db);
+  });
+
+  it('migration 12 seeds ToolSearch as enabled-by-default', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    const row = db
+      .prepare('SELECT enabled FROM agent_capabilities WHERE tool_name = ?')
+      .get('ToolSearch') as { enabled: number } | undefined;
+    expect(row).toBeDefined();
+    expect(row?.enabled).toBe(1);
+    closeDatabase(db);
+  });
+});

@@ -5,15 +5,18 @@ import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
 import { createLogger } from '@zeno/logger';
 import {
+  AgentCapabilityRepo,
   CommandRepo,
   ConnectorAppRepo,
   ConnectorRepo,
+  ConnectorSkillRepo,
   CronRepo,
   CronRunRepo,
   closeDatabase,
   LogRepo,
   openDatabase,
   runMigrations,
+  SkillRepo,
 } from '@zeno/storage';
 import { loadApiConfig } from '@/config';
 import { createApp } from '@/server';
@@ -45,6 +48,9 @@ function main(): void {
   const logRepo = new LogRepo(db);
   const connectorRepo = new ConnectorRepo(db);
   const connectorAppRepo = new ConnectorAppRepo(db);
+  const skillRepo = new SkillRepo(db);
+  const connectorSkillRepo = new ConnectorSkillRepo(db);
+  const agentCapabilityRepo = new AgentCapabilityRepo(db);
   const logger = createLogger({ service: 'api', dbSink: logRepo });
   const here = dirname(fileURLToPath(import.meta.url));
   // After build: apps/api/dist/index.js → ../.. → apps → /dashboard/dist
@@ -52,6 +58,8 @@ function main(): void {
   // Claude Code JSONL transcripts live under $HOME/.claude/projects/-workspace/<sessionId>.jsonl.
   // In the container, the worker user's home is /home/node, so this resolves to the shared volume.
   const claudeHome = join(homedir(), '.claude', 'projects', '-workspace');
+  // Spec 0052: skill SKILL.md files live one directory up at $HOME/.claude/skills/.
+  const claudeHomeRoot = join(homedir(), '.claude');
   const profileDir = resolveProfileDir();
   const app = createApp({
     config,
@@ -62,7 +70,11 @@ function main(): void {
     logRepo,
     connectorRepo,
     connectorAppRepo,
+    skillRepo,
+    connectorSkillRepo,
+    agentCapabilityRepo,
     claudeHome,
+    claudeHomeRoot,
     profileDir,
     spaDir,
   });

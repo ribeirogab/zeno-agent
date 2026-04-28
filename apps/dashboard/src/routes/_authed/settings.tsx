@@ -3,6 +3,7 @@ import { type JSX, type ReactNode, useState } from 'react';
 import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
 import { RestartWorkerModal } from '@/components/modals/restart-worker-modal';
 import { AboutRow } from '@/components/settings/about-row';
+import { AgentCapabilitiesSection } from '@/components/settings/agent-capabilities-section';
 import { BackendCard } from '@/components/settings/backend-card';
 import { ProfileFileRow } from '@/components/settings/profile-file-row';
 import { SettingsSectionSkeleton } from '@/components/skeletons/settings-section-skeleton';
@@ -40,6 +41,7 @@ function SettingsScreen(): JSX.Element {
           </>
         ) : (
           <>
+            <AgentCapabilitiesSection />
             <BackendSection backend={q.data.backend} />
             <ProfileFilesSection files={q.data.profileFiles} />
             <AboutSection

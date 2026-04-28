@@ -1,10 +1,13 @@
 import { spawn } from 'node:child_process';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createLogger, type Logger } from '@zeno/logger';
 import {
+  AgentCapabilityRepo,
   CommandRepo,
   ConnectorAppRepo,
   ConnectorRepo,
+  ConnectorSkillRepo,
   CronRepo,
   CronRunRepo,
   closeDatabase,
@@ -12,6 +15,7 @@ import {
   openDatabase,
   runMigrations,
   SessionRepo,
+  SkillRepo,
 } from '@zeno/storage';
 import { ClaudeCodeBackend, type InvocationEvent } from '@/agent/backends/claude-code';
 import { MockBackend } from '@/agent/backends/mock';
@@ -34,6 +38,7 @@ import { resolveGitIdentity } from '@/github/git-identity';
 import { ConnectorGatedBackend } from '@/guardrails/connector-gated-backend';
 import { LogsRetention } from '@/logs/retention';
 import { ProfileWatcher } from '@/profile/watcher';
+import { materializeSkillsToFs } from '@/skills/materialize';
 
 interface RunResult {
   code: number | null;
@@ -153,6 +158,9 @@ async function main(): Promise<void> {
   const logs = new LogRepo(db);
   const connectors = new ConnectorRepo(db);
   const connectorApps = new ConnectorAppRepo(db);
+  const skillRepo = new SkillRepo(db);
+  const connectorSkillRepo = new ConnectorSkillRepo(db);
+  const agentCapabilityRepo = new AgentCapabilityRepo(db);
 
   // Real logger now that the sink is available. Every log from here on is
   // persisted for the dashboard Logs page.
@@ -174,6 +182,32 @@ async function main(): Promise<void> {
   const staticCrons = loadStaticCrons();
   crons.replaceStaticSet(staticCrons);
   logger.info({ event: 'cron_static_loaded', count: staticCrons.length }, 'static crons loaded');
+
+  // Spec 0052: skills are content-only markdown playbooks materialized
+  // from DB to ${claudeHome}/skills/<name>/SKILL.md. The Claude Agent SDK
+  // auto-discovers them from there (Path A; see mcp-build.ts gate-zero
+  // note). Boot-time materialization keeps DB ↔ FS in sync after any
+  // crash recovery.
+  const claudeHome = join(homedir(), '.claude');
+  const skillsPath = join(claudeHome, 'skills');
+  const initialMaterialize = await materializeSkillsToFs({ skillRepo, claudeHome, logger });
+  logger.info(
+    { event: 'skills_loaded', count: initialMaterialize.written },
+    `loaded ${initialMaterialize.written} skill(s) from DB`,
+  );
+
+  // Spec 0052: log the agent capability state at boot so operators can
+  // diagnose tool denials by reading logs.
+  const enabledCaps = agentCapabilityRepo
+    .list()
+    .filter((c) => c.enabled)
+    .map((c) => c.toolName);
+  logger.info(
+    { event: 'agent_capabilities_loaded', enabled: enabledCaps },
+    enabledCaps.length === 0
+      ? 'agent capabilities all disabled — agent is connector-only until /settings is updated'
+      : `agent capabilities enabled: ${enabledCaps.join(', ')}`,
+  );
 
   // GitHub App auth — generates installation tokens and sets env vars (ACME_GH_TOKEN, etc.)
   // Spec 0044: read from connector_apps + connectors tables.
@@ -330,7 +364,12 @@ async function main(): Promise<void> {
     // on `ClaudeCodeBackend`, but the hook is owned by `ConnectorGatedBackend`.
     // Build a throwaway wrapper to obtain the hook, construct the real inner
     // backend with it, then build the final wrapper around it.
-    const gatedDeps = { connectorRepo: connectors };
+    const gatedDeps = {
+      connectorRepo: connectors,
+      agentCapabilityRepo,
+      connectorSkillRepo,
+      logger,
+    };
     const tempInner = new ClaudeCodeBackend({
       getMcpServers,
       inProcessMcpServers: { zeno: cronMcp },
@@ -379,6 +418,17 @@ async function main(): Promise<void> {
       crons.replaceStaticSet(next);
       logger.info({ event: 'static_crons_reloaded', count: next.length }, 'static crons reloaded');
     },
+    // Spec 0052: skill bucket watches ${claudeHome}/skills/. The Claude
+    // Agent SDK auto-discovers from this dir, so a change here means the
+    // next agent query will see it natively. We log the event for
+    // observability — no in-memory state to refresh.
+    onSkillsChanged: () => {
+      logger.info(
+        { event: 'skills_reloaded' },
+        'skills FS change detected; SDK will re-discover on next query',
+      );
+    },
+    skillsPath,
   });
 
   await slack.start(core.bind(slack));

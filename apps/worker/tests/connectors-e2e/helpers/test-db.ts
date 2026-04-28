@@ -7,6 +7,7 @@
  */
 
 import {
+  AgentCapabilityRepo,
   CommandRepo,
   ConnectorRepo,
   closeDatabase,
@@ -19,6 +20,7 @@ export interface TestDb {
   db: DB;
   connectorRepo: ConnectorRepo;
   commandRepo: CommandRepo;
+  agentCapabilityRepo: AgentCapabilityRepo;
   close: () => void;
 }
 
@@ -29,6 +31,7 @@ export function makeTestDb(): TestDb {
     db,
     connectorRepo: new ConnectorRepo(db),
     commandRepo: new CommandRepo(db),
+    agentCapabilityRepo: new AgentCapabilityRepo(db),
     close: () => closeDatabase(db),
   };
 }

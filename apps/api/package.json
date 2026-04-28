@@ -17,10 +17,13 @@
     "@zeno/logger": "workspace:*",
     "@zeno/mcp-discover": "workspace:*",
     "@zeno/storage": "workspace:*",
+    "archiver": "^7.0.1",
     "hono": "^4.12.14",
+    "yaml": "^2.8.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/archiver": "^6.0.3",
     "tsc-alias": "^1.8.16",
     "typescript": "^6.0.2",
     "vitest": "^4.1.4"

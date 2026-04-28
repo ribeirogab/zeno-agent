@@ -381,6 +381,63 @@ DROP INDEX IF EXISTS idx_approvals_log_correlation;
 DROP TABLE IF EXISTS approvals_log;
 `,
   },
+  {
+    id: 11,
+    name: 'skills_and_agent_capabilities',
+    // Spec 0052: skills as content-only markdown playbooks + global agent
+    // capability toggles. M:N link between connectors and skills lets the
+    // pre-tool-use hook inject linked-skill bodies before a connector's
+    // tools run. Capabilities seed the 9 Claude Agent SDK non-MCP tools
+    // disabled-by-default; operator opts in via /settings (Phase C of spec
+    // 0052). Tool added by future SDK versions: gate denies safely until a
+    // new migration seeds it.
+    sql: `
+CREATE TABLE IF NOT EXISTS skills (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name);
+
+CREATE TABLE IF NOT EXISTS connector_skills (
+  connector_id TEXT NOT NULL,
+  skill_id TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY (connector_id, skill_id),
+  FOREIGN KEY (connector_id) REFERENCES connectors(id) ON DELETE CASCADE,
+  FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_connector_skills_skill ON connector_skills(skill_id);
+
+CREATE TABLE IF NOT EXISTS agent_capabilities (
+  tool_name TEXT PRIMARY KEY,
+  enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+INSERT OR IGNORE INTO agent_capabilities (tool_name, enabled) VALUES
+  ('Read', 0),
+  ('Edit', 0),
+  ('Write', 0),
+  ('Bash', 0),
+  ('Glob', 0),
+  ('Grep', 0),
+  ('WebFetch', 0),
+  ('WebSearch', 0),
+  ('Task', 0);
+`,
+  },
+  {
+    id: 12,
+    name: 'spec 0052 follow-up: seed ToolSearch capability enabled-by-default. ToolSearch is a Claude Code harness tool that loads deferred MCP tool schemas; without it the agent cannot invoke MCP connectors registered after boot. Default-enabled because it has no side effect outside the agent context window — actual tool calls still pass through the gate. Operators can disable in /settings if they want strict harness lockdown.',
+    sql: `
+INSERT OR IGNORE INTO agent_capabilities (tool_name, enabled) VALUES
+  ('ToolSearch', 1);
+`,
+  },
 ];
 
 /**

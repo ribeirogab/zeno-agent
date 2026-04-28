@@ -1,12 +1,18 @@
 /**
- * Per-tool permission gate — the single guardrail surviving spec 0050.
+ * Per-tool permission gate — the single guardrail surviving spec 0050,
+ * extended in spec 0052 with global agent capability toggles for
+ * non-MCP tools.
  *
  * Decision tree (deterministic, every input maps to allow|deny):
  *
- *   - tool name does NOT match `mcp__<slug>__<bareTool>` → DENY
- *     (hardblocks Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch,
- *      Task and any other Claude Code SDK built-in. The agent's capability
- *      surface is connectors only, per spec 0049.)
+ *   - tool name does NOT match `mcp__<slug>__<bareTool>` (i.e., a built-in
+ *     SDK tool like Bash/Read/Edit/Write/Glob/Grep/WebFetch/WebSearch/Task)
+ *     → consult `AgentCapabilityRepo.isEnabled(toolName)`:
+ *       - enabled → ALLOW (`agent_capability_allow`)
+ *       - disabled (or unknown) → DENY (`agent_capability_deny`)
+ *     (Spec 0052: capabilities are global — operator opts in per-tool via
+ *     /settings. Skills don't grant individual tools; they're content-only
+ *     playbooks that the agent reads when relevant.)
  *
  *   - tool name matches `mcp__<slug>__<bareTool>` AND `slug` is NOT in the
  *     connector_repo → ALLOW
@@ -33,18 +39,31 @@
  *     with the connector → DENY
  */
 
-import type { ConnectorRepo } from '@zeno/storage';
+import type { AgentCapabilityRepo, ConnectorRepo } from '@zeno/storage';
 import type { Decision } from '@/guardrails/types';
 
 const TOOL_NAME_REGEX = /^mcp__([a-z0-9][a-z0-9-]*)__(.+)$/;
 
-export function checkConnectorPermission(connectorRepo: ConnectorRepo, toolName: string): Decision {
+export function checkConnectorPermission(
+  connectorRepo: ConnectorRepo,
+  agentCapabilityRepo: AgentCapabilityRepo,
+  toolName: string,
+): Decision {
   const match = toolName.match(TOOL_NAME_REGEX);
   if (!match) {
+    // Spec 0052: consult global agent capabilities. Operator opts in per-tool
+    // via /settings. Disabled tools (or tools not in the seed list) deny safely.
+    if (agentCapabilityRepo.isEnabled(toolName)) {
+      return {
+        allow: true,
+        reason: `non-MCP tool '${toolName}' enabled in agent_capabilities`,
+        policyThatGated: 'agent_capability_allow',
+      };
+    }
     return {
       allow: false,
-      reason: `non-MCP tool '${toolName}' is not available — Zeno's capability surface is connectors only`,
-      policyThatGated: 'non_mcp_deny',
+      reason: `non-MCP tool '${toolName}' is disabled — enable it in /settings/agent-capabilities or use only connector tools`,
+      policyThatGated: 'agent_capability_deny',
     };
   }
   const slug = match[1];

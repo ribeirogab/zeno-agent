@@ -36,27 +36,43 @@ describe('P3 — connector-permission policy (spec 0050)', () => {
 
   it('P3.1: always_allow → allow + policyThatGated=connector_allow', () => {
     seedConnectorWithTool('always_allow');
-    const result = checkConnectorPermission(testDb.connectorRepo, 'mcp__echo__read_echo');
+    const result = checkConnectorPermission(
+      testDb.connectorRepo,
+      testDb.agentCapabilityRepo,
+      'mcp__echo__read_echo',
+    );
     expect(result.allow).toBe(true);
     expect(result.policyThatGated).toBe('connector_allow');
   });
 
   it('P3.2: never → deny + policyThatGated=connector_never', () => {
     seedConnectorWithTool('never');
-    const result = checkConnectorPermission(testDb.connectorRepo, 'mcp__echo__read_echo');
+    const result = checkConnectorPermission(
+      testDb.connectorRepo,
+      testDb.agentCapabilityRepo,
+      'mcp__echo__read_echo',
+    );
     expect(result.allow).toBe(false);
     expect(result.policyThatGated).toBe('connector_never');
   });
 
   it('P3.3: ask → allow + policyThatGated=connector_ask_allow (spec 0050 collapse)', () => {
     seedConnectorWithTool('ask');
-    const result = checkConnectorPermission(testDb.connectorRepo, 'mcp__echo__read_echo');
+    const result = checkConnectorPermission(
+      testDb.connectorRepo,
+      testDb.agentCapabilityRepo,
+      'mcp__echo__read_echo',
+    );
     expect(result.allow).toBe(true);
     expect(result.policyThatGated).toBe('connector_ask_allow');
   });
 
   it('P3.4: slug not in DB → allow + policyThatGated=builtin_mcp_allow', () => {
-    const result = checkConnectorPermission(testDb.connectorRepo, 'mcp__nonexistent__some_tool');
+    const result = checkConnectorPermission(
+      testDb.connectorRepo,
+      testDb.agentCapabilityRepo,
+      'mcp__nonexistent__some_tool',
+    );
     expect(result.allow).toBe(true);
     expect(result.policyThatGated).toBe('builtin_mcp_allow');
   });

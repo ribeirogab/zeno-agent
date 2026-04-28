@@ -284,3 +284,47 @@ export interface RecordInvocationInput {
   durationMs: number;
   errorMessage?: string | null;
 }
+
+// Spec 0052: skills are content-only markdown playbooks. Capabilities are
+// global (see AgentCapability below), not per-skill.
+export interface Skill {
+  id: string;
+  name: string;
+  description: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSkillInput {
+  name: string;
+  description: string;
+  body: string;
+}
+
+export interface UpdateSkillInput {
+  description?: string;
+  body?: string;
+}
+
+// M:N link between connectors and skills. Pre-tool-use hook injects linked
+// skill bodies into context before the connector's tools fire (spec 0052).
+export interface ConnectorSkillLink {
+  connectorId: string;
+  skillId: string;
+  createdAt: string;
+}
+
+// Spec 0052: global non-MCP tool toggles. Operator opts in via /settings.
+// Gate (connector-permission.ts) consults isEnabled(toolName) before allowing
+// non-MCP tools (Read/Edit/Write/Bash/etc.).
+export interface AgentCapability {
+  toolName: string;
+  enabled: boolean;
+  updatedAt: string;
+}
+
+export interface AgentCapabilityUpdate {
+  toolName: string;
+  enabled: boolean;
+}

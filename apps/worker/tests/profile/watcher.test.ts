@@ -95,8 +95,40 @@ describe('ProfileWatcher', () => {
 
   // Spec 0050 retired the `skills/` ignored-path branch in classify(); the
   // skill bootstrap is gone, so any non-watched filename now falls through
-  // to the generic 'ignored' bucket. The dedicated skills/ test was
-  // dropped alongside.
+  // to the generic 'ignored' bucket.
+  //
+  // Spec 0052 reintroduces a 'skills' bucket — but as a *third source*
+  // pointing at ${claudeHome}/skills/, NOT a path inside agent/ or profile/.
+  // Test below covers it.
+  it('routes ${claudeHome}/skills/<n>/SKILL.md edits to onSkillsChanged', async () => {
+    const skillsPath = join(workdir, 'claude-skills');
+    mkdirSync(join(skillsPath, 'frontend-design'), { recursive: true });
+    const onSkillsChanged = vi.fn();
+    const watcher = new ProfileWatcher({
+      onPromptFilesChanged: vi.fn(),
+      onCronsChanged: vi.fn(),
+      onSkillsChanged,
+      skillsPath,
+      debounceMs: 50,
+    });
+    watcher.start();
+    await wait(50);
+
+    writeFileSync(
+      join(skillsPath, 'frontend-design', 'SKILL.md'),
+      '---\nname: frontend-design\n---\n\nbody',
+      'utf8',
+    );
+
+    await wait(150);
+    watcher.stop();
+
+    // fs.watch on macOS can emit creation-then-content events outside the
+    // debounce window when files in nested dirs are written. Assert that
+    // the callback fired at least once (debounce still coalesces within a
+    // single editor save burst, which is what matters in production).
+    expect(onSkillsChanged.mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
 
   it('does not crash when a handler throws', async () => {
     const watcher = new ProfileWatcher({

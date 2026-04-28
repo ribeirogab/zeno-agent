@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { InheritedAppCallout } from '@/components/connectors/inherited-app-callout';
 import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
 import { ConfirmModal } from '@/components/shared/confirm-modal';
+import { LinkedSkillsSection } from '@/components/skills/linked-skills-section';
 import {
   useRefreshTools,
   useRevealSecret,
@@ -137,6 +138,7 @@ function ConnectorDetailScreen(): JSX.Element {
           doesn't trigger a false positive. R3 F1. */}
       {c.appId && <InheritedAppCallout />}
       <ConnectionSection connector={c} />
+      <LinkedSkillsSection connectorId={c.id} connectorSlug={c.slug} />
       <ToolPermissionsSection connector={c} />
       <ActivitySection feed={activity.data ?? []} loading={activity.isLoading} />
       {confirmKind === 'refresh' && (

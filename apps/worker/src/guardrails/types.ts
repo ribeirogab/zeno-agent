@@ -16,6 +16,9 @@ export interface Decision {
    * Useful for log inspection and audit; not part of the wire protocol.
    */
   policyThatGated:
+    | 'agent_capability_allow'
+    | 'agent_capability_deny'
+    /** @deprecated — pre spec 0052; replaced by agent_capability_deny. Kept for legacy log readers. */
     | 'non_mcp_deny'
     | 'builtin_mcp_allow'
     | 'connector_allow'

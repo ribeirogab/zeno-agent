@@ -7,7 +7,6 @@
  */
 
 import {
-  ApprovalsLogRepo,
   CommandRepo,
   ConnectorRepo,
   closeDatabase,
@@ -20,7 +19,6 @@ export interface TestDb {
   db: DB;
   connectorRepo: ConnectorRepo;
   commandRepo: CommandRepo;
-  approvalsLogRepo: ApprovalsLogRepo;
   close: () => void;
 }
 
@@ -31,7 +29,6 @@ export function makeTestDb(): TestDb {
     db,
     connectorRepo: new ConnectorRepo(db),
     commandRepo: new CommandRepo(db),
-    approvalsLogRepo: new ApprovalsLogRepo(db),
     close: () => closeDatabase(db),
   };
 }

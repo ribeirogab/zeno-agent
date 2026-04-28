@@ -11,102 +11,43 @@ interface PragmaTableInfoRow {
   pk: number;
 }
 
-interface IndexListRow {
-  seq: number;
-  name: string;
-  unique: number;
-  origin: string;
-  partial: number;
-}
-
-describe('migrations: approvals_log (migration 4)', () => {
-  it('creates the approvals_log table with the expected columns', () => {
+// Spec 0050: migration 10 drops approval_rules + approvals_log tables and
+// indexes. Tables 4 (approvals_log) and 8 (approval_rules) created the rows;
+// migration 10 removes them. After running all migrations the tables MUST NOT
+// exist.
+describe('migrations: drop approval_rules + approvals_log (migration 10)', () => {
+  it('removes the approval_rules and approvals_log tables', () => {
     const db = openDatabase(':memory:');
     runMigrations(db);
 
-    const columns = db.prepare('PRAGMA table_info(approvals_log)').all() as PragmaTableInfoRow[];
-    const byName = new Map(columns.map((column) => [column.name, column]));
-
-    const expectedColumns = [
-      'id',
-      'profile',
-      'correlation_id',
-      'thread_id',
-      'requester_user_id',
-      'decider_user_id',
-      'tool_name',
-      'tool_input',
-      'policy_that_gated',
-      'classifier_reason',
-      'decision',
-      'decision_reason',
-      'created_at',
-    ];
-    for (const name of expectedColumns) {
-      expect(byName.has(name), `missing column ${name}`).toBe(true);
-    }
-
-    // NOT NULL constraints on the required fields
-    const required = [
-      'profile',
-      'correlation_id',
-      'requester_user_id',
-      'tool_name',
-      'tool_input',
-      'policy_that_gated',
-      'decision',
-      'decision_reason',
-      'created_at',
-    ];
-    for (const name of required) {
-      expect(byName.get(name)?.notnull, `${name} should be NOT NULL`).toBe(1);
-    }
-
-    // Nullable columns
-    const nullable = ['thread_id', 'decider_user_id', 'classifier_reason'];
-    for (const name of nullable) {
-      expect(byName.get(name)?.notnull, `${name} should be nullable`).toBe(0);
-    }
-
-    expect(byName.get('id')?.pk).toBe(1);
+    const tables = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN (?, ?)")
+      .all('approval_rules', 'approvals_log') as Array<{ name: string }>;
+    expect(tables).toHaveLength(0);
 
     closeDatabase(db);
   });
 
-  it('creates the approvals_log indexes', () => {
+  it('removes the associated indexes', () => {
     const db = openDatabase(':memory:');
     runMigrations(db);
 
-    const indexes = db.prepare('PRAGMA index_list(approvals_log)').all() as IndexListRow[];
-    const indexNames = indexes.map((index) => index.name);
-    expect(indexNames).toContain('idx_approvals_log_profile_created');
-    expect(indexNames).toContain('idx_approvals_log_correlation');
+    const indexes = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='index' AND name IN (?, ?, ?)")
+      .all(
+        'idx_approval_rules_source',
+        'idx_approvals_log_profile_created',
+        'idx_approvals_log_correlation',
+      ) as Array<{ name: string }>;
+    expect(indexes).toHaveLength(0);
 
     closeDatabase(db);
   });
 
-  it('enforces the decision CHECK constraint', () => {
-    const db = openDatabase(':memory:');
-    runMigrations(db);
-
-    expect(() =>
-      db
-        .prepare(
-          `INSERT INTO approvals_log
-            (profile, correlation_id, requester_user_id, tool_name, tool_input,
-             policy_that_gated, decision, decision_reason)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run('default', 'corr-1', 'U1', 'Bash', '{}', 'classifier', 'maybe', 'reason'),
-    ).toThrow();
-
-    closeDatabase(db);
-  });
-
-  it('is idempotent — re-running migrations after migration 4 does nothing', () => {
+  it('is idempotent — re-running migrations after migration 10 does nothing', () => {
     const db = openDatabase(':memory:');
     const first = runMigrations(db);
-    expect(first.applied).toContain(4);
+    expect(first.applied).toContain(10);
 
     const second = runMigrations(db);
     expect(second.applied).toEqual([]);

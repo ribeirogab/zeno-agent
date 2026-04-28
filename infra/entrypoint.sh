@@ -1,33 +1,14 @@
 #!/bin/sh
 # Zeno container entrypoint.
-# Merges skills from /app/agent/skills (built-in) and /app/profile/skills (user)
-# into /home/node/.claude/skills so the Claude Agent SDK's user-level setting
-# source picks up both. Profile skills override agent skills on name collision.
+#
+# Spec 0050: skills as a runtime concept were removed. The previous
+# skills-bootstrap step (merging /app/agent/skills + /app/profile/skills into
+# /home/node/.claude/skills) is gone with them; if skills return as a
+# concept (possibly bundled with connectors per the connectors-only-pivot
+# learning), a future spec will reintroduce a different bootstrap.
+#
+# This script now only handles git identity + credential-helper plumbing.
 set -eu
-
-AGENT_SKILLS=/app/agent/skills
-PROFILE_SKILLS=/app/profile/skills
-DEST=/home/node/.claude/skills
-
-[ -d "$AGENT_SKILLS" ] || { echo "skills_bootstrap_failed: $AGENT_SKILLS missing" >&2; exit 1; }
-[ -d "$PROFILE_SKILLS" ] || { echo "skills_bootstrap_failed: $PROFILE_SKILLS missing" >&2; exit 1; }
-
-mkdir -p "$DEST"
-
-for d in "$AGENT_SKILLS"/*/; do
-  [ -d "$d" ] || continue
-  name=$(basename "$d")
-  ln -sfn "$d" "$DEST/$name"
-done
-
-for d in "$PROFILE_SKILLS"/*/; do
-  [ -d "$d" ] || continue
-  name=$(basename "$d")
-  if [ -L "$DEST/$name" ]; then
-    echo "skill_override: profile/$name replaces agent/$name" >&2
-  fi
-  ln -sfn "$d" "$DEST/$name"
-done
 
 # Git identity from config.yaml (github_app.git_identity) — profile first, agent fallback
 CONFIG_FILE=""

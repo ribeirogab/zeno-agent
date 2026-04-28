@@ -1,10 +1,4 @@
-import type {
-  ApprovalRulesRepo,
-  ConnectorAppRepo,
-  ConnectorRepo,
-  CronRepo,
-  CronRunRepo,
-} from '@zeno/storage';
+import type { ConnectorAppRepo, ConnectorRepo, CronRepo, CronRunRepo } from '@zeno/storage';
 import type { HandlerMap } from '@/commands/dispatcher';
 import { buildAppInstallHandler } from '@/commands/handlers/app-install';
 import { buildAppPemRotatedHandler } from '@/commands/handlers/app-pem-rotated';
@@ -27,8 +21,6 @@ export interface HandlerDeps {
   connectors: ConnectorRepo;
   /** Spec 0044: ConnectorApp repo for `connector_apps` table mutations. */
   connectorApps: ConnectorAppRepo;
-  /** Spec 0047: ApprovalRules repo for auto-rule cascade on github-app-* lifecycle. */
-  approvalRules: ApprovalRulesRepo;
   runner: RunnerLike;
   exit: (code: number) => void;
   /**
@@ -54,7 +46,6 @@ export function buildHandlerMap(deps: HandlerDeps): HandlerMap {
     connector_create: buildConnectorCreateHandler({
       connectors: deps.connectors,
       getGithubApp: deps.getGithubApp,
-      approvalRules: deps.approvalRules,
     }),
     connector_update: buildConnectorUpdateHandler(deps),
     connector_refresh_tools: buildConnectorRefreshToolsHandler({
@@ -64,14 +55,12 @@ export function buildHandlerMap(deps: HandlerDeps): HandlerMap {
     connector_uninstall: buildConnectorUninstallHandler({
       connectors: deps.connectors,
       getGithubApp: deps.getGithubApp,
-      approvalRules: deps.approvalRules,
     }),
     app_install: buildAppInstallHandler(deps),
     app_pem_rotated: buildAppPemRotatedHandler(deps),
     app_uninstall: buildAppUninstallHandler({
       getGithubApp: deps.getGithubApp,
       tearDownGithubApp: deps.tearDownGithubApp,
-      approvalRules: deps.approvalRules,
     }),
   };
 }

@@ -10,15 +10,17 @@ If you are tempted to violate a rule here, stop and open a discussion first. Nev
 
 ## Why Zeno exists
 
-Zeno is a personal agent whose intelligence lives in the skills its owner authors. The owner is described in `profiles/<name>/USER.md` (gitignored — see `profiles/default/USER.example.md` for the template). This repository is Zeno's workspace — the place where its identity, configuration, and operating knowledge live.
+Zeno is a personal agent that operates across the apps you use, by composing the connectors you install. The owner is described in `profiles/<name>/USER.md` (gitignored — see `profiles/default/USER.example.md` for the template). This repository is Zeno's workspace — the place where its identity, configuration, and operating knowledge live.
 
-The architecture is intentionally layered:
+The architecture is intentionally layered, in order of weight:
 
-- **The core is small and stable.** A channel adapter, a reasoning backend, a cron runner, a dashboard. It should rarely change.
-- **The skills are the product.** Every capability Zeno has beyond "read a message and reply" comes from a skill the owner authored, following the [agentskills.io](https://agentskills.io) open standard. Skills are self-contained folders under `profiles/<name>/skills/` (user-specific) or `agent/skills/` (built-in), each free to carry whatever auxiliary files it needs (credentials, context, templates, scripts).
-- **Channels and backends are plugs.** Zeno is channel-agnostic and backend-agnostic by design: the core depends on the `Channel` and `AgentBackend` interfaces, never on concrete implementations. New channels (Discord, Telegram, email…) and new backends (alternative coding agents and reasoning engines) are added as adapters without touching the core.
+- **Connectors are the product.** Every capability Zeno has beyond "read a message and reply" comes from a connector the operator installs via the dashboard. A connector is an MCP server that exposes typed tools (e.g. `mcp__github-app-acme__merge_pull_request`); the agent calls those tools to act in the external world. Without connectors, Zeno is a talking statue. The [agentskills.io](https://agentskills.io) open-standard composable-units philosophy inspired the connector model — units the operator installs, composes, and replaces without touching the core.
+- **The channel is the I/O boundary.** Slack today; Discord, Telegram, email, etc. are pluggable additions tomorrow. The channel is how user requests come in and how the agent's reply goes back out — not a tool the agent uses.
+- **The backend is the brain.** Pluggable reasoning engine (Claude Code today, alternatives possible). Orchestrates which connector tools to call.
+- **The core is small and stable.** A channel adapter, a backend wire, a cron runner, a dashboard. It should rarely change.
+- **Skills (deferred) are domain knowledge.** Skills are not part of the runtime in this iteration. When they return, they may be bundled with connectors — domain knowledge layered on top of connector capabilities to inform orchestration without granting power. This is a future direction; the concrete design is for a later spec.
 
-The goal is that adding a capability is always a matter of authoring a new skill, never of modifying the core. When in doubt between flexibility in the core and flexibility in the skill layer, the skill layer wins.
+The goal is that adding a capability is always a matter of installing or building a new connector, never of modifying the core. When in doubt between flexibility in the core and flexibility in the connector layer, the connector layer wins.
 
 ## Scope guardrails
 
@@ -30,9 +32,9 @@ The goal is that adding a capability is always a matter of authoring a new skill
 ## Architecture principles
 
 - **Ports & adapters.** Three pluggable abstractions: `Channel` (message sources — Slack today, Discord/Telegram/etc. future), `AgentBackend` (reasoning engines — Claude Code today, Codex/Gemini future), and **Connector** (MCP tool surfaces the agent calls — DB-managed via the dashboard since spec 0032). The Agent Core orchestrator depends only on the first two interfaces; the agent backend itself consumes Connectors via the SDK's `mcpServers` map at query time. Adding a new channel, backend, or connector must be additive — never a modification to the core. Channel ≠ Connector — Slack is both, but they are distinct concepts (input/output adapter vs tool callable by the agent). See `[[learnings/channel-vs-connector]]`.
-- **Zero custom tools by default.** Capabilities come from Claude Code's built-in toolset (`Bash`, `Read`, `Write`, `Edit`, `Grep`, `Glob`). Custom tools require justification in a learning or spec — the bias is to teach the agent through the system prompt and let it use the shell.
+- **Capabilities come from connectors.** External capabilities are surfaced exclusively as MCP tools exposed by the connectors the operator installs via the dashboard. The agent does not have direct shell, filesystem, or web-fetch access at runtime. If a capability is missing, the answer is to install or build a connector for it, not to script around it.
 - **Stateless per turn (current MVP).** No conversation memory between Slack mentions. Persistent thread sessions are a future iteration and require an explicit storage decision attached to a spec before being added.
-- **Sandboxed execution.** Shell access (Bash tool) runs inside the Docker container only. The container has no host filesystem access beyond mounted volumes (`workspace`, `USER.md` read-only).
+- **Sandboxed execution.** The agent runs inside a Docker container with no shell or filesystem access of its own — capabilities flow exclusively through connector MCP subprocesses spawned by the worker. The container has no host filesystem access beyond mounted volumes (`workspace`, `USER.md` read-only).
 - **OAuth, not API key.** Claude is accessed via `CLAUDE_CODE_OAUTH_TOKEN` (subscription auth), not `ANTHROPIC_API_KEY`. This aligns the cost model with personal use and respects the design constraint set by the user. Migration to API key (or enterprise auth) is reserved for the day Zeno serves multiple people.
 
 Principles that frame all of the above:
@@ -73,7 +75,7 @@ Specs never get deleted. Shipped specs remain in `context/specs/` as historical 
 ## Knowledge layering
 
 - `context/` is **maintainer-facing documentation** — for humans or AI agents WORKING ON Zeno's source code. The Zeno running in production does NOT mount or read this directory; it would be source-code metadata, irrelevant to its runtime job (serving Slack messages).
-- Runtime context the agent actually needs is narrow: who the user is (`USER.md`, mounted), the system prompt (built at boot), and the tools available in the container.
+- Runtime context the agent actually needs is narrow: who the user is (`USER.md`, mounted), the system prompt (built at boot), and the MCP tools exposed by the connectors the operator has enabled via the dashboard.
 - Anything Zeno-specific that a future maintainer (or future-you) would want to know — principles, decisions, architecture, surprises, conventions — lives in `context/`.
 - Only add notes here for things unique to Zeno. Generic patterns that apply to any project belong in global instructions or the user's global memory.
 - When a decision is made about Zeno's stack or architecture, update this constitution **and** write a matching learning explaining the reasoning.

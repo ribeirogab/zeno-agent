@@ -7,7 +7,11 @@ related:
   - "[[agent-skills-open-standard]]"
   - "[[lessons-for-zeno-from-openclaw-hermes]]"
 created: 2026-04-15
+status: superseded
+superseded_by: 0049
 ---
+
+> **Superseded** by spec [[../specs/0049-zeno-redefinition/spec|0049-zeno-redefinition]] (connectors-only positioning). The "self-improving skills" pattern presupposes skills as a runtime concept; Zeno deferred skills in this iteration. The Hermes-comparison content remains useful as third-party reference. See [[connectors-only-pivot]].
 # Closed learning loop — Hermes' self-improving skills
 
 Hermes Agent's signature bet: a **closed learning loop** where the agent observes its own behavior, distills successful patterns into reusable skills (Python procedures), and iteratively improves those skills as they're used. Combined with Honcho dialectic user modeling — a deepening profile of *who you are* across sessions — this makes Hermes the only studied agent that genuinely gets better at serving you the longer it runs.

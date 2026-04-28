@@ -16,7 +16,12 @@ related:
   - "[[profile-isolation-via-env-var]]"
   - "[[hermes-prompt-caching-invariants]]"
 created: 2026-04-15
+status: superseded
+superseded_by: 0049
 ---
+
+> **Superseded** by spec [[../specs/0049-zeno-redefinition/spec|0049-zeno-redefinition]] (connectors-only positioning). The "what to adopt" recommendations include `SKILL.md + MCP servers` as Zeno's future capability surface — that direction is no longer canonical; the new direction is connectors as the single capability surface, skills deferred. The OpenClaw/Hermes study itself remains useful third-party reference. See [[connectors-only-pivot]].
+
 # Lessons for Zeno — what to adopt from OpenClaw and Hermes, what to leave behind
 
 Synthesis of 2026-04-15 deep study of OpenClaw and Hermes Agent. Zeno's target positioning is **personal agent with minimal setup that grows by adding access (GitHub orgs, Linear, Drive, Notion) — simpler than both references**. This note translates the study into concrete refactor directions.

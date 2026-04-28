@@ -5,8 +5,10 @@ import type {
   ConnectorAppRepo,
   ConnectorRepo,
   ConnectorSkillRepo,
+  CronConnectorRepo,
   CronRepo,
   CronRunRepo,
+  CronSkillRepo,
   DB,
   LogRepo,
   SkillRepo,
@@ -20,6 +22,8 @@ import { buildAgentCapabilitiesRoute } from '@/routes/agent-capabilities';
 import { buildAuthRoutes } from '@/routes/auth';
 import { buildConnectorSkillsRoute } from '@/routes/connector-skills';
 import { buildConnectorsRoute } from '@/routes/connectors';
+import { buildCronConnectorsRoute } from '@/routes/cron-connectors';
+import { buildCronSkillsRoute } from '@/routes/cron-skills';
 import { buildCronsRoute } from '@/routes/crons';
 import { buildHealthRoute } from '@/routes/health';
 import { buildLogsRoute } from '@/routes/logs';
@@ -44,6 +48,10 @@ export interface AppDeps {
   skillRepo?: SkillRepo;
   /** Spec 0052: connector ↔ skills M:N. Required iff `skillRepo` is set. */
   connectorSkillRepo?: ConnectorSkillRepo;
+  /** Spec 0054: cron ↔ skills M:N. Optional in tests that don't exercise the link routes. */
+  cronSkillRepo?: CronSkillRepo;
+  /** Spec 0054: cron ↔ connectors M:N. Optional in tests that don't exercise the link routes. */
+  cronConnectorRepo?: CronConnectorRepo;
   /** Spec 0052: global non-MCP tool toggles. Optional independent of skills. */
   agentCapabilityRepo?: AgentCapabilityRepo;
   /** Directory holding Claude Code JSONL transcripts (e.g. `~/.claude/projects/-workspace`). */
@@ -91,6 +99,23 @@ export function createApp(deps: AppDeps): Hono {
       commands: deps.commandRepo,
     }),
   );
+  // Spec 0054: cron ↔ skills + connectors M:N (mounted under /api/crons,
+  // auth covered by the /api/crons* middleware above).
+  if (deps.cronSkillRepo) {
+    app.route(
+      '/api/crons',
+      buildCronSkillsRoute({ crons: deps.cronRepo, cronSkills: deps.cronSkillRepo }),
+    );
+  }
+  if (deps.cronConnectorRepo) {
+    app.route(
+      '/api/crons',
+      buildCronConnectorsRoute({
+        crons: deps.cronRepo,
+        cronConnectors: deps.cronConnectorRepo,
+      }),
+    );
+  }
   app.use('/api/sessions', requireAuth({ secret: deps.config.sessionSecret, secure }));
   app.use('/api/sessions/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
   app.route(

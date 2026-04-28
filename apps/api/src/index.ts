@@ -10,8 +10,10 @@ import {
   ConnectorAppRepo,
   ConnectorRepo,
   ConnectorSkillRepo,
+  CronConnectorRepo,
   CronRepo,
   CronRunRepo,
+  CronSkillRepo,
   closeDatabase,
   LogRepo,
   openDatabase,
@@ -50,6 +52,8 @@ function main(): void {
   const connectorAppRepo = new ConnectorAppRepo(db);
   const skillRepo = new SkillRepo(db);
   const connectorSkillRepo = new ConnectorSkillRepo(db);
+  const cronSkillRepo = new CronSkillRepo(db);
+  const cronConnectorRepo = new CronConnectorRepo(db);
   const agentCapabilityRepo = new AgentCapabilityRepo(db);
   const logger = createLogger({ service: 'api', dbSink: logRepo });
   const here = dirname(fileURLToPath(import.meta.url));
@@ -72,6 +76,8 @@ function main(): void {
     connectorAppRepo,
     skillRepo,
     connectorSkillRepo,
+    cronSkillRepo,
+    cronConnectorRepo,
     agentCapabilityRepo,
     claudeHome,
     claudeHomeRoot,

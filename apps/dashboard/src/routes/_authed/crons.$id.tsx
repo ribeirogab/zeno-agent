@@ -6,6 +6,8 @@ import { useState } from 'react';
 import { CronActions } from '@/components/crons/cron-actions';
 import { CronRunHistoryRow } from '@/components/crons/cron-run-history-row';
 import { type CronStatus, CronStatusPill } from '@/components/crons/cron-status-pill';
+import { LinkedCronConnectorsSection } from '@/components/crons/linked-connectors-section';
+import { LinkedCronSkillsSection } from '@/components/crons/linked-skills-section';
 import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
 import { DeleteCronModal } from '@/components/modals/delete-cron-modal';
 import { CronDetailRunsSkeleton } from '@/components/skeletons/cron-detail-runs-skeleton';
@@ -73,6 +75,8 @@ function CronDetailScreen(): JSX.Element {
       <div className="max-w-[1080px] w-full mx-auto px-12 pt-10 pb-30 flex flex-col gap-10 min-w-0">
         <Header cron={cron} status={status} onRequestDelete={(c) => setPendingDelete(c)} />
         <PromptBlock prompt={cron.prompt} />
+        <LinkedCronSkillsSection cronId={cron.id} cronName={cron.name} />
+        <LinkedCronConnectorsSection cronId={cron.id} cronName={cron.name} />
         <StatsStrip cron={cron} runs={recentRuns} />
         <RunHistory runs={recentRuns} />
       </div>

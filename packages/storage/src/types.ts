@@ -326,6 +326,24 @@ export interface ConnectorSkillLink {
   createdAt: string;
 }
 
+// Spec 0054: M:N link between crons and skills. Force-injection — the runner
+// prepends linked skill bodies to the cron prompt as a [zeno_context] block
+// before calling backend.query().
+export interface CronSkillLink {
+  cronId: string;
+  skillId: string;
+  createdAt: string;
+}
+
+// Spec 0054: M:N link between crons and connectors. Hint mode — listed slugs
+// are surfaced in the [zeno_context] block as preferred, but the connector-
+// permission gate stays the single allow/deny authority (spec 0050).
+export interface CronConnectorLink {
+  cronId: string;
+  connectorId: string;
+  createdAt: string;
+}
+
 // Spec 0052: global non-MCP tool toggles. Operator opts in via /settings.
 // Gate (connector-permission.ts) consults isEnabled(toolName) before allowing
 // non-MCP tools (Read/Edit/Write/Bash/etc.).

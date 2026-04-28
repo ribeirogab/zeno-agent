@@ -491,6 +491,32 @@ INSERT OR IGNORE INTO agent_capabilities (tool_name, enabled) VALUES
   ('Skill', 1);
 `,
   },
+  {
+    id: 16,
+    name: 'spec 0054 — cron_skills M:N table. Operator declares at scheduling time which skills should be force-injected when a cron fires. FK CASCADE on both sides: deleting a cron drops its links; deleting a skill drops the links pointing at it. PK (cron_id, skill_id) prevents duplicates. The runner reads via list_for_cron and prepends linked skill bodies to the cron prompt as a [zeno_context] block.',
+    sql: `
+CREATE TABLE cron_skills (
+  cron_id TEXT NOT NULL REFERENCES crons(id) ON DELETE CASCADE,
+  skill_id TEXT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY (cron_id, skill_id)
+);
+CREATE INDEX idx_cron_skills_skill ON cron_skills(skill_id);
+`,
+  },
+  {
+    id: 17,
+    name: "spec 0054 — cron_connectors M:N table. Hint-mode link: the cron prompt receives the linked connector slugs as context (preferred set) but the connector-permission gate stays the single allow/deny authority (spec 0050 single-guardrail canon). Use of an unlinked connector is allowed by the gate but emits a 'cron_used_unlinked_connector' audit log. FK CASCADE on both sides; PK (cron_id, connector_id).",
+    sql: `
+CREATE TABLE cron_connectors (
+  cron_id TEXT NOT NULL REFERENCES crons(id) ON DELETE CASCADE,
+  connector_id TEXT NOT NULL REFERENCES connectors(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY (cron_id, connector_id)
+);
+CREATE INDEX idx_cron_connectors_connector ON cron_connectors(connector_id);
+`,
+  },
 ];
 
 /**

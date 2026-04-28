@@ -910,3 +910,112 @@ describe('migrations: skills.source column (migration 14, spec 0053)', () => {
     closeDatabase(db);
   });
 });
+
+describe('migrations: cron_skills + cron_connectors (migrations 16 + 17)', () => {
+  it('migration 16 creates cron_skills with PK and the expected columns', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    const cols = db.prepare('PRAGMA table_info(cron_skills)').all() as Array<{
+      name: string;
+      pk: number;
+    }>;
+    expect(cols.map((c) => c.name).sort()).toEqual(['created_at', 'cron_id', 'skill_id']);
+    // cron_id + skill_id form the composite PK.
+    const pkCols = cols
+      .filter((c) => c.pk > 0)
+      .map((c) => c.name)
+      .sort();
+    expect(pkCols).toEqual(['cron_id', 'skill_id']);
+    closeDatabase(db);
+  });
+
+  it('migration 17 creates cron_connectors with PK and the expected columns', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    const cols = db.prepare('PRAGMA table_info(cron_connectors)').all() as Array<{
+      name: string;
+      pk: number;
+    }>;
+    expect(cols.map((c) => c.name).sort()).toEqual(['connector_id', 'created_at', 'cron_id']);
+    const pkCols = cols
+      .filter((c) => c.pk > 0)
+      .map((c) => c.name)
+      .sort();
+    expect(pkCols).toEqual(['connector_id', 'cron_id']);
+    closeDatabase(db);
+  });
+
+  it('cron_skills FK CASCADE: deleting a cron drops its rows', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    db.exec(
+      "INSERT INTO crons (id, name, prompt, schedule, source) VALUES ('c1', 'c1', 'p', '* * * * *', 'chat')",
+    );
+    db.exec(
+      "INSERT INTO skills (id, name, description, body, source) VALUES ('s1', 's1', 'd', 'b', 'dashboard')",
+    );
+    db.exec("INSERT INTO cron_skills (cron_id, skill_id) VALUES ('c1', 's1')");
+    expect((db.prepare('SELECT COUNT(*) AS c FROM cron_skills').get() as { c: number }).c).toBe(1);
+    db.exec("DELETE FROM crons WHERE id = 'c1'");
+    expect((db.prepare('SELECT COUNT(*) AS c FROM cron_skills').get() as { c: number }).c).toBe(0);
+    closeDatabase(db);
+  });
+
+  it('cron_skills FK CASCADE: deleting a skill drops its rows', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    db.exec(
+      "INSERT INTO crons (id, name, prompt, schedule, source) VALUES ('c1', 'c1', 'p', '* * * * *', 'chat')",
+    );
+    db.exec(
+      "INSERT INTO skills (id, name, description, body, source) VALUES ('s1', 's1', 'd', 'b', 'dashboard')",
+    );
+    db.exec("INSERT INTO cron_skills (cron_id, skill_id) VALUES ('c1', 's1')");
+    db.exec("DELETE FROM skills WHERE id = 's1'");
+    expect((db.prepare('SELECT COUNT(*) AS c FROM cron_skills').get() as { c: number }).c).toBe(0);
+    closeDatabase(db);
+  });
+
+  it('cron_connectors FK CASCADE: deleting a cron drops its rows', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    db.exec(
+      "INSERT INTO crons (id, name, prompt, schedule, source) VALUES ('c1', 'c1', 'p', '* * * * *', 'chat')",
+    );
+    db.exec(
+      "INSERT INTO connectors (id, slug, display_name, source, transport, status) VALUES ('co1', 'linear', 'L', 'catalog', 'remote', 'enabled')",
+    );
+    db.exec("INSERT INTO cron_connectors (cron_id, connector_id) VALUES ('c1', 'co1')");
+    db.exec("DELETE FROM crons WHERE id = 'c1'");
+    expect((db.prepare('SELECT COUNT(*) AS c FROM cron_connectors').get() as { c: number }).c).toBe(
+      0,
+    );
+    closeDatabase(db);
+  });
+
+  it('cron_connectors FK CASCADE: deleting a connector drops its rows', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    db.exec(
+      "INSERT INTO crons (id, name, prompt, schedule, source) VALUES ('c1', 'c1', 'p', '* * * * *', 'chat')",
+    );
+    db.exec(
+      "INSERT INTO connectors (id, slug, display_name, source, transport, status) VALUES ('co1', 'linear', 'L', 'catalog', 'remote', 'enabled')",
+    );
+    db.exec("INSERT INTO cron_connectors (cron_id, connector_id) VALUES ('c1', 'co1')");
+    db.exec("DELETE FROM connectors WHERE id = 'co1'");
+    expect((db.prepare('SELECT COUNT(*) AS c FROM cron_connectors').get() as { c: number }).c).toBe(
+      0,
+    );
+    closeDatabase(db);
+  });
+
+  it('migration 16 + 17 are idempotent — re-running does nothing', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    const second = runMigrations(db);
+    expect(second.applied).toEqual([]);
+    expect(second.current).toBe(17);
+    closeDatabase(db);
+  });
+});

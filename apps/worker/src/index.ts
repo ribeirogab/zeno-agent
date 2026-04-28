@@ -9,8 +9,10 @@ import {
   ConnectorAppRepo,
   ConnectorRepo,
   ConnectorSkillRepo,
+  CronConnectorRepo,
   CronRepo,
   CronRunRepo,
+  CronSkillRepo,
   closeDatabase,
   LogRepo,
   openDatabase,
@@ -190,6 +192,8 @@ async function main(): Promise<void> {
   const connectorApps = new ConnectorAppRepo(db);
   const skillRepo = new SkillRepo(db);
   const connectorSkillRepo = new ConnectorSkillRepo(db);
+  const cronSkillRepo = new CronSkillRepo(db);
+  const cronConnectorRepo = new CronConnectorRepo(db);
   const agentCapabilityRepo = new AgentCapabilityRepo(db);
 
   // Real logger now that the sink is available. Every log from here on is
@@ -361,11 +365,61 @@ async function main(): Promise<void> {
   });
   const defaultCronChannel = process.env.ZENO_CRON_DEFAULT_CHANNEL ?? null;
 
-  // Build runner first so its `runOnce` is bound to the cron tools
-  const backendForRunner = buildBackend(logger, { getMcpServers, onInvocation });
+  const isClaudeBackend = (process.env.ZENO_BACKEND ?? 'claude-code') === 'claude-code';
+  const gatedDeps = {
+    connectorRepo: connectors,
+    agentCapabilityRepo,
+    connectorSkillRepo,
+    logger,
+  };
+
+  // Spec 0054: cron backend goes through the same gate as the chat backend
+  // (single-guardrail canon, spec 0050). The gate's PreToolUse hook owns:
+  //   - skill-level injection cache (anti-double-inject when a skill is
+  //     linked to BOTH a connector AND a cron),
+  //   - `cron_used_unlinked_connector` audit log.
+  // Per-call state (pre-injected skill ids + audit context) flows through
+  // AsyncLocalStorage — race-free under concurrent cron firings (e.g. a
+  // tick mid-execute on cron A while chat fires `cron_run_now` for cron B).
+  //
+  // Wiring: the inner `ClaudeCodeBackend` requires `preToolUseHook` at
+  // construction; the wrapper requires the inner. We resolve the circular
+  // dep with a lazy hook ref — the inner is built with a thunk that
+  // delegates to the wrapper at SDK call time. The thunk reference is
+  // populated immediately after the wrapper is constructed.
+  //
+  // Cron backend omits the cron MCP server (cron prompts don't call
+  // mcp__zeno__cron_run_now), avoiding the runner ↔ cronMcp circular dep.
+  let backendForRunner: AgentBackend;
+  if (isClaudeBackend) {
+    let cronOuterHook:
+      | ((
+          ...args: Parameters<ReturnType<ConnectorGatedBackend['buildPreToolUseHook']>>
+        ) => ReturnType<ReturnType<ConnectorGatedBackend['buildPreToolUseHook']>>)
+      | null = null;
+    const cronLazyHook: ReturnType<ConnectorGatedBackend['buildPreToolUseHook']> = (
+      ...args: Parameters<ReturnType<ConnectorGatedBackend['buildPreToolUseHook']>>
+    ) => {
+      if (!cronOuterHook) throw new Error('cron preToolUseHook not bound');
+      return cronOuterHook(...args);
+    };
+    const cronGatedInner = new ClaudeCodeBackend({
+      getMcpServers,
+      preToolUseHook: cronLazyHook,
+      onInvocation,
+    });
+    const cronWrapper = new ConnectorGatedBackend(cronGatedInner, gatedDeps);
+    cronOuterHook = cronWrapper.buildPreToolUseHook();
+    backendForRunner = cronWrapper;
+  } else {
+    backendForRunner = buildBackend(logger, { getMcpServers, onInvocation });
+  }
+
   const runner = new CronRunner({
     crons,
     cronRuns,
+    cronSkills: cronSkillRepo,
+    cronConnectors: cronConnectorRepo,
     backend: backendForRunner,
     getSystemPrompt: () => promptHolder.value,
     workspaceDir: config.workspaceDir,
@@ -395,41 +449,45 @@ async function main(): Promise<void> {
     logger,
   });
 
-  // The chat-facing backend gets the in-process MCP server with cron CRUD tools wired to repos + runner.
-  // Spec 0050: the only guardrail is the connector-permission gate (deny non-mcp,
-  // permission-aware allow/deny per tool). Crons still run UNGUARDED (their
-  // `userMessage` has no requester context) — only this user-facing backend is
-  // wrapped with `ConnectorGatedBackend`.
+  // The chat-facing backend gets the in-process MCP server with cron CRUD
+  // tools wired to repos + runner (so chat can `cron_run_now` etc).
+  // Spec 0050: the only guardrail is the connector-permission gate.
+  // Spec 0054: cron backend (above) is also gated; both paths share the same
+  // gate semantics + skill injection logic.
   const cronMcp = buildCronMcpServer({ crons, cronRuns, runner });
-  const isClaudeBackend = (process.env.ZENO_BACKEND ?? 'claude-code') === 'claude-code';
 
   let chatBackend: AgentBackend;
   if (isClaudeBackend) {
-    // Two-phase construction: the SDK's PreToolUse hook is a constructor option
-    // on `ClaudeCodeBackend`, but the hook is owned by `ConnectorGatedBackend`.
-    // Build a throwaway wrapper to obtain the hook, construct the real inner
-    // backend with it, then build the final wrapper around it.
-    const gatedDeps = {
-      connectorRepo: connectors,
-      agentCapabilityRepo,
-      connectorSkillRepo,
-      logger,
+    // Lazy hook ref pattern: same rationale as the cron backend above. The
+    // inner ClaudeCodeBackend requires `preToolUseHook` at construction;
+    // the wrapper requires the inner. The thunk delegates to the wrapper
+    // at SDK call time so the hook reads/writes the wrapper's state (and
+    // the wrapper's ALS context for cron-side state when applicable —
+    // chat doesn't use ALS today, but the wrapper's hook is still bound to
+    // the wrapper instance the chat code actually uses).
+    let chatOuterHook:
+      | ((
+          ...args: Parameters<ReturnType<ConnectorGatedBackend['buildPreToolUseHook']>>
+        ) => ReturnType<ReturnType<ConnectorGatedBackend['buildPreToolUseHook']>>)
+      | null = null;
+    const chatLazyHook: ReturnType<ConnectorGatedBackend['buildPreToolUseHook']> = (
+      ...args: Parameters<ReturnType<ConnectorGatedBackend['buildPreToolUseHook']>>
+    ) => {
+      if (!chatOuterHook) throw new Error('chat preToolUseHook not bound');
+      return chatOuterHook(...args);
     };
-    const tempInner = new ClaudeCodeBackend({
-      getMcpServers,
-      inProcessMcpServers: { zeno: cronMcp },
-    });
-    const preToolUseHook = new ConnectorGatedBackend(tempInner, gatedDeps).buildPreToolUseHook();
     const gatedInner = new ClaudeCodeBackend({
       getMcpServers,
       inProcessMcpServers: { zeno: cronMcp },
-      preToolUseHook,
+      preToolUseHook: chatLazyHook,
       onInvocation,
     });
-    chatBackend = new ConnectorGatedBackend(gatedInner, gatedDeps);
+    const chatWrapper = new ConnectorGatedBackend(gatedInner, gatedDeps);
+    chatOuterHook = chatWrapper.buildPreToolUseHook();
+    chatBackend = chatWrapper;
     logger.info(
       { event: 'connector_gate_enabled' },
-      'connector-permission gate enabled (spec 0050)',
+      'connector-permission gate enabled (spec 0050 + spec 0054 cron)',
     );
   } else {
     chatBackend = buildBackend(logger, {

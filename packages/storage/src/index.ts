@@ -5,7 +5,9 @@ export { CommandRepo } from './repos/commands.js';
 export { ConnectorAppRepo } from './repos/connector-apps.js';
 export { ConnectorSkillRepo } from './repos/connector-skills.js';
 export { ConnectorRepo, type ListConnectorsFilter } from './repos/connectors.js';
+export { CronConnectorRepo } from './repos/cron-connectors.js';
 export { CronRunRepo } from './repos/cron-runs.js';
+export { CronSkillRepo } from './repos/cron-skills.js';
 export { CronRepo } from './repos/crons.js';
 export { LogRepo } from './repos/logs.js';
 export { SessionRepo } from './repos/sessions.js';
@@ -33,8 +35,10 @@ export type {
   CreateLogInput,
   CreateSkillInput,
   Cron,
+  CronConnectorLink,
   CronRun,
   CronRunStatus,
+  CronSkillLink,
   CronSource,
   InvocationResult,
   Log,

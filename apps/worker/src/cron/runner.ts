@@ -1,14 +1,23 @@
 import { createLogger } from '@zeno/logger';
-import type { Cron, CronRepo, CronRunRepo } from '@zeno/storage';
+import type { Cron, CronConnectorRepo, CronRepo, CronRunRepo, CronSkillRepo } from '@zeno/storage';
 import type { AgentBackend } from '@/agent/types';
 import type { Channel, MessageTarget } from '@/channels/types';
 import { nextRunAfter } from '@/cron/parser';
+import { buildZenoContextBlock } from '@/cron/zeno-context-block';
 
 const logger = createLogger({ service: 'worker' });
 
 interface CronRunnerOptions {
   crons: CronRepo;
   cronRuns: CronRunRepo;
+  /**
+   * Spec 0054: linked skills + connectors per cron. Optional so MockBackend
+   * tests + legacy paths that don't exercise injection can omit. When set,
+   * the runner reads `listForCron` per fire to build the [zeno_context]
+   * block prepended to the cron prompt.
+   */
+  cronSkills?: CronSkillRepo;
+  cronConnectors?: CronConnectorRepo;
   backend: AgentBackend;
   /** Returns the current system prompt — called per fire so profile/ hot-reload applies to cron runs too. */
   getSystemPrompt: () => string;
@@ -97,14 +106,83 @@ export class CronRunner {
     );
 
     try {
-      const output = await this.opts.backend.query({
+      // Spec 0054: read linked skills + connectors and prepend a
+      // [zeno_context] block to the cron prompt. Force-injection means the
+      // skill bodies reach context regardless of whether the agent calls a
+      // tool. The connector-permission gate stays the single guardrail —
+      // linked connectors are a hint surfaced in the block, not a restriction.
+      const linkedSkills = this.opts.cronSkills?.listForCron(cron.id) ?? [];
+      const linkedConnectors = this.opts.cronConnectors?.listForCron(cron.id) ?? [];
+      const linkedSlugs = linkedConnectors.map((c) => c.slug);
+
+      const blockResult = buildZenoContextBlock(
+        linkedSkills.map((s) => ({ name: s.name, body: s.body })),
+        linkedSlugs,
+      );
+
+      const userMessage = blockResult.block
+        ? `${blockResult.block}\n\n${cron.prompt}`
+        : cron.prompt;
+
+      if (linkedSkills.length > 0 || linkedSlugs.length > 0) {
+        logger.info(
+          {
+            event: 'cron_skill_injected',
+            cronId: cron.id,
+            runId: run.id,
+            skills: linkedSkills.map((s) => s.name),
+            connectors: linkedSlugs,
+            totalBytes: blockResult.truncatedBytes,
+          },
+          `injected ${linkedSkills.length} skill(s) + ${linkedSlugs.length} connector slug(s) into cron prompt`,
+        );
+      }
+      if (blockResult.droppedSkills.length > 0) {
+        logger.warn(
+          {
+            event: 'cron_skill_truncated',
+            cronId: cron.id,
+            runId: run.id,
+            requestedBytes: blockResult.requestedBytes,
+            truncatedBytes: blockResult.truncatedBytes,
+            droppedSkills: blockResult.droppedSkills,
+          },
+          `truncated cron skill bodies past the 20KB cap`,
+        );
+      }
+
+      // Spec 0054: wrap the backend query in a cron-context scope so the
+      // gate's PreToolUse hook can (a) dedupe pre-injected skills against
+      // the connector-driven injection and (b) emit `cron_used_unlinked_connector`
+      // audit logs. The state is carried via AsyncLocalStorage — race-free
+      // under concurrent cron firings (e.g. tick + chat-side `cron_run_now`
+      // for a different cron). Backends that don't support the cron scope
+      // (MockBackend, plain ClaudeCodeBackend in tests) fall through to a
+      // plain query() — no force-injection dedup, but the [zeno_context]
+      // block still ensures linked skills reach the prompt.
+      const gatedLike = this.opts.backend as Partial<{
+        runInCronContext: <T>(
+          opts: { skillIds: string[]; audit?: { runId: string; linkedSlugs: string[] } },
+          fn: () => Promise<T>,
+        ) => Promise<T>;
+      }>;
+      const queryArgs = {
         systemPrompt: this.opts.getSystemPrompt(),
-        userMessage: cron.prompt,
+        userMessage,
         cwd: this.opts.workspaceDir,
         correlationId,
         // Each cron run starts a fresh session — no thread continuity between fires.
         persistSession: false,
-      });
+      };
+      const output = gatedLike.runInCronContext
+        ? await gatedLike.runInCronContext(
+            {
+              skillIds: linkedSkills.map((s) => s.id),
+              audit: { runId: run.id, linkedSlugs },
+            },
+            () => this.opts.backend.query(queryArgs),
+          )
+        : await this.opts.backend.query(queryArgs);
 
       await this.deliver(cron, output.text);
       this.opts.cronRuns.finish(run.id, 'success', output.text.slice(0, 4000));

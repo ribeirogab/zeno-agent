@@ -1,22 +1,22 @@
 import { CornerBrackets, Dialog, DialogContent, DialogTitle } from '@zeno/ui';
 import type { JSX } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { useReplaceConnectorSkills } from '@/lib/use-connector-skills';
+import { useReplaceCronSkills } from '@/lib/use-cron-skills';
 import { useSkills } from '@/lib/use-skills';
 
-export function LinkSkillPickerModal({
-  connectorId,
-  connectorSlug,
+export function LinkCronSkillPickerModal({
+  cronId,
+  cronName,
   initialLinkedIds,
   onClose,
 }: {
-  connectorId: string;
-  connectorSlug: string;
+  cronId: string;
+  cronName: string;
   initialLinkedIds: string[];
   onClose: () => void;
 }): JSX.Element {
   const skills = useSkills();
-  const replace = useReplaceConnectorSkills();
+  const replace = useReplaceCronSkills();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export function LinkSkillPickerModal({
   const handleSave = async () => {
     setError(null);
     try {
-      await replace.mutateAsync({ connectorId, skillIds: [...selected] });
+      await replace.mutateAsync({ cronId, skillIds: [...selected] });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -67,15 +67,15 @@ export function LinkSkillPickerModal({
               link skills · multi-select
             </span>
             <DialogTitle className="m-0 font-serif text-[22px] tracking-[-0.015em] leading-7 text-text-primary">
-              Link skills to <em className="italic text-gold">{connectorSlug}</em>
+              Link skills to <em className="italic text-gold">{cronName}</em>
             </DialogTitle>
           </div>
         </div>
         <div className="flex flex-col gap-[18px] px-7 py-[22px] overflow-auto">
           <p className="m-0 font-sans text-[13px] leading-[18px] text-text-secondary">
-            Selected skills are injected as context before any{' '}
-            <span className="font-mono text-text-primary">mcp__{connectorSlug}__*</span> tool fires.
-            Already-linked skills are pre-selected.
+            Selected skills are force-injected as a{' '}
+            <span className="font-mono text-text-primary">[zeno_context]</span> block before the
+            cron prompt fires. Already-linked skills are pre-selected.
           </p>
           <input
             value={filter}

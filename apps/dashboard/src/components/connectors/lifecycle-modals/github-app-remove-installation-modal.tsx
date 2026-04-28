@@ -21,7 +21,6 @@ interface Props {
   installation: {
     connectorId: string;
     displayName: string;
-    envVar: string | null;
     toolCount: number;
   };
   onClose: () => void;
@@ -111,7 +110,7 @@ export function GitHubAppRemoveInstallationModal({
 function ConsequencesCallout({
   installation,
 }: {
-  installation: { envVar: string | null; toolCount: number };
+  installation: { toolCount: number };
 }): JSX.Element {
   return (
     <div className="flex items-start gap-3 px-4 py-3 bg-status-failed/[0.04] border border-status-failed/30 border-l-2 border-l-status-failed">
@@ -122,11 +121,6 @@ function ConsequencesCallout({
         </span>
         <ul className="m-0 list-disc list-inside font-sans text-[13px] leading-5 text-text-primary">
           <li>delete the installation connector + its {installation.toolCount} tool permissions</li>
-          {installation.envVar && (
-            <li>
-              unset env var <span className="font-mono text-gold">{installation.envVar}</span>
-            </li>
-          )}
           <li>revoke the cached installation token</li>
         </ul>
         <span className="font-sans text-[12px] leading-[18px] text-text-tertiary mt-1">

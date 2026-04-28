@@ -32,8 +32,8 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/optimistic-mutation-pattern|Optimistic-mutation primitive over TanStack useMutation]] — declarative wrapper handles snapshot/restore/invalidate; each mutation becomes ~10 lines of config.
 - [[../learnings/apps-design-role-and-ui-boundary|`apps/design`'s role and the `@zeno/ui` boundary]] — three-tier UI architecture; `@zeno/ui` stays primitive-only; never cross-app imports between `apps/design` and `apps/dashboard`.
 - [[../learnings/docker-multi-profile-via-compose|Multi-profile isolation via Docker Compose]] — same image, N compose files, N profile dirs; shared claude_home, isolated workspace volumes.
-- [[../learnings/skill-scoped-credentials-pattern|Skill-scoped credentials pattern]] — AWS keys, GitHub App private key, and Terraform all live inside the skill folder; referenced via env vars per-command.
-- [[../learnings/github-app-token-rotation|GitHub App token rotation]] — JWT → installation token exchange; per-org env vars; 55-min refresh loop; primary token overrides GH_TOKEN.
+- [[../learnings/skill-scoped-credentials-pattern|Skill-scoped credentials pattern]] — **superseded by spec 0049**: skills no longer exist at runtime; credentials are connector-scoped (DB-stored, dashboard-managed).
+- [[../learnings/github-app-token-rotation|GitHub App token rotation]] — JWT → installation token exchange; 55-min refresh loop. **Spec 0051 update:** the per-installation operator-picked envVar field was retired; the github-mcp-server subprocess receives `GITHUB_PERSONAL_ACCESS_TOKEN` synthesized from the cached token.
 
 ## `#reference` — Environment and commands
 

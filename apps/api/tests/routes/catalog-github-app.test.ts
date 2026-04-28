@@ -324,7 +324,6 @@ describe('POST /api/connectors/catalog/github-app/installations/discover', () =>
       secrets: [
         { key: '__GITHUB_INSTALLATION_ID__', value: '100' },
         { key: '__GITHUB_INSTALLATION_NAME__', value: 'acme' },
-        { key: '__GITHUB_ENV_VAR__', value: 'GITHUB_TOKEN_ACME' },
       ],
       tools: [],
       appId: app.id,
@@ -373,7 +372,6 @@ describe('POST /api/connectors/catalog/github-app/installations', () => {
       body: JSON.stringify({
         installationId: '100',
         displayName: 'acme',
-        envVar: 'GITHUB_TOKEN_ACME',
       }),
       headers: authed(),
     });
@@ -395,7 +393,6 @@ describe('POST /api/connectors/catalog/github-app/installations', () => {
       body: JSON.stringify({
         installationId: '100',
         displayName: 'Acme Corp',
-        envVar: 'GITHUB_TOKEN_ACME',
       }),
       headers: authed(),
     });
@@ -414,140 +411,18 @@ describe('POST /api/connectors/catalog/github-app/installations', () => {
     const map = new Map(payload.secrets.map((s) => [s.key, s.value]));
     expect(map.get('__GITHUB_INSTALLATION_ID__')).toBe('100');
     expect(map.get('__GITHUB_INSTALLATION_NAME__')).toBe('Acme Corp');
-    expect(map.get('__GITHUB_ENV_VAR__')).toBe('GITHUB_TOKEN_ACME');
+    // Spec 0051: __GITHUB_ENV_VAR__ no longer written.
+    expect(map.has('__GITHUB_ENV_VAR__')).toBe(false);
     // No __GITHUB_APP_ID__ / __GITHUB_APP_PEM__ in v2 secrets.
     expect(map.has('__GITHUB_APP_ID__')).toBe(false);
     expect(map.has('__GITHUB_APP_PEM__')).toBe(false);
   });
 
-  it('rejects with 409 when envVar is already in use by another installation (R3 F1)', async () => {
-    const appRepo = new ConnectorAppRepo(db);
-    const app = appRepo.create({
-      catalogId: 'github-app',
-      appId: '7777',
-      appSlug: 'zen',
-      appName: 'Zen',
-      pem: newPem(),
-      pemSha256: 'sha',
-    });
-    // Seed: an existing installation already using GITHUB_TOKEN_ACME.
-    const connRepo = new ConnectorRepo(db);
-    connRepo.create({
-      slug: 'github-app-already',
-      displayName: 'Already',
-      source: 'catalog',
-      catalogId: 'github-app',
-      transport: 'stdio',
-      command: 'github-mcp-server',
-      args: ['stdio'],
-      secrets: [
-        { key: '__GITHUB_INSTALLATION_ID__', value: '111' },
-        { key: '__GITHUB_INSTALLATION_NAME__', value: 'Already' },
-        { key: '__GITHUB_ENV_VAR__', value: 'GITHUB_TOKEN_ACME' },
-      ],
-      tools: [],
-      appId: app.id,
-    });
-
-    const res = await makeApp().request('/api/connectors/catalog/github-app/installations', {
-      method: 'POST',
-      body: JSON.stringify({
-        installationId: '222',
-        displayName: 'Other',
-        envVar: 'GITHUB_TOKEN_ACME',
-      }),
-      headers: authed(),
-    });
-    expect(res.status).toBe(409);
-    const body = (await res.json()) as {
-      ok: boolean;
-      errorKind: string;
-      error: string;
-      envVar: string;
-    };
-    expect(body.ok).toBe(false);
-    expect(body.errorKind).toBe('conflict');
-    expect(body.error).toBe('env_var_in_use');
-    expect(body.envVar).toBe('GITHUB_TOKEN_ACME');
-  });
+  // Spec 0051: env_var_in_use 409 test removed alongside the operator-picked
+  // envVar field.
 });
 
-describe('POST /api/connectors/catalog/github-app/rotate-pem', () => {
-  it('rejects mismatched confirmAppId', async () => {
-    const appRepo = new ConnectorAppRepo(db);
-    appRepo.create({
-      catalogId: 'github-app',
-      appId: '7777',
-      appSlug: 'zen',
-      appName: 'Zen',
-      pem: newPem(),
-      pemSha256: 'sha',
-    });
-    const res = await makeApp().request('/api/connectors/catalog/github-app/rotate-pem', {
-      method: 'POST',
-      body: JSON.stringify({ newPem: newPem(), confirmAppId: 'wrong' }),
-      headers: authed(),
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it('rotates PEM atomically and enqueues app_pem_rotated', async () => {
-    const appRepo = new ConnectorAppRepo(db);
-    const app = appRepo.create({
-      catalogId: 'github-app',
-      appId: '7777',
-      appSlug: 'zen',
-      appName: 'Zen',
-      pem: newPem(),
-      pemSha256: 'sha',
-    });
-    // Seed 1 installation
-    new ConnectorRepo(db).create({
-      slug: 'github-app-acme',
-      displayName: 'Acme',
-      source: 'catalog',
-      catalogId: 'github-app',
-      transport: 'stdio',
-      command: 'github-mcp-server',
-      args: ['stdio'],
-      secrets: [
-        { key: '__GITHUB_INSTALLATION_ID__', value: '100' },
-        { key: '__GITHUB_INSTALLATION_NAME__', value: 'acme' },
-        { key: '__GITHUB_ENV_VAR__', value: 'GITHUB_TOKEN_ACME' },
-      ],
-      tools: [],
-      appId: app.id,
-    });
-
-    mockFetch.mockImplementation((url: string) => {
-      if (url.endsWith('/app')) return fakeOk({ id: 7777, slug: 'zen', name: 'Zen' });
-      if (url.includes('/installations/100/access_tokens')) {
-        return fakeOk({
-          token: 'ghs_new',
-          expires_at: new Date(Date.now() + 3600_000).toISOString(),
-        });
-      }
-      return fakeErr(404);
-    });
-
-    const newPemValue = newPem();
-    const res = await makeApp().request('/api/connectors/catalog/github-app/rotate-pem', {
-      method: 'POST',
-      body: JSON.stringify({ newPem: newPemValue, confirmAppId: '7777' }),
-      headers: authed(),
-    });
-    expect(res.status).toBe(200);
-
-    // Row was updated.
-    const after = appRepo.getOneByCatalog('github-app');
-    expect(after?.pem).toBe(newPemValue);
-    expect(after?.pemRotatedAt).not.toBeNull();
-
-    // Command was enqueued.
-    const cmds = new CommandRepo(db).recent(100);
-    expect(cmds.some((c) => c.type === 'app_pem_rotated')).toBe(true);
-  });
-});
+// Spec 0051: rotate-PEM endpoint removed. Tests deleted alongside the route.
 
 describe('POST /api/connectors/catalog/github-app/uninstall-app', () => {
   it('rejects mismatched confirmAppName', async () => {

@@ -6,8 +6,10 @@
  * connector and its secrets in the same transaction.
  *
  * This handler tears down the in-memory singleton: stops the refresh
- * interval, clears every cached token, unsets every env var. Idempotent
- * (no-op if the singleton is already null).
+ * interval, clears every cached token, drops every installation entry.
+ * Idempotent (no-op if the singleton is already null). Spec 0051 retired
+ * the per-installation `process.env[envVar]` writes alongside the
+ * operator-picked envVar field.
  */
 
 import { createLogger } from '@zeno/logger';

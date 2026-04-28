@@ -55,27 +55,20 @@ beforeEach(() => {
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  // Wipe env vars left by the tests
-  delete process.env.GH_TOKEN;
-  delete process.env.GITHUB_TOKEN_ACME;
-  delete process.env.GITHUB_TOKEN_ACME_NEW;
-  delete process.env.GITHUB_TOKEN_BETA;
-  delete process.env.GITHUB_TOKEN_GAMMA;
 });
 
 describe('GitHubAppAuth mutations', () => {
   describe('addInstallation', () => {
-    it('appends + mints initial token + sets env var', async () => {
+    it('appends + mints initial token', async () => {
       const auth = new GitHubAppAuth({
         appId: '1',
         privateKey: newPem(),
         installations: [],
         disableAutoRefresh: true,
       });
-      await auth.addInstallation({ name: 'Acme', id: '100', envVar: 'GITHUB_TOKEN_ACME' });
+      await auth.addInstallation({ name: 'Acme', id: '100' });
       expect(auth.getInstallationNames()).toEqual(['Acme']);
       expect(auth.getCachedToken('Acme')).toBe('tok-100');
-      expect(process.env.GITHUB_TOKEN_ACME).toBe('tok-100');
     });
 
     it('does not throw when initial mint fails (records the install anyway)', async () => {
@@ -86,20 +79,18 @@ describe('GitHubAppAuth mutations', () => {
         disableAutoRefresh: true,
       });
       // installation id 999 → fakeError(404)
-      await expect(
-        auth.addInstallation({ name: 'Bad', id: '999', envVar: 'GITHUB_TOKEN_BAD' }),
-      ).resolves.not.toThrow();
+      await expect(auth.addInstallation({ name: 'Bad', id: '999' })).resolves.not.toThrow();
       expect(auth.getInstallationNames()).toEqual(['Bad']);
       expect(auth.getCachedToken('Bad')).toBeNull();
     });
   });
 
   describe('removeInstallation', () => {
-    it('drops cache + unsets env var + removes installation entry', async () => {
+    it('drops cache + removes installation entry', async () => {
       const auth = new GitHubAppAuth({
         appId: '1',
         privateKey: newPem(),
-        installations: [{ name: 'Acme', id: '100', envVar: 'GITHUB_TOKEN_ACME' }],
+        installations: [{ name: 'Acme', id: '100' }],
         disableAutoRefresh: true,
       });
       await auth.bootstrap();
@@ -108,7 +99,6 @@ describe('GitHubAppAuth mutations', () => {
       auth.removeInstallation('Acme');
       expect(auth.getInstallationNames()).toEqual([]);
       expect(auth.getCachedToken('Acme')).toBeNull();
-      expect(process.env.GITHUB_TOKEN_ACME).toBeUndefined();
     });
 
     it('is a no-op for unknown names', () => {
@@ -122,102 +112,17 @@ describe('GitHubAppAuth mutations', () => {
     });
   });
 
-  describe('renameInstallation', () => {
-    it('preserves cached token when changing name + env var', async () => {
-      const auth = new GitHubAppAuth({
-        appId: '1',
-        privateKey: newPem(),
-        installations: [{ name: 'Acme', id: '100', envVar: 'GITHUB_TOKEN_ACME' }],
-        disableAutoRefresh: true,
-      });
-      await auth.bootstrap();
-      expect(auth.getCachedToken('Acme')).toBe('tok-100');
-
-      auth.renameInstallation({
-        oldName: 'Acme',
-        newName: 'Acme New',
-        oldEnvVar: 'GITHUB_TOKEN_ACME',
-        newEnvVar: 'GITHUB_TOKEN_ACME_NEW',
-      });
-
-      expect(auth.getCachedToken('Acme')).toBeNull();
-      expect(auth.getCachedToken('Acme New')).toBe('tok-100');
-      expect(auth.getInstallationNames()).toEqual(['Acme New']);
-      expect(process.env.GITHUB_TOKEN_ACME).toBeUndefined();
-      expect(process.env.GITHUB_TOKEN_ACME_NEW).toBe('tok-100');
-    });
-
-    it('handles env-var only change (same name)', async () => {
-      const auth = new GitHubAppAuth({
-        appId: '1',
-        privateKey: newPem(),
-        installations: [{ name: 'Acme', id: '100', envVar: 'GITHUB_TOKEN_ACME' }],
-        disableAutoRefresh: true,
-      });
-      await auth.bootstrap();
-      auth.renameInstallation({
-        oldName: 'Acme',
-        newName: 'Acme',
-        oldEnvVar: 'GITHUB_TOKEN_ACME',
-        newEnvVar: 'GITHUB_TOKEN_ACME_NEW',
-      });
-      expect(auth.getCachedToken('Acme')).toBe('tok-100');
-      expect(process.env.GITHUB_TOKEN_ACME).toBeUndefined();
-      expect(process.env.GITHUB_TOKEN_ACME_NEW).toBe('tok-100');
-    });
-
-    it('is a no-op when name is unknown', () => {
-      const auth = new GitHubAppAuth({
-        appId: '1',
-        privateKey: newPem(),
-        installations: [],
-        disableAutoRefresh: true,
-      });
-      expect(() =>
-        auth.renameInstallation({
-          oldName: 'GhostRider',
-          newName: 'X',
-          oldEnvVar: 'A',
-          newEnvVar: 'B',
-        }),
-      ).not.toThrow();
-    });
-  });
-
-  describe('rotatePem', () => {
-    it('invalidates ALL caches and re-mints', async () => {
-      const auth = new GitHubAppAuth({
-        appId: '1',
-        privateKey: newPem(),
-        installations: [
-          { name: 'Acme', id: '100', envVar: 'GITHUB_TOKEN_ACME' },
-          { name: 'Beta', id: '200', envVar: 'GITHUB_TOKEN_BETA' },
-        ],
-        disableAutoRefresh: true,
-      });
-      await auth.bootstrap();
-      expect(auth.getCachedToken('Acme')).toBe('tok-100');
-      expect(auth.getCachedToken('Beta')).toBe('tok-200');
-
-      const newPemKey = newPem();
-      await auth.rotatePem(newPemKey);
-      // Both caches should still be valid (re-minted)
-      expect(auth.getCachedToken('Acme')).toBe('tok-100');
-      expect(auth.getCachedToken('Beta')).toBe('tok-200');
-      // Env vars updated
-      expect(process.env.GITHUB_TOKEN_ACME).toBe('tok-100');
-      expect(process.env.GITHUB_TOKEN_BETA).toBe('tok-200');
-    });
-  });
+  // Spec 0051: renameInstallation + rotatePem describe blocks removed
+  // alongside the features.
 
   describe('appUninstall', () => {
-    it('clears caches, env vars, and installation entries', async () => {
+    it('clears caches and installation entries', async () => {
       const auth = new GitHubAppAuth({
         appId: '1',
         privateKey: newPem(),
         installations: [
-          { name: 'Acme', id: '100', envVar: 'GITHUB_TOKEN_ACME' },
-          { name: 'Beta', id: '200', envVar: 'GITHUB_TOKEN_BETA' },
+          { name: 'Acme', id: '100' },
+          { name: 'Beta', id: '200' },
         ],
         disableAutoRefresh: true,
       });
@@ -226,9 +131,6 @@ describe('GitHubAppAuth mutations', () => {
       expect(auth.getInstallationNames()).toEqual([]);
       expect(auth.getCachedToken('Acme')).toBeNull();
       expect(auth.getCachedToken('Beta')).toBeNull();
-      expect(process.env.GITHUB_TOKEN_ACME).toBeUndefined();
-      expect(process.env.GITHUB_TOKEN_BETA).toBeUndefined();
-      expect(process.env.GH_TOKEN).toBeUndefined();
     });
 
     it('is idempotent', () => {
@@ -276,7 +178,7 @@ describe('GitHubAppAuth retry backoff (Spec 0048 Q3)', () => {
     const auth = new GitHubAppAuth({
       appId: '1',
       privateKey: newPem(),
-      installations: [{ name: 'Acme', id: '100', envVar: 'GITHUB_TOKEN_ACME' }],
+      installations: [{ name: 'Acme', id: '100' }],
       disableAutoRefresh: false,
     });
     await auth.bootstrap();
@@ -300,7 +202,7 @@ describe('GitHubAppAuth retry backoff (Spec 0048 Q3)', () => {
     const auth = new GitHubAppAuth({
       appId: '1',
       privateKey: newPem(),
-      installations: [{ name: 'Acme', id: '100', envVar: 'GITHUB_TOKEN_ACME' }],
+      installations: [{ name: 'Acme', id: '100' }],
       disableAutoRefresh: false,
     });
     await auth.bootstrap();
@@ -324,8 +226,8 @@ describe('GitHubAppAuth retry backoff (Spec 0048 Q3)', () => {
       appId: '1',
       privateKey: newPem(),
       installations: [
-        { name: 'Acme', id: '100', envVar: 'GITHUB_TOKEN_ACME' },
-        { name: 'Beta', id: '200', envVar: 'GITHUB_TOKEN_BETA' },
+        { name: 'Acme', id: '100' },
+        { name: 'Beta', id: '200' },
       ],
       disableAutoRefresh: false,
     });
@@ -348,8 +250,8 @@ describe('GitHubAppAuth retry backoff (Spec 0048 Q3)', () => {
       appId: '1',
       privateKey: newPem(),
       installations: [
-        { name: 'Acme', id: '100', envVar: 'GITHUB_TOKEN_ACME' },
-        { name: 'Beta', id: '200', envVar: 'GITHUB_TOKEN_BETA' },
+        { name: 'Acme', id: '100' },
+        { name: 'Beta', id: '200' },
       ],
       disableAutoRefresh: false,
     });
@@ -370,7 +272,7 @@ describe('GitHubAppAuth retry backoff (Spec 0048 Q3)', () => {
     const auth = new GitHubAppAuth({
       appId: '1',
       privateKey: newPem(),
-      installations: [{ name: 'Acme', id: '100', envVar: 'GITHUB_TOKEN_ACME' }],
+      installations: [{ name: 'Acme', id: '100' }],
       disableAutoRefresh: false,
     });
     await auth.bootstrap();

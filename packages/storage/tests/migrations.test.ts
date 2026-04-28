@@ -232,6 +232,11 @@ describe('migrations: github_app_v2_dedup (migration 6)', () => {
       'app_name',
       'pem',
       'pem_sha256',
+      // Spec 0051 retired the rotate-PEM feature but kept the column as
+      // nullable legacy data (per Non-Goals: SQLite DROP COLUMN
+      // table-rebuild is out-of-balance with risk). No readers/writers
+      // remain in TypeScript; column may be dropped in a future schema
+      // cleanup migration.
       'pem_rotated_at',
       'created_at',
       'updated_at',

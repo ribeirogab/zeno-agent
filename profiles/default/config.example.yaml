@@ -22,37 +22,8 @@
 
 crons: []
 
-# GitHub App auth (optional). Generates installation tokens at boot and sets
-# the specified env vars so skills can use them for org-scoped git/gh operations.
-# Commits and PRs appear as "<app-name>[bot]" instead of your personal user.
-#
-# github_app:
-#   app_id: "123456"
-#   private_key_file: path/to/app.pem  # relative to profile/
-#   git_identity:
-#     name: "my-app[bot]"
-#     email: "123456+my-app[bot]@users.noreply.github.com"
-#   installations:
-#     - name: MyOrg
-#       id: "12345678"
-#       env_var: MY_ORG_GH_TOKEN
-
-# Guardrails — pre-flight approval flow for sensitive tool calls.
-# When this section is absent, Zeno runs unguarded (logs a warning at boot).
-# When present, every tool call goes through a policy pipeline:
-#   1. always_sensitive (literal/wildcard tool names) → owner approval
-#   2. read_only skills → auto-allow (declare `read_only: true` in SKILL.md frontmatter)
-#   3. Haiku classifier → owner approval if the model deems the call sensitive
-#   4. terminal audit log (table approvals_log)
-# Approval is reaction-based: 👍 allow, 👎 deny, no reaction within timeout = deny.
-# When the requester is the owner: prompt posts in the same thread.
-# When the requester is anyone else: prompt posts in the owner's DM.
-#
-# approvals:
-#   owner_slack_user_id: U0ABC123
-#   always_sensitive:
-#     - mcp__github__merge_pull_request
-#     - mcp__github__delete_*
-#   approval_timeout_sec: 600
-#   classifier_model: claude-haiku-4-5
-#   dm_owner_only: true              # default true; set false to allow anyone to DM the bot
+# Note: GitHub App authentication is now configured via the dashboard
+# (see /connectors/github-app — spec 0044). The `github_app:` yaml block,
+# the `approvals:` policy chain, and the `always_active_skills:` list
+# were retired in specs 0050/0051. The worker hard-fails at boot if any
+# of those legacy blocks is present.

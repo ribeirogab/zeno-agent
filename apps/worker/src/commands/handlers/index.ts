@@ -1,7 +1,6 @@
 import type { ConnectorAppRepo, ConnectorRepo, CronRepo, CronRunRepo } from '@zeno/storage';
 import type { HandlerMap } from '@/commands/dispatcher';
 import { buildAppInstallHandler } from '@/commands/handlers/app-install';
-import { buildAppPemRotatedHandler } from '@/commands/handlers/app-pem-rotated';
 import { buildAppUninstallHandler } from '@/commands/handlers/app-uninstall';
 import { buildConnectorCreateHandler } from '@/commands/handlers/connector-create';
 import { buildConnectorRefreshToolsHandler } from '@/commands/handlers/connector-refresh-tools';
@@ -57,7 +56,6 @@ export function buildHandlerMap(deps: HandlerDeps): HandlerMap {
       getGithubApp: deps.getGithubApp,
     }),
     app_install: buildAppInstallHandler(deps),
-    app_pem_rotated: buildAppPemRotatedHandler(deps),
     app_uninstall: buildAppUninstallHandler({
       getGithubApp: deps.getGithubApp,
       tearDownGithubApp: deps.tearDownGithubApp,

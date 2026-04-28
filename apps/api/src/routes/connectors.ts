@@ -17,7 +17,6 @@ import {
   fetchInstallations,
   GitHubAppError,
   looksLikePem,
-  mintInstallationToken,
   signAppJwt,
 } from '@zeno/github-app';
 import { discoverTools } from '@zeno/mcp-discover';
@@ -172,28 +171,9 @@ function pickLatestVerified(installations: Connector[]): string | null {
   return verifiedTimes.sort().reverse()[0] ?? null;
 }
 
-/**
- * Spec 0048 R3 F1: enumerate envVars currently in use by github-app-*
- * connectors, optionally excluding one by id (so a self-update is allowed
- * without spurious conflict). Two installations sharing the same envVar
- * non-deterministically clobber each other on every refresh tick — the API
- * rejects such configurations on install + edit-env-var.
- */
-function getInstallationEnvVarsInUse(
-  connectorRepo: ConnectorRepo,
-  excludeId?: string,
-): Set<string> {
-  const result = new Set<string>();
-  for (const c of connectorRepo.list()) {
-    if (excludeId && c.id === excludeId) continue;
-    if (!c.slug.startsWith('github-app-')) continue;
-    const envVar = connectorRepo
-      .getSecrets(c.id)
-      .find((s) => s.key === '__GITHUB_ENV_VAR__')?.value;
-    if (envVar) result.add(envVar);
-  }
-  return result;
-}
+// Spec 0051: getInstallationEnvVarsInUse helper removed alongside the
+// operator-picked envVar field (R3 F1 uniqueness validation no longer
+// reachable; nothing reads __GITHUB_ENV_VAR__).
 
 // ─── Schemas ─────────────────────────────────────────────────────────────
 
@@ -248,15 +228,7 @@ const patchSchema = z.object({
   args: z.array(z.string()).nullable().optional(),
   url: z.string().nullable().optional(),
   secrets: z.array(apiSecretSchema).optional(),
-  // Spec 0046: M11 (edit env_var) sends the new env var name on a github-app-*
-  // PATCH. The worker handler reads `secrets[].value` for env_var rather than
-  // a top-level field, so this is a convenience: the dashboard sends
-  // `{envVar: 'NEW_NAME'}` and the API translates it to a secrets-only patch.
-  envVar: z
-    .string()
-    .min(1)
-    .regex(/^[A-Z][A-Z0-9_]*$/, 'envVar must be UPPER_SNAKE_CASE')
-    .optional(),
+  // Spec 0051: M11's `envVar` field removed (operator-picked envVar customization dropped).
 });
 
 const permissionSchema = z.object({
@@ -370,9 +342,11 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   //   POST /catalog/github-app/install       — sync DB write + async worker bootstrap
   //   POST /catalog/github-app/installations/discover — list installs from GitHub
   //   POST /catalog/github-app/installations  — add 1 installation (creates connector row)
-  //   POST /catalog/github-app/rotate-pem     — atomic PEM swap
   //   POST /catalog/github-app/uninstall-app  — tear down App + cascade
   //   GET  /catalog/github-app/app            — read installed App metadata
+  //
+  // Spec 0051 retired POST /catalog/github-app/rotate-pem; PEM rotation is
+  // handled via uninstall-app + reinstall.
   //
   // All endpoints require `deps.connectorApps` to be wired (server.ts).
 
@@ -550,10 +524,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   const addInstallationSchema = z.object({
     installationId: z.string().min(1),
     displayName: z.string().min(1),
-    envVar: z
-      .string()
-      .min(1)
-      .regex(/^[A-Z][A-Z0-9_]*$/, 'envVar must be UPPER_SNAKE_CASE'),
+    // Spec 0051: `envVar` field removed — operator-picked env var customization
+    // dropped (the worker authenticates the github-mcp-server subprocess via
+    // the fixed GITHUB_PERSONAL_ACCESS_TOKEN env var).
   });
   route.post(
     '/catalog/github-app/installations',
@@ -579,22 +552,8 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         return c.json({ error: 'github_catalog_entry_missing' }, 500);
       }
 
-      // Spec 0048 R3 F1: reject duplicate envVar across installations.
-      // Two installs sharing one envVar clobber each other on every refresh.
-      // Response shape mirrors the install-time `app_already_installed`
-      // 409 above (errorKind:'conflict' envelope) for client uniformity.
-      const envVarsInUse = getInstallationEnvVarsInUse(deps.connectors);
-      if (envVarsInUse.has(body.envVar)) {
-        return c.json(
-          {
-            ok: false,
-            errorKind: 'conflict' as const,
-            error: 'env_var_in_use',
-            envVar: body.envVar,
-          },
-          409,
-        );
-      }
+      // Spec 0051: env_var_in_use 409 + getInstallationEnvVarsInUse helper
+      // removed alongside the operator-picked envVar field.
 
       const slug = resolveSlugCollision(
         deps.connectors,
@@ -613,7 +572,6 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         secrets: [
           { key: '__GITHUB_INSTALLATION_ID__', value: body.installationId },
           { key: '__GITHUB_INSTALLATION_NAME__', value: body.displayName },
-          { key: '__GITHUB_ENV_VAR__', value: body.envVar },
         ],
         // Spec 0045: tools sourced from the `github` (Personal) catalog entry,
         // not from `github-app`'s empty array.
@@ -634,89 +592,10 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     },
   );
 
-  const rotatePemSchema = z.object({
-    newPem: z
-      .string()
-      .min(1)
-      .refine(looksLikePem, { message: 'pem must be a PEM-formatted private key' }),
-    confirmAppId: z.string().min(1),
-  });
-  route.post('/catalog/github-app/rotate-pem', zValidator('json', rotatePemSchema), async (c) => {
-    if (!deps.connectorApps) {
-      return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
-    }
-    const body = c.req.valid('json');
-    const app = deps.connectorApps.getOneByCatalog('github-app');
-    if (!app) return c.json({ error: 'app_not_installed' }, 404);
-    if (body.confirmAppId !== app.appId) {
-      return c.json({ error: 'confirm_app_id_mismatch' }, 400);
-    }
-
-    let jwt: string;
-    try {
-      jwt = signAppJwt({ appId: app.appId, privateKey: body.newPem });
-    } catch (err) {
-      return c.json({
-        ok: false,
-        errorKind: 'auth' as const,
-        error: `new pem could not sign a JWT: ${err instanceof Error ? err.message : String(err)}`,
-      });
-    }
-    try {
-      const meta = await fetchAppMetadata(jwt);
-      if (meta.appId !== app.appId) {
-        return c.json({
-          ok: false,
-          errorKind: 'auth' as const,
-          error: `new pem signs for ${meta.appId}, expected ${app.appId}`,
-        });
-      }
-    } catch (err) {
-      const kind = err instanceof GitHubAppError ? err.kind : 'unknown';
-      return c.json({
-        ok: false,
-        errorKind: kind,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-    const installRows = deps.connectors
-      .list({ source: 'catalog' })
-      .filter((r) => r.appId === app.id);
-    for (const row of installRows) {
-      const secrets = deps.connectors.getSecrets(row.id);
-      const instId = secrets.find((s) => s.key === '__GITHUB_INSTALLATION_ID__')?.value;
-      if (!instId) continue;
-      try {
-        await mintInstallationToken(jwt, instId);
-      } catch (err) {
-        const kind = err instanceof GitHubAppError ? err.kind : 'unknown';
-        return c.json({
-          ok: false,
-          errorKind: kind,
-          error: `installation ${row.slug} token mint failed: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        });
-      }
-    }
-
-    deps.connectorApps.update(app.id, {
-      pem: body.newPem,
-      pemSha256: computePemSha256(body.newPem),
-      pemRotatedAt: new Date().toISOString(),
-    });
-    // Spec 0044 review F1: DO NOT include the PEM in the command payload.
-    // `commands.payload` is a TEXT column with no TTL — duplicating the PEM
-    // there would defeat the "single source of truth" rationale for the
-    // connector_apps table (Q1). The handler reads the new PEM back from
-    // connector_apps via the deps that are already wired in.
-    deps.commands.enqueue({
-      type: 'app_pem_rotated',
-      payload: { appUuid: app.id },
-      correlationId: randomUUID(),
-    });
-    return c.json({ ok: true });
-  });
+  // Spec 0051: rotate-PEM endpoint removed. Operators rotate PEMs by
+  // uninstalling the App and reinstalling it with the new private key (a
+  // rare event; the cost of re-creating per-tool permissions is acceptable
+  // given the maintenance burden of a separate rotation flow).
 
   // Spec 0046 supersedes spec 0044 §API-Endpoints body shape: confirmAppName
   // (not confirmAppId) — the dashboard M12 modal uses italic-gold app NAME for
@@ -753,7 +632,6 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       appName: app.appName,
       appSlug: app.appSlug,
       pemSha256: app.pemSha256,
-      pemRotatedAt: app.pemRotatedAt,
       createdAt: app.createdAt,
       updatedAt: app.updatedAt,
     });
@@ -986,7 +864,6 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
           slug: cn.slug,
           displayName: cn.displayName,
           installationId: map.get('__GITHUB_INSTALLATION_ID__') ?? null,
-          envVar: map.get('__GITHUB_ENV_VAR__') ?? null,
           status: cn.status,
           lastVerifiedAt: cn.lastVerifiedAt,
           lastError: cn.lastError,
@@ -1002,7 +879,6 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         appName: app.appName,
         appSlug: app.appSlug,
         pemSha256: app.pemSha256,
-        pemRotatedAt: app.pemRotatedAt,
         createdAt: app.createdAt,
         updatedAt: app.updatedAt,
         // Spec 0048 Q2: surface refresh failure for the C8 detail page header.
@@ -1086,51 +962,16 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   });
 
   // PATCH /:id (update — enqueues connector_update)
+  // Spec 0051: M11 envVar translation block + R3 F1 collision check removed
+  // alongside the operator-picked envVar field.
   route.patch('/:id', zValidator('json', patchSchema), (c) => {
     const id = c.req.param('id');
     const connector = deps.connectors.get(id);
     if (!connector) return c.json({ error: 'not_found' }, 404);
     const body = c.req.valid('json');
-    // Spec 0046: M11 sends `{envVar: 'NEW_NAME'}`. Translate to a secrets-only
-    // patch that updates the __GITHUB_ENV_VAR__ reserved key while preserving
-    // the other reserved keys. Only valid for github-app-* slugs.
-    let secrets = body.secrets;
-    if (body.envVar !== undefined) {
-      if (!connector.slug.startsWith('github-app-')) {
-        return c.json({ error: 'envVar_only_valid_for_github_app_installations' }, 400);
-      }
-      // Spec 0048 R3 F1: reject if another installation already uses this
-      // envVar. Self-update (same id) is allowed. Same envelope as the
-      // install-time 409 (errorKind:'conflict') for client uniformity.
-      const envVarsInUse = getInstallationEnvVarsInUse(deps.connectors, id);
-      if (envVarsInUse.has(body.envVar)) {
-        return c.json(
-          {
-            ok: false,
-            errorKind: 'conflict' as const,
-            error: 'env_var_in_use',
-            envVar: body.envVar,
-          },
-          409,
-        );
-      }
-      const existing = deps.connectors.getSecrets(id);
-      const hasEnvVar = existing.some((s) => s.key === '__GITHUB_ENV_VAR__');
-      // Map existing secrets, swapping __GITHUB_ENV_VAR__'s value. If the
-      // reserved key is somehow missing (legacy/partial install), append a
-      // new row so the rename is durable. Spec 0046 R1 F2.
-      const mapped = existing.map((s) =>
-        s.key === '__GITHUB_ENV_VAR__'
-          ? { key: s.key, value: body.envVar as string }
-          : { key: s.key, value: s.value },
-      );
-      secrets = hasEnvVar ? mapped : [...mapped, { key: '__GITHUB_ENV_VAR__', value: body.envVar }];
-    }
-    const { envVar: _drop, ...patch } = body;
-    void _drop;
     deps.commands.enqueue({
       type: 'connector_update',
-      payload: { id, patch, secrets },
+      payload: { id, patch: body, secrets: body.secrets },
       correlationId: randomUUID(),
     });
     return c.body(null, 204);

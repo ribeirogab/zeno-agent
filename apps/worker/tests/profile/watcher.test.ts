@@ -23,9 +23,7 @@ beforeEach(() => {
   workdir = mkdtempSync(join(tmpdir(), 'zeno-watcher-'));
   process.chdir(workdir);
   mkdirSync(join(workdir, 'agent'));
-  mkdirSync(join(workdir, 'agent', 'skills'));
   mkdirSync(join(workdir, 'profile'));
-  mkdirSync(join(workdir, 'profile', 'skills'));
 });
 
 afterEach(() => {
@@ -95,26 +93,10 @@ describe('ProfileWatcher', () => {
     expect(onCronsChanged).not.toHaveBeenCalled();
   });
 
-  it('ignores edits under skills/ from either source', async () => {
-    const onPromptFilesChanged = vi.fn();
-    const onCronsChanged = vi.fn();
-    const watcher = new ProfileWatcher({
-      onPromptFilesChanged,
-      onCronsChanged,
-      debounceMs: 50,
-    });
-    watcher.start();
-    await wait(50);
-
-    writeFileSync(join(workdir, 'agent', 'skills', 'foo.md'), 'hi', 'utf8');
-    writeFileSync(join(workdir, 'profile', 'skills', 'bar.md'), 'hi', 'utf8');
-
-    await wait(150);
-    watcher.stop();
-
-    expect(onPromptFilesChanged).not.toHaveBeenCalled();
-    expect(onCronsChanged).not.toHaveBeenCalled();
-  });
+  // Spec 0050 retired the `skills/` ignored-path branch in classify(); the
+  // skill bootstrap is gone, so any non-watched filename now falls through
+  // to the generic 'ignored' bucket. The dedicated skills/ test was
+  // dropped alongside.
 
   it('does not crash when a handler throws', async () => {
     const watcher = new ProfileWatcher({

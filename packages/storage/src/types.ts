@@ -73,9 +73,9 @@ export type CommandType =
   | 'connector_update'
   | 'connector_refresh_tools'
   | 'connector_uninstall'
-  // Spec 0044: GitHub App lifecycle commands.
+  // Spec 0044: GitHub App lifecycle commands. Spec 0051: `app_pem_rotated`
+  // removed (rotate-PEM feature retired; uninstall+reinstall is the path).
   | 'app_install'
-  | 'app_pem_rotated'
   | 'app_uninstall';
 
 export type CommandStatus = 'pending' | 'processing' | 'success' | 'failed';
@@ -178,8 +178,8 @@ export interface ConnectorApp {
   pem: string;
   /** sha256 of the trimmed PEM body. Used by the UI to display fingerprints. */
   pemSha256: string;
-  /** ISO timestamp of the last rotation, or null if never rotated. */
-  pemRotatedAt: string | null;
+  // Spec 0051: `pemRotatedAt` field removed (rotate-PEM feature retired).
+  // The DB column `pem_rotated_at` remains as legacy (no readers/writers).
   createdAt: string;
   updatedAt: string;
   /** Spec 0048 Q2: ISO timestamp of the most recent refresh failure (null on success). */
@@ -203,7 +203,6 @@ export interface UpdateConnectorAppInput {
   appName?: string;
   pem?: string;
   pemSha256?: string;
-  pemRotatedAt?: string | null;
   lastRefreshErrorAt?: string | null;
   lastRefreshErrorMessage?: string | null;
 }

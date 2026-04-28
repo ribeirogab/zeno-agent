@@ -8,8 +8,9 @@
  * `connector_create` commands for `github-app-*` slugs can register their
  * installations against it.
  *
- * Idempotent: if the singleton already exists, no-op (rotatePem handles
- * the credential-change case).
+ * Idempotent: if the singleton already exists, no-op (spec 0051 retired the
+ * separate rotate-PEM flow — credential changes go through uninstall +
+ * reinstall, which itself triggers `app_install` again).
  */
 
 import { createLogger } from '@zeno/logger';

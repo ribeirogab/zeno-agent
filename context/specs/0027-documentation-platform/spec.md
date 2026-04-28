@@ -12,7 +12,7 @@ created: 2026-04-23
 
 ## Context
 
-Zeno is approaching open-source readiness. Before release, it needs a public documentation site covering installation, configuration, profiles, skills authoring, dashboard usage, and API reference. The site must be self-hostable (no SaaS dependency), support the llms.txt standard for agent discoverability, and match the Imperial Terminal dark theme (ink-blue surfaces, imperial gold accent, mono-first typography).
+Zeno is approaching open-source readiness. Before release, it needs a public documentation site covering installation, configuration, profiles, connector authoring, dashboard usage, and API reference. The site must be self-hostable (no SaaS dependency), support the llms.txt standard for agent discoverability, and match the Imperial Terminal dark theme (ink-blue surfaces, imperial gold accent, mono-first typography).
 
 The reference benchmark is https://modelcontextprotocol.io/docs/learn/architecture — clean navigation, MDX content, structured for both humans and agents.
 

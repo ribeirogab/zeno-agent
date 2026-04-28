@@ -39,8 +39,8 @@ export function RestartWorkerModal({
             </AlertDialogTitle>
           </div>
           <p className="m-0 font-sans text-sm leading-[1.6] text-text-secondary">
-            Reloads SOUL.md, MCP config, and skills from disk. In-flight Slack threads finish their
-            current turn first; new messages queue for ~3s while the agent core boots.
+            Reloads SOUL.md and MCP config from disk. In-flight Slack threads finish their current
+            turn first; new messages queue for ~3s while the agent core boots.
           </p>
           <div className="bg-panel-2 border border-border-subtle flex flex-col">
             <ImpactRow label="in-flight turns" status="finished gracefully" tone="success" />

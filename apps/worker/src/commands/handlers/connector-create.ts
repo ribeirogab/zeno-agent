@@ -98,9 +98,8 @@ export function buildConnectorCreateHandler(arg: Deps | ConnectorRepo): Handler 
           const map = new Map(data.secrets.map((s) => [s.key, s.value]));
           const id = map.get(GITHUB_APP_RESERVED_KEYS.INSTALLATION_ID);
           const name = map.get(GITHUB_APP_RESERVED_KEYS.INSTALLATION_NAME);
-          const envVar = map.get(GITHUB_APP_RESERVED_KEYS.ENV_VAR);
-          if (id && name && envVar) {
-            await githubApp.addInstallation({ id, name, envVar });
+          if (id && name) {
+            await githubApp.addInstallation({ id, name });
           } else {
             logger.warn(
               { event: 'connector_create_github_app_secrets_missing', slug: data.slug },

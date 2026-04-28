@@ -16,7 +16,6 @@ export interface AppDetail {
     appName: string;
     appSlug: string;
     pemSha256: string;
-    pemRotatedAt: string | null;
     createdAt: string;
     updatedAt: string;
     /** Spec 0048 Q2. */
@@ -29,7 +28,6 @@ export interface AppDetail {
     slug: string;
     displayName: string;
     installationId: string | null;
-    envVar: string | null;
     status: 'enabled' | 'disabled' | 'pending';
     lastVerifiedAt: string | null;
     lastError: string | null;

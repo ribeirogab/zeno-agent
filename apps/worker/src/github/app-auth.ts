@@ -1,19 +1,25 @@
 /**
  * GitHubAppAuth — stateful wrapper around `@zeno/github-app` primitives.
- * Spec 0042 (creation) → spec 0044 (refactor + surgical mutations).
+ * Spec 0042 (creation) → spec 0044 (refactor + surgical mutations) →
+ * spec 0051 (envVar drop).
  *
  * The class holds:
  *   - one App credential set (`appId`, `pem`)
- *   - N installations (`{name, id, envVar}`)
+ *   - N installations (`{name, id}`) — the operator-picked envVar field was
+ *     removed in spec 0051 (the github-mcp-server subprocess authenticates
+ *     via `GITHUB_PERSONAL_ACCESS_TOKEN`, set by `mcp-build.ts` directly
+ *     from the cached installation token; nothing reads `process.env[envVar]`).
  *   - a per-installation token cache + auto-refresh interval
  *
- * Five surgical mutations let the dashboard mutate state without restarting
- * the worker:
+ * Surgical mutations let the dashboard mutate state without restarting the
+ * worker:
  *   - addInstallation     → bootstrap a token for one new installation
- *   - removeInstallation  → drop cache + unset env var
- *   - renameInstallation  → preserve token cache, re-alias env var only
- *   - rotatePem           → swap key in memory, invalidate ALL caches
- *   - appUninstall        → tear-down (cache, env vars, refresh interval)
+ *   - removeInstallation  → drop cache + remove installation entry
+ *   - appUninstall        → tear-down (cache, refresh interval)
+ *
+ * Spec 0051: `renameInstallation` and `rotatePem` removed. Installation
+ * aliases are immutable post-create; PEM rotation is handled via uninstall +
+ * reinstall (a rare event).
  *
  * Loaded from DB on worker boot via `loadGitHubAppFromDb(repos, logger)`. The
  * yaml fallback was removed per spec 0044.
@@ -34,22 +40,19 @@ const logger = createLogger({ service: 'worker' });
 const TOKEN_REFRESH_MARGIN_MS = 5 * 60_000;
 const REFRESH_INTERVAL_MS = 55 * 60_000;
 // Spec 0048 Q3: per-installation exponential backoff for failed refresh.
-// 30s, 60s, 120s, 240s, 480s — max 8min before falling back to the standard
-// 55min cycle. Reset to step 0 on success.
 const RETRY_BACKOFF_MS = [30_000, 60_000, 120_000, 240_000, 480_000];
 
 // Reserved secret keys for github-app-* connectors.
-// Spec 0042 had 5; spec 0044 drops APP_ID + PEM (now on connector_apps).
+// Spec 0042 had 5; spec 0044 dropped APP_ID + PEM (moved to connector_apps);
+// spec 0051 dropped ENV_VAR.
 export const GITHUB_APP_RESERVED_KEYS = {
   INSTALLATION_ID: '__GITHUB_INSTALLATION_ID__',
   INSTALLATION_NAME: '__GITHUB_INSTALLATION_NAME__',
-  ENV_VAR: '__GITHUB_ENV_VAR__',
 } as const;
 
 export interface Installation {
   name: string;
   id: string;
-  envVar: string;
 }
 
 interface CachedToken {
@@ -290,11 +293,12 @@ export class GitHubAppAuth {
   }
 
   /**
-   * Remove one installation: drop cache, clear env var, drop in-memory entry.
+   * Remove one installation: drop cache, drop in-memory entry. Spec 0051:
+   * env var unset removed (operator-picked envVar dropped — nothing reads
+   * `process.env[envVar]` anymore).
    */
   removeInstallation(name: string): void {
-    const inst = this.installations.get(name);
-    if (!inst) {
+    if (!this.installations.has(name)) {
       logger.warn(
         { event: 'github_app_remove_installation_not_found', name },
         'removeInstallation called with an unknown name',
@@ -302,7 +306,6 @@ export class GitHubAppAuth {
       return;
     }
     this.cache.delete(name);
-    delete process.env[inst.envVar];
     this.installations.delete(name);
     // Spec 0048 Q3: cancel any pending retry for this installation.
     const pendingRetry = this.retryTimers.get(name);
@@ -315,99 +318,25 @@ export class GitHubAppAuth {
     logger.info({ event: 'github_app_installation_removed', name }, 'installation removed');
   }
 
-  /**
-   * Rename an installation OR change its env var. Preserves the cached token
-   * (the underlying GitHub installation is the same — only the alias name and/
-   * or env var change). Updates `process.env` to point the new env var at the
-   * cached token; deletes the old env var.
-   *
-   * If `oldName !== newName`, the cache key is moved.
-   */
-  renameInstallation(args: {
-    oldName: string;
-    newName: string;
-    oldEnvVar: string;
-    newEnvVar: string;
-  }): void {
-    const inst = this.installations.get(args.oldName);
-    if (!inst) {
-      logger.warn(
-        { event: 'github_app_rename_installation_not_found', name: args.oldName },
-        'renameInstallation called with an unknown name',
-      );
-      return;
-    }
-    // Move the cache entry if the name changed
-    if (args.oldName !== args.newName) {
-      const cached = this.cache.get(args.oldName);
-      if (cached) {
-        this.cache.set(args.newName, cached);
-        this.cache.delete(args.oldName);
-      }
-      this.installations.delete(args.oldName);
-    }
-    const updated: Installation = { ...inst, name: args.newName, envVar: args.newEnvVar };
-    this.installations.set(args.newName, updated);
-    // Move env var
-    if (args.oldEnvVar !== args.newEnvVar) {
-      const tok = this.cache.get(args.newName)?.token;
-      if (tok) {
-        process.env[args.newEnvVar] = tok;
-      }
-      delete process.env[args.oldEnvVar];
-    }
-    logger.info(
-      { event: 'github_app_installation_renamed', oldName: args.oldName, newName: args.newName },
-      'installation renamed',
-    );
-  }
+  // Spec 0051: `renameInstallation()` and `rotatePem()` removed. PEM
+  // rotation is handled by uninstalling the App and reinstalling it (a rare
+  // event); installation aliases are immutable post-create.
 
   /**
-   * Atomically swap the in-memory PEM, invalidate ALL cached tokens, then
-   * re-mint asynchronously. Caller is responsible for persisting the new PEM
-   * to `connector_apps.pem` BEFORE calling this method (so a refresh failure
-   * doesn't leave us with a key the DB doesn't know about).
+   * Tear down the App entirely: stop refresh, clear cache, drop every
+   * installation entry. Caller is responsible for the DB delete (CASCADE
+   * on `connector_apps`).
    *
-   * `appUninstall` semantics: rotatePem on the same App keeps installations
-   * registered; only the credential changes.
-   */
-  async rotatePem(newPem: string): Promise<void> {
-    this.privateKey = newPem;
-    this.cache.clear();
-    // Re-mint all installations in parallel; tolerate failures.
-    const results = await Promise.allSettled(
-      [...this.installations.values()].map((inst) => this.mintAndCache(inst)),
-    );
-    const failed = results
-      .map((r, i) => (r.status === 'rejected' ? this.installationByIndex(i) : null))
-      .filter((x): x is string => x !== null);
-    logger.info(
-      { event: 'github_app_pem_rotated', failedInstallations: failed },
-      'PEM rotated; caches invalidated',
-    );
-  }
-
-  /**
-   * Tear down the App entirely: stop refresh, clear cache, unset every env
-   * var, drop every installation entry. Caller is responsible for the DB
-   * delete (CASCADE on `connector_apps`).
+   * Spec 0051: env-var clearing removed (operator-picked envVar dropped).
    */
   appUninstall(): void {
     this.stop();
-    for (const inst of this.installations.values()) {
-      delete process.env[inst.envVar];
-    }
     this.installations.clear();
     this.cache.clear();
-    delete process.env.GH_TOKEN;
     logger.info({ event: 'github_app_uninstalled' }, 'GitHub App fully uninstalled');
   }
 
   // ─── Private helpers ────────────────────────────────────────────────────
-
-  private installationByIndex(index: number): string | null {
-    return [...this.installations.keys()][index] ?? null;
-  }
 
   private async refreshAll(): Promise<void> {
     // Spec 0048 Q4: log noise reduction. Routine-success refreshes are
@@ -416,15 +345,19 @@ export class GitHubAppAuth {
     //   - failure
     //   - recovery (failure → success)
     //   - one cycle-complete aggregate
-    let primaryToken: string | null = null;
+    //
+    // Spec 0051: the `process.env.GH_TOKEN` write that used to live here
+    // (capturing the first installation's token) was removed alongside the
+    // operator-picked envVar field. The github-mcp-server subprocess gets
+    // `GITHUB_PERSONAL_ACCESS_TOKEN` synthesized from `getCachedToken()` in
+    // mcp-build.ts; no global env var is needed.
     let succeeded = 0;
     let failed = 0;
     let aggregateError: string | null = null;
     for (const inst of this.installations.values()) {
       const previousState = this.lastRefreshState.get(inst.name) ?? 'unknown';
       try {
-        const token = await this.mintAndCache(inst);
-        if (!primaryToken) primaryToken = token;
+        await this.mintAndCache(inst);
         succeeded += 1;
         if (previousState === 'unknown') {
           logger.info(
@@ -457,9 +390,6 @@ export class GitHubAppAuth {
         }
       }
     }
-    if (primaryToken) {
-      process.env.GH_TOKEN = primaryToken;
-    }
     // Spec 0048 Q4: single aggregate log per cycle (cheap).
     logger.info(
       {
@@ -481,7 +411,10 @@ export class GitHubAppAuth {
     }
   }
 
-  /** Mint + cache + set env var. Throws on failure. */
+  /**
+   * Mint + cache. Spec 0051: `process.env[installation.envVar] = token`
+   * write removed (no consumers).
+   */
   private async mintAndCache(installation: Installation): Promise<string> {
     const jwt = signAppJwt({ appId: this.appId, privateKey: this.privateKey });
     const minted = await mintInstallationToken(jwt, installation.id);
@@ -489,7 +422,6 @@ export class GitHubAppAuth {
       token: minted.token,
       expiresAt: new Date(minted.expiresAt),
     });
-    process.env[installation.envVar] = minted.token;
     return minted.token;
   }
 }
@@ -546,6 +478,7 @@ export async function loadGitHubAppFromDb(deps: LoadGitHubAppDeps): Promise<GitH
   }
 
   // Read every github-app-* connector + secrets.
+  // Spec 0051: env_var reserved key removed; only installation_id + name needed.
   const installations: Installation[] = [];
   const all = deps.connectors.getEnabledWithRelations();
   for (const { connector, secrets } of all) {
@@ -553,23 +486,18 @@ export async function loadGitHubAppFromDb(deps: LoadGitHubAppDeps): Promise<GitH
     const map = new Map(secrets.map((s) => [s.key, s.value]));
     const instId = map.get(GITHUB_APP_RESERVED_KEYS.INSTALLATION_ID);
     const instName = map.get(GITHUB_APP_RESERVED_KEYS.INSTALLATION_NAME);
-    const envVar = map.get(GITHUB_APP_RESERVED_KEYS.ENV_VAR);
-    if (!instId || !instName || !envVar) {
+    if (!instId || !instName) {
       logger.warn(
         {
           event: 'github_app_db_row_incomplete',
           slug: connector.slug,
-          missing: [
-            !instId && 'installation_id',
-            !instName && 'installation_name',
-            !envVar && 'env_var',
-          ].filter(Boolean),
+          missing: [!instId && 'installation_id', !instName && 'installation_name'].filter(Boolean),
         },
         'skipping incomplete github-app connector row',
       );
       continue;
     }
-    installations.push({ name: instName, id: instId, envVar });
+    installations.push({ name: instName, id: instId });
   }
 
   logger.info(

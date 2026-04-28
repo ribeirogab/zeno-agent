@@ -4,6 +4,7 @@ import type { JSX } from 'react';
 import { useState } from 'react';
 import { InheritedAppCallout } from '@/components/connectors/inherited-app-callout';
 import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
+import { ConfirmModal } from '@/components/shared/confirm-modal';
 import {
   useRefreshTools,
   useRevealSecret,
@@ -36,6 +37,7 @@ function ConnectorDetailScreen(): JSX.Element {
   const test = useTestInstalledConnector();
   const refresh = useRefreshTools();
   const uninstall = useUninstallConnector();
+  const [confirmKind, setConfirmKind] = useState<'refresh' | 'uninstall' | null>(null);
 
   if (connector.error) {
     return (
@@ -87,21 +89,29 @@ function ConnectorDetailScreen(): JSX.Element {
   };
 
   const handleRefresh = (): void => {
-    if (!window.confirm('This will reset tool permissions to defaults. Continue?')) {
-      return;
-    }
-    refresh.mutate({ id: c.id });
+    setConfirmKind('refresh');
   };
 
   const handleUninstall = (): void => {
-    if (!window.confirm(`Uninstall ${c.displayName}? This removes all secrets and tools.`)) {
-      return;
-    }
+    setConfirmKind('uninstall');
+  };
+
+  const confirmRefresh = (): void => {
+    setConfirmKind(null);
+    refresh.mutate({ id: c.id });
+  };
+
+  const confirmUninstall = (): void => {
+    setConfirmKind(null);
     uninstall.mutate(
       { id: c.id },
       {
         onSuccess: () => {
-          navigate({ to: '/connectors' });
+          // Spec 0051 finding #2: github-app installations live under
+          // `/connectors/github-app`, not `/connectors`. Route by appId
+          // (not slug prefix) so a custom connector named "github-app-foo"
+          // doesn't trigger the wrong destination.
+          navigate({ to: c.appId ? '/connectors/github-app' : '/connectors' });
         },
       },
     );
@@ -129,6 +139,26 @@ function ConnectorDetailScreen(): JSX.Element {
       <ConnectionSection connector={c} />
       <ToolPermissionsSection connector={c} />
       <ActivitySection feed={activity.data ?? []} loading={activity.isLoading} />
+      {confirmKind === 'refresh' && (
+        <ConfirmModal
+          title="Refresh tools?"
+          description="This will reset tool permissions to defaults."
+          confirmLabel="refresh tools"
+          onConfirm={confirmRefresh}
+          onClose={() => setConfirmKind(null)}
+        />
+      )}
+      {confirmKind === 'uninstall' && (
+        <ConfirmModal
+          title={`Uninstall ${c.displayName}?`}
+          description="This removes all secrets and tools associated with this connector."
+          confirmLabel="uninstall"
+          intent="destructive"
+          requireTypeToConfirm={c.displayName}
+          onConfirm={confirmUninstall}
+          onClose={() => setConfirmKind(null)}
+        />
+      )}
     </Main>
   );
 }

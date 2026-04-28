@@ -23,6 +23,8 @@ interface ConnectorAppRow {
 }
 
 function rowToApp(row: ConnectorAppRow): ConnectorApp {
+  // Spec 0051: pem_rotated_at column persists as legacy but is no longer
+  // surfaced in the typed `ConnectorApp` shape (no readers).
   return {
     id: row.id,
     catalogId: row.catalog_id,
@@ -31,7 +33,6 @@ function rowToApp(row: ConnectorAppRow): ConnectorApp {
     appName: row.app_name,
     pem: row.pem,
     pemSha256: row.pem_sha256,
-    pemRotatedAt: row.pem_rotated_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     lastRefreshErrorAt: row.last_refresh_error_at,
@@ -112,10 +113,7 @@ export class ConnectorAppRepo {
       fields.push('pem_sha256 = ?');
       values.push(patch.pemSha256);
     }
-    if (patch.pemRotatedAt !== undefined) {
-      fields.push('pem_rotated_at = ?');
-      values.push(patch.pemRotatedAt);
-    }
+    // Spec 0051: pem_rotated_at branch removed (no remaining writers).
     if (patch.lastRefreshErrorAt !== undefined) {
       fields.push('last_refresh_error_at = ?');
       values.push(patch.lastRefreshErrorAt);

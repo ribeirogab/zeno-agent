@@ -154,7 +154,7 @@ None blocking. Q1 (file-split) explicitly deferred to a future spec when multi-f
 - **6 allowed shapes → 4 allowed shapes.** The Turn output contract in `SKILL.md` lists only the 4 final shapes (success / stuck / auto-resolve / clarification). Progress messages are documented in a "Progress messages aren't supported (yet)" deferred-work note, not as allowed shapes.
 - **Progress msg #1 + #2 sub-sections removed.** The Phase 1 / Phase 4 progress signal sub-sections never made it into the final SKILL.md.
 - **Contract tightening added.** E2E rounds 2-3 showed the agent emitting status preamble ("Sentry comment posted (HTTP 201). Now delivering the final result.") before the structured template. Two extra commits hardened the contract: (a) explicit "ZERO bytes before structured template" rule with concrete forbidden patterns; (b) in-place self-check at Phase 7 Step 4 with 2 binary questions ("first 2 chars are `<@`?", "any narration?") that the agent runs immediately before submitting.
-- **Final SKILL.md line count: ~462** (still ≤480 target; ample headroom).
+- **Final SKILL.md line count: 467** (still ≤480 target; comfortable headroom).
 
 **Success criteria carried (validated in E2E):**
 - Final shipped/stuck templates emit byte-for-byte clean (verified via 4 live invocations in `C0EXAMPLE001`).

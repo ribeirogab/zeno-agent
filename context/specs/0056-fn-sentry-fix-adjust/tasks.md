@@ -409,7 +409,7 @@ created: 2026-04-29
 ## Done criteria
 
 - [x] All Phase A-F tasks complete (modulo divergence — see spec.md "Divergence from original design").
-- [x] Final SKILL.md ≤ 480 lines (delivered at 462).
+- [x] Final SKILL.md ≤ 480 lines (delivered at 467).
 - [x] E2E scenarios validate clean final-template emission in C0EXAMPLE001 (S1 happy path round 4 + S2 stuck/clarification path). S5 zero-filler regression confirmed across all rounds.
 - [x] Test PRs (#100, #101, #102, #103, #104) closed + branches deleted.
 - [ ] R1+R2+R3 reviews CLEAN consecutive (Phase E in progress).

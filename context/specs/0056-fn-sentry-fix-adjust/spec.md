@@ -144,6 +144,29 @@ The Turn output contract in the SKILL.md must make this explicit enough that the
 
 None blocking. Q1 (file-split) explicitly deferred to a future spec when multi-file infra is added. Q2 (bug fix approach) closed at A (skill-body only) with both subagents converging.
 
+## Divergence from original design (post-implementation amendment)
+
+**Discovered during E2E:** Zeno's worker (`apps/worker/src/agent/backends/claude-code.ts:137-148`) only routes `message.type === 'result'` from the SDK loop to Slack — every other assistant message (intermediate text blocks) is dropped. The 2 progress messages (`🔍 investigando *<ID>*...`, `✅ gate passou — partindo pro fix em ...`) would be emitted as intermediate assistant text, which the worker discards. **Net effect: 0 of 3 expected Slack messages fired (only the final).**
+
+**Owner decision (option A):** drop progress messages from spec 0056 scope, defer to a future spec. Document the architectural constraint in the skill body so future readers don't try to re-implement the same way.
+
+**Shipped artifact differs from this spec as follows:**
+- **6 allowed shapes → 4 allowed shapes.** The Turn output contract in `SKILL.md` lists only the 4 final shapes (success / stuck / auto-resolve / clarification). Progress messages are documented in a "Progress messages aren't supported (yet)" deferred-work note, not as allowed shapes.
+- **Progress msg #1 + #2 sub-sections removed.** The Phase 1 / Phase 4 progress signal sub-sections never made it into the final SKILL.md.
+- **Contract tightening added.** E2E rounds 2-3 showed the agent emitting status preamble ("Sentry comment posted (HTTP 201). Now delivering the final result.") before the structured template. Two extra commits hardened the contract: (a) explicit "ZERO bytes before structured template" rule with concrete forbidden patterns; (b) in-place self-check at Phase 7 Step 4 with 2 binary questions ("first 2 chars are `<@`?", "any narration?") that the agent runs immediately before submitting.
+- **Final SKILL.md line count: ~462** (still ≤480 target; ample headroom).
+
+**Success criteria carried (validated in E2E):**
+- Final shipped/stuck templates emit byte-for-byte clean (verified via 4 live invocations in `C0EXAMPLE001`).
+- Zero "Aguardando o `zeno-development`..." filler text in any final reply (S5 bug regression confirmed).
+- All 5 final templates byte-for-byte unchanged from spec 0055 baseline.
+- Sentry REST API comment + Slack final message + draft PR + @-mention to invoker all functional.
+
+**Success criteria DROPPED:**
+- "2 progress messages fire correctly" — moved to a separate future spec, dependent on either a Slack connector exposed as `mcp__slack__*` tools (so progress msgs become tool calls, not turn-text) or a worker-side change that streams `assistant` text blocks.
+
+The original "Test plan / Success criteria" section above describes the as-designed flow. The amendment above describes the as-shipped flow. PR description repeats this divergence summary.
+
 ## Out-of-scope follow-ups
 
 - **Multi-file skill support spec** — extend Zeno's skill machinery (DB, materializer, API, dashboard, boot seeder) to support N files per skill. Then apply progressive-disclosure split to fn-sentry-fix (and any other skill that grows).

@@ -86,6 +86,8 @@ Both the `NOT NULL` constraint AND the `CHECK (kind IN ('mcp', 'channel'))` cons
    }
    ```
 
+   **`CreateConnectorInput.transport` STAYS REQUIRED** (`transport: ConnectorTransport`, NOT `transport?: ConnectorTransport`). For channel rows, the API route synthesizes `transport='remote'` and passes it through. Do NOT make `transport` optional in `CreateConnectorInput` — that would weaken the type contract for the existing MCP create paths. The spec text "channels don't use `transport`" is about the **catalog file shape** (`channels-catalog.json` deliberately omits a `transport` field, since channels don't spawn MCP servers); at the storage layer `transport` is always present (with `'remote'` as a placeholder for channel rows).
+
 2. **`packages/storage/src/repos/connectors.ts`** — three coordinated changes:
    - `ConnectorRow` interface gains `kind: string`.
    - `rowToConnector()` MUST map `row.kind` to the new `Connector.kind`. Without this mapping, the migration writes the column to the DB but reads return `undefined`, breaking `listByKind` silently.
@@ -169,17 +171,37 @@ export interface ResolvedSlackCredentials {
 export function resolveSlackCredentials(deps: SlackCredentialsResolverDeps): ResolvedSlackCredentials;
 ```
 
-**Why `ConnectorRepo` and not raw `DB`:** every other worker module accepts a `ConnectorRepo` (see `mcp-build.ts:55`, `index.ts` boot wiring). Re-implementing repo query logic inside the resolver would be inconsistent + error-prone. Internally, the resolver does:
+**Why `ConnectorRepo` and not raw `DB`:** every other worker module accepts a `ConnectorRepo` (see `mcp-build.ts:55`, `index.ts` boot wiring). Re-implementing repo query logic inside the resolver would be inconsistent + error-prone.
+
+**Type for tests:** `ConnectorRepo` is a class. The resolver accepts the **concrete class type** as its dependency (no interface extraction in this spec). Unit tests construct a real `ConnectorRepo` against an in-memory SQLite (matches existing repo test patterns; e.g., `packages/storage/src/repos/connectors.test.ts`). No `vi.fn()` stubs on the class prototype — fixtures use real DB inserts to exercise resolution paths. This keeps tests honest (real SQL, real schema constraints) and matches existing test conventions in the repo.
+
+Internally, the resolver does:
 
 ```ts
-const channels = deps.connectors.listByKind('channel').filter(c => c.slug === 'slack' && c.status === 'enabled');
-if (channels.length > 0) {
-  const secrets = deps.connectors.getSecrets(channels[0].id);
-  // ... apply resolution table
+const allChannels = deps.connectors.listByKind('channel');
+const slack = allChannels.find(c => c.slug === 'slack' && c.status === 'enabled');
+const disabledSlack = allChannels.find(c => c.slug === 'slack' && c.status === 'disabled');
+
+if (slack) {
+  const secrets = deps.connectors.getSecrets(slack.id);
+  const appToken = secrets.find(s => s.key === 'SLACK_APP_TOKEN')?.value;
+  const botToken = secrets.find(s => s.key === 'SLACK_BOT_TOKEN')?.value;
+
+  if (!appToken || !botToken) {
+    // Step 2 of resolution table — enabled + missing key(s)
+    throw new Error('Slack channel installed but credentials missing — fix via dashboard or uninstall the channel');
+  }
+  return { appToken, botToken, source: 'connector_secrets' };
 }
+
+// No enabled row (either no row at all, or only disabled). Both cases fall through to env.
+if (deps.env.appToken && deps.env.botToken) {
+  return { appToken: deps.env.appToken, botToken: deps.env.botToken, source: 'env_fallback' };
+}
+throw new Error('Slack credentials not configured — install Slack channel via dashboard or set SLACK_APP_TOKEN/SLACK_BOT_TOKEN in profile .env');
 ```
 
-(`listByKind('channel').filter(...)` is fine at current row counts; if needed, add a dedicated `getBySlugAndKind(slug, kind)` repo method.)
+**Key check semantics for Step 2 of the resolution table:** "at least one secret missing" means **`SLACK_APP_TOKEN` OR `SLACK_BOT_TOKEN` not found in `getSecrets(...)` result**. This is a key-by-key check, not a length check. Storing one but not the other counts as "missing" and triggers the hard error. The check is `!appToken || !botToken` after `secrets.find(s => s.key === '<KEY>')?.value`.
 
 The function is **synchronous** (no `Promise` wrapper) — `better-sqlite3` is synchronous; resolver has no async operations. `apps/worker/src/index.ts:362` imports and calls it WITHOUT `await`: `const { appToken, botToken } = resolveSlackCredentials({ connectors, env: config.slack, logger });`, then constructs `new SlackChannel({ appToken, botToken, workspaceDir: config.workspaceDir })`. **No `await` anywhere on this resolver call** — anywhere else in the spec showing `await resolveSlackCredentials(...)` is a typo.
 
@@ -236,7 +258,11 @@ Channels need to appear in the dashboard for the operator to install. Endpoint p
     // ... existing fields
   });
   ```
-  The handler then branches on `kind` BEFORE the existing `findCatalogEntry()` call:
+  After Zod validation, the handler enters the existing `if (body.source === 'catalog')` branch (at `apps/api/src/routes/connectors.ts:800`). **Inside that branch**, the handler then checks `body.kind` BEFORE the existing `findCatalogEntry()` call (the `kind` branch is INSIDE the `source === 'catalog'` if-block, NOT before it — channels only support catalog source per the spec, custom source channels are not allowed):
+
+  **Pre-validation:** if `body.source === 'custom' && body.kind === 'channel'`, the handler returns 400 (`{error: 'channel_must_be_catalog_source', message: 'Channels only support source: catalog. Custom channels are not supported in this version.'}`). Without this check, a `source: 'custom' + kind: 'channel'` request would silently land `kind='mcp'` in the DB or skip the channels-catalog lookup. Test required.
+
+  Inside `source === 'catalog'`:
   - If `kind === 'channel'`: call a NEW `findChannelCatalogEntry(catalogId)` that searches `channels-catalog.json`. Validate secrets payload against the channel entry's `secrets` schema. Resolve the slug via the existing `resolveSlugCollision(deps.connectors, channelEntry.id)` (mirrors the MCP path).
 
     **The API route owns ALL channel-specific synthesis** (single source of truth). When `kind='channel'`, the route builds the enqueued `connector_create` command payload with these synthesized fields:
@@ -263,10 +289,7 @@ Channels need to appear in the dashboard for the operator to install. Endpoint p
   2. The handler forwards `kind` (and the synthesized `transport`, `tools`, etc.) from the parsed payload to `ConnectorRepo.create({ ...input, kind: input.kind ?? 'mcp' })`.
   Without these, the API accepts `kind: 'channel'` but the row lands in the DB with the column DEFAULT `'mcp'` — silent bug that fails acceptance criterion "channel row inserted with `kind='channel'`".
   Integration test required: end-to-end POST → enqueue → handler → DB row → assert `kind='channel'` AND `transport='remote'`. Unit tests that mock `ConnectorRepo.create()` would PASS while the integration is broken — that's the trap.
-- **MODIFIED** icon serving endpoint `GET /api/connectors/catalog/icons/:filename` at `apps/api/src/routes/connectors.ts:306`. Today the handler validates `:filename` against a `knownIcons` set built from the **MCP catalog only** (`loadCatalog()`). Channels' `slack.svg` would 404 because it's not in the MCP catalog's icon list. Two acceptable fixes:
-  - (a) Extend the validation set: combine icons from BOTH `loadCatalog()` and `loadChannelsCatalog()` into the allow-list. The endpoint stays at `/api/connectors/catalog/icons/:filename` but accepts both. (Simpler, lower diff.)
-  - (b) Add a parallel `GET /api/channels/catalog/icons/:filename` endpoint with its own validation set.
-  Recommend (a) — channels are stored in the same `connectors` table; serving their icons via the same endpoint is consistent. The dashboard URL just looks up the icon by filename; it doesn't care which catalog it came from.
+- **MODIFIED** icon serving endpoint `GET /api/connectors/catalog/icons/:filename` at `apps/api/src/routes/connectors.ts:306`. Today the handler validates `:filename` against a `knownIcons` set built from the **MCP catalog only** (`loadCatalog()`). Channels' `slack.svg` would 404. **DECIDED: option (a)** — extend the existing endpoint's validation set. Combine icons from BOTH `loadCatalog()` (MCP) and `loadChannelsCatalog()` (channels) into the `knownIcons` allow-list. Endpoint stays at `/api/connectors/catalog/icons/:filename`. Rationale: channels are in the same `connectors` table; serving their icons via the same endpoint is consistent and minimizes duplicated path-traversal logic. The dashboard URL just looks up the icon by filename — doesn't care which catalog provided it.
 - **REUSED** `DELETE /api/connectors/:id`, `PATCH /api/connectors/:id`, `GET /api/connectors/:id/secrets` — these work generically on the connectors table; channel rows are uninstalled / patched / read identically to MCP rows. No changes needed.
 
 **Why extend instead of new `POST /api/channels`:** auth, audit logging, FK cascade behavior, error handling, and rate limits already work on `/api/connectors`. Duplicating that logic for channels would be premature DRY violation. The `kind` field on the request body is the discriminator at the row level; the catalog source (MCP vs Channels) is selected by routing on `kind` before `findCatalogEntry`.

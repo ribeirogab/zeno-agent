@@ -55,7 +55,7 @@ The operator wants Zeno to autonomously triage and fix production issues that co
 - **Half-PR avoidance is non-negotiable.** Confidence gate between hypothesis and fix is a hard stop. Failing any gate item → STOP + Slack stuck-message. NO branch push to remote, NO partial PR.
 - **Single-skill scope.** No new MCP tool. No new dashboard route. No new DB table. Only file change is the new `profiles/fn/skills/fn-sentry-fix/SKILL.md`.
 - **Compose, don't reinvent.** Cloning, worktree, branch, PR delivery — all via the existing `zeno-development` skill. This skill orchestrates; `zeno-development` executes.
-- **Cost-bounded.** Soft caps in skill body: investigation (Phase 2-3) ≤20 tool calls, fix+verification (Phase 5-6) ≤30 tool calls, edit-test inner loop ≤3 iterations. Total budget per issue: **55 = 20 (Phase 2-3) + 30 (Phase 5-6) + ~5 (Phase 1 Discovery and Phase 7 Delivery)**. The 20/30 sub-caps are hard; the ~5 for Phase 1+7 (get_issue_details, push, gh pr create, update_issue, slack_send_message) are not separately enforced — they are headroom included in the 55 total. Going substantially over 55 (>10%) signals a runaway and the agent should escalate.
+- **Cost-bounded.** Soft caps in skill body: investigation (Phase 2-3) ≤20 tool calls, fix+verification (Phase 5-6) ≤30 tool calls, edit-test inner loop ≤3 iterations. Total budget per issue: **55 = 20 (Phase 2-3) + 30 (Phase 5-6) + ~5 (Phases 1 + 4 + 7)**. The 20/30 sub-caps are hard; the ~5 absorbs Phase 1 (get_issue_details), Phase 4 (gate evaluation — usually 0-2 calls reading already-fetched data), and Phase 7 (push, gh pr create, update_issue, slack_send_message). Phase 4 calls do NOT count against the Phase 2-3 cap. Going substantially over 55 (>10%) signals a runaway and the agent should escalate.
 - **License attribution.** Skill body adapts content from Sentry's `sentry-fix-issues` (Apache 2.0, https://github.com/getsentry/sentry-for-ai/blob/main/skills/sentry-fix-issues/SKILL.md). To honor Apache 2.0 §4(a)(b)(c):
   - The first comment block in the skill body MUST include: `> Adapted from Sentry's `sentry-fix-issues` skill (https://github.com/getsentry/sentry-for-ai), licensed under Apache License 2.0. Copyright held by the original authors. Local modifications adapt the workflow to compose Zeno's `zeno-development` skill, add the half-PR confidence gate, and route output via Slack channel C0EXAMPLE001.`
   - The skill directory `profiles/fn/skills/fn-sentry-fix/` MUST contain a `LICENSE-APACHE-2.0` file with the full text of the Apache License 2.0 (downloadable from https://www.apache.org/licenses/LICENSE-2.0.txt). This satisfies §4(a)(b) — recipients receive a copy of the License.
@@ -66,7 +66,7 @@ The operator wants Zeno to autonomously triage and fix production issues that co
 |---|---|---|
 | Skill scope | **Profile skill `fn-sentry-fix`** in `profiles/fn/skills/fn-sentry-fix/SKILL.md` | Only FN profile uses it in v1; promoting to `zeno_default` requires immutable-via-API guarantee that's premature for an iterating workflow. Mirror precedent of `fn-code-review`. Migration to default is trivial when 2nd profile picks it up. |
 | Repo identification | **Sentry code mappings (primary) + heuristic fallback + Slack escalation** | Operator already configured Sentry's "Code Mappings" feature (path → GitHub repo). Sentry MCP returns repo info via `get_issue_details` + `analyze_issue_with_seer`. Fallback: list installed `github-app-*` connectors, match top stack frame path. If ambiguous → Slack with specific question. NO mapping table in skill body. |
-| Cost cap mechanism | **Soft cap in skill body (B)** | v1 is operator-triggered; logging + dashboard provide visibility. Hard cap in code (instrumented runner) is YAGNI. Numbers: ≤20 investigation (Phase 2-3), ≤30 fix+verify (Phase 5-6), ≤3 edit-test iterations, ≤55 total. Phases 1 + 7 (~5 calls) exempt from the cap. |
+| Cost cap mechanism | **Soft cap in skill body (B)** | v1 is operator-triggered; logging + dashboard provide visibility. Hard cap in code (instrumented runner) is YAGNI. Numbers: ≤20 investigation (Phase 2-3), ≤30 fix+verify (Phase 5-6), ≤3 edit-test iterations, ≤55 total. Phases 1 + 4 + 7 (~5 calls combined) absorbed into the 55 total, not separately enforced. |
 | Slack format | **Markdown via `slack_send_message`** (Slack mrkdwn) | No interactive buttons needed in v1; templates fit cleanly in skill body. Migrate to Block Kit only when interactivity needed (Approve/Reject buttons). |
 | Confidence gate | **5-item checklist self-evaluated by agent** | Pre-fix gate prevents half-PRs. ALL items must pass or escalate. Items: bug reproducible in HEAD, signal floor met, hypothesis concrete enough for regression test, ≥1 alternative ruled out with evidence, blast radius ≤5 files / ≤100 LOC and no schema/auth/public-API/cross-package. |
 | Report location | **PR description (full detailed)** + Slack message (short summary) | Single source of truth for the analysis is the PR description. Slack is just notification + handoff. NO separate top-level PR comment. |
@@ -86,9 +86,10 @@ The skill body is structured as 7 phases, mirroring Sentry's `sentry-fix-issues`
   - Format: `https://<org>.sentry.io/issues/<numeric_id>/` (or `/organizations/<org>/issues/<numeric_id>/`)
   - Extract `<numeric_id>` from the URL path. NEVER embed URL fragments, query strings, or other path segments in downstream slugs / branch names.
   - The extracted short-id MUST match `^[A-Z][A-Z0-9_-]*-?[A-Z0-9]*$` (project-id) OR `^[0-9]+$` (numeric-only). If parsing yields anything else → Slack stuck-message: "Não consegui extrair o ID da URL — pode mandar o ID direto (ex: `PROJ-1234`)?"
+  - **Multi-issue invocation:** if the operator's invocation message contains 2+ issue IDs (e.g., "@zeno fix PROJ-1 e PROJ-2"), the agent processes ONE issue per invocation. Slack reply: "Faço uma issue por vez — qual primeiro? (Detected: PROJ-1, PROJ-2)". Wait for clarification; do not pick arbitrarily.
 - `get_issue_details` to fetch the issue. If Sentry returns 404 or permission error → Slack stuck-message ("Issue X não acessível — operator pode confirmar permissões?")
 - Note staleness as analysis context: if `lastSeen` is far in the past, mention in the eventual report. Do NOT hard-gate on age — discovery filtering is the caller's job (operator picks the issue, or future cron prompt sets the criteria).
-- **Slug derivation for Phase 5 branch/worktree path:** sanitize the issue id to `^[a-z0-9-]+$` by lowercasing + replacing any non-matching char with `-`. Example: `PROJ-1234` → `proj-1234`. The full task slug becomes `sentry-<sanitized-id>-<short-description>`. Validate the final slug against the same regex; reject (escalate) if validation fails.
+- **Slug derivation for Phase 5 branch/worktree path:** sanitize the issue id to `^[a-z0-9-]+$` by lowercasing + replacing any non-matching char with `-`. Examples: `PROJ-1234` → `proj-1234` → task slug `sentry-proj-1234-<short-description>`; numeric-only `12345` → task slug `sentry-12345-<short-description>` (no project prefix is added — bare numeric ids stay as-is). Validate the final slug against the same regex; reject (escalate) if validation fails.
 
 ### Phase 2: Deep Analysis
 
@@ -119,6 +120,7 @@ If cap reached without confident hypothesis → Slack stuck-message with what wa
   - Slack: `✅ <SENTRY-ID> já tava fixed em commit <sha>. Marquei resolved no Sentry. (no PR needed)` — adjusted with the warning suffix above if the update_issue call failed.
   - DONE — skip Phases 4-7
 - If symbols exist and bug is reproducible (or at least concretely understood) → proceed to Phase 4
+- **Seer vs repo cross-reference disagreement:** if `analyze_issue_with_seer`'s hypothesis directly contradicts what the repo cross-reference shows (e.g., Seer claims function X is wrong, but repo shows function X was rewritten in a recent commit and now has different semantics) → **the repo cross-reference wins**. Document the disagreement in the eventual PR description's "Alternative hypotheses ruled out" section ("Seer suggested X — ruled out because <evidence from repo>"). Never override a repo finding with a Seer claim.
 
 ### Phase 4: Confidence Gate (5 items)
 
@@ -150,7 +152,7 @@ This phase composes the existing `zeno-development` skill. The agent is expected
 
 Sequence:
 
-1. Compose `zeno-development` (its conventions are the source of truth):
+1. Compose `zeno-development` (its conventions are the source of truth — see `agent/skills/zeno-development/SKILL.md` for the full first-clone sequence: bare clone → fix refspec → fetch → main worktree creation):
    - Bare clone path: `/workspace/<provider>/<owner>/<repo>.git` (e.g. `/workspace/github/AcmeBooks/ecommerce-frontend.git`). Created if not present.
    - Worktree path: `/workspace/<provider>/<owner>/<repo>/zeno/<task-slug>` per zeno-development's standard layout.
    - Task slug: `sentry-<issueId>-<short-description>` (e.g., `sentry-PROJ-1234-null-guard-checkout`).
@@ -181,19 +183,32 @@ Cap: shared with Phase 5 (≤30 tool calls combined).
 Confirm before delivery:
 
 - [ ] Quality gate passes (lint + typecheck + tests, all green)
-- [ ] Test was confirmed FAILING before fix (toggle/comment-out fix briefly, re-run test, confirm fail; restore)
+- [ ] Test was confirmed FAILING before fix. Procedure: temporarily revert/comment-out the fix in the working tree only (DO NOT `git add` or commit the broken state — pre-commit hooks may reject it), run the test, confirm it fails for the expected reason, then restore the fix. The quality-gate check below runs only AFTER the fix is restored.
 - [ ] Edge cases considered + listed in report
 - [ ] Blast radius re-check: still ≤5 files / ≤100 LOC, still no schema/auth/public-API/cross-package
 - [ ] No PII / tokens / real Sentry data leaked into code, test fixtures, comments, commit message
 - [ ] No `console.log` / debugging artifacts left behind
 - [ ] Commit message follows repo conventions (Conventional Commits if used; mirrors zeno-development rules)
 
-If any check fails → fix in place if possible (≤5 more tool calls), else cleanup branch + Slack stuck.
+If any check fails → fix in place if possible (≤5 more tool calls), else cleanup branch (per Phase 5 step 4 commands) + Slack stuck-message using this Phase 6 template:
+
+```
+⚠️ *Sentry stuck at verification* — fix attempted but couldn't pass verification
+Issue: <sentry_url|SENTRY-ID> · `ErrorType`
+
+Hypothesis confirmed: <one-line — yes, hypothesis was right; verification failed elsewhere>
+Failed check: <which Phase 6 checklist item>
+Reason: <e.g., "quality gate red — `pnpm lint` reports X">
+Diff so far:
+<bash code block with the partial diff>
+
+Question: <e.g., "Quer eu reduzir o escopo do fix ou mover o problema X pra um PR separado?">
+```
 
 ### Phase 7: Delivery
 
-- `git push` branch via zeno-development's PR flow
-- `gh pr create --draft` with description per template. **Every section is REQUIRED**; if a section has no content, write `N/A — <reason>` (mirroring the Breadcrumbs/Trace/Tags pattern):
+- `git push` branch via zeno-development's PR flow.
+- **PR creation override:** zeno-development's default `gh pr create` command does NOT include `--draft`. `fn-sentry-fix` MUST override this with `gh pr create --draft` — Sentry autofix PRs always open as draft because the deep-report description requires human review before "ready for review" status. This is an intentional deviation from zeno-development's default behavior; document it in the skill body so the agent overrides cleanly. Description per template; **every section is REQUIRED** (write `N/A — <reason>` if section has no content):
 
   ```
   [Brief description of the fix]
@@ -314,8 +329,8 @@ Adapted from Sentry's `sentry-fix-issues`:
 ### S6 — Operator runs against stale issue, but explicitly asks anyway
 
 1. Operator: "@zeno fix sentry issue PROJ-3" (last seen 35 days ago)
-2. Phase 1 notes staleness in analysis context but proceeds (explicit invoke).
-3. Phase 2-3 proceed normally. If the bug is in fact fixed, Phase 3's auto-resolve catches it (S2 path). If it isn't, Phases 4+ proceed. The "old issue, possibly stale" note appears in the eventual PR description / Slack message as context, not a gate.
+2. Phase 1 notes staleness in analysis context but proceeds (explicit invoke). The staleness note is captured for inclusion in the **PR description's "Root cause" section** as a leading sentence (e.g., "Note: this issue's last event was 35 days ago — verified bug still reproduces in current HEAD."). Do NOT add a separate "Staleness" section in the PR template; fold into Root cause prose.
+3. Phase 2-3 proceed normally. If the bug is in fact fixed, Phase 3's auto-resolve catches it (S2 path). If it isn't, Phases 4+ proceed. The "old issue, possibly stale" note appears in the eventual PR description (Root cause leading sentence, per above) and Slack message as context, not a gate.
 
 ## Success Criteria
 

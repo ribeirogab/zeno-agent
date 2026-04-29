@@ -17,9 +17,11 @@ import { SessionRepo } from '@zeno/storage';
 import { Hono } from 'hono';
 import { requireAuth } from '@/auth/middleware';
 import type { ApiConfig } from '@/config';
+import type { ChannelsCatalog } from '@/lib/channels-catalog-loader';
 import { buildActivityRoute } from '@/routes/activity';
 import { buildAgentCapabilitiesRoute } from '@/routes/agent-capabilities';
 import { buildAuthRoutes } from '@/routes/auth';
+import { buildChannelsRoute } from '@/routes/channels';
 import { buildConnectorSkillsRoute } from '@/routes/connector-skills';
 import { buildConnectorsRoute } from '@/routes/connectors';
 import { buildCronConnectorsRoute } from '@/routes/cron-connectors';
@@ -62,6 +64,8 @@ export interface AppDeps {
   profileDir: string;
   /** Absolute path to the dashboard's built static assets (apps/dashboard/dist). Optional in tests. */
   spaDir?: string;
+  /** Spec 0057: parsed channels catalog. Optional — when present, /api/channels/* routes mount; absent in tests that don't exercise channel routes. */
+  channelsCatalog?: ChannelsCatalog;
 }
 
 export function createApp(deps: AppDeps): Hono {
@@ -146,6 +150,20 @@ export function createApp(deps: AppDeps): Hono {
         connectors: deps.connectorRepo,
         commands: deps.commandRepo,
         ...(deps.connectorAppRepo ? { connectorApps: deps.connectorAppRepo } : {}),
+      }),
+    );
+  }
+  // Spec 0057: channels routes (gated on connectorRepo + channelsCatalog).
+  // Channels share storage with MCP connectors (`connectors` table with
+  // kind='channel') but get their own catalog file + listing endpoint.
+  if (deps.connectorRepo && deps.channelsCatalog) {
+    app.use('/api/channels', requireAuth({ secret: deps.config.sessionSecret, secure }));
+    app.use('/api/channels/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
+    app.route(
+      '/api/channels',
+      buildChannelsRoute({
+        connectors: deps.connectorRepo,
+        channelsCatalog: deps.channelsCatalog,
       }),
     );
   }

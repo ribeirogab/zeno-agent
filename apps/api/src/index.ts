@@ -21,6 +21,7 @@ import {
   SkillRepo,
 } from '@zeno/storage';
 import { loadApiConfig } from '@/config';
+import { loadChannelsCatalog } from '@/lib/channels-catalog-loader';
 import { createApp } from '@/server';
 
 // Mirror the worker's PROFILE_CANDIDATES: container path first, dev fallback second.
@@ -65,6 +66,18 @@ function main(): void {
   // Spec 0052: skill SKILL.md files live one directory up at $HOME/.claude/skills/.
   const claudeHomeRoot = join(homedir(), '.claude');
   const profileDir = resolveProfileDir();
+  // Spec 0057: load channels catalog at boot. If the file is missing/malformed,
+  // log + omit the dep — /api/channels/* routes won't mount, but the rest of
+  // the API keeps working (parallel to how missing connector-apps repo behaves).
+  let channelsCatalog: ReturnType<typeof loadChannelsCatalog> | undefined;
+  try {
+    channelsCatalog = loadChannelsCatalog();
+  } catch (err) {
+    logger.warn(
+      { event: 'channels_catalog_load_failed', err: String(err) },
+      'channels catalog load failed; /api/channels routes will not mount',
+    );
+  }
   const app = createApp({
     config,
     db,
@@ -83,6 +96,7 @@ function main(): void {
     claudeHomeRoot,
     profileDir,
     spaDir,
+    ...(channelsCatalog ? { channelsCatalog } : {}),
   });
   const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
     logger.info({ event: 'api_listening', port: info.port }, `api listening on :${info.port}`);

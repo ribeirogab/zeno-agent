@@ -141,6 +141,14 @@ export type ConnectorStatus = 'enabled' | 'disabled' | 'pending';
 export type ToolCategory = 'read' | 'write' | 'interactive';
 export type ToolPermission = 'always_allow' | 'ask' | 'never';
 export type InvocationResult = 'ok' | 'error';
+/**
+ * Spec 0057: discriminator for the connectors table. 'mcp' = a connector that
+ * exposes MCP tools the agent calls. 'channel' = a transport that delivers
+ * messages to the agent (e.g. Slack). Channels share storage with MCP
+ * connectors but have NO MCP server spawn (transport='remote' is a
+ * placeholder; the MCP loader guards on kind='mcp' to skip them).
+ */
+export type ConnectorKind = 'mcp' | 'channel';
 
 export interface Connector {
   id: string;
@@ -161,6 +169,8 @@ export interface Connector {
   updatedAt: string;
   /** Spec 0044: FK to connector_apps.id for github-app-* rows. Null otherwise. */
   appId: string | null;
+  /** Spec 0057: discriminator. Defaults to 'mcp' for legacy + new MCP connectors; 'channel' for channel transports (Slack, future Telegram/WhatsApp). */
+  kind: ConnectorKind;
 }
 
 // Spec 0044: github App row. One per (catalog_id, app_id). Holds the PEM
@@ -255,6 +265,8 @@ export interface CreateConnectorInput {
   tools: Array<Omit<ConnectorToolPermission, 'connectorId'>>;
   /** Spec 0044: optional FK to connector_apps.id (github-app-* rows). */
   appId?: string | null;
+  /** Spec 0057: optional discriminator. Defaults to 'mcp' at the repo INSERT for backward compat with existing callers. Channel installs pass 'channel'. */
+  kind?: ConnectorKind;
 }
 
 export interface UpdateConnectorInput {

@@ -367,3 +367,88 @@ describe('ConnectorRepo — getEnabledWithRelations', () => {
     closeDatabase(db);
   });
 });
+
+// Spec 0057: kind discriminator support — channels share storage with MCP
+// connectors via the new 'kind' column.
+describe('ConnectorRepo — kind discriminator (spec 0057)', () => {
+  it('rowToConnector maps kind from DB row (defaults to mcp)', () => {
+    const db = freshDb();
+    const repo = new ConnectorRepo(db);
+    const created = repo.create({ ...baseInput, slug: 'sentry' });
+    expect(created.kind).toBe('mcp');
+    closeDatabase(db);
+  });
+
+  it('create() accepts kind=channel and persists it', () => {
+    const db = freshDb();
+    const repo = new ConnectorRepo(db);
+    const created = repo.create({
+      ...baseInput,
+      slug: 'slack',
+      transport: 'remote',
+      command: null,
+      args: null,
+      kind: 'channel',
+    });
+    expect(created.kind).toBe('channel');
+    const fetched = repo.get(created.id);
+    expect(fetched?.kind).toBe('channel');
+    closeDatabase(db);
+  });
+
+  it('listByKind returns only matching kind', () => {
+    const db = freshDb();
+    const repo = new ConnectorRepo(db);
+    repo.create({ ...baseInput, slug: 'sentry' }); // kind=mcp default
+    repo.create({
+      ...baseInput,
+      slug: 'slack',
+      transport: 'remote',
+      command: null,
+      args: null,
+      kind: 'channel',
+    });
+    const channels = repo.listByKind('channel');
+    expect(channels).toHaveLength(1);
+    expect(channels[0]?.slug).toBe('slack');
+    const mcps = repo.listByKind('mcp');
+    expect(mcps).toHaveLength(1);
+    expect(mcps[0]?.slug).toBe('sentry');
+    closeDatabase(db);
+  });
+
+  it('list({ kind: "mcp" }) excludes channel rows', () => {
+    const db = freshDb();
+    const repo = new ConnectorRepo(db);
+    repo.create({ ...baseInput, slug: 'sentry' });
+    repo.create({
+      ...baseInput,
+      slug: 'slack',
+      transport: 'remote',
+      command: null,
+      args: null,
+      kind: 'channel',
+    });
+    const result = repo.list({ kind: 'mcp' });
+    expect(result).toHaveLength(1);
+    expect(result[0]?.slug).toBe('sentry');
+    closeDatabase(db);
+  });
+
+  it('list() without kind filter returns ALL rows (backward compat)', () => {
+    const db = freshDb();
+    const repo = new ConnectorRepo(db);
+    repo.create({ ...baseInput, slug: 'sentry' });
+    repo.create({
+      ...baseInput,
+      slug: 'slack',
+      transport: 'remote',
+      command: null,
+      args: null,
+      kind: 'channel',
+    });
+    const result = repo.list();
+    expect(result).toHaveLength(2);
+    closeDatabase(db);
+  });
+});

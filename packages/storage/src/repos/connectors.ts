@@ -3,6 +3,7 @@ import type { DB } from '../db.js';
 import type {
   Connector,
   ConnectorInvocation,
+  ConnectorKind,
   ConnectorSecret,
   ConnectorSource,
   ConnectorStatus,
@@ -35,6 +36,8 @@ interface ConnectorRow {
   created_at: string;
   updated_at: string;
   app_id: string | null;
+  /** Spec 0057: discriminator added by migration 18. Values: 'mcp' | 'channel'. */
+  kind: string;
 }
 
 interface SecretRow {
@@ -91,6 +94,7 @@ function rowToConnector(row: ConnectorRow): Connector {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     appId: row.app_id,
+    kind: row.kind as ConnectorKind,
   };
 }
 
@@ -130,6 +134,8 @@ function rowToInvocation(row: InvocationRow): ConnectorInvocation {
 export interface ListConnectorsFilter {
   status?: ConnectorStatus;
   source?: ConnectorSource;
+  /** Spec 0057: optionally filter by 'mcp' | 'channel'. Default behavior (no filter) returns all rows of any kind — preserves backward compat for callers that expect everything. */
+  kind?: ConnectorKind;
 }
 
 export class ConnectorRepo {
@@ -146,11 +152,24 @@ export class ConnectorRepo {
       where.push('source = ?');
       values.push(filter.source);
     }
+    if (filter.kind) {
+      where.push('kind = ?');
+      values.push(filter.kind);
+    }
     const sql = `SELECT * FROM connectors${
       where.length > 0 ? ` WHERE ${where.join(' AND ')}` : ''
     } ORDER BY created_at ASC`;
     const rows = this.db.prepare(sql).all(...values) as ConnectorRow[];
     return rows.map(rowToConnector);
+  }
+
+  /**
+   * Spec 0057: list connectors filtered by kind. Thin wrapper around `list({ kind })`
+   * for ergonomics — channel adapters and the MCP loader call this to query their
+   * specific subset of the connectors table.
+   */
+  listByKind(kind: ConnectorKind): Connector[] {
+    return this.list({ kind });
   }
 
   get(id: string): Connector | null {
@@ -205,8 +224,8 @@ export class ConnectorRepo {
         .prepare(
           `INSERT INTO connectors (
              id, slug, display_name, description, source, catalog_id,
-             transport, command, args, url, status, app_id
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             transport, command, args, url, status, app_id, kind
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -221,6 +240,7 @@ export class ConnectorRepo {
           input.url ?? null,
           status,
           input.appId ?? null,
+          input.kind ?? 'mcp',
         );
 
       const insertSecret = this.db.prepare(

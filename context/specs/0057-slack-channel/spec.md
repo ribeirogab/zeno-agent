@@ -157,7 +157,7 @@ The resolver is a pure function (takes deps explicitly, no module-level state) �
 
 ```ts
 export interface SlackCredentialsResolverDeps {
-  db: DB;
+  connectors: ConnectorRepo;
   env: { appToken: string | undefined; botToken: string | undefined };
   logger: Logger;
 }
@@ -169,7 +169,19 @@ export interface ResolvedSlackCredentials {
 export function resolveSlackCredentials(deps: SlackCredentialsResolverDeps): ResolvedSlackCredentials;
 ```
 
-The function is **synchronous** (no `Promise` wrapper) — the underlying `better-sqlite3` driver is synchronous and there are no async operations in the resolver. `apps/worker/src/index.ts:362` imports and calls it without `await`: `const { appToken, botToken } = resolveSlackCredentials({ db, env: config.slack, logger });`, then constructs `new SlackChannel({ appToken, botToken, workspaceDir: config.workspaceDir })`.
+**Why `ConnectorRepo` and not raw `DB`:** every other worker module accepts a `ConnectorRepo` (see `mcp-build.ts:55`, `index.ts` boot wiring). Re-implementing repo query logic inside the resolver would be inconsistent + error-prone. Internally, the resolver does:
+
+```ts
+const channels = deps.connectors.listByKind('channel').filter(c => c.slug === 'slack' && c.status === 'enabled');
+if (channels.length > 0) {
+  const secrets = deps.connectors.getSecrets(channels[0].id);
+  // ... apply resolution table
+}
+```
+
+(`listByKind('channel').filter(...)` is fine at current row counts; if needed, add a dedicated `getBySlugAndKind(slug, kind)` repo method.)
+
+The function is **synchronous** (no `Promise` wrapper) — `better-sqlite3` is synchronous; resolver has no async operations. `apps/worker/src/index.ts:362` imports and calls it WITHOUT `await`: `const { appToken, botToken } = resolveSlackCredentials({ connectors, env: config.slack, logger });`, then constructs `new SlackChannel({ appToken, botToken, workspaceDir: config.workspaceDir })`. **No `await` anywhere on this resolver call** — anywhere else in the spec showing `await resolveSlackCredentials(...)` is a typo.
 
 The `config.ts` Zod schema for `SLACK_APP_TOKEN` / `SLACK_BOT_TOKEN` becomes **optional**, AND `Config.slack` (the typed result of `loadConfig()`) updates accordingly:
 
@@ -191,7 +203,7 @@ export interface Config {
 
 The `loadConfig()` return passes `env.SLACK_APP_TOKEN` / `env.SLACK_BOT_TOKEN` through (now possibly `undefined`); the resolver in `index.ts` is the single owner of "what to do when these are undefined". This keeps the existing `config.slack` shape (just with optional fields) — no need to invent a new shape or move env reads to the resolver. Smaller diff, clearer responsibility split.
 
-**TypeScript blast radius:** changing `Config.slack` field types from `string` to `string | undefined` propagates to call sites that consume `config.slack.*`. At time of writing there is exactly one such site: `apps/worker/src/index.ts:362` (`new SlackChannel({...config.slack, workspaceDir: config.workspaceDir})`). After the change, that line passes `appToken: string | undefined` and `botToken: string | undefined` into `SlackChannel`, whose constructor expects `string`. The fix at this site: replace the spread with the resolver call — `const { appToken, botToken } = await resolveSlackCredentials({ db, env: config.slack, logger });` then `new SlackChannel({ appToken, botToken, workspaceDir: config.workspaceDir })`. The resolver returns non-optional `string`s (or throws). No other call sites consume `config.slack` — verified by grep before implementation.
+**TypeScript blast radius:** changing `Config.slack` field types from `string` to `string | undefined` propagates to call sites that consume `config.slack.*`. At time of writing there is exactly one such site: `apps/worker/src/index.ts:362` (`new SlackChannel({...config.slack, workspaceDir: config.workspaceDir})`). After the change, that line passes `appToken: string | undefined` and `botToken: string | undefined` into `SlackChannel`, whose constructor expects `string`. The fix at this site: replace the spread with the resolver call (sync, no `await`) — `const { appToken, botToken } = resolveSlackCredentials({ connectors, env: config.slack, logger });` then `new SlackChannel({ appToken, botToken, workspaceDir: config.workspaceDir })`. The resolver returns non-optional `string`s (or throws). No other call sites consume `config.slack` — verified by grep before implementation.
 
 **Why keep `Config.slack` at all** (vs. dropping it once the resolver is the only consumer): keeping the typed `Config.slack` shape preserves a single source of truth for env parsing (the Zod schema). The resolver receives `config.slack` as a typed dependency rather than reading `process.env` directly. This is a deliberate architectural choice — env reads stay centralized in `loadConfig()`, and the resolver is testable without process-env manipulation. Future channels (Telegram) would do the same: keep `config.<channel>` for env-parsed values; resolver mediates DB/env priority. The "dead-shaped type" concern is addressed by the comment in `Config` documenting why the fields are optional.
 
@@ -202,7 +214,7 @@ The `loadConfig()` return passes `env.SLACK_APP_TOKEN` / `env.SLACK_BOT_TOKEN` t
 Channels need to appear in the dashboard for the operator to install. Endpoint pattern matches the existing connectors flow:
 
 - **NEW** `GET /api/channels/catalog` → list of catalog entries (read-only, reads `agent/channels-catalog.json` via `channels-catalog-loader.ts`).
-- **NEW** `GET /api/channels` → list of installed channels (i.e., `connectors` rows filtered by `kind='channel'`). Implementation: `ConnectorRepo.listByKind('channel')` + projection. Response shape (one entry per row): `{ id: string, slug: string, displayName: string, description: string | null, status: ConnectorStatus, lastError: string | null, lastErrorAt: string | null, lastVerifiedAt: string | null, createdAt: string, updatedAt: string, catalogId: string | null }`. Note: omits MCP-specific fields (`transport`, `command`, `args`, `url`, `appId`) — the projection is intentionally narrower than `Connector` to make the channel-list response self-documenting (no leaky placeholders like `transport: 'remote'`).
+- **NEW** `GET /api/channels` → list of installed channels (i.e., `connectors` rows filtered by `kind='channel'`). Implementation: `ConnectorRepo.listByKind('channel')` returns full `Connector` objects; the **route handler in `channels.ts` does the projection** (NOT the repo). Repo stays generic; route owns the response shape. Response shape (one entry per row): `{ id: string, slug: string, displayName: string, description: string | null, status: ConnectorStatus, lastError: string | null, lastErrorAt: string | null, lastVerifiedAt: string | null, createdAt: string, updatedAt: string, catalogId: string | null }`. Omits MCP-specific fields (`transport`, `command`, `args`, `url`, `appId`) — the projection is intentionally narrower than `Connector` to make the channel-list response self-documenting (no leaky placeholders like `transport: 'remote'`).
 - **NEW route registration:** `apps/api/src/routes/channels.ts` exports `buildChannelsRoute(deps: { connectors: ConnectorRepo, channelsCatalog: ChannelsCatalog })` returning a Hono router. The route is mounted in `apps/api/src/server.ts` next to the connectors mount (around line 105 — after `/api/connectors` and before `/api/skills`). Per the existing convention noted at `apps/api/src/routes/connectors.ts:1-9`, static segments must precede dynamic `:id` segments — within `channels.ts`, register `GET /catalog` and `GET /` BEFORE any `:id` parameterized route (none in this spec, but defensive). **Auth wiring:** follow the existing pattern at `apps/api/src/server.ts:141-151` (the `/api/connectors` auth setup) — two `app.use()` calls covering both bare path (`/api/channels`) and wildcard (`/api/channels/*`) before the `app.route('/api/channels', buildChannelsRoute(...))` line.
 - **MODIFIED** `GET /api/connectors` — existing endpoint at `apps/api/src/routes/connectors.ts:727`. Today it calls `deps.connectors.list()` with no filter and returns ALL rows. After this spec, channel rows would leak into the MCP connectors list since both kinds share the table. **The fix is in the route handler, NOT in `list()`'s default behavior:**
   1. `ListConnectorsFilter` (in `repos/connectors.ts`) gains an optional `kind?: ConnectorKind` filter field. `list()`'s default behavior **stays unchanged** — passing no filter still returns all rows. This avoids silently breaking any caller that expects "all rows" today.
@@ -225,19 +237,32 @@ Channels need to appear in the dashboard for the operator to install. Endpoint p
   });
   ```
   The handler then branches on `kind` BEFORE the existing `findCatalogEntry()` call:
-  - If `kind === 'channel'`: call a NEW `findChannelCatalogEntry(catalogId)` that searches `channels-catalog.json`. Validate secrets payload against the channel entry's `secrets` schema. Resolve the slug via the existing `resolveSlugCollision(deps.connectors, channelEntry.id)` (mirrors the MCP path) — channel installs go through the same uniqueness check. Synthesize `tools: []` in the enqueued command payload — **PREFERRED fix**, applied at the API route before enqueuing — channels have no MCP tools but the existing `connector-create` handler's `catalogSchema` requires a `tools` field. Insert a `connectors` row with `kind='channel'`, `transport='remote'` (placeholder per Track 1), `command=NULL`, `args=NULL`, `url=NULL`. (Alternative: relax `tools` to default `[]` in the worker-handler's `catalogSchema`. The API-route synthesis is preferred for symmetry with the `transport='remote'` synthesis pattern.)
+  - If `kind === 'channel'`: call a NEW `findChannelCatalogEntry(catalogId)` that searches `channels-catalog.json`. Validate secrets payload against the channel entry's `secrets` schema. Resolve the slug via the existing `resolveSlugCollision(deps.connectors, channelEntry.id)` (mirrors the MCP path).
+
+    **The API route owns ALL channel-specific synthesis** (single source of truth). When `kind='channel'`, the route builds the enqueued `connector_create` command payload with these synthesized fields:
+    ```ts
+    {
+      kind: 'channel',
+      slug: resolvedSlug,
+      catalogId: channelEntry.id,
+      displayName: channelEntry.name,
+      description: channelEntry.description ?? null,
+      transport: 'remote',         // placeholder per Track 1
+      command: null,
+      args: null,
+      url: null,
+      tools: [],                    // channels have no MCP tools
+      secrets: validatedSecretsPayload,
+    }
+    ```
+    The worker-side `connector-create` handler (`apps/worker/src/commands/handlers/connector-create.ts`) receives this fully-synthesized payload and validates it against its existing `catalogSchema` — the schema accepts `tools: []` because it's `z.array(toolSchema)` (zero elements are valid) and `transport: 'remote'` because `'remote'` is in the enum. **The handler does not synthesize anything for channel rows** — all defaults come from the API route. The handler's only `kind`-specific logic is forwarding `kind` to `ConnectorRepo.create({ ...input, kind: input.kind ?? 'mcp' })`. Symmetric with the MCP path, which forwards everything from the catalog entry without channel-specific branching.
   - If `kind === 'mcp'` (default): existing behavior — call `findCatalogEntry()` against `connectors-catalog.json`, etc. NO behavior change for existing MCP installs.
   This preserves the existing `source` discriminator (catalog/custom remains) while introducing `kind` as an orthogonal axis. Channel installs only support `source: 'catalog'` (no custom channels in this spec — channels are always from the curated catalog).
-- **MODIFIED** worker-side command handler `connector_create` at `apps/worker/src/commands/handlers/connector-create.ts` (handler map composed in `apps/worker/src/commands/handlers/index.ts`). The API route at `apps/api/src/routes/connectors.ts:837` enqueues a `connector_create` command; the worker handler is what actually calls `ConnectorRepo.create()`. The spec REQUIRES three changes here:
-  1. The handler's local Zod payload schemas (`catalogSchema` and `customSchema` inside `connector-create.ts`) gain the same `kind: z.enum(['mcp', 'channel']).optional().default('mcp')` field — symmetric with the API route schema.
-  2. The handler forwards `kind` from the parsed payload to `ConnectorRepo.create({ ...input, kind })`.
-  3. **Channel rows need a synthetic `transport` value.** Because the channels-catalog (Track 2) deliberately omits `transport` (channels don't spawn MCP servers), the handler must synthesize `transport='remote'` when `kind === 'channel'` before calling `ConnectorRepo.create()`. Without this, the INSERT fails the `transport NOT NULL CHECK (transport IN ('stdio','remote'))` constraint at `packages/storage/src/migrations.ts:137`. Recommended pattern in the handler:
-     ```ts
-     const transport = input.kind === 'channel' ? 'remote' : input.transport;
-     await connectors.create({ ...input, kind: input.kind ?? 'mcp', transport });
-     ```
-  4. Without these forwarding+synthesizing changes, the API accepts `kind: 'channel'` but the row either fails to insert (NOT NULL violation) OR lands in the DB with the column DEFAULT `'mcp'` — silent bug that fails acceptance criterion "channel row inserted with `kind='channel'`".
-  Integration test required: end-to-end POST → enqueue → handler → DB row → assert `kind='channel'`. Unit tests that mock `ConnectorRepo.create()` would PASS while the integration is broken — that's the trap.
+- **MODIFIED** worker-side command handler `connector_create` at `apps/worker/src/commands/handlers/connector-create.ts`. Two minimal changes:
+  1. The handler's local Zod payload schemas (`catalogSchema` and `customSchema`) gain the same `kind: z.enum(['mcp', 'channel']).optional().default('mcp')` field — symmetric with the API route schema. The handler does NOT synthesize anything specific to channels; all channel-specific defaults are pre-filled by the API route (see EXTENDED `POST /api/connectors` above).
+  2. The handler forwards `kind` (and the synthesized `transport`, `tools`, etc.) from the parsed payload to `ConnectorRepo.create({ ...input, kind: input.kind ?? 'mcp' })`.
+  Without these, the API accepts `kind: 'channel'` but the row lands in the DB with the column DEFAULT `'mcp'` — silent bug that fails acceptance criterion "channel row inserted with `kind='channel'`".
+  Integration test required: end-to-end POST → enqueue → handler → DB row → assert `kind='channel'` AND `transport='remote'`. Unit tests that mock `ConnectorRepo.create()` would PASS while the integration is broken — that's the trap.
 - **MODIFIED** icon serving endpoint `GET /api/connectors/catalog/icons/:filename` at `apps/api/src/routes/connectors.ts:306`. Today the handler validates `:filename` against a `knownIcons` set built from the **MCP catalog only** (`loadCatalog()`). Channels' `slack.svg` would 404 because it's not in the MCP catalog's icon list. Two acceptable fixes:
   - (a) Extend the validation set: combine icons from BOTH `loadCatalog()` and `loadChannelsCatalog()` into the allow-list. The endpoint stays at `/api/connectors/catalog/icons/:filename` but accepts both. (Simpler, lower diff.)
   - (b) Add a parallel `GET /api/channels/catalog/icons/:filename` endpoint with its own validation set.

@@ -69,18 +69,28 @@ ALTER TABLE connectors ADD COLUMN kind TEXT NOT NULL DEFAULT 'mcp'
 
 Existing rows get `kind = 'mcp'` automatically (default). The current `transport CHECK (transport IN ('stdio','remote'))` constraint is **kept** — channels don't use `transport` (no MCP server spawn), so for channel rows we'll insert `transport = 'remote'` as a placeholder to satisfy the existing constraint without altering it. (SQLite ALTER COLUMN is awkward; sticking with the existing constraint and using `'remote'` semantically meaning "not an MCP server, runtime-managed adapter" is the lowest-risk path. Schema cleanup of `transport` for channels can come later if it bothers anyone — it's invisible to the user via dashboard.)
 
-`Connector` TypeScript type (`packages/storage/src/types.ts`) gains:
+**Three locations in `packages/storage/src/` must be updated together** — missing any one silently drops the field on read:
 
-```ts
-export type ConnectorKind = 'mcp' | 'channel';
+1. **`packages/storage/src/types.ts`** — `Connector` interface gains `kind: ConnectorKind` and a new exported type:
+   ```ts
+   export type ConnectorKind = 'mcp' | 'channel';
 
-export interface Connector {
-  // ... existing fields ...
-  kind: ConnectorKind;
-}
-```
+   export interface Connector {
+     // ... existing fields ...
+     kind: ConnectorKind;
+   }
 
-`ConnectorRepo` (`packages/storage/src/repos/connectors.ts`) methods that read/write rows handle the new field. New helper: `ConnectorRepo.listByKind(kind: ConnectorKind): Connector[]`.
+   export interface CreateConnectorInput {
+     // ... existing fields ...
+     kind?: ConnectorKind;  // optional, defaults to 'mcp' for backward compat
+   }
+   ```
+
+2. **`packages/storage/src/repos/connectors.ts`** — `ConnectorRow` interface gains `kind: string`, and `rowToConnector()` MUST map `row.kind` to the new `Connector.kind`. Without this mapping, the migration writes the column to the DB but reads return `undefined`, breaking `listByKind` silently. Same applies to all `INSERT`/`UPDATE` statements — they MUST include the `kind` column with the resolved value (default `'mcp'` for MCP-source rows, `'channel'` for channels-catalog installs).
+
+3. **`packages/storage/src/repos/connectors.ts`** — new method `listByKind(kind: ConnectorKind): Connector[]` returns rows filtered by the column. Add an indexed lookup OR rely on `idx_connectors_status_slug` + post-filter (acceptable at current row counts; revisit if catalog grows).
+
+Both the test for `listByKind` AND a separate test asserting `rowToConnector(rowWithKind)` correctly hydrates the field are mandatory — they catch the "DB has it, type ignores it" silent bug class.
 
 ### Track 2 — Catalog: `agent/channels-catalog.json`
 
@@ -88,11 +98,12 @@ New file `agent/channels-catalog.json`, parallel to `agent/connectors-catalog.js
 
 ```json
 {
-  "_doc": "Curated channel adapters offered to the operator in the dashboard. Each channel is a transport that delivers messages to the agent core. Adding an entry here makes it appear under /channels (or wherever the dashboard surfaces channel install). The runtime stores channel configuration in the connectors table (kind=channel) after install — this file is the directory.",
+  "_doc": "Curated channel adapters offered to the operator in the dashboard. Each channel is a transport that delivers messages to the agent core. Adding an entry here makes it appear under GET /api/channels/catalog. The runtime stores channel configuration in the connectors table (kind=channel) after install — this file is the directory.",
   "version": 1,
   "channels": [
     {
       "id": "slack",
+      "slug": "slack",
       "name": "Slack",
       "description": "Talk to Zeno from a Slack workspace. The bot listens via socket-mode and replies in the same channel/thread.",
       "icon": "slack.svg",
@@ -124,32 +135,48 @@ A loader in `apps/api/src/lib/channels-catalog-loader.ts` (parallel to `catalog-
 
 Refactor `apps/worker/src/index.ts:362` to:
 
-1. Query `connectors` table for `kind='channel' AND slug='slack' AND status='enabled'`.
+1. Query `connectors` table for `kind='channel' AND slug='slack' AND status='enabled'`. The `slug` value is the literal string `'slack'` — must match the `slug` field in `agent/channels-catalog.json` for the Slack entry. Slug is the resolver's primary key for "is Slack installed".
 2. If a row exists: load secrets from `connector_secrets` (keys `SLACK_APP_TOKEN`, `SLACK_BOT_TOKEN`); construct `SlackChannel` with those. Log `slack_creds_source: 'connector_secrets'`.
 3. If no row exists OR row exists but secrets are missing **and** `.env` has the legacy envvars: construct `SlackChannel` from `.env`. Log `slack_creds_source: 'env_fallback'`.
 4. If row exists with empty secrets (installed but credentials never saved): **hard error** (`Slack channel installed but credentials missing — fix via dashboard or uninstall`). Do NOT silently fall back to `.env` in this case — empty secrets after install is operator misconfiguration, not "uninstalled".
 5. If neither path yields creds: hard error (`Slack credentials not configured — install Slack channel via dashboard or set SLACK_APP_TOKEN/SLACK_BOT_TOKEN in profile .env`).
 
-The `config.ts` Zod schema for `SLACK_APP_TOKEN` / `SLACK_BOT_TOKEN` becomes **optional**:
+The `config.ts` Zod schema for `SLACK_APP_TOKEN` / `SLACK_BOT_TOKEN` becomes **optional**, AND `Config.slack` (the typed result of `loadConfig()`) updates accordingly:
 
 ```ts
+// envSchema:
 SLACK_APP_TOKEN: z.string().startsWith('xapp-').optional(),
 SLACK_BOT_TOKEN: z.string().startsWith('xoxb-').optional(),
+
+// Config type:
+export interface Config {
+  // ...
+  slack: {
+    appToken: string | undefined;
+    botToken: string | undefined;
+  };
+  // ...
+}
 ```
 
-(Worker boot still loads `config.slack` with the optional values; the new resolver in `index.ts` handles the DB-first / env-fallback / error logic.)
+The `loadConfig()` return passes `env.SLACK_APP_TOKEN` / `env.SLACK_BOT_TOKEN` through (now possibly `undefined`); the resolver in `index.ts` is the single owner of "what to do when these are undefined". This keeps the existing `config.slack` shape (just with optional fields) — no need to invent a new shape or move env reads to the resolver. Smaller diff, clearer responsibility split.
 
 **Logging discipline:** every boot logs the credential source explicitly. This prevents the spec 0058 cutover from being a "did the install work?" guess — the worker logs say which path won.
 
-### Track 4 — Dashboard endpoints (read-only catalog)
+### Track 4 — Dashboard endpoints (read-only catalog + extended install)
 
 Channels need to appear in the dashboard for the operator to install. Endpoint pattern matches the existing connectors flow:
 
-- `GET /api/channels/catalog` → list of catalog entries (read-only).
-- `GET /api/channels` → list of installed channels (i.e., `connectors` rows filtered by `kind='channel'`).
-- Install / uninstall / secrets management: **reuse the existing connectors endpoints** (`POST /api/connectors`, `DELETE /api/connectors/:id`, etc.) since channels are stored in the same table. The existing endpoints either gain a `kind` parameter or auto-derive from the catalog being installed (TBD at implementation time — minor).
+- **NEW** `GET /api/channels/catalog` → list of catalog entries (read-only, reads `agent/channels-catalog.json`).
+- **NEW** `GET /api/channels` → list of installed channels (i.e., `connectors` rows filtered by `kind='channel'`). Implementation: `ConnectorRepo.listByKind('channel')` + projection.
+- **EXTENDED** `POST /api/connectors` — install endpoint. Body schema gains an optional `kind: 'mcp' | 'channel'` field (default `'mcp'` for backward compat). When `kind='channel'`:
+  - The body's `catalogId` (or equivalent ID field) must reference an entry in `channels-catalog.json` (NOT `connectors-catalog.json`).
+  - The endpoint reads the channels catalog entry, validates the secrets payload against it, and inserts a `connectors` row with `kind='channel'`, `transport='remote'` (placeholder per Track 1), `command=NULL`, `args=NULL`, `url=NULL`.
+- **REUSED** `DELETE /api/connectors/:id`, `PATCH /api/connectors/:id`, `GET /api/connectors/:id/secrets` — these work generically on the connectors table; channel rows are uninstalled / patched / read identically to MCP rows. No changes needed.
 
-Dashboard UI changes are NOT in scope for spec 0057. The endpoints are added so spec 0058 can install Slack via dashboard, but the UI section "Channels" itself is a follow-up (or part of 0058's pre-flight). The endpoints work via direct curl / API calls in the meantime.
+**Why extend instead of new `POST /api/channels`:** auth, audit logging, FK cascade behavior, error handling, and rate limits already work on `/api/connectors`. Duplicating that logic for channels would be premature DRY violation. The `kind` field on the request body is the discriminator.
+
+Dashboard UI changes are NOT in scope for spec 0057. The endpoints are added so spec 0058 can install Slack via direct API call (`curl`) or via a minimal dashboard tweak; full Channels page redesign is a future polish spec.
 
 ### Q1 — Migration strategy: DECIDED (DB-first with `.env` fallback)
 
@@ -274,7 +301,7 @@ Note: only ONE channel is bootstrapped in 0057 (Slack). Future channels iterate 
 |---|---|---|
 | DB unreachable at boot | Crash with clear error (existing behavior) | `db_open_failed` |
 | Migration fails | Crash with clear error (existing behavior) | `migration_failed` |
-| `channels-catalog.json` malformed | API logs warning, returns empty list; worker boot uses fallback | `channels_catalog_invalid` |
+| `channels-catalog.json` malformed | API logs warning, returns empty list to dashboard. Worker boot is unaffected (worker reads installed channels from DB, not from the catalog file — catalog is dashboard-only). | `channels_catalog_invalid` |
 | Slack DB row present, secrets missing | Hard error at worker boot (config error) | `slack_creds_empty_after_install` |
 | No DB row + no env | Hard error at worker boot (must configure) | `slack_creds_missing` |
 | Slack `start()` fails (network / bad token) | Existing behavior (worker exits, container restarts) | `slack_start_failed` |

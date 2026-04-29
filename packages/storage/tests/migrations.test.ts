@@ -1015,7 +1015,62 @@ describe('migrations: cron_skills + cron_connectors (migrations 16 + 17)', () =>
     runMigrations(db);
     const second = runMigrations(db);
     expect(second.applied).toEqual([]);
-    expect(second.current).toBe(17);
+    expect(second.current).toBe(18);
+    closeDatabase(db);
+  });
+});
+
+// Spec 0057: migration 18 adds the connectors.kind discriminator column.
+// Existing rows default to 'mcp'; new rows can specify 'mcp' | 'channel'.
+// The CHECK constraint rejects values outside that enum.
+describe('migrations: connectors.kind (migration 18, spec 0057)', () => {
+  it('adds kind column to connectors with default mcp', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    const cols = db
+      .prepare("PRAGMA table_info('connectors')")
+      .all() as PragmaTableInfoRow[];
+    const kindCol = cols.find((c) => c.name === 'kind');
+    expect(kindCol).toBeDefined();
+    expect(kindCol?.notnull).toBe(1);
+    expect(kindCol?.dflt_value).toBe("'mcp'");
+    closeDatabase(db);
+  });
+
+  it('inserting a row without kind defaults to mcp', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    db.exec(
+      "INSERT INTO connectors (id, slug, display_name, source, transport, status) VALUES ('m1', 'sentry', 'Sentry', 'catalog', 'stdio', 'enabled')",
+    );
+    const row = db
+      .prepare('SELECT kind FROM connectors WHERE id = ?')
+      .get('m1') as { kind: string };
+    expect(row.kind).toBe('mcp');
+    closeDatabase(db);
+  });
+
+  it('accepts kind=channel explicitly', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    db.exec(
+      "INSERT INTO connectors (id, slug, display_name, source, transport, status, kind) VALUES ('c1', 'slack', 'Slack', 'catalog', 'remote', 'enabled', 'channel')",
+    );
+    const row = db
+      .prepare('SELECT kind FROM connectors WHERE id = ?')
+      .get('c1') as { kind: string };
+    expect(row.kind).toBe('channel');
+    closeDatabase(db);
+  });
+
+  it('rejects kind values outside enum', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    expect(() =>
+      db.exec(
+        "INSERT INTO connectors (id, slug, display_name, source, transport, status, kind) VALUES ('x1', 'bogus', 'Bogus', 'catalog', 'stdio', 'enabled', 'unknown')",
+      ),
+    ).toThrow(/CHECK constraint failed/);
     closeDatabase(db);
   });
 });

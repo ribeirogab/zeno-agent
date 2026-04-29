@@ -293,7 +293,7 @@ Adapted from Sentry's `sentry-fix-issues`:
 2. Phase 1: Zeno fetches. Last seen 28 days ago. 5 events.
 3. Phase 2: Stack trace top frame `apps/api/src/billing/Stripe.ts:142` in function `chargeSubscription`.
 4. Phase 3: Reads file at HEAD. Function `chargeSubscription` doesn't exist. `git log -S'chargeSubscription'` shows it was renamed to `processSubscriptionCharge` in commit `abc1234` 21 days ago. Last Sentry event predates `abc1234`.
-5. Auto-resolve: `update_issue(PROJ-9999, status='resolved', note='Resolved in abc1234: refactor billing/Stripe naming. No events since.')`
+5. Auto-resolve with self-contained audit-trail note (per Phase 3 requirement): `update_issue(PROJ-9999, status='resolved', note="Resolved in commit abc1234 ('refactor: rename chargeSubscription'). Issue lastSeen 2026-04-07T14:32:00Z; commit authorDate 2026-04-14T10:15:00Z (commit > lastSeen, OK). Symbol 'chargeSubscription' verified absent from apps/api/src/billing/Stripe.ts in HEAD.")`
 6. Slack: `✅ PROJ-9999 já tava fixed em commit abc1234. Marquei resolved no Sentry.`
 7. DONE — skip Phases 4-7.
 

@@ -1,0 +1,28 @@
+{
+  "_doc": "Curated channel adapters offered to the operator in the dashboard. Each channel is a transport that delivers messages to the agent core (vs. connectors-catalog.json which lists MCP servers the agent calls). Adding an entry here makes it appear under GET /api/channels/catalog. The runtime stores channel configuration in the connectors table (kind=channel) after install — this file is the directory.",
+  "version": 1,
+  "channels": [
+    {
+      "id": "slack",
+      "slug": "slack",
+      "name": "Slack",
+      "description": "Talk to Zeno from a Slack workspace. The bot listens via socket-mode and replies in the same channel/thread.",
+      "icon": "slack.svg",
+      "docsUrl": "https://api.slack.com/apis/socket-mode",
+      "secrets": [
+        {
+          "key": "SLACK_APP_TOKEN",
+          "label": "App Token",
+          "help": "Starts with `xapp-`. Generate at api.slack.com → your app → Basic Information → App-Level Tokens. Required scope: `connections:write`.",
+          "required": true
+        },
+        {
+          "key": "SLACK_BOT_TOKEN",
+          "label": "Bot Token",
+          "help": "Starts with `xoxb-`. Found at api.slack.com → your app → OAuth & Permissions → Bot User OAuth Token. Required scopes: `app_mentions:read`, `chat:write`, `files:read`, `files:write`, `im:history`, `im:read`, `im:write`, `reactions:read`, `reactions:write`.",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

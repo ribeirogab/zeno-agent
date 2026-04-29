@@ -29,6 +29,7 @@ import { buildMcpServersMap } from '@/agent/mcp-build';
 import { buildSystemPrompt, loadAgentFile, loadProfileFile } from '@/agent/system-prompt';
 import type { AgentBackend } from '@/agent/types';
 import { SlackChannel } from '@/channels/slack/adapter';
+import { resolveSlackCredentials } from '@/channels/slack/resolve-credentials';
 import { buildDispatcher } from '@/commands/dispatcher';
 import { buildHandlerMap } from '@/commands/handlers';
 import { CommandsPoller } from '@/commands/poller';
@@ -359,8 +360,19 @@ async function main(): Promise<void> {
     process.env.GIT_COMMITTER_EMAIL = gitIdentity.email;
   }
 
+  // Spec 0057: resolve Slack creds via channel-connector DB row first, falling
+  // back to .env (legacy path). The resolver throws hard on misconfigured
+  // states (installed-but-empty / no-row-no-env). This decouples Slack from
+  // mandatory envvars and unifies it with the catalog/install flow used by
+  // every other connector.
+  const slackCreds = resolveSlackCredentials({
+    connectors,
+    env: config.slack,
+    logger,
+  });
   const slack = new SlackChannel({
-    ...config.slack,
+    appToken: slackCreds.appToken,
+    botToken: slackCreds.botToken,
     workspaceDir: config.workspaceDir,
   });
   const defaultCronChannel = process.env.ZENO_CRON_DEFAULT_CHANNEL ?? null;

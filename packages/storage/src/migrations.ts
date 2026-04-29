@@ -517,6 +517,14 @@ CREATE TABLE cron_connectors (
 CREATE INDEX idx_cron_connectors_connector ON cron_connectors(connector_id);
 `,
   },
+  {
+    id: 18,
+    name: "spec 0057 — connectors.kind discriminator ('mcp' | 'channel'). Channels share the connectors table with a discriminator column. Existing rows default to 'mcp' (additive change). The transport CHECK constraint stays unchanged; channel rows use transport='remote' as a placeholder semantically meaning 'runtime-managed adapter, no MCP spawn'. The MCP loader (apps/worker/src/agent/mcp-build.ts) guards on kind='mcp' to skip channel rows.",
+    sql: `
+ALTER TABLE connectors ADD COLUMN kind TEXT NOT NULL DEFAULT 'mcp'
+  CHECK (kind IN ('mcp', 'channel'));
+`,
+  },
 ];
 
 /**

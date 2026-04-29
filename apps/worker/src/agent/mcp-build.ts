@@ -56,6 +56,12 @@ export function buildMcpServersMap(opts: BuildMcpServersOptions): Record<string,
 
   const merged: Record<string, McpServerConfig> = { ...agentServers };
   for (const { connector, secrets } of userLayer) {
+    // Spec 0057: skip channel rows. Channels share the connectors table but
+    // are NOT MCP servers — they use transport='remote' as a placeholder
+    // (semantically "runtime-managed adapter"). Without this guard the loader
+    // would silently register a broken remote-MCP entry per channel install.
+    if (connector.kind !== 'mcp') continue;
+
     try {
       // Spec 0042 + 0044: github-app-* connectors get a synthetic PAT secret
       // minted from the cached installation token. The reserved __GITHUB_*__

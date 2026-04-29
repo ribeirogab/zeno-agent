@@ -399,4 +399,73 @@ describe('buildMcpServersMap', () => {
       close();
     });
   });
+
+  // Spec 0057: channels share the connectors table with kind='channel' but
+  // are NOT MCP servers — the loader MUST skip them. Without this guard, the
+  // loader would silently register a broken remote-MCP entry per channel
+  // install (transport='remote' is a placeholder for channel rows).
+  describe('kind=channel guard (spec 0057)', () => {
+    it('skips rows with kind=channel even when status=enabled', () => {
+      const { repo, close } = makeRepo();
+      // Seed a Slack channel — looks like a remote MCP at the SQL level
+      // (transport='remote'), but kind='channel' must keep it out of the map.
+      repo.create({
+        slug: 'slack',
+        displayName: 'Slack',
+        source: 'catalog',
+        catalogId: 'slack',
+        transport: 'remote',
+        command: null,
+        args: null,
+        url: null,
+        status: 'enabled',
+        kind: 'channel',
+        secrets: [
+          { key: 'SLACK_APP_TOKEN', value: 'xapp-x' },
+          { key: 'SLACK_BOT_TOKEN', value: 'xoxb-x' },
+        ],
+        tools: [],
+      });
+      const result = buildMcpServersMap({ connectorRepo: repo, logger });
+      // No channel-derived MCP server should appear.
+      expect(result.slack).toBeUndefined();
+      // No last_error written either — the row is intentionally skipped, not failed.
+      const slackRow = repo.getBySlug('slack');
+      expect(slackRow?.lastError).toBeNull();
+      close();
+    });
+
+    it('mixes channel + mcp rows correctly — only mcp ones land in the map', () => {
+      const { repo, close } = makeRepo();
+      // 1 channel (Slack) + 1 MCP (custom remote) — only the MCP appears.
+      repo.create({
+        slug: 'slack',
+        displayName: 'Slack',
+        source: 'catalog',
+        catalogId: 'slack',
+        transport: 'remote',
+        status: 'enabled',
+        kind: 'channel',
+        secrets: [],
+        tools: [],
+      });
+      repo.create({
+        slug: 'sentry',
+        displayName: 'Sentry',
+        source: 'catalog',
+        catalogId: 'sentry',
+        transport: 'stdio',
+        command: 'npx',
+        args: ['-y', '@sentry/mcp-server'],
+        status: 'enabled',
+        kind: 'mcp',
+        secrets: [{ key: 'SENTRY_ACCESS_TOKEN', value: 'tok' }],
+        tools: [],
+      });
+      const result = buildMcpServersMap({ connectorRepo: repo, logger });
+      expect(result.sentry).toBeDefined();
+      expect(result.slack).toBeUndefined();
+      close();
+    });
+  });
 });

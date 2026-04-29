@@ -1,8 +1,13 @@
 import { z } from 'zod';
 
 const schema = z.object({
-  SLACK_APP_TOKEN: z.string().startsWith('xapp-'),
-  SLACK_BOT_TOKEN: z.string().startsWith('xoxb-'),
+  // Spec 0057: SLACK_*_TOKEN are now optional. The worker resolves Slack
+  // credentials at boot via apps/worker/src/channels/slack/resolve-credentials.ts
+  // — DB-first (channels-catalog install) with .env fallback. Either source
+  // produces the actual values; missing both is a hard boot error from the
+  // resolver, not from this Zod schema.
+  SLACK_APP_TOKEN: z.string().startsWith('xapp-').optional(),
+  SLACK_BOT_TOKEN: z.string().startsWith('xoxb-').optional(),
   GH_TOKEN: z.string().min(1),
   CLAUDE_CODE_OAUTH_TOKEN: z.string().min(1),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('info'),
@@ -11,7 +16,11 @@ const schema = z.object({
 });
 
 export type Config = {
-  slack: { appToken: string; botToken: string };
+  /**
+   * Spec 0057: optional — resolved at boot via resolveSlackCredentials.
+   * May be undefined when Slack channel is installed via dashboard (DB-only).
+   */
+  slack: { appToken: string | undefined; botToken: string | undefined };
   github: { token: string };
   claude: { oauthToken: string };
   logLevel: 'trace' | 'debug' | 'info' | 'warn' | 'error';

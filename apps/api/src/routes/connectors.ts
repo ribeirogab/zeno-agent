@@ -38,6 +38,11 @@ import {
   loadCatalog,
   resolveIconPath,
 } from '@/lib/catalog-loader';
+import {
+  type ChannelsCatalog,
+  findChannelCatalogEntry,
+  loadChannelsCatalog,
+} from '@/lib/channels-catalog-loader';
 import { SecretRateLimiter } from '@/lib/secret-rate-limit';
 
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]*$/;
@@ -197,6 +202,8 @@ const createCatalogSchema = z.object({
   source: z.literal('catalog'),
   catalogId: z.string(),
   secrets: z.array(apiSecretSchema),
+  /** Spec 0057: optional discriminator. Defaults to 'mcp'. When 'channel', the install handler resolves the catalog entry from channels-catalog.json (NOT connectors-catalog.json) and synthesizes channel-specific defaults (transport='remote', tools=[]) into the enqueued payload. */
+  kind: z.enum(['mcp', 'channel']).optional().default('mcp'),
 });
 
 const createCustomSchema = z.object({
@@ -217,6 +224,8 @@ const createCustomSchema = z.object({
       }),
     )
     .optional(),
+  /** Spec 0057: included for symmetry, but channels only support source='catalog'. The install handler returns 400 channel_must_be_catalog_source if a custom + channel combo is requested. */
+  kind: z.enum(['mcp', 'channel']).optional().default('mcp'),
 });
 
 const createSchema = z.discriminatedUnion('source', [createCatalogSchema, createCustomSchema]);
@@ -305,14 +314,27 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // GET /catalog/icons/:filename
   route.get('/catalog/icons/:filename', (c) => {
     const filename = c.req.param('filename');
-    // Defensive: only serve files referenced by the catalog (path traversal guard).
-    let catalog: CatalogEntry[];
+    // Defensive: only serve files referenced by EITHER catalog (path traversal guard).
+    // Spec 0057: combine icons from BOTH the MCP catalog AND the channels catalog
+    // so channel icons (e.g. slack.svg) resolve via the same endpoint. Channels
+    // and MCP connectors share asset directory `agent/assets/connectors/`.
+    // Both loaders are best-effort — missing one shouldn't 500 the other.
+    const knownIcons = new Set<string>();
     try {
-      catalog = loadCatalog();
+      const catalog: CatalogEntry[] = loadCatalog();
+      for (const entry of catalog) knownIcons.add(entry.icon);
     } catch {
+      // MCP catalog missing/malformed — channel icons still work below.
+    }
+    try {
+      const channelsCatalog = loadChannelsCatalog();
+      for (const entry of channelsCatalog.entries) knownIcons.add(entry.icon);
+    } catch {
+      // channels catalog missing/malformed → fall through with MCP-only set.
+    }
+    if (knownIcons.size === 0) {
       return c.json({ error: 'catalog_unavailable' }, 500);
     }
-    const knownIcons = new Set(catalog.map((e) => e.icon));
     if (!knownIcons.has(filename)) return c.json({ error: 'not_found' }, 404);
     const path = resolveIconPath(filename);
     if (!path) return c.json({ error: 'not_found' }, 404);
@@ -664,6 +686,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       createdAt: '',
       updatedAt: '',
       appId: null,
+      kind: 'mcp',
     };
     const secrets: ConnectorSecret[] = (body.secrets ?? []).map((s) => ({
       connectorId: 'transient',
@@ -706,6 +729,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       createdAt: '',
       updatedAt: '',
       appId: null,
+      kind: 'mcp',
     };
     const secrets: ConnectorSecret[] = body.secrets.map((s) => ({
       connectorId: 'transient',
@@ -725,7 +749,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // connectors are NOT returned individually at the top level — they appear
   // nested inside the parent AppListItem.
   route.get('/', (c) => {
-    const all = deps.connectors.list();
+    // Spec 0057: filter to kind='mcp' so channel rows (Slack et al.) don't
+    // leak into the MCP connectors list. Channel rows are served by GET /api/channels.
+    const all = deps.connectors.list({ kind: 'mcp' });
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     // Partition: connectors with appId set are nested inside an App row;
@@ -794,32 +820,86 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // POST / (create — enqueues command)
   route.post('/', zValidator('json', createSchema), (c) => {
     const body = c.req.valid('json');
+
+    // Spec 0057: validate kind+source combination upfront. Channels are
+    // catalog-only (no custom channels in this version). Without this
+    // pre-check, a `source: 'custom' + kind: 'channel'` payload would slip
+    // through the discriminated union and silently land kind='mcp' in the DB
+    // (since the custom branch doesn't look at the channels catalog).
+    if (body.source === 'custom' && body.kind === 'channel') {
+      return c.json(
+        {
+          error: 'channel_must_be_catalog_source',
+          message: 'Channels only support source: catalog. Custom channels are not supported.',
+        },
+        400,
+      );
+    }
+
     let payload: Record<string, unknown>;
     if (body.source === 'catalog') {
-      const entry = findCatalogEntry(body.catalogId);
-      if (!entry) return c.json({ error: 'catalog_entry_not_found' }, 404);
-      // Use the catalog id as the slug; it's already kebab-case + unique within the catalog.
-      // If the operator already installed this catalog entry (or a custom connector grabbed the slug),
-      // resolve a collision suffix.
-      const slug = resolveSlugCollision(deps.connectors, entry.id);
-      payload = {
-        source: 'catalog',
-        catalogId: entry.id,
-        slug,
-        displayName: entry.name,
-        description: entry.description,
-        transport: entry.transport,
-        command: entry.transportConfig.command ?? null,
-        args: entry.transportConfig.args ?? null,
-        url: entry.transportConfig.url ?? null,
-        secrets: body.secrets,
-        tools: entry.tools.map((t) => ({
-          toolName: t.name,
-          description: t.description,
-          category: t.category,
-          permission: t.defaultPermission,
-        })),
-      };
+      // Spec 0057: branch on kind BEFORE catalog lookup. Channels resolve
+      // their entry from channels-catalog.json (NOT connectors-catalog.json)
+      // and synthesize all channel-specific defaults at the API route, so the
+      // worker handler validates a fully-shaped catalogSchema payload.
+      if (body.kind === 'channel') {
+        let channelsCatalog: ChannelsCatalog;
+        try {
+          channelsCatalog = loadChannelsCatalog();
+        } catch {
+          return c.json({ error: 'channels_catalog_unavailable' }, 500);
+        }
+        const channelEntry = findChannelCatalogEntry(channelsCatalog, body.catalogId);
+        if (!channelEntry) return c.json({ error: 'channel_catalog_entry_not_found' }, 404);
+        // Validate required secrets are all present in the payload.
+        const submitted = new Map(body.secrets.map((s) => [s.key, s.value]));
+        for (const sec of channelEntry.secrets.filter((s) => s.required)) {
+          if (!submitted.has(sec.key)) {
+            return c.json({ error: 'missing_required_secret', key: sec.key }, 400);
+          }
+        }
+        const slug = resolveSlugCollision(deps.connectors, channelEntry.id);
+        payload = {
+          source: 'catalog',
+          catalogId: channelEntry.id,
+          slug,
+          displayName: channelEntry.name,
+          description: channelEntry.description,
+          transport: 'remote', // placeholder per spec 0057 (channel rows don't spawn MCP servers)
+          command: null,
+          args: null,
+          url: null,
+          secrets: body.secrets,
+          tools: [], // channels have no MCP tools
+          kind: 'channel',
+        };
+      } else {
+        const entry = findCatalogEntry(body.catalogId);
+        if (!entry) return c.json({ error: 'catalog_entry_not_found' }, 404);
+        // Use the catalog id as the slug; it's already kebab-case + unique within the catalog.
+        // If the operator already installed this catalog entry (or a custom connector grabbed the slug),
+        // resolve a collision suffix.
+        const slug = resolveSlugCollision(deps.connectors, entry.id);
+        payload = {
+          source: 'catalog',
+          catalogId: entry.id,
+          slug,
+          displayName: entry.name,
+          description: entry.description,
+          transport: entry.transport,
+          command: entry.transportConfig.command ?? null,
+          args: entry.transportConfig.args ?? null,
+          url: entry.transportConfig.url ?? null,
+          secrets: body.secrets,
+          tools: entry.tools.map((t) => ({
+            toolName: t.name,
+            description: t.description,
+            category: t.category,
+            permission: t.defaultPermission,
+          })),
+          kind: 'mcp',
+        };
+      }
     } else {
       const slug = resolveSlugCollision(deps.connectors, slugify(body.displayName));
       payload = {
@@ -832,6 +912,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         url: body.url ?? null,
         secrets: body.secrets,
         tools: body.tools ?? [],
+        kind: 'mcp',
       };
     }
     deps.commands.enqueue({

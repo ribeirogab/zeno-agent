@@ -27,6 +27,12 @@ interface SlackChannelOptions {
   dmOwnerUserId?: string;
   /** Root directory for the workspace; file attachments are saved under `<workspaceDir>/uploads/`. Defaults to `/workspace`. */
   workspaceDir?: string;
+  /**
+   * Spec 0057 test-only escape hatch: inject a pre-built `App` instance instead of constructing one.
+   * Production code NEVER sets this. Tests use it to substitute a mocked Bolt `App` and avoid opening
+   * a real socket-mode connection.
+   */
+  _appOverride?: App;
 }
 
 export class SlackChannel implements Channel {
@@ -36,12 +42,14 @@ export class SlackChannel implements Channel {
   private handler: MessageHandler | null = null;
 
   constructor(private readonly opts: SlackChannelOptions) {
-    this.app = new App({
-      token: opts.botToken,
-      appToken: opts.appToken,
-      socketMode: true,
-      logLevel: LogLevel.WARN,
-    });
+    this.app =
+      opts._appOverride ??
+      new App({
+        token: opts.botToken,
+        appToken: opts.appToken,
+        socketMode: true,
+        logLevel: LogLevel.WARN,
+      });
   }
 
   async start(onMessage: MessageHandler): Promise<void> {

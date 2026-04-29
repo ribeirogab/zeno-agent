@@ -93,7 +93,7 @@ Both the `NOT NULL` constraint AND the `CHECK (kind IN ('mcp', 'channel'))` cons
 
 3. **`packages/storage/src/repos/connectors.ts`** — `ListConnectorsFilter` gains an optional `kind?: ConnectorKind` filter field. `list()`'s default behavior is **unchanged** — passing no filter still returns all rows (avoids silent breakage of any caller that expects all rows). New method `listByKind(kind: ConnectorKind): Connector[]` is a thin wrapper around `list({ kind })` for ergonomics. Add an indexed lookup OR rely on `idx_connectors_status_slug` + post-filter (acceptable at current row counts; revisit if catalog grows).
 
-4. **`apps/worker/src/agent/mcp-build.ts`** (or equivalent MCP-snapshot/loader) — add a guard: `if (row.kind !== 'mcp') continue;`. Without this, the MCP loader will see channel rows (which use `transport='remote'` as a placeholder per Track 1) and try to spawn them as remote MCP servers, which would fail at runtime with confusing errors. This guard is REQUIRED — covered by an explicit test (see Test strategy).
+4. **`apps/worker/src/agent/mcp-build.ts`** (or equivalent MCP-snapshot/loader) — add a guard: `if (connector.kind !== 'mcp') continue;`. The guard goes INSIDE the `for (const { connector, secrets } of userLayer)` loop at `mcp-build.ts:58`, NOT at the `userLayer = connectorRepo.getEnabledWithRelations()` assignment. `getEnabledWithRelations()` returns ALL enabled rows (any kind); the guard at the iteration site is what skips channel rows. Without this, the MCP loader will see channel rows (which use `transport='remote'` as a placeholder per Track 1) and try to spawn them as remote MCP servers, which would fail at runtime with confusing errors. This guard is REQUIRED — covered by an explicit test (see Test strategy).
 
 Both the test for `listByKind` AND a separate test asserting `rowToConnector(rowWithKind)` correctly hydrates the field are mandatory — they catch the "DB has it, type ignores it" silent bug class.
 
@@ -153,7 +153,23 @@ Key rule: the **only** path that triggers a hard error from a present DB row is 
 
 Each successful return logs `slack_creds_source: '<source>'`. Each error logs `slack_creds_error: '<reason>'` before throwing.
 
-The resolver is a pure function (takes deps explicitly, no module-level state) — purely for testability. **It lives in a dedicated module** at `apps/worker/src/channels/slack/resolve-credentials.ts`, NOT inline in `index.ts`. Test file at `apps/worker/src/channels/slack/resolve-credentials.test.ts` (or wherever vitest co-locates). `apps/worker/src/index.ts:362` imports and calls it: `const { appToken, botToken } = await resolveSlackCredentials({...})`, then constructs `new SlackChannel({ appToken, botToken, workspaceDir: config.workspaceDir })`.
+The resolver is a pure function (takes deps explicitly, no module-level state) — purely for testability. **It lives in a dedicated module** at `apps/worker/src/channels/slack/resolve-credentials.ts`, NOT inline in `index.ts`. Test file at `apps/worker/src/channels/slack/resolve-credentials.test.ts`. Function signature:
+
+```ts
+export interface SlackCredentialsResolverDeps {
+  db: DB;
+  env: { appToken: string | undefined; botToken: string | undefined };
+  logger: Logger;
+}
+export interface ResolvedSlackCredentials {
+  appToken: string;
+  botToken: string;
+  source: 'connector_secrets' | 'env_fallback';
+}
+export function resolveSlackCredentials(deps: SlackCredentialsResolverDeps): ResolvedSlackCredentials;
+```
+
+`apps/worker/src/index.ts:362` imports and calls it: `const { appToken, botToken } = resolveSlackCredentials({ db, env: config.slack, logger });`, then constructs `new SlackChannel({ appToken, botToken, workspaceDir: config.workspaceDir })`.
 
 The `config.ts` Zod schema for `SLACK_APP_TOKEN` / `SLACK_BOT_TOKEN` becomes **optional**, AND `Config.slack` (the typed result of `loadConfig()`) updates accordingly:
 
@@ -187,7 +203,7 @@ Channels need to appear in the dashboard for the operator to install. Endpoint p
 
 - **NEW** `GET /api/channels/catalog` → list of catalog entries (read-only, reads `agent/channels-catalog.json` via `channels-catalog-loader.ts`).
 - **NEW** `GET /api/channels` → list of installed channels (i.e., `connectors` rows filtered by `kind='channel'`). Implementation: `ConnectorRepo.listByKind('channel')` + projection. Response shape (one entry per row): `{ id: string, slug: string, displayName: string, description: string | null, status: ConnectorStatus, lastError: string | null, lastErrorAt: string | null, lastVerifiedAt: string | null, createdAt: string, updatedAt: string, catalogId: string | null }`. Note: omits MCP-specific fields (`transport`, `command`, `args`, `url`, `appId`) — the projection is intentionally narrower than `Connector` to make the channel-list response self-documenting (no leaky placeholders like `transport: 'remote'`).
-- **NEW route registration:** `apps/api/src/routes/channels.ts` exports `buildChannelsRoute(deps)` returning a Hono router. The route is mounted in `apps/api/src/server.ts` next to the connectors mount (around line 105 — after `/api/connectors` and before `/api/skills`). Per the existing convention noted at `apps/api/src/routes/connectors.ts:1-9`, static segments must precede dynamic `:id` segments — within `channels.ts`, register `GET /catalog`, `GET /catalog/icons/:filename` (if option-b is chosen for icons), and `GET /` BEFORE any `:id` parameterized route (none in this spec, but defensive). Auth middleware covering `/api/connectors*` should also apply to `/api/channels*` — verify the auth path config in `server.ts` before merging.
+- **NEW route registration:** `apps/api/src/routes/channels.ts` exports `buildChannelsRoute(deps: { connectors: ConnectorRepo, channelsCatalog: ChannelsCatalog })` returning a Hono router. The route is mounted in `apps/api/src/server.ts` next to the connectors mount (around line 105 — after `/api/connectors` and before `/api/skills`). Per the existing convention noted at `apps/api/src/routes/connectors.ts:1-9`, static segments must precede dynamic `:id` segments — within `channels.ts`, register `GET /catalog` and `GET /` BEFORE any `:id` parameterized route (none in this spec, but defensive). **Auth wiring:** follow the existing pattern at `apps/api/src/server.ts:141-151` (the `/api/connectors` auth setup) — two `app.use()` calls covering both bare path (`/api/channels`) and wildcard (`/api/channels/*`) before the `app.route('/api/channels', buildChannelsRoute(...))` line.
 - **MODIFIED** `GET /api/connectors` — existing endpoint at `apps/api/src/routes/connectors.ts:727`. Today it calls `deps.connectors.list()` with no filter and returns ALL rows. After this spec, channel rows would leak into the MCP connectors list since both kinds share the table. **The fix is in the route handler, NOT in `list()`'s default behavior:**
   1. `ListConnectorsFilter` (in `repos/connectors.ts`) gains an optional `kind?: ConnectorKind` filter field. `list()`'s default behavior **stays unchanged** — passing no filter still returns all rows. This avoids silently breaking any caller that expects "all rows" today.
   2. The route handler at `connectors.ts:727` is updated to pass `{ kind: 'mcp' }` explicitly: `deps.connectors.list({ kind: 'mcp' })`. After this change, `GET /api/connectors` returns only MCP rows, the existing `buildListItem` (which hardcodes `kind: 'connector'` in the response shape) is unchanged for MCP rows, and external response contract is preserved.
@@ -209,7 +225,7 @@ Channels need to appear in the dashboard for the operator to install. Endpoint p
   });
   ```
   The handler then branches on `kind` BEFORE the existing `findCatalogEntry()` call:
-  - If `kind === 'channel'`: call a NEW `findChannelCatalogEntry(catalogId)` that searches `channels-catalog.json`. Validate secrets payload against the channel entry's `secrets` schema. Insert a `connectors` row with `kind='channel'`, `transport='remote'` (placeholder per Track 1), `command=NULL`, `args=NULL`, `url=NULL`.
+  - If `kind === 'channel'`: call a NEW `findChannelCatalogEntry(catalogId)` that searches `channels-catalog.json`. Validate secrets payload against the channel entry's `secrets` schema. Synthesize `tools: []` in the enqueued command payload (channels have no MCP tools, but the existing `connector-create` handler's `catalogSchema` requires a `tools` field — pass an empty array). Insert a `connectors` row with `kind='channel'`, `transport='remote'` (placeholder per Track 1), `command=NULL`, `args=NULL`, `url=NULL`. (Equivalently: relax `tools` to default `[]` in the worker-handler's catalogSchema. Either fix is acceptable — pick the API-route synthesis path for symmetry with `transport='remote'` synthesis.)
   - If `kind === 'mcp'` (default): existing behavior — call `findCatalogEntry()` against `connectors-catalog.json`, etc. NO behavior change for existing MCP installs.
   This preserves the existing `source` discriminator (catalog/custom remains) while introducing `kind` as an orthogonal axis. Channel installs only support `source: 'catalog'` (no custom channels in this spec — channels are always from the curated catalog).
 - **MODIFIED** worker-side command handler `connector_create` at `apps/worker/src/commands/handlers/connector-create.ts` (handler map composed in `apps/worker/src/commands/handlers/index.ts`). The API route at `apps/api/src/routes/connectors.ts:837` enqueues a `connector_create` command; the worker handler is what actually calls `ConnectorRepo.create()`. The spec REQUIRES three changes here:

@@ -1,6 +1,7 @@
 import type { DB } from '../db.js';
 import type {
   Connector,
+  ConnectorKind,
   ConnectorSource,
   ConnectorStatus,
   ConnectorTransport,
@@ -25,6 +26,8 @@ interface ConnectorRow {
   created_at: string;
   updated_at: string;
   app_id: string | null;
+  /** Spec 0057: kind discriminator. */
+  kind: string;
 }
 
 interface LinkRow {
@@ -52,6 +55,7 @@ function rowToConnector(row: ConnectorRow): Connector {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     appId: row.app_id,
+    kind: row.kind as ConnectorKind,
   };
 }
 

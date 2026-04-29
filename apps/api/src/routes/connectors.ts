@@ -664,6 +664,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       createdAt: '',
       updatedAt: '',
       appId: null,
+      kind: 'mcp',
     };
     const secrets: ConnectorSecret[] = (body.secrets ?? []).map((s) => ({
       connectorId: 'transient',
@@ -706,6 +707,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       createdAt: '',
       updatedAt: '',
       appId: null,
+      kind: 'mcp',
     };
     const secrets: ConnectorSecret[] = body.secrets.map((s) => ({
       connectorId: 'transient',

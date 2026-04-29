@@ -182,4 +182,71 @@ describe('P2 — connector lifecycle', () => {
     ).toBe(0);
     expect(sql(`SELECT COUNT(*) AS c FROM connector_invocations WHERE connector_id = ?`).c).toBe(0);
   });
+
+  // Spec 0057: channel installs flow through the same connector_create handler,
+  // distinguished by `kind: 'channel'` in the payload. The API route synthesizes
+  // all channel-specific defaults (transport='remote', tools=[], command/args/url=null);
+  // the handler forwards `kind` to ConnectorRepo.create().
+  it('P2.4 (spec 0057): connector_create with kind=channel lands in DB with kind=channel', async () => {
+    const handler = buildConnectorCreateHandler(testDb.connectorRepo);
+    const result = await handler(
+      stubCommand('connector_create', {
+        source: 'catalog',
+        catalogId: 'slack',
+        slug: 'slack',
+        displayName: 'Slack',
+        description: 'Talk to Zeno from Slack',
+        transport: 'remote',
+        command: null,
+        args: null,
+        url: null,
+        kind: 'channel',
+        secrets: [
+          { key: 'SLACK_APP_TOKEN', value: 'xapp-x' },
+          { key: 'SLACK_BOT_TOKEN', value: 'xoxb-x' },
+        ],
+        tools: [],
+      }),
+    );
+    expect(result.ok).toBe(true);
+
+    const channels = testDb.connectorRepo.listByKind('channel');
+    expect(channels).toHaveLength(1);
+    const slack = channels[0];
+    if (!slack) throw new Error('slack channel not created');
+    expect(slack.slug).toBe('slack');
+    expect(slack.kind).toBe('channel');
+    expect(slack.transport).toBe('remote');
+    expect(slack.status).toBe('enabled');
+
+    // Secrets attached
+    const secrets = testDb.connectorRepo.getSecrets(slack.id);
+    expect(secrets).toHaveLength(2);
+    expect(secrets.map((s) => s.key).sort()).toEqual(['SLACK_APP_TOKEN', 'SLACK_BOT_TOKEN']);
+
+    // No tools (channels have no MCP tools)
+    expect(testDb.connectorRepo.getTools(slack.id)).toHaveLength(0);
+  });
+
+  it('P2.5 (spec 0057): connector_create without explicit kind defaults to mcp', async () => {
+    fixture = bootFixture();
+    const handler = buildConnectorCreateHandler(testDb.connectorRepo);
+    const result = await handler(
+      stubCommand('connector_create', {
+        source: 'custom',
+        slug: 'plain-mcp',
+        displayName: 'Plain MCP',
+        transport: 'stdio',
+        command: fixture.command,
+        args: fixture.args,
+        secrets: [],
+        tools: [],
+        // kind omitted — should default to 'mcp'
+      }),
+    );
+    expect(result.ok).toBe(true);
+
+    const created = testDb.connectorRepo.getBySlug('plain-mcp');
+    expect(created?.kind).toBe('mcp');
+  });
 });

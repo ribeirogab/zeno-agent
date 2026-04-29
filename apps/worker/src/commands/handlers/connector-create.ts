@@ -34,6 +34,8 @@ const catalogSchema = z.object({
   tools: z.array(toolSchema),
   /** Spec 0044: github-app-* connectors carry the FK to connector_apps.id. */
   appId: z.string().nullable().optional(),
+  /** Spec 0057: discriminator. Defaults to 'mcp'. Channels pass 'channel' (API route synthesizes the channel-specific defaults — transport='remote', tools=[], command/args/url=null). */
+  kind: z.enum(['mcp', 'channel']).optional().default('mcp'),
 });
 
 const customSchema = z.object({
@@ -46,6 +48,8 @@ const customSchema = z.object({
   url: z.string().nullable().optional(),
   secrets: z.array(secretSchema),
   tools: z.array(toolSchema),
+  /** Spec 0057: included on customSchema for symmetry, but channels only support source='catalog' (the API route rejects source=custom + kind=channel before enqueuing). */
+  kind: z.enum(['mcp', 'channel']).optional().default('mcp'),
 });
 
 const payloadSchema = z.discriminatedUnion('source', [catalogSchema, customSchema]);
@@ -82,6 +86,9 @@ export function buildConnectorCreateHandler(arg: Deps | ConnectorRepo): Handler 
         secrets: data.secrets,
         tools: data.tools,
         appId: data.source === 'catalog' ? (data.appId ?? null) : null,
+        // Spec 0057: forward kind so channel installs land with kind='channel'
+        // in the DB. Defaults to 'mcp' via the schema's .default('mcp').
+        kind: data.kind,
       });
 
       // Spec 0044: github-app-* connector → register installation in the

@@ -13,57 +13,58 @@ The **Active roadmap** section below is the exception — that's the committed s
 
 ---
 
-## Active roadmap — committed sprint (2026-04-29)
+## Active roadmap — committed sprint (2026-04-29, last update 2026-04-29)
 
-9 specs, in execution order. Each ships independently. Later specs depend on earlier ones (dep column). Promote each to `context/specs/NNNN-<slug>/` when work starts.
+10 specs, in execution order. Each ships independently. Later specs depend on earlier ones (dep column). Promote each to `context/specs/NNNN-<slug>/` when work starts.
 
 | Order | Spec # | Title | Items covered | Size | Dep | Notes |
 |---|---|---|---|---|---|---|
-| 1 | **0057** | Slack as channel connector | #6 | XL | — | Foundational refactor: catalog gains `type: 'channel'`, Slack listener becomes a registrable channel-adapter, secrets move from `profile/.env` to DB via dashboard install. Unblocks WPP/Telegram later (same model). |
-| 2 | **0058** | Skills multi-file infra | #4a | L | — | DB schema (`skill_files` table or equivalent) + API multipart upload + materializer (write tree to FS) + dashboard upload UI + boot seeder. Decision pending on storage shape (see Decisions). |
-| 3 | **0059** | Skills best-practices + skill-creator | #4b + #4c | M | 0058 | Apply Anthropic best-practices (<500 lines per `SKILL.md`, progressive disclosure, satellite files). Install Anthropic's `skill-creator` from skills.sh as default skill for authoring/validating future skills. |
-| 4 | **0060** | Channel inbound files | #7 | M | 0057 | Worker already downloads Slack attachments (`slack_file_downloaded` event); missing pass-through to agent. Standardize via channel adapter so it's not Slack-specific. Image attachments → Claude content blocks. |
-| 5 | **0061** | Channel outbound files | #8 | M | 0057 + 0060 | Agent generates HTML/JSON/etc → channel adapter uploads via `files.upload` (or equivalent per channel). |
-| 6 | **0062** | UI dashboard cleanup | #1 + #2 + #3 | S | — | **Paper-first.** Show `USER.md` name in dashboard header (not "Alex"); remove "Sessions" from sidebar; fix Playwright connector logo + trim its description. Phase 0 = update Paper artboards in "Hearty island". |
-| 7 | **0063** | Settings refactor | #5a + #5b + #5c | M | — | **Paper-first.** Settings becomes tabbed (Agent capabilities is currently one giant block). Add `USER.md` inline editor. Remove "Restart worker" button + everything related. Phase 0 = Paper artboard for the tabbed layout. |
-| 8 | **0064** | Audio in (transcription) | #9 | M | 0060 | Voice notes via Slack → transcribe (Whisper API or similar) → text input to agent. Provider TBD at brainstorming time. |
-| 9 | **0065** | Audio out (TTS) | #10 | M | 0061 | Agent generates audio reply → channel uploads. Provider TBD (ElevenLabs / Cartesia / OpenAI TTS — cost vs quality). |
+| 1 | **0057** | Slack channel connector — code (worktree) | partial #6 | XL | — | **Code-only refactor in worktree, profiles/fn untouched.** New `agent/channels-catalog.json` (parallel to connectors-catalog), Slack listener becomes registrable channel-adapter, worker boot reads Slack creds DB-first with `.env` fallback for backward compat. Tests in-process (unit + integration mocked). |
+| 2 | **0058** | Migrate profiles/fn to channel connector | rest of #6 | M | 0057 | **Production cutover.** Install Slack via dashboard with current tokens, validate Slack flow live, remove `SLACK_*` from `profiles/fn/.env`. Optional follow-up commit removes `.env` fallback path from code. |
+| 3 | **0059** | Skills multi-file infra | #4a | L | — | DB schema + API multipart upload + materializer (write tree to FS) + dashboard upload UI + boot seeder. Decision pending on storage shape (see Decisions). |
+| 4 | **0060** | Skills best-practices + skill-creator | #4b + #4c | M | 0059 | Apply Anthropic best-practices (<500 lines per `SKILL.md`, progressive disclosure, satellite files). Install Anthropic's `skill-creator` from skills.sh as default skill. |
+| 5 | **0061** | Channel inbound files | #7 | M | 0058 | Worker already downloads Slack attachments; missing pass-through to agent. Standardize via channel adapter. Image attachments → Claude content blocks. |
+| 6 | **0062** | Channel outbound files | #8 | M | 0058 + 0061 | Agent generates HTML/JSON/etc → channel adapter uploads via `files.upload` (or equivalent per channel). |
+| 7 | **0063** | UI dashboard cleanup | #1 + #2 + #3 | S | — | **Paper-first.** Show `USER.md` name in dashboard header (not "Alex"); remove "Sessions" from sidebar; fix Playwright connector logo + trim its description. Phase 0 = update Paper artboards in "Hearty island". |
+| 8 | **0064** | Settings refactor | #5a + #5b + #5c | M | — | **Paper-first.** Settings becomes tabbed. Add `USER.md` inline editor. Remove "Restart worker" button. Phase 0 = Paper artboard for tabbed layout. |
+| 9 | **0065** | Audio in (transcription) | #9 | M | 0061 | Voice notes via Slack → transcribe (Whisper API or similar) → text input to agent. Provider TBD at brainstorming time. |
+| 10 | **0066** | Audio out (TTS) | #10 | M | 0062 | Agent generates audio reply → channel uploads. Provider TBD (ElevenLabs / Cartesia / OpenAI TTS — cost vs quality). |
 
 ### Original raw list (10 items, owner-supplied 2026-04-29)
 
 ```
-1.  USER.md name in dashboard (instead of "Alex")               → 0062
-2.  Remove "Sessions" sidebar entry                              → 0062
-3.  Playwright connector default-installed + fix logo + trim     → 0062
+1.  USER.md name in dashboard (instead of "Alex")               → 0063
+2.  Remove "Sessions" sidebar entry                              → 0063
+3.  Playwright connector default-installed + fix logo + trim     → 0063
 4.  Skills:
-    a. Support file tree, not just SKILL.md                      → 0058
-    b. Read & apply Anthropic best practices                     → 0059
-    c. Use Anthropic's skill-creator (skills.sh) as default      → 0059
+    a. Support file tree, not just SKILL.md                      → 0059
+    b. Read & apply Anthropic best practices                     → 0060
+    c. Use Anthropic's skill-creator (skills.sh) as default      → 0060
 5.  Settings page:
-    a. Layout in tabs                                            → 0063
-    b. Edit USER.md from settings                                → 0063
-    c. Remove "Restart worker" button                            → 0063
-6.  Slack as connector type=channel; future WPP/Telegram         → 0057
+    a. Layout in tabs                                            → 0064
+    b. Edit USER.md from settings                                → 0064
+    c. Remove "Restart worker" button                            → 0064
+6.  Slack as connector type=channel; future WPP/Telegram         → 0057 (code) + 0058 (cutover)
     same pattern; remove SLACK_* envvars
-7.  Zeno can read incoming files (images, JSON, etc) via channel → 0060
-8.  Zeno can send outgoing files via channel                     → 0061
-9.  Zeno can listen to / transcribe audio                        → 0064
-10. Zeno can send audio                                          → 0065
+7.  Zeno can read incoming files (images, JSON, etc) via channel → 0061
+8.  Zeno can send outgoing files via channel                     → 0062
+9.  Zeno can listen to / transcribe audio                        → 0065
+10. Zeno can send audio                                          → 0066
 ```
 
 ### Architecture decisions baked in
 
-- **Channel-first.** 0057 lands BEFORE files (0060, 0061) and audio (0064, 0065) so those features are channel-agnostic from day one. Adding WPP/Telegram later = new connector + adapter, no rework on file/audio code.
-- **Skills multi-file BEFORE skill-creator.** 0059 needs the multi-file infra to install Anthropic's skill-creator as a real skill (skill-creator itself ships as a tree, not a single `SKILL.md`).
-- **UI changes are Paper-first.** 0062 and 0063 both have Phase 0 = update artboards in the "Hearty island" Paper file (per `feedback_paper_first_workflow.md`). Implementation matches the approved Paper export, no freelancing.
-- **All quick wins go through spec.** Even items 2 and 5c (which look like 5-min changes) — owner explicitly chose spec discipline over chore-PR speed for full traceability.
+- **0057 split into code + cutover.** Owner uses Zeno daily via Slack; cannot risk breakage during dev. Code lands in worktree (`feat/spec-0057-slack-channel`), tested in-process, no Docker / no profile touched. Cutover (0058) is a separate spec executed live against `profiles/fn`.
+- **Channels and connectors are separate concepts.** New `agent/channels-catalog.json` parallel to existing `agent/connectors-catalog.json`. Channels are *substrate* (where the agent runs); connectors are *callable tools* (what the agent invokes). Storage layer compromise — both reuse the existing `connectors` + `connector_secrets` tables with a `kind` discriminator (avoid duplicating storage tables).
+- **Channel-first.** 0057+0058 land BEFORE files (0061, 0062) and audio (0065, 0066) so those features are channel-agnostic from day one. Adding WPP/Telegram later = new entry in `channels-catalog.json` + new adapter, no rework on file/audio code.
+- **Skills multi-file BEFORE skill-creator.** 0060 needs the multi-file infra to install Anthropic's skill-creator as a real skill.
+- **UI changes are Paper-first.** 0063 and 0064 both have Phase 0 = update artboards in the "Hearty island" Paper file.
+- **All quick wins go through spec.** Even items 2 and 5c — owner chose spec discipline over chore-PR speed for full traceability.
 
 ### Decisions deferred to brainstorming time
 
-- **Q3 from planning chat — skills storage shape (0058):** (a) `skill_files` table with one row per file, (b) ZIP body in current `skills.body` column, (c) FS-based with DB metadata + path. Affects spec size significantly.
-- **Q4 from planning chat — audio providers (0064, 0065):** Whisper (OpenAI) vs Deepgram for transcription; ElevenLabs vs Cartesia vs OpenAI TTS for synthesis. Cost vs quality trade-off.
-- **0057 migration strategy:** hard cutover (require dashboard install on next boot) vs `.env` fallback during transition window. Spec brainstorming will pick.
-- **0057 routing:** today, an `@zeno-agent` mention triggers the agent core; with multiple channels, does the routing change? Probably not for v1, but worth confirming.
+- **0059 skills storage shape:** (a) `skill_files` table with one row per file, (b) ZIP body in current `skills.body` column, (c) FS-based with DB metadata + path. Affects spec size significantly.
+- **0065+0066 audio providers:** Whisper (OpenAI) vs Deepgram for transcription; ElevenLabs vs Cartesia vs OpenAI TTS for synthesis. Cost vs quality trade-off.
 
 ### Items currently NOT in sprint (unblocked by sprint, but future specs)
 
@@ -96,8 +97,8 @@ The **Active roadmap** section below is the exception — that's the committed s
 |---|---|---|---|---|
 | 11 | **Telegram channel** | None (ports & adapters ready) | Medium | Bot API is clean; second easiest channel after Slack. Implement the `Channel` interface. |
 | 12 | **WhatsApp channel** | None (but needs a provider: Meta Cloud API, Evolution API, or Twilio) | Medium-high | Webhook-based (needs a public URL or tunnel). Consider Evolution API for self-hosted. |
-| 13 | **Audio reading** (all channels) | File reading (shipped) + speech-to-text (Whisper API or similar) | Medium | Killer feature for mobile. User sends voice note → Zeno transcribes → processes as text. **→ Spec 0064 (active roadmap)**. |
-| 14 | **Audio sending** (all channels) | Text-to-speech (OpenAI TTS, ElevenLabs, etc.) | Medium | Closes the voice loop. Zeno replies with audio when the user sent audio. **→ Spec 0065 (active roadmap)**. |
+| 13 | **Audio reading** (all channels) | File reading (shipped) + speech-to-text (Whisper API or similar) | Medium | Killer feature for mobile. User sends voice note → Zeno transcribes → processes as text. **→ Spec 0065 (active roadmap)**. |
+| 14 | **Audio sending** (all channels) | Text-to-speech (OpenAI TTS, ElevenLabs, etc.) | Medium | Closes the voice loop. Zeno replies with audio when the user sent audio. **→ Spec 0066 (active roadmap)**. |
 | 15 | **Image generation** | Prompt → image API (DALL-E, Flux, etc.) | Small | High visual impact. Could be a built-in skill or MCP server. |
 
 ### Multichannel design notes

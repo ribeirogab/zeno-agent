@@ -830,8 +830,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       return c.json(
         {
           error: 'channel_must_be_catalog_source',
-          message:
-            'Channels only support source: catalog. Custom channels are not supported.',
+          message: 'Channels only support source: catalog. Custom channels are not supported.',
         },
         400,
       );
@@ -856,10 +855,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         const submitted = new Map(body.secrets.map((s) => [s.key, s.value]));
         for (const sec of channelEntry.secrets.filter((s) => s.required)) {
           if (!submitted.has(sec.key)) {
-            return c.json(
-              { error: 'missing_required_secret', key: sec.key },
-              400,
-            );
+            return c.json({ error: 'missing_required_secret', key: sec.key }, 400);
           }
         }
         const slug = resolveSlugCollision(deps.connectors, channelEntry.id);

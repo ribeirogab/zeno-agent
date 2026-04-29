@@ -43,10 +43,7 @@ export function resolveSlackCredentials(
     if (!appToken || !botToken) {
       const msg =
         'Slack channel installed but credentials missing — fix via dashboard or uninstall the channel';
-      logger.error(
-        { event: 'slack_creds_empty_after_install', connectorId: slack.id },
-        msg,
-      );
+      logger.error({ event: 'slack_creds_empty_after_install', connectorId: slack.id }, msg);
       throw new Error(msg);
     }
 

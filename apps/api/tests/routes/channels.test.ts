@@ -12,10 +12,7 @@ import {
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { signSession } from '@/auth/hmac';
 import { COOKIE_NAME } from '@/auth/middleware';
-import {
-  _resetChannelsCatalogCache,
-  loadChannelsCatalog,
-} from '@/lib/channels-catalog-loader';
+import { _resetChannelsCatalogCache, loadChannelsCatalog } from '@/lib/channels-catalog-loader';
 import { createApp } from '@/server';
 
 // Spec 0057: chdir to worktree root so AGENT_CANDIDATES = ['agent'] resolves.

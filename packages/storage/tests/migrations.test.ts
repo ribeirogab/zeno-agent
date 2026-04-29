@@ -1027,9 +1027,7 @@ describe('migrations: connectors.kind (migration 18, spec 0057)', () => {
   it('adds kind column to connectors with default mcp', () => {
     const db = openDatabase(':memory:');
     runMigrations(db);
-    const cols = db
-      .prepare("PRAGMA table_info('connectors')")
-      .all() as PragmaTableInfoRow[];
+    const cols = db.prepare("PRAGMA table_info('connectors')").all() as PragmaTableInfoRow[];
     const kindCol = cols.find((c) => c.name === 'kind');
     expect(kindCol).toBeDefined();
     expect(kindCol?.notnull).toBe(1);
@@ -1043,9 +1041,9 @@ describe('migrations: connectors.kind (migration 18, spec 0057)', () => {
     db.exec(
       "INSERT INTO connectors (id, slug, display_name, source, transport, status) VALUES ('m1', 'sentry', 'Sentry', 'catalog', 'stdio', 'enabled')",
     );
-    const row = db
-      .prepare('SELECT kind FROM connectors WHERE id = ?')
-      .get('m1') as { kind: string };
+    const row = db.prepare('SELECT kind FROM connectors WHERE id = ?').get('m1') as {
+      kind: string;
+    };
     expect(row.kind).toBe('mcp');
     closeDatabase(db);
   });
@@ -1056,9 +1054,9 @@ describe('migrations: connectors.kind (migration 18, spec 0057)', () => {
     db.exec(
       "INSERT INTO connectors (id, slug, display_name, source, transport, status, kind) VALUES ('c1', 'slack', 'Slack', 'catalog', 'remote', 'enabled', 'channel')",
     );
-    const row = db
-      .prepare('SELECT kind FROM connectors WHERE id = ?')
-      .get('c1') as { kind: string };
+    const row = db.prepare('SELECT kind FROM connectors WHERE id = ?').get('c1') as {
+      kind: string;
+    };
     expect(row.kind).toBe('channel');
     closeDatabase(db);
   });

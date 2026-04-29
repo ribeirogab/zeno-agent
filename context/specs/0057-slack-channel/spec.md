@@ -22,7 +22,7 @@ Every other integration (Sentry, Linear, GitHub, Klaviyo, Swarmia, Playwright) i
 
 - An entry in `agent/connectors-catalog.json` describes the connector (id, name, transport, transport config, secrets, tools, icon, docs URL, etc.).
 - The user installs it via `/connectors` UI; the install creates a row in `connectors` table and writes secrets to `connector_secrets`.
-- The worker boots dynamic MCP servers from `connectors` rows (see `apps/api/src/lib/mcp-snapshot.ts` and `apps/worker/src/agent/mcp.ts`).
+- The worker boots dynamic MCP servers from `connectors` rows via `apps/worker/src/agent/mcp-build.ts` (`buildMcpServersMap()` iterates `ConnectorRepo.getEnabledWithRelations()`).
 
 Slack is the lone exception. This is an architectural inconsistency that gets worse with every future channel (Telegram, WhatsApp). Each new channel today would need its own envvars and bootstrap branch — exactly the divergence we want to prevent.
 
@@ -88,9 +88,9 @@ Existing rows get `kind = 'mcp'` automatically (default). The current `transport
 
 2. **`packages/storage/src/repos/connectors.ts`** — `ConnectorRow` interface gains `kind: string`, and `rowToConnector()` MUST map `row.kind` to the new `Connector.kind`. Without this mapping, the migration writes the column to the DB but reads return `undefined`, breaking `listByKind` silently. Same applies to all `INSERT`/`UPDATE` statements — they MUST include the `kind` column with the resolved value (default `'mcp'` for MCP-source rows, `'channel'` for channels-catalog installs).
 
-3. **`packages/storage/src/repos/connectors.ts`** — new method `listByKind(kind: ConnectorKind): Connector[]` returns rows filtered by the column. Add an indexed lookup OR rely on `idx_connectors_status_slug` + post-filter (acceptable at current row counts; revisit if catalog grows). Existing `list()` method is updated to optionally accept a `kind` filter (default behavior: return only `kind='mcp'` rows, preserving the contract of `GET /api/connectors` — see Track 4).
+3. **`packages/storage/src/repos/connectors.ts`** — `ListConnectorsFilter` gains an optional `kind?: ConnectorKind` filter field. `list()`'s default behavior is **unchanged** — passing no filter still returns all rows (avoids silent breakage of any caller that expects all rows). New method `listByKind(kind: ConnectorKind): Connector[]` is a thin wrapper around `list({ kind })` for ergonomics. Add an indexed lookup OR rely on `idx_connectors_status_slug` + post-filter (acceptable at current row counts; revisit if catalog grows).
 
-4. **`apps/worker/src/agent/mcp.ts`** (or equivalent MCP-snapshot/loader) — add a guard: `if (row.kind !== 'mcp') continue;`. Without this, the MCP loader will see channel rows (which use `transport='remote'` as a placeholder per Track 1) and try to spawn them as remote MCP servers, which would fail at runtime with confusing errors. This guard is REQUIRED — covered by an explicit test (see Test strategy).
+4. **`apps/worker/src/agent/mcp-build.ts`** (or equivalent MCP-snapshot/loader) — add a guard: `if (row.kind !== 'mcp') continue;`. Without this, the MCP loader will see channel rows (which use `transport='remote'` as a placeholder per Track 1) and try to spawn them as remote MCP servers, which would fail at runtime with confusing errors. This guard is REQUIRED — covered by an explicit test (see Test strategy).
 
 Both the test for `listByKind` AND a separate test asserting `rowToConnector(rowWithKind)` correctly hydrates the field are mandatory — they catch the "DB has it, type ignores it" silent bug class.
 
@@ -142,7 +142,7 @@ Refactor `apps/worker/src/index.ts:362` to use a new function `resolveSlackCrede
 | 1 | enabled + both secrets present | (irrelevant) | DB creds; `source: 'connector_secrets'` |
 | 2 | enabled + at least one secret missing | (irrelevant) | **HARD ERROR**: `Slack channel installed but credentials missing — fix via dashboard or uninstall the channel`. NEVER silent fallback. Empty secrets on an enabled row = operator misconfig. |
 | 3 | disabled (any secret state) | both present | `.env` creds; `source: 'env_fallback'`. Disabled row treated as "not installed". |
-| 4 | disabled (any secret state) | missing | **HARD ERROR**: same message as step 6. |
+| 4 | disabled (any secret state) | missing | **HARD ERROR**: `Slack credentials not configured — install Slack channel via dashboard or set SLACK_APP_TOKEN/SLACK_BOT_TOKEN in profile .env`. |
 | 5 | no row at all | both present | `.env` creds; `source: 'env_fallback'`. |
 | 6 | no row at all | missing | **HARD ERROR**: `Slack credentials not configured — install Slack channel via dashboard or set SLACK_APP_TOKEN/SLACK_BOT_TOKEN in profile .env`. |
 
@@ -180,11 +180,26 @@ Channels need to appear in the dashboard for the operator to install. Endpoint p
 
 - **NEW** `GET /api/channels/catalog` → list of catalog entries (read-only, reads `agent/channels-catalog.json` via `channels-catalog-loader.ts`).
 - **NEW** `GET /api/channels` → list of installed channels (i.e., `connectors` rows filtered by `kind='channel'`). Implementation: `ConnectorRepo.listByKind('channel')` + projection.
-- **MODIFIED** `GET /api/connectors` — existing endpoint at `apps/api/src/routes/connectors.ts:727`. Today it returns ALL rows in the connectors table; after this spec, channel rows would leak into the MCP connectors list (since both kinds share the table). The endpoint MUST be updated to filter `kind='mcp'` by default. Two acceptable implementations:
-  - (a) Add `kind` filter to the SQL query (preferred): `ConnectorRepo.list()` accepts an optional `kind` param defaulting to `'mcp'`; the route passes nothing (gets MCP-only).
-  - (b) Filter post-query in the route handler.
-  Either way, the existing `buildListItem` (which hardcodes `kind: 'connector'` in the response shape) stays unchanged for MCP rows — the response contract for `/api/connectors` is unchanged externally; only the SQL/post-filter is added.
-- **EXTENDED** `POST /api/connectors` — install endpoint. The existing schema at `apps/api/src/routes/connectors.ts:222` is `z.discriminatedUnion('source', [createCatalogSchema, createCustomSchema])`. We DO NOT change the discriminator. Instead, we add a top-level optional field on BOTH branches: `kind: z.enum(['mcp', 'channel']).optional().default('mcp')`. The handler then branches on `kind` BEFORE the existing `findCatalogEntry()` call:
+- **MODIFIED** `GET /api/connectors` — existing endpoint at `apps/api/src/routes/connectors.ts:727`. Today it calls `deps.connectors.list()` with no filter and returns ALL rows. After this spec, channel rows would leak into the MCP connectors list since both kinds share the table. **The fix is in the route handler, NOT in `list()`'s default behavior:**
+  1. `ListConnectorsFilter` (in `repos/connectors.ts`) gains an optional `kind?: ConnectorKind` filter field. `list()`'s default behavior **stays unchanged** — passing no filter still returns all rows. This avoids silently breaking any caller that expects "all rows" today.
+  2. The route handler at `connectors.ts:727` is updated to pass `{ kind: 'mcp' }` explicitly: `deps.connectors.list({ kind: 'mcp' })`. After this change, `GET /api/connectors` returns only MCP rows, the existing `buildListItem` (which hardcodes `kind: 'connector'` in the response shape) is unchanged for MCP rows, and external response contract is preserved.
+  3. Other internal callers of `list()` are NOT changed in this spec. Specifically, `getEnabledWithRelations()` (called by `buildMcpServersMap()` in `apps/worker/src/agent/mcp-build.ts`) keeps its current behavior — it doesn't filter by kind via SQL. Instead, the **MCP guard** (Track 1 step 4) — `if (row.kind !== 'mcp') continue;` — is added at the iteration site in `mcp-build.ts`, which catches channel rows there. Defense in depth: route filters at the API edge, MCP loader filters at the consumer. No silent default changes.
+- **EXTENDED** `POST /api/connectors` — install endpoint. The existing schema at `apps/api/src/routes/connectors.ts:222` is `z.discriminatedUnion('source', [createCatalogSchema, createCustomSchema])`. We DO NOT change the discriminator. Instead, we add the same optional `kind` field to **each branch's `z.object(...)` shape** (Zod's `discriminatedUnion` doesn't natively support shared top-level fields — adding to each branch is the explicit pattern):
+  ```ts
+  const createCatalogSchema = z.object({
+    source: z.literal('catalog'),
+    catalogId: z.string(),
+    kind: z.enum(['mcp', 'channel']).optional().default('mcp'),  // NEW
+    secrets: z.record(z.string()).optional(),
+    // ... existing fields
+  });
+  const createCustomSchema = z.object({
+    source: z.literal('custom'),
+    kind: z.enum(['mcp', 'channel']).optional().default('mcp'),  // NEW
+    // ... existing fields
+  });
+  ```
+  The handler then branches on `kind` BEFORE the existing `findCatalogEntry()` call:
   - If `kind === 'channel'`: call a NEW `findChannelCatalogEntry(catalogId)` that searches `channels-catalog.json`. Validate secrets payload against the channel entry's `secrets` schema. Insert a `connectors` row with `kind='channel'`, `transport='remote'` (placeholder per Track 1), `command=NULL`, `args=NULL`, `url=NULL`.
   - If `kind === 'mcp'` (default): existing behavior — call `findCatalogEntry()` against `connectors-catalog.json`, etc. NO behavior change for existing MCP installs.
   This preserves the existing `source` discriminator (catalog/custom remains) while introducing `kind` as an orthogonal axis. Channel installs only support `source: 'catalog'` (no custom channels in this spec — channels are always from the curated catalog).
@@ -230,7 +245,7 @@ This avoids the discriminated-union mess (where every consumer has to branch on 
 agent/
 ├── connectors-catalog.json        # MCP-tool connectors (existing) — unchanged
 ├── channels-catalog.json          # NEW: channel transports (Slack initially)
-└── assets/icons/
+└── assets/connectors/             # icon directory (existing — verified resolveIconPath)
     ├── sentry.svg, linear.svg, ...   # existing
     └── slack.svg                  # NEW
 
@@ -303,16 +318,29 @@ Note: only ONE channel is bootstrapped in 0057 (Slack). Future channels iterate 
   5. no DB row + both env tokens → env creds, `source: 'env_fallback'`.
   6. no DB row + missing env → throws `slack_creds_missing`.
   Each test asserts the log signal as well as the return value or thrown error.
-- **MCP-vs-channel guard test** — assert that `apps/worker/src/agent/mcp.ts` (or the equivalent MCP-snapshot loader) ignores rows where `kind='channel'`. Current behavior: the MCP loader iterates all `connectors` rows and tries to spawn each one as an MCP server. After this spec, channel rows in the same table would cause spurious spawn attempts (`transport='remote'` placeholder makes them look like remote MCPs). The guard is `if (row.kind !== 'mcp') continue;` — this is REQUIRED, not advisory. Test: insert a channel row, run the MCP loader, assert no spawn attempt was made for it.
+- **MCP-vs-channel guard test** — assert that `apps/worker/src/agent/mcp-build.ts` (or the equivalent MCP-snapshot loader) ignores rows where `kind='channel'`. Current behavior: the MCP loader iterates all `connectors` rows and tries to spawn each one as an MCP server. After this spec, channel rows in the same table would cause spurious spawn attempts (`transport='remote'` placeholder makes them look like remote MCPs). The guard is `if (row.kind !== 'mcp') continue;` — this is REQUIRED, not advisory. Test: insert a channel row, run the MCP loader, assert no spawn attempt was made for it.
 
 **Integration tests:**
 
 - API `GET /api/channels/catalog` → returns catalog entries.
 - API `GET /api/channels` (empty / with one installed) → returns expected shape.
 - API `POST /api/connectors` with `kind=channel` payload → row inserted with `kind='channel'`.
-- Worker boot in-process (against in-memory DB) — using `SlackChannel` with mocked Bolt client. Verifies the channel `start()` is called; verifies `MessageHandler` wired correctly.
+- API `GET /api/connectors` → channel rows are NOT returned (filtered out by route handler).
+- Worker boot in-process (against in-memory DB) — uses `SlackChannel` with a mocked Bolt `App`. Verifies the channel `start()` is called; verifies `MessageHandler` wired correctly.
 
-**No real Slack interaction.** The Bolt `App` client is mocked at the integration boundary (the existing `SlackChannel` constructor accepts opts; we pass a wrapped App for tests). This intentionally leaves "real Slack workspace test" to spec 0058.
+**SlackChannel constructor needs an opt-in injection point.** Today (`apps/worker/src/channels/slack/adapter.ts:38-44`), `SlackChannel` constructs `new App(...)` internally — there's no way to substitute a test double. This spec adds a minimal escape hatch:
+```ts
+interface SlackChannelOptions {
+  appToken: string;
+  botToken: string;
+  // ... existing fields ...
+  /** Test-only: inject a pre-built App instance instead of constructing one. */
+  _appOverride?: App;
+}
+```
+Constructor uses `this.app = opts._appOverride ?? new App({ token: opts.botToken, ... });`. Production code never passes `_appOverride`. Tests pass a mocked `App` instance to assert dispatch behavior without real Slack network calls. The underscore prefix signals "internal/test-only" — not part of the public contract.
+
+**No real Slack interaction in this spec.** The Bolt `App` is mocked via `_appOverride` at the integration boundary. Real Slack workspace test is intentionally deferred to spec 0058.
 
 ### Error handling
 
@@ -361,7 +389,7 @@ This spec ships when ALL the following pass on the branch:
 | Risk | Mitigation |
 |---|---|
 | Migration ordering — adding `kind` to `connectors` while running profiles still on the old schema | Migration is additive only (no DROP / no constraint tightening on existing values). Default `kind='mcp'` makes all existing rows valid post-migration. Tested with a snapshot of `profiles/fn` schema as fixture. |
-| `transport` constraint forces a meaningless value for channel rows | Use `transport='remote'` semantically as "runtime-managed, no MCP spawn" for channel rows. Documented in spec + repo. Cleanup possible later if it bothers; not a 0057 concern. **Guard required** in `apps/worker/src/agent/mcp.ts`: `if (row.kind !== 'mcp') continue;` so the MCP loader never tries to spawn a channel row. Tested explicitly. |
+| `transport` constraint forces a meaningless value for channel rows | Use `transport='remote'` semantically as "runtime-managed, no MCP spawn" for channel rows. Documented in spec + repo. Cleanup possible later if it bothers; not a 0057 concern. **Guard required** in `apps/worker/src/agent/mcp-build.ts`: `if (row.kind !== 'mcp') continue;` so the MCP loader never tries to spawn a channel row. Tested explicitly. |
 | Tests pass in mocked env but live Slack boot breaks something subtle | This is exactly why 0058 exists. 0057 explicitly does NOT claim production-readiness for the `profiles/fn` cutover; that risk is deferred and managed in 0058 with rollback plan + backup of `.env`. |
 | `.env` fallback code stays forever as dead crud | Optional 0058's last commit removes the fallback after cutover stabilizes. Tracked in 0058's plan, not 0057's. |
 | Channels catalog loader semantics drift from connectors loader | Share helpers where reasonable (validation, file reads). Both loaders tested side-by-side. If drift becomes a problem, refactor to a generic catalog loader with `kind`-specific validators. |

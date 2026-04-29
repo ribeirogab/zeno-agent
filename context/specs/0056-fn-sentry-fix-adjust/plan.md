@@ -103,18 +103,27 @@ A → B → C is strictly serial. D requires C. E requires D PASS. F requires E 
 - **Slack message ordering: progress msg #1 fires BEFORE Phase 1 fully completes** (e.g., `get_issue_details` 404 path). The spec already addresses this in Risks: stuck-message follows the progress msg as next emission, no need to retract. Implementer must put progress msg #1 placement at end of Phase 1 (after fetch SUCCESS), not at start.
 - **Sentry comment fallback assumption.** REST API uses connector_secrets token. If the token rotated or got revoked, the curl call fails and the agent must hit the Slack fallback. R3 advisory: verify token still valid in the docker container before E2E (`docker exec ... node -e "..."` to read connector_secrets).
 
+## Divergence from this plan (post-implementation amendment)
+
+This plan was authored before E2E. The actual delivery diverged on 2 axes — see `spec.md` "Divergence from original design" section for the full narrative. Summary for plan readers:
+
+- **Phase B was split into 4 commits, not 1.** Original plan: single commit applying replace + add + trim. Actual: (1) v2 commit per plan; (2) drop progress msgs after E2E S1 round 1 revealed `apps/worker/src/agent/backends/claude-code.ts:137-148` only routes SDK `result` events; (3) tighten Turn Output Contract after E2E S1+S2 round 2 leaked status preamble; (4) in-place self-check at Phase 7 Step 4 after rounds 2-3 still leaked.
+- **Edit map's progress-msg insertions never landed in final SKILL.md.** Phase 1 / Phase 4 progress signal sub-sections were added in commit 1, removed in commit 2.
+- **Net trim target met (493 → 467, -26 lines)** — comfortable margin under ≤480 cap.
+- **Phase D E2E** ran in 4 rounds (vs 3 scenarios planned). S1 happy was retested 4 times to validate the contract tightening. S2 ended up exercising the clarification path (zero-issue) instead of stuck-gate (WORKER-V drifted from 1-event to multi-event between spec 0055 and now). S5 zero-filler regression confirmed across all rounds.
+
 ## Self-Review
 
 After authoring the v2 SKILL.md, verify:
 
-- [ ] Frontmatter unchanged (name, description)
-- [ ] Apache 2.0 attribution unchanged
-- [ ] Old "NO progress/status messages" paragraph completely REMOVED
-- [ ] New "Turn output contract" section present with: 6 allowed shapes enumerated, DON'T list with filler examples + code-block carve-out, tool-call note, Skill-is-synchronous note
-- [ ] Progress msg #1 at end of Phase 1 (after fetch success path), no @-mention
-- [ ] Progress msg #2 at end of Phase 4 (only on gate-pass), no @-mention
-- [ ] All 5 final templates (success / Phase 4 stuck / Phase 5 stuck / Phase 6 stuck / auto-resolve / clarification) byte-for-byte unchanged from current SKILL.md state
-- [ ] LICENSE-APACHE-2.0 file untouched
-- [ ] Line count ≤ 480
-- [ ] No new files in `profiles/fn/skills/fn-sentry-fix/`
+- [x] Frontmatter unchanged (name, description)
+- [x] Apache 2.0 attribution unchanged
+- [x] Old "NO progress/status messages" paragraph completely REMOVED
+- [x] New "Turn output contract" section present (now: 4 allowed shapes + deferred-work note for progress msgs, NOT the original 6 — see Divergence)
+- [x] ~~Progress msg #1 at end of Phase 1~~ — DROPPED, deferred to future spec
+- [x] ~~Progress msg #2 at end of Phase 4~~ — DROPPED, deferred to future spec
+- [x] All 5 final templates byte-for-byte unchanged from spec 0055 baseline
+- [x] LICENSE-APACHE-2.0 file untouched
+- [x] Line count ≤ 480 (delivered at 467)
+- [x] No new files in `profiles/fn/skills/fn-sentry-fix/`
 - [ ] `git diff --stat feat/sentry-fix-skill..HEAD` shows ONLY the SKILL.md change in this branch

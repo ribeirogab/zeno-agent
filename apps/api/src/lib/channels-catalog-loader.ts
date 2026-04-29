@@ -10,20 +10,25 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
 /**
  * Search candidates for `agent/channels-catalog.json`:
  * 1. `/app/agent` — Docker container (mounted from worktree root)
  * 2. `agent` — local dev when CWD is worktree root
- * 3. walk up from current __dirname looking for `agent/channels-catalog.json` —
- *    handles tests run from package subdirectories (apps/api, etc.)
+ * 3. walk up from this module's directory looking for `agent/channels-catalog.json`
+ *    — handles tests run from package subdirectories (apps/api, etc.)
+ *
+ * NOTE: do NOT use the global `__dirname` here — this file is compiled to ESM,
+ * where `__dirname` is undefined and reading it throws `ReferenceError`. The
+ * `import.meta.url + fileURLToPath` path is the ESM-correct equivalent.
  */
 function findAgentDir(): string | null {
   if (existsSync('/app/agent')) return '/app/agent';
   if (existsSync('agent')) return 'agent';
   // Walk up from this module's location until we find `agent/`
-  let dir = __dirname;
+  let dir = dirname(fileURLToPath(import.meta.url));
   for (let i = 0; i < 10; i++) {
     const candidate = resolve(dir, 'agent');
     if (existsSync(candidate)) return candidate;

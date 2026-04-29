@@ -169,7 +169,7 @@ export interface ResolvedSlackCredentials {
 export function resolveSlackCredentials(deps: SlackCredentialsResolverDeps): ResolvedSlackCredentials;
 ```
 
-`apps/worker/src/index.ts:362` imports and calls it: `const { appToken, botToken } = resolveSlackCredentials({ db, env: config.slack, logger });`, then constructs `new SlackChannel({ appToken, botToken, workspaceDir: config.workspaceDir })`.
+The function is **synchronous** (no `Promise` wrapper) — the underlying `better-sqlite3` driver is synchronous and there are no async operations in the resolver. `apps/worker/src/index.ts:362` imports and calls it without `await`: `const { appToken, botToken } = resolveSlackCredentials({ db, env: config.slack, logger });`, then constructs `new SlackChannel({ appToken, botToken, workspaceDir: config.workspaceDir })`.
 
 The `config.ts` Zod schema for `SLACK_APP_TOKEN` / `SLACK_BOT_TOKEN` becomes **optional**, AND `Config.slack` (the typed result of `loadConfig()`) updates accordingly:
 
@@ -225,7 +225,7 @@ Channels need to appear in the dashboard for the operator to install. Endpoint p
   });
   ```
   The handler then branches on `kind` BEFORE the existing `findCatalogEntry()` call:
-  - If `kind === 'channel'`: call a NEW `findChannelCatalogEntry(catalogId)` that searches `channels-catalog.json`. Validate secrets payload against the channel entry's `secrets` schema. Synthesize `tools: []` in the enqueued command payload (channels have no MCP tools, but the existing `connector-create` handler's `catalogSchema` requires a `tools` field — pass an empty array). Insert a `connectors` row with `kind='channel'`, `transport='remote'` (placeholder per Track 1), `command=NULL`, `args=NULL`, `url=NULL`. (Equivalently: relax `tools` to default `[]` in the worker-handler's catalogSchema. Either fix is acceptable — pick the API-route synthesis path for symmetry with `transport='remote'` synthesis.)
+  - If `kind === 'channel'`: call a NEW `findChannelCatalogEntry(catalogId)` that searches `channels-catalog.json`. Validate secrets payload against the channel entry's `secrets` schema. Resolve the slug via the existing `resolveSlugCollision(deps.connectors, channelEntry.id)` (mirrors the MCP path) — channel installs go through the same uniqueness check. Synthesize `tools: []` in the enqueued command payload — **PREFERRED fix**, applied at the API route before enqueuing — channels have no MCP tools but the existing `connector-create` handler's `catalogSchema` requires a `tools` field. Insert a `connectors` row with `kind='channel'`, `transport='remote'` (placeholder per Track 1), `command=NULL`, `args=NULL`, `url=NULL`. (Alternative: relax `tools` to default `[]` in the worker-handler's `catalogSchema`. The API-route synthesis is preferred for symmetry with the `transport='remote'` synthesis pattern.)
   - If `kind === 'mcp'` (default): existing behavior — call `findCatalogEntry()` against `connectors-catalog.json`, etc. NO behavior change for existing MCP installs.
   This preserves the existing `source` discriminator (catalog/custom remains) while introducing `kind` as an orthogonal axis. Channel installs only support `source: 'catalog'` (no custom channels in this spec — channels are always from the curated catalog).
 - **MODIFIED** worker-side command handler `connector_create` at `apps/worker/src/commands/handlers/connector-create.ts` (handler map composed in `apps/worker/src/commands/handlers/index.ts`). The API route at `apps/api/src/routes/connectors.ts:837` enqueues a `connector_create` command; the worker handler is what actually calls `ConnectorRepo.create()`. The spec REQUIRES three changes here:
@@ -302,8 +302,18 @@ apps/worker/src/
 ├── config.ts                      # SLACK_*_TOKEN become optional
 ├── channels/
 │   ├── types.ts                   # unchanged
-│   └── slack/                     # unchanged
-└── index.ts                       # NEW resolver: DB → env → error, with explicit logging
+│   └── slack/
+│       ├── adapter.ts             # +_appOverride opt for testability
+│       ├── files.ts               # unchanged
+│       ├── format.ts              # unchanged
+│       ├── normalize.ts           # unchanged
+│       ├── resolve-credentials.ts # NEW: DB → env → error resolver
+│       └── resolve-credentials.test.ts # NEW: 6 cases (resolution table)
+├── agent/
+│   └── mcp-build.ts               # +guard: if (connector.kind !== 'mcp') continue
+├── commands/handlers/
+│   └── connector-create.ts        # +kind in payload schemas, forward to repo
+└── index.ts                       # call resolveSlackCredentials before SlackChannel
 ```
 
 ### Data flow at boot

@@ -18,7 +18,7 @@ The architecture is intentionally layered, in order of weight:
 - **The channel is the I/O boundary.** Slack today; Discord, Telegram, email, etc. are pluggable additions tomorrow. The channel is how user requests come in and how the agent's reply goes back out — not a tool the agent uses.
 - **The backend is the brain.** Pluggable reasoning engine (Claude Code today, alternatives possible). Orchestrates which connector tools to call.
 - **The core is small and stable.** A channel adapter, a backend wire, a cron runner, a dashboard. It should rarely change.
-- **Skills (deferred) are domain knowledge.** Skills are not part of the runtime in this iteration. When they return, they may be bundled with connectors — domain knowledge layered on top of connector capabilities to inform orchestration without granting power. This is a future direction; the concrete design is for a later spec.
+- **Skills are markdown playbooks** (reintroduced in spec 0052). The operator installs SKILL.md files via the dashboard; the worker materializes them to `~/.claude/skills/<name>/SKILL.md` and the Claude Agent SDK auto-discovers each one as a `<name>: <description>` entry in the system prompt. When a description matches the user's request, the agent reads the SKILL.md body and follows its templates literally — including any output-format contracts. Skills carry only content; capabilities (Read/Edit/Write/Bash etc.) are gated globally via `/settings/agent-capabilities` per the spec 0052 contract.
 
 The goal is that adding a capability is always a matter of installing or building a new connector, never of modifying the core. When in doubt between flexibility in the core and flexibility in the connector layer, the connector layer wins.
 

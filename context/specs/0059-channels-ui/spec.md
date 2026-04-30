@@ -130,10 +130,19 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
 
 **New folder:** `apps/dashboard/src/components/channels/`:
 
-- `channels-catalog-install-modal.tsx` — copied from `connectors/catalog-install-modal.tsx` and adapted:
-  - Fetches `/api/channels/catalog` (not `/api/connectors/catalog`).
-  - POSTs to `/api/connectors` with `kind: 'channel'` + `source: 'catalog'` body shape (per spec 0057).
-  - Renders catalog entries as a simple list (one click → secrets form). Slack-only today so the list is degenerate, but structure stays for TG/WPP.
+- `channels-catalog-install-modal.tsx` — copied from `connectors/catalog-install-modal.tsx` and adapted. **What gets REMOVED in the copy** (audit at implementation time — implementer must explicitly delete these blocks, not leave them as dead code):
+  - The "test connection" button + `useTestCatalogConnection` mutation + result strip (lines ~59-71, ~301-307 of the connectors source). Channels have no test endpoint (per Non-Goals). The button shouldn't appear at all.
+  - Any github-app-specific install paths or `customInstallComponent` rendering (channels don't have github-app analogs; catalog entries are just secret-form-based).
+  - References to the connectors-catalog endpoint or any MCP-tools rendering.
+
+  **What's KEPT**:
+  - Catalog list rendering with icon + name + description.
+  - Secret-fields form per catalog entry's `secrets[]` schema.
+  - Submit button → POST `/api/connectors` with `kind: 'channel'` + `source: 'catalog'` body shape (per spec 0057).
+  - Polling pattern after POST (per the Install data flow).
+  - Error state for catalog fetch failure ("Channels catalog unavailable").
+
+  Slack-only today; structure stays for TG/WPP without modification.
 - Other detail-page modals (uninstall confirm, edit-secrets) — inline within the route file or extracted to `components/channels/` as needed.
 
 **Shared shadcn primitives** (already exist; no new shared components):
@@ -243,12 +252,16 @@ User clicks "Uninstall" in detail page overflow menu
   ↓
 Confirm dialog: "Uninstall Slack? Bot will stop responding."
   ↓
-DELETE /api/channels/:id → enqueues connector_uninstall
+DELETE /api/channels/:id → SYNC direct DB delete via ConnectorRepo.delete()
+  (FK CASCADE drops connector_secrets in the same transaction)
   ↓
-Optimistic UI: navigate to /channels, show toast "Slack uninstalled"
+HTTP 204 returned immediately
   ↓
-List refetches (channel will disappear once worker processes the uninstall)
+Toast "Slack uninstalled"; navigate to /channels
+List refetches; the row is already gone (no eventual-consistency wait)
 ```
+
+(Sync DELETE per Track 1 rationale: uninstall has no worker side-effect — a row disappears, that's it. The next worker boot would fail to connect to Slack if the bot was still active, but the operator just chose to disconnect, so that's correct behavior. The connectors `connector_uninstall` command-queue path exists because MCP connectors need worker side-effects, e.g. spawn cleanup; channels don't.)
 
 ## Test plan / Success criteria
 
@@ -263,7 +276,7 @@ This spec ships when ALL the following pass on the branch:
 **API surface (Track 1):**
 - [ ] `GET /api/channels/:id` returns channel-shape response for kind='channel' rows; 404 for kind='mcp' or unknown ids.
 - [ ] `PATCH /api/channels/:id/secrets` replaces secrets atomically; 204 on success; 404 for non-channel rows.
-- [ ] `DELETE /api/channels/:id` enqueues uninstall command; 204 on success; 404 for non-channel rows.
+- [ ] `DELETE /api/channels/:id` synchronously deletes the row via `ConnectorRepo.delete()`; 204 on success; 404 for non-channel rows. NO command queue.
 - [ ] All 3 endpoints require auth (cookie). 401 without.
 - [ ] Tests added in `apps/api/tests/routes/channels.test.ts` (1 happy path + 1 404 for non-channel id + 1 401 unauthed per endpoint = 9 tests minimum). Pattern: copy the auth-cookie helper from `apps/api/tests/routes/connectors.test.ts` (the `signSession` + COOKIE_NAME pattern); existing 11 channels tests in `channels.test.ts` already use this — extend, don't duplicate the helper.
 

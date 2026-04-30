@@ -120,8 +120,8 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
 - Header: icon + name + status pill + uninstall in overflow menu.
 - Body sections (in order):
   1. **Secrets** — list of masked secret fields. Edit button opens `channels-edit-secrets-modal.tsx` (Track 4) which PATCHes via `PATCH /api/channels/:id/secrets`. Mirrors connectors page pattern.
-  2. **Last verified** — pretty-formatted date if non-null; "Never verified" otherwise.
-  3. **Last error** — red callout with `lastError` text + `lastErrorAt`, only if `lastError !== null`.
+  2. **Last verified** — `formatRelative(lastVerifiedAt)` if non-null; "Never verified" otherwise. The `formatRelative(iso: string)` helper is currently duplicated as a file-local function in `connectors.index.tsx` (line ~483), `connectors.$id.tsx` (line ~781), and `connectors.github-app.tsx` (line ~384). For consistency with the existing copy-not-share pattern, copy the function into the channels routes too — extracting a shared helper is out of scope (deferred follow-up).
+  3. **Last error** — red callout, only if `lastError !== null`. Format: `lastError` text on the first line, `formatRelative(lastErrorAt)` on the second (same helper as Last verified, for consistency).
 - NO transport/command/args/url section.
 - NO tool catalog list.
 - NO invocation history list.

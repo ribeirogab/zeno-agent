@@ -131,9 +131,11 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
 
 **New folder:** `apps/dashboard/src/components/channels/`:
 
-- `channels-catalog-install-modal.tsx` — copied from `connectors/catalog-install-modal.tsx` and adapted. **What gets REMOVED in the copy** (audit at implementation time — implementer must explicitly delete these blocks, not leave them as dead code):
-  - The "test connection" button + `useTestCatalogConnection` mutation + `ResultStrip` component (lines ~59-71, ~200-242, ~299-307 of the connectors source). Channels have no test endpoint (per Non-Goals). The button shouldn't appear at all.
-  - The `customInstallComponent` routing wrapper (lines ~22-35) — channels catalog entries are all secret-form-based, no special install components.
+- `channels-catalog-install-modal.tsx` — copied from `connectors/catalog-install-modal.tsx` and adapted. **What gets REMOVED in the copy** (audit at implementation time — implementer must explicitly delete these blocks, not leave them as dead code; references are by name to stay accurate even if upstream line numbers drift):
+  - The `useTestCatalogConnection` import + mutation invocation + `handleTest` handler. Channels have no test endpoint (per Non-Goals).
+  - The `ResultStrip` component definition (renders the test-connection result) and every render of it.
+  - The "test connection" button in the modal Footer.
+  - The `customInstallComponent` routing block — channels catalog entries are all secret-form-based, no special install components.
   - Any github-app-specific install paths.
   - References to the connectors-catalog endpoint or any MCP-tools rendering.
 

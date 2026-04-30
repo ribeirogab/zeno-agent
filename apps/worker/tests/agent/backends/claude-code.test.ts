@@ -47,10 +47,37 @@ describe('ClaudeCodeBackend', () => {
     expect(query).toHaveBeenCalledOnce();
     const call = vi.mocked(query).mock.calls[0][0];
     expect(call.prompt).toBe('oi');
-    expect(call.options?.systemPrompt).toBe('You are Zeno.');
+    // Spec 0060: systemPrompt MUST be the preset+append shape so the SDK
+    // injects the skill listing block from ~/.claude/skills/. A bare-string
+    // systemPrompt silently drops the listing — see spec 0060 root cause.
+    expect(call.options?.systemPrompt).toEqual({
+      type: 'preset',
+      preset: 'claude_code',
+      append: 'You are Zeno.',
+    });
     expect(call.options?.cwd).toBe('/workspace');
     expect(call.options?.allowedTools).toContain('Bash');
     expect(call.options?.permissionMode).toBe('bypassPermissions');
+  });
+
+  // Spec 0060: dedicated contract test guarding against regression to
+  // bare-string systemPrompt. If somebody refactors and removes the
+  // preset wrapper, the SDK silently stops announcing skills and the
+  // agent freelances output. Lock the shape here so CI catches it.
+  it('wraps systemPrompt in claude_code preset to keep skill listing visible', async () => {
+    mockQueryStream([{ type: 'result', result: 'hi', total_cost_usd: 0.001 }]);
+    const backend = new ClaudeCodeBackend();
+    await backend.query({ ...baseInput, systemPrompt: 'CUSTOM SOUL CONTENT' });
+
+    const call = vi.mocked(query).mock.calls[0][0];
+    const sp = call.options?.systemPrompt;
+    // MUST be an object with the preset shape — never a bare string.
+    expect(typeof sp).toBe('object');
+    expect(sp).toMatchObject({
+      type: 'preset',
+      preset: 'claude_code',
+      append: 'CUSTOM SOUL CONTENT',
+    });
   });
 
   it('returns text from the final result message', async () => {

@@ -125,7 +125,7 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
 - NO transport/command/args/url section.
 - NO tool catalog list.
 - NO invocation history list.
-- Uninstall: opens `channels-uninstall-confirm-dialog.tsx` (Track 4): "Uninstall Slack? Bot will stop responding to messages." Confirm → DELETE → toast + redirect to `/channels` index.
+- Uninstall: opens `channels-uninstall-confirm-dialog.tsx` (Track 4) — title "Uninstall {displayName}?", body "Bot will stop responding to {displayName} messages." Confirm → DELETE → toast + redirect to `/channels` index.
 
 ### Track 4 — Channels-specific components
 
@@ -148,13 +148,13 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
 
   Slack-only today; structure stays for TG/WPP without modification.
 - `channels-edit-secrets-modal.tsx` — extracted (NOT inlined). Modal opened from the detail page's Edit button. Renders one input per catalog secret key with placeholder "currently set: ****<last4>"; on submit, POSTs `PATCH /api/channels/:id/secrets` with `{ mode: 'merge', secrets: [...] }` (only changed keys per Data flow — view + edit secrets).
-- `channels-uninstall-confirm-dialog.tsx` — extracted (NOT inlined). Simple shadcn AlertDialog, "Uninstall Slack? Bot will stop responding to messages." Confirm → DELETE → toast + redirect.
+- `channels-uninstall-confirm-dialog.tsx` — extracted (NOT inlined). Simple shadcn AlertDialog. Title and body parameterised by the channel's `displayName` so the same component covers Telegram/WhatsApp/etc. without future edits: title "Uninstall {displayName}?", body "Bot will stop responding to {displayName} messages.". For today's Slack-only world this renders as "Uninstall Slack?" / "Bot will stop responding to Slack messages." Confirm → DELETE → toast + redirect.
 
 (Both are extracted, not inlined, to mirror the connectors pattern at `apps/dashboard/src/components/connectors/` and keep the route files focused on layout/data-fetching.)
 
-**Shared shadcn primitives** (already exist; no new shared components):
-- `<StatusBadge>` — channels reuse the existing connector status badge component (same enum).
-- Form inputs, dialog, button, card — all from shadcn/ui under `apps/dashboard/src/components/ui/`.
+**Reused primitives** (no new shared components introduced):
+- `StatusPill` — the connectors routes (`connectors.index.tsx` line ~358, `connectors.$id.tsx` line ~369) define a file-local `StatusPill` function with the variants `'active' | 'error' | 'off' | 'pending'`. **Copy this function** verbatim into the channels route(s) — it is NOT exported as a shared component, and per the Q4 Option-C decision (copy not share between channels and connectors) we do NOT introduce a new shared component for it. Same enum, same visual logic. If a future spec wants to extract a shared `<StatusPill>`, that's a separate refactor.
+- Form inputs, dialog, button, card — all from shadcn/ui under `apps/dashboard/src/components/ui/`. These ARE genuinely shared primitives.
 
 ### Track 5 — Sidebar nav
 
@@ -266,7 +266,7 @@ HTTP 204; toast "Secrets updated"; modal closes; detail page refetches
 ```
 User clicks "Uninstall" in detail page overflow menu
   ↓
-Confirm dialog: "Uninstall Slack? Bot will stop responding."
+Confirm dialog: "Uninstall {displayName}? Bot will stop responding to {displayName} messages." (renders as "Uninstall Slack? Bot will stop responding to Slack messages." today)
   ↓
 DELETE /api/channels/:id → SYNC direct DB delete via ConnectorRepo.delete()
   (FK CASCADE drops connector_secrets in the same transaction)

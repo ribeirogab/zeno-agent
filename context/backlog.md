@@ -168,3 +168,47 @@ The **Active roadmap** section below is the exception — that's the committed s
 | Worker tsconfig strictness flags disabled | `apps/worker/tsconfig.json` | Same trigger. |
 | Watcher test flaky ~1/5 on macOS | `apps/worker/tests/profile/watcher.test.ts` | If it starts failing CI consistently. |
 | `loadMcpConfig` duplicated between worker and api | `apps/worker/src/agent/mcp.ts` + `apps/api/src/lib/mcp-snapshot.ts` | When a third consumer appears. |
+
+---
+
+## Paper file reorganization — route-based containers
+
+**Status:** brainstormed 2026-04-30, not yet a spec. Can be picked up by a parallel agent — does NOT block any product work, only affects the design file `zeno-agent.pen`.
+
+**Problem.** The Paper file currently has 96 top-level artboards spread across one giant page (~22000px tall × ~9000px wide). They're loosely grouped by spec section (`— FOUNDATIONS`, `— PAGES`, `— CONNECTORS UI (spec 0029)`, `— SKILLS UI v2 (spec 0061)`, etc.) using thin "section header" artboards as visual dividers, but the sidebar still shows a flat list of 96 entries. To find the artboard for `/crons` detail you have to either remember its ID or scroll a lot.
+
+**Constraint.** Paper MCP doesn't expose a "section" or "group" primitive. Tools only handle top-level artboards + nested children inside. There's no `create_section` or equivalent. (Re-confirmed by reading `get_guide({ topic: 'paper-mcp-instructions' })` 2026-04-30.)
+
+**Proposed solution — route-based container artboards.** One top-level artboard per route/section, named after the route. Each container holds the existing screens as nested children. The sidebar's natural chevron expand/collapse becomes the grouping affordance.
+
+Sidebar end state:
+
+```
+> design system        (foundations + primitives nested inside)
+> login
+> home
+> crons                (list + detail + empty + M3.1 new + M3.2 delete)
+> sessions
+> logs
+> settings             (default + secret edit + restart confirm)
+> connectors           (C1..C10 + M1..M11 + activity feed)
+> channels             (CH1..CH3 + M-ch-1/2/3)
+> skills               (S3v2 + readonly + install variants + delete variants)
+```
+
+Each container = `1500–2000px wide`, `fit-content` height, vertical flex column. Existing artboards are reparented inside via `move_nodes` (preserves nodeIds, so `context/specs/0061-skills-multi-file-paper/tasks.md` table of artboard IDs continues to resolve).
+
+**Migration plan (~1h-1h30):**
+1. Create one piloto container artboard (`skills` is the smallest — 6 artboards) and `move_nodes` the existing S3v2 / S3v2-readonly / M-skill-1v2 / M-skill-1c / M-skill-4v2 / M-skill-4v2-profile inside.
+2. Owner validates the sidebar UX in Paper desktop.
+3. If approved, replicate for the other 9 routes (design system, login, home, crons, sessions, logs, settings, connectors, channels).
+4. Delete the obsolete section-header artboards (`D9-0`, `DE-0`, `DJ-0`, `1JZ-0`, `52E-0`, `61M-0`, `6JG-0`) — their job is now done by the container's name.
+
+**Things to figure out during implementation:**
+- Does Paper actually render nested-frame-as-group with the chevron? Tested briefly via `get_basic_info` — current artboards expose `>` chevrons in the sidebar already, but those reveal the artboard's content layers. Whether a top-level artboard containing other artboards-as-children (vs content frames) gets the same affordance needs to be verified by the migrating agent on the piloto step.
+- Variants of different widths inside the same container (e.g. `/skills` has 1440px pages + 800px modals). Vertical stack with align-items: flex-start should work; verify visual fit.
+- Spec docs that reference artboard IDs (`6JK-0`, `6OQ-0`, etc) — IDs survive `move_nodes`, but the docs say "at top:18540 left:0" which won't apply post-migration. Either rewrite the position columns OR drop them since the container is now the spatial anchor.
+
+**Why this isn't a code spec.** No code change. Pure design-file housekeeping. Owner can hand this off to a parallel agent that operates only on Paper MCP + this backlog item; main thread keeps shipping product specs (0063, 0064, etc).
+
+**Promote to a spec when:** the parallel agent starts and needs a concrete task list. Until then, this entry is the brief.

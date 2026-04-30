@@ -131,8 +131,9 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
 **New folder:** `apps/dashboard/src/components/channels/`:
 
 - `channels-catalog-install-modal.tsx` — copied from `connectors/catalog-install-modal.tsx` and adapted. **What gets REMOVED in the copy** (audit at implementation time — implementer must explicitly delete these blocks, not leave them as dead code):
-  - The "test connection" button + `useTestCatalogConnection` mutation + result strip (lines ~59-71, ~301-307 of the connectors source). Channels have no test endpoint (per Non-Goals). The button shouldn't appear at all.
-  - Any github-app-specific install paths or `customInstallComponent` rendering (channels don't have github-app analogs; catalog entries are just secret-form-based).
+  - The "test connection" button + `useTestCatalogConnection` mutation + `ResultStrip` component (lines ~59-71, ~200-242, ~299-307 of the connectors source). Channels have no test endpoint (per Non-Goals). The button shouldn't appear at all.
+  - The `customInstallComponent` routing wrapper (lines ~22-35) — channels catalog entries are all secret-form-based, no special install components.
+  - Any github-app-specific install paths.
   - References to the connectors-catalog endpoint or any MCP-tools rendering.
 
   **What's KEPT**:
@@ -227,12 +228,15 @@ User clicks Edit → modal opens with one empty input PER catalog secret key
   ↓
 User fills SOME or ALL inputs (empty = "keep current value", filled = "replace")
   ↓
-On submit, UI computes the merged set: for each catalog secret key, use the
-input value if non-empty, else use a sentinel that the backend interprets
-as "keep" — see below.
+On submit, UI builds the body by including ONLY keys whose input is non-empty.
+Empty inputs are NOT sent — the backend's mode='merge' overlay preserves them.
   ↓
-PATCH /api/channels/:id/secrets body: { secrets: Array<{ key, value }> }
-  with the FULL set of secrets (the merged result), not a partial update
+PATCH /api/channels/:id/secrets body:
+  { mode: 'merge', secrets: Array<{ key, value }> }
+  where the array contains only the keys the operator actually changed
+  ↓
+Backend: read existing secrets, overlay submitted ones (matching by key),
+  call ConnectorRepo.replaceSecrets() with the merged full set
   ↓
 HTTP 204; toast "Secrets updated"; modal closes; detail page refetches
 ```
@@ -278,7 +282,7 @@ This spec ships when ALL the following pass on the branch:
 - [ ] `PATCH /api/channels/:id/secrets` replaces secrets atomically; 204 on success; 404 for non-channel rows.
 - [ ] `DELETE /api/channels/:id` synchronously deletes the row via `ConnectorRepo.delete()`; 204 on success; 404 for non-channel rows. NO command queue.
 - [ ] All 3 endpoints require auth (cookie). 401 without.
-- [ ] Tests added in `apps/api/tests/routes/channels.test.ts` (1 happy path + 1 404 for non-channel id + 1 401 unauthed per endpoint = 9 tests minimum). Pattern: copy the auth-cookie helper from `apps/api/tests/routes/connectors.test.ts` (the `signSession` + COOKIE_NAME pattern); existing 11 channels tests in `channels.test.ts` already use this — extend, don't duplicate the helper.
+- [ ] Tests added in `apps/api/tests/routes/channels.test.ts` (1 happy path + 1 404 for non-channel id + 1 401 unauthed per endpoint = 9 tests minimum, PLUS one regression test for PATCH `mode: 'merge'` semantics: install with `{appToken: 'A', botToken: 'B'}`, PATCH with `{ mode: 'merge', secrets: [{ key: 'botToken', value: 'B2' }] }`, then GET and assert `appToken` is still readable as 'A' and `botToken` is now 'B2' = 10 tests minimum). Pattern: copy the auth-cookie helper from `apps/api/tests/routes/connectors.test.ts` (the `signSession` + COOKIE_NAME pattern); existing 11 channels tests in `channels.test.ts` already use this — extend, don't duplicate the helper.
 
 **Dashboard list page (Track 2):**
 - [ ] `/channels` route renders.
@@ -298,8 +302,8 @@ This spec ships when ALL the following pass on the branch:
 - [ ] Active state correctly highlights when on `/channels` or `/channels/:id`.
 
 **E2E (cleanup contract Rule 1):**
-- [ ] Live dashboard at `http://localhost:3001/channels` renders correctly against the running `profiles/fn` (which has Slack already installed since spec 0058 cutover).
-- [ ] Detail page at `http://localhost:3001/channels/<slack-id>` shows the actual installed Slack with masked tokens.
+- [ ] Live dashboard at `http://localhost:3000/channels` renders correctly against the running `profiles/fn` (which has Slack already installed since spec 0058 cutover).
+- [ ] Detail page at `http://localhost:3000/channels/<slack-id>` shows the actual installed Slack with masked tokens.
 - [ ] Edit secrets modal can rotate tokens (and the cutover validation works again — operator rotates, restart container, Slack reconnects with new tokens).
 - [ ] Uninstall flow tested in a sandbox if possible; in production, defer to a future genuine token rotation event.
 

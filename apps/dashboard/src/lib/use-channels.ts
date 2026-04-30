@@ -15,7 +15,18 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '@/lib/api-client';
+import { useToast } from '@zeno/ui';
+import { ApiError, apiFetch } from '@/lib/api-client';
+
+function formatChannelError(err: unknown): string {
+  if (err instanceof ApiError && err.body && typeof err.body === 'object') {
+    const body = err.body as { error?: unknown; message?: unknown };
+    if (typeof body.error === 'string') return body.error;
+    if (typeof body.message === 'string') return body.message;
+  }
+  if (err instanceof Error) return err.message;
+  return 'unknown error';
+}
 
 export type ChannelStatus = 'enabled' | 'disabled' | 'pending';
 
@@ -128,9 +139,14 @@ export interface InstallChannelInput {
  * (spec 0057), not a channels-specific endpoint. The worker validates against
  * the catalog and binds the row asynchronously; the modal polls /api/channels
  * for the row to appear (success predicate: catalogId match).
+ *
+ * Note: success/timeout toasts fire from the install modal — not here — because
+ * the polling outcome (row appeared vs 10s timeout) needs to drive different
+ * messages, and the polling lives in the modal's handler.
  */
 export function useInstallChannel() {
   const qc = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: (input: InstallChannelInput) =>
       apiFetch<void>('/api/connectors', {
@@ -145,6 +161,7 @@ export function useInstallChannel() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: channelsKeys.list() });
     },
+    onError: (err) => toast.fail(formatChannelError(err)),
   });
 }
 
@@ -160,6 +177,7 @@ export interface EditChannelSecretsInput {
 
 export function useEditChannelSecrets() {
   const qc = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: (input: EditChannelSecretsInput) =>
       apiFetch<void>(`/api/channels/${input.channelId}/secrets`, {
@@ -167,19 +185,24 @@ export function useEditChannelSecrets() {
         body: JSON.stringify({ mode: 'merge', secrets: input.secrets }),
       }),
     onSuccess: (_data, input) => {
+      toast.success('secrets updated');
       qc.invalidateQueries({ queryKey: channelsKeys.detail(input.channelId) });
       qc.invalidateQueries({ queryKey: channelsKeys.list() });
     },
+    onError: (err) => toast.fail(formatChannelError(err)),
   });
 }
 
 export function useUninstallChannel() {
   const qc = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: (channelId: string) =>
       apiFetch<void>(`/api/channels/${channelId}`, { method: 'DELETE' }),
     onSuccess: () => {
+      toast.success('channel uninstalled');
       qc.invalidateQueries({ queryKey: channelsKeys.list() });
     },
+    onError: (err) => toast.fail(formatChannelError(err)),
   });
 }

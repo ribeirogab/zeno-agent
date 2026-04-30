@@ -1,6 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
-import { CornerBrackets, Dialog, DialogContent, DialogTitle, Input } from '@zeno/ui';
+import { CornerBrackets, Dialog, DialogContent, DialogTitle, Input, useToast } from '@zeno/ui';
 import type { JSX } from 'react';
 import { useMemo, useState } from 'react';
 import { ApiError } from '@/lib/api-client';
@@ -51,7 +50,7 @@ export function ChannelsCatalogInstallModal({
   const install = useInstallChannel();
   const setupHelper = useChannelSetupHelper(selectedId);
   const qc = useQueryClient();
-  const navigate = useNavigate();
+  const toast = useToast();
 
   const selected = catalog.find((e) => e.id === selectedId) ?? null;
 
@@ -93,6 +92,7 @@ export function ChannelsCatalogInstallModal({
     setPolling(true);
     const start = Date.now();
     const targetCatalogId = selected.id;
+    const displayName = selected.name;
     while (Date.now() - start < 10_000) {
       try {
         const list = await qc.fetchQuery<ChannelListItem[]>({
@@ -101,7 +101,7 @@ export function ChannelsCatalogInstallModal({
         });
         if (list.some((c) => c.catalogId === targetCatalogId)) {
           setPolling(false);
-          // Success — close modal, refetch list, navigate? Per spec: stay on list.
+          toast.success(`${displayName.toLowerCase()} installed`);
           qc.invalidateQueries({ queryKey: channelsKeys.list() });
           onClose();
           return;
@@ -111,14 +111,11 @@ export function ChannelsCatalogInstallModal({
       }
       await sleep(1000);
     }
-    // Timeout
+    // Timeout — channel will appear once worker processes the queue
     setPolling(false);
-    setError(
-      "Install in progress — the channel will appear shortly. Refresh the page if it doesn't show within a minute.",
-    );
+    toast.success(`install in progress — ${displayName.toLowerCase()} will appear shortly`);
     qc.invalidateQueries({ queryKey: channelsKeys.list() });
     onClose();
-    void navigate;
   };
 
   return (

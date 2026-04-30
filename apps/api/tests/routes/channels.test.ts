@@ -274,3 +274,78 @@ describe('GET /api/connectors/catalog/icons/slack.svg (spec 0057)', () => {
     expect(res.headers.get('Content-Type')).toBe('image/svg+xml');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+// Spec 0059: Channels UI — detail endpoints
+// ─────────────────────────────────────────────────────────────────
+
+describe('GET /api/channels/:id (spec 0059)', () => {
+  it('returns channel-shape detail for a kind=channel row', async () => {
+    const repo = new ConnectorRepo(db);
+    const channel = repo.create({
+      slug: 'slack',
+      displayName: 'Slack',
+      source: 'catalog',
+      catalogId: 'slack',
+      transport: 'remote',
+      command: null,
+      args: null,
+      url: null,
+      kind: 'channel',
+      secrets: [
+        { key: 'SLACK_APP_TOKEN', value: 'xapp-1-aaaa-v0Hk' },
+        { key: 'SLACK_BOT_TOKEN', value: 'xoxb-bbbb-K4xR' },
+      ],
+      tools: [],
+    });
+
+    const app = makeApp(db);
+    const res = await app.request(`/api/channels/${channel.id}`, { headers: authed() });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.id).toBe(channel.id);
+    expect(body.slug).toBe('slack');
+    expect(body.catalogId).toBe('slack');
+    expect(body.displayName).toBe('Slack');
+    expect(body.iconUrl).toBe('/api/connectors/catalog/icons/slack.svg');
+    expect(body.secrets).toEqual([
+      { key: 'SLACK_APP_TOKEN', masked: true, last4: 'v0Hk' },
+      { key: 'SLACK_BOT_TOKEN', masked: true, last4: 'K4xR' },
+    ]);
+    // No leaky fields from the connector shape
+    expect(body.transport).toBeUndefined();
+    expect(body.kind).toBeUndefined();
+    expect(body.command).toBeUndefined();
+  });
+
+  it('returns 404 for a kind=mcp row', async () => {
+    const repo = new ConnectorRepo(db);
+    const mcp = repo.create({
+      slug: 'sentry',
+      displayName: 'Sentry',
+      source: 'catalog',
+      catalogId: 'sentry',
+      transport: 'stdio',
+      command: 'echo',
+      args: [],
+      kind: 'mcp',
+      secrets: [],
+      tools: [],
+    });
+    const app = makeApp(db);
+    const res = await app.request(`/api/channels/${mcp.id}`, { headers: authed() });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 404 for unknown id', async () => {
+    const app = makeApp(db);
+    const res = await app.request('/api/channels/nonexistent-id', { headers: authed() });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 401 unauthed', async () => {
+    const app = makeApp(db);
+    const res = await app.request('/api/channels/some-id');
+    expect(res.status).toBe(401);
+  });
+});

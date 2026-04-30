@@ -103,7 +103,18 @@ export class ClaudeCodeBackend implements AgentBackend {
       const iter = query({
         prompt: input.userMessage,
         options: {
-          systemPrompt: input.systemPrompt,
+          // Spec 0060: pass systemPrompt as preset+append (NOT bare string).
+          // The Claude Agent SDK auto-announces ~/.claude/skills/* in the
+          // `claude_code` preset's system prompt. A bare-string systemPrompt
+          // replaces the preset entirely and silently drops the skill listing,
+          // so the agent has zero awareness of installed skills (root cause
+          // of spec 0060). With the preset shape, the SDK injects skill names
+          // + descriptions; SOUL+USER are appended after the preset content.
+          systemPrompt: {
+            type: 'preset' as const,
+            preset: 'claude_code' as const,
+            append: input.systemPrompt,
+          },
           allowedTools: this.allowedTools,
           cwd: input.cwd,
           permissionMode: this.preToolUseHook ? 'default' : 'bypassPermissions',

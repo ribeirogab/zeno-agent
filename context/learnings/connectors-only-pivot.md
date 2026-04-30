@@ -5,14 +5,19 @@ tags:
   - "#pivot"
 related:
   - "[[../specs/0049-zeno-redefinition/spec|spec 0049]]"
+  - "[[../specs/0052-skills/spec|spec 0052]]"
+  - "[[../specs/0060-soul-skills-realign/spec|spec 0060]]"
   - "[[../constitution|constitution]]"
   - "[[channel-vs-connector]]"
   - "[[how-to-read-pre-cleanup-specs]]"
 created: 2026-04-27
+updated: 2026-04-30
 ---
 # Connectors-only pivot — why Zeno's capability surface collapsed to one layer
 
-Zeno was originally positioned as "a personal agent whose intelligence lives in the skills you author". In April 2026 the project pivoted to **connectors-only**: every external capability flows through a connector (an MCP server installed via the dashboard); the agent has no direct shell, filesystem, or web-fetch access at runtime. The channel (Slack today; others future) is the only non-connector I/O — and only because it *is* the channel, not a tool. Skills as a runtime concept were deferred from this iteration; they may return later, possibly bundled with connectors.
+> **2026-04-30 update:** spec 0052 reintroduced skills as DB-managed markdown playbooks materialized to `~/.claude/skills/` and auto-discovered by the Claude Agent SDK; spec 0060 wired the SDK option correctly so the listing actually surfaces in the system prompt. The "Skills (deferred)" framing below is HISTORICAL — it describes the spec-0049 state. Skills are back; the connector / channel / backend / core hierarchy from this learning still holds, with skills as a fifth layer carrying *content only* (capabilities are gated globally via `/settings/agent-capabilities`).
+
+Zeno was originally positioned as "a personal agent whose intelligence lives in the skills you author". In April 2026 the project pivoted to **connectors-only**: every external capability flows through a connector (an MCP server installed via the dashboard); the agent has no direct shell, filesystem, or web-fetch access at runtime. The channel (Slack today; others future) is the only non-connector I/O — and only because it *is* the channel, not a tool. Skills as a runtime concept were deferred from this iteration (and reintroduced in spec 0052 as content-only playbooks; see header note above).
 
 ## Context
 

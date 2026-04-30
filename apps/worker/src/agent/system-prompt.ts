@@ -45,11 +45,16 @@ export function loadProfileFile(filename: string): string | null {
  * profile). SOUL comes from agent/, USER from profile/. Pass null when files
  * are missing — sensible defaults are used.
  *
- * Spec 0050: skills (per-domain knowledge files) are no longer part of the
- * runtime; the third-arg `alwaysActiveSkillContents` parameter and its
- * supporting loader were removed alongside the skill registry and policy
- * chain. If skills return (possibly bundled with connectors) a future spec
- * will reintroduce a different signature.
+ * Spec 0052: skills are back as DB-managed playbooks materialized to
+ * `~/.claude/skills/<name>/SKILL.md` and auto-discovered by the Claude Agent
+ * SDK via `settingSources: ['user']`. The SDK announces each skill as a
+ * `<name>: <description>` line in the system prompt — but ONLY when the
+ * `systemPrompt` option is the preset shape `{ type: 'preset', preset:
+ * 'claude_code', append: ... }`. A bare-string `systemPrompt` replaces the
+ * preset entirely and silently drops the skill listing. See spec 0060 for
+ * the realignment that wired this correctly. The function returns a string;
+ * the call site (`apps/worker/src/agent/backends/claude-code.ts`) wraps it
+ * in the preset option shape.
  */
 export function buildSystemPrompt(
   soulMdContent: string | null,

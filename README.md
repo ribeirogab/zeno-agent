@@ -12,7 +12,7 @@ The architecture is layered, in order of weight:
 2. **Channel** — Slack today; Discord, Telegram, email, etc. as future adapters. The channel is how requests come in and replies go out.
 3. **Backend** — the reasoning engine (Claude Code today). Decides which connector tools to call, in what order.
 4. **Core** — small wiring (channel ↔ backend ↔ connectors). Stable, rarely changes.
-5. **Skills (deferred)** — domain knowledge that informs orchestration. Not in the runtime today; may return later, possibly bundled with connectors. The [agentskills.io](https://agentskills.io) open-standard composable-units philosophy inspired the connector model and may inform how skills come back.
+5. **Skills** — markdown playbooks the operator installs via the dashboard (spec 0052). The worker materializes each `SKILL.md` to `~/.claude/skills/<name>/` and the Claude Agent SDK auto-announces them in the system prompt. When a skill description matches the user's request, the agent reads the SKILL.md body and follows its instructions literally — including any output-format templates. Skills carry only content; capabilities like Read/Edit/Write/Bash are gated globally via `/settings/agent-capabilities`.
 
 This is what makes Zeno extensible. Want it to act in a new app? Build or install a connector. Want it on a new channel? Add a Channel adapter. Want a different reasoning model? Swap the backend. The core never changes.
 

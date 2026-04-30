@@ -98,6 +98,8 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
 
 - `DELETE /api/channels/:id` — body none. **Synchronous direct DB delete** via `ConnectorRepo.delete()` (NOT command-queue — uninstall doesn't need worker side-effect; FK CASCADE drops `connector_secrets`). Returns 204. Returns 404 for non-channel id.
 
+- `GET /api/channels/catalog/setup/:catalogId` — returns the install-time setup helper for a catalog entry: `{ steps: Array<{ index: number, html: string }>, manifest: { filename: string, content: string } | null }`. For Slack: 3 numbered steps (create app from manifest at api.slack.com/apps, generate App-Level Token, install bot to workspace) + the contents of `infra/slack-app-manifest.json` as the manifest body. The route reads the manifest at request time (synchronous fs read in dev; the file is shipped with the worker image so this is always cheap). Returns 404 for unknown catalogId. Returns `manifest: null` for catalog entries without a manifest (Telegram, WhatsApp will be steps-only). The UI uses this to render the "Setup helper" panel inside the install modal — see Paper artboard `M-ch-1 · Install Slack (catalog modal)`.
+
 **Why sync (not async) for channels:** the connectors `connector_update`/`connector_uninstall` command flow exists because MCP connectors require runtime side-effects (re-spawn MCP server with new env, refresh tool list, etc.). Channels have NO runtime side-effect during a secrets edit or uninstall — secrets are read at next worker boot, and uninstall is just a row delete. Direct sync writes are simpler, immediate (no polling needed for the UI), and correct.
 
 **Existing `apps/api/src/routes/connectors.ts:GET /:id`** stays unchanged; the legacy `kind: 'connector'` UI discriminator stays. Channel rows shouldn't be hit via the connectors detail endpoint in normal operation, but if they are, response is best-effort (works because both kinds share storage).
@@ -145,6 +147,8 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
   - Submit button → POST `/api/connectors` with `kind: 'channel'` + `source: 'catalog'` body shape (per spec 0057).
   - Polling pattern after POST (per the Install data flow).
   - Error state for catalog fetch failure ("Channels catalog unavailable").
+
+  **What's NEW vs the connectors copy** (per Paper artboard `M-ch-1 · Install Slack (catalog modal)`): a "Setup helper" panel rendered between the catalog selection and the secret form, when the selected catalog entry has a `setupHelper` field on its catalog row. For Slack today: numbered 3-step guide (create app at `api.slack.com/apps` → from manifest → generate App-Level Token + install bot) plus the full `slack-app-manifest.json` content rendered in a `<pre>` code block with a "copy" button. The manifest is served by a new `GET /api/channels/catalog/setup/:catalogId` endpoint (read-only, returns `{ steps: string[], manifest: string | null }`) that reads from `infra/slack-app-manifest.json` for slack today; the catalog row carries a `setupHelperKey` so the modal knows to render the panel. Keeps the install flow self-contained — operator never has to leave the dashboard to find the manifest. Telegram/WhatsApp will plug in the same shape with their own setup steps + (no manifest, only steps).
 
   Slack-only today; structure stays for TG/WPP without modification.
 - `channels-edit-secrets-modal.tsx` — extracted (NOT inlined). Modal opened from the detail page's Edit button. Renders one input per catalog secret key with placeholder "currently set: ****<last4>"; on submit, POSTs `PATCH /api/channels/:id/secrets` with `{ mode: 'merge', secrets: [...] }` (only changed keys per Data flow — view + edit secrets).
@@ -210,6 +214,12 @@ agent/
 User clicks "Install Slack" on /channels (empty state)
   ↓
 Modal opens, fetches GET /api/channels/catalog
+  ↓
+After the operator picks Slack from the catalog list, the modal also fetches
+GET /api/channels/catalog/setup/slack and renders the "Setup helper" panel
+between the catalog row and the secret form: numbered 3-step guide + the
+slack-app-manifest.json content with a copy button. Operator can do the
+api.slack.com app creation in a side tab without leaving the dashboard.
   ↓
 User pastes App Token + Bot Token, clicks Install
   ↓
@@ -303,8 +313,9 @@ This spec ships when ALL the following pass on the branch:
 - [ ] `GET /api/channels/:id` returns channel-shape response for kind='channel' rows; 404 for kind='mcp' or unknown ids.
 - [ ] `PATCH /api/channels/:id/secrets` replaces secrets atomically; 204 on success; 404 for non-channel rows.
 - [ ] `DELETE /api/channels/:id` synchronously deletes the row via `ConnectorRepo.delete()`; 204 on success; 404 for non-channel rows. NO command queue.
-- [ ] All 3 endpoints require auth (cookie). 401 without.
-- [ ] Tests added in `apps/api/tests/routes/channels.test.ts` (1 happy path + 1 404 for non-channel id + 1 401 unauthed per endpoint = 9 tests minimum, PLUS one regression test for PATCH `mode: 'merge'` semantics: install with `{appToken: 'A', botToken: 'B'}`, PATCH with `{ mode: 'merge', secrets: [{ key: 'botToken', value: 'B2' }] }`, then GET and assert `appToken` is still readable as 'A' and `botToken` is now 'B2' = 10 tests minimum). Pattern: copy the auth-cookie helper from `apps/api/tests/routes/connectors.test.ts` (the `signSession` + COOKIE_NAME pattern); existing 11 channels tests in `channels.test.ts` already use this — extend, don't duplicate the helper.
+- [ ] `GET /api/channels/catalog/setup/:catalogId` returns `{ steps, manifest }` shape; for `slack` returns 3 steps + the literal contents of `infra/slack-app-manifest.json` as `manifest.content`; 404 for unknown catalogId.
+- [ ] All 4 endpoints require auth (cookie). 401 without.
+- [ ] Tests added in `apps/api/tests/routes/channels.test.ts`: 9 standard (3 endpoints {GET/:id, PATCH, DELETE} × {happy / 404-non-channel / 401-unauthed}) + 1 merge-mode regression (install with `{appToken: 'A', botToken: 'B'}`, PATCH with `{ mode: 'merge', secrets: [{ key: 'botToken', value: 'B2' }] }`, then GET and assert `appToken` is still 'A' and `botToken` is now 'B2') + 3 setup-endpoint tests (happy returns slack manifest content, 404 for unknown catalogId, 401 unauthed) = **13 tests minimum**. Pattern: copy the auth-cookie helper from `apps/api/tests/routes/connectors.test.ts` (the `signSession` + COOKIE_NAME pattern); existing 11 channels tests in `channels.test.ts` already use this — extend, don't duplicate the helper.
 
 **Dashboard list page (Track 2):**
 - [ ] `/channels` route renders.
@@ -331,7 +342,7 @@ This spec ships when ALL the following pass on the branch:
 - [ ] Uninstall flow tested in a sandbox if possible; in production, defer to a future genuine token rotation event.
 
 **Quality gate:**
-- [ ] `pnpm run quality-gate` green: 30/30 turbo tasks. Test count delta: +10 API tests minimum — 9 standard (3 endpoints × {happy / 404-non-channel / 401-unauthed}) + 1 merge-mode regression (storage and worker untouched).
+- [ ] `pnpm run quality-gate` green: 30/30 turbo tasks. Test count delta: +13 API tests minimum — 9 standard (3 detail endpoints × {happy / 404-non-channel / 401-unauthed}) + 1 merge-mode regression + 3 setup-endpoint tests (storage and worker untouched).
 
 **Branch review (Rule 2):**
 - [ ] R1+R2+R3 fresh reviews CLEAN consecutive. Reset on any blocking finding.

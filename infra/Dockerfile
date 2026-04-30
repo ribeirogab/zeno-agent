@@ -76,6 +76,10 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/apps/dashboard/dist ./apps/dashboard/dist
+# Spec 0059: the channels install modal surfaces this manifest so the operator
+# can create the Slack app from the dashboard. apps/api/src/lib/channel-setup-helpers.ts
+# reads it via process.cwd() at request time, so it must be present at /app/infra/.
+COPY --from=builder /app/infra/slack-app-manifest.json ./infra/slack-app-manifest.json
 COPY package.json pnpm-workspace.yaml ./
 
 # Spec 0042: github-mcp-server binary on /usr/local/bin (root + node PATH).

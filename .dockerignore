@@ -7,4 +7,5 @@ dist
 context/
 infra/*
 !infra/entrypoint.sh
+!infra/slack-app-manifest.json
 

@@ -13,43 +13,45 @@ The **Active roadmap** section below is the exception — that's the committed s
 
 ---
 
-## Active roadmap — committed sprint (2026-04-29, last update 2026-04-29)
+## Active roadmap — committed sprint (2026-04-29, last update 2026-04-29 post-cutover)
 
-10 specs, in execution order. Each ships independently. Later specs depend on earlier ones (dep column). Promote each to `context/specs/NNNN-<slug>/` when work starts.
+11 specs, in execution order. Each ships independently. Later specs depend on earlier ones (dep column). Promote each to `context/specs/NNNN-<slug>/` when work starts.
 
 | Order | Spec # | Title | Items covered | Size | Dep | Notes |
 |---|---|---|---|---|---|---|
-| 1 | **0057** | Slack channel connector — code (worktree) | partial #6 | XL | — | **Code-only refactor in worktree, profiles/fn untouched.** New `agent/channels-catalog.json` (parallel to connectors-catalog), Slack listener becomes registrable channel-adapter, worker boot reads Slack creds DB-first with `.env` fallback for backward compat. Tests in-process (unit + integration mocked). |
-| 2 | **0058** | Migrate profiles/fn to channel connector | rest of #6 | M | 0057 | **Production cutover.** Install Slack via dashboard with current tokens, validate Slack flow live, remove `SLACK_*` from `profiles/fn/.env`. Optional follow-up commit removes `.env` fallback path from code. |
-| 3 | **0059** | Skills multi-file infra | #4a | L | — | DB schema + API multipart upload + materializer (write tree to FS) + dashboard upload UI + boot seeder. Decision pending on storage shape (see Decisions). |
-| 4 | **0060** | Skills best-practices + skill-creator | #4b + #4c | M | 0059 | Apply Anthropic best-practices (<500 lines per `SKILL.md`, progressive disclosure, satellite files). Install Anthropic's `skill-creator` from skills.sh as default skill. |
-| 5 | **0061** | Channel inbound files | #7 | M | 0058 | Worker already downloads Slack attachments; missing pass-through to agent. Standardize via channel adapter. Image attachments → Claude content blocks. |
-| 6 | **0062** | Channel outbound files | #8 | M | 0058 + 0061 | Agent generates HTML/JSON/etc → channel adapter uploads via `files.upload` (or equivalent per channel). |
-| 7 | **0063** | UI dashboard cleanup | #1 + #2 + #3 | S | — | **Paper-first.** Show `USER.md` name in dashboard header (not "Alex"); remove "Sessions" from sidebar; fix Playwright connector logo + trim its description. Phase 0 = update Paper artboards in "Hearty island". |
-| 8 | **0064** | Settings refactor | #5a + #5b + #5c | M | — | **Paper-first.** Settings becomes tabbed. Add `USER.md` inline editor. Remove "Restart worker" button. Phase 0 = Paper artboard for tabbed layout. |
-| 9 | **0065** | Audio in (transcription) | #9 | M | 0061 | Voice notes via Slack → transcribe (Whisper API or similar) → text input to agent. Provider TBD at brainstorming time. |
-| 10 | **0066** | Audio out (TTS) | #10 | M | 0062 | Agent generates audio reply → channel uploads. Provider TBD (ElevenLabs / Cartesia / OpenAI TTS — cost vs quality). |
+| 1 | **0057** | Slack channel connector — code | partial #6 | XL | — | ✅ **MERGED PR #22.** New `agent/channels-catalog.json`, Slack listener becomes registrable channel-adapter, worker boot reads Slack creds DB-first with `.env` fallback. |
+| 2 | **0058** | Migrate profiles/fn to channel connector | rest of #6 | M | 0057 | ✅ **PR #23 OPEN.** Production cutover live (since 2026-04-29T22:13Z). `.env` fallback removed in Phase H. |
+| 3 | **0059** | Channels UI section in dashboard | UI for #6 | M | 0057 | **Paper-first.** Adds `/channels` route in dashboard, mirrors `/connectors` pattern (list + install modal). Without this, channel install requires curl — operator can't manage Slack via UI. **Inserted as response to operator gap discovered post-0058 cutover.** |
+| 4 | **0060** | Skills multi-file infra | #4a | L | — | DB schema + API multipart upload + materializer + dashboard upload UI + boot seeder. Decision pending on storage shape. |
+| 5 | **0061** | Skills best-practices + skill-creator | #4b + #4c | M | 0060 | Apply Anthropic best-practices. Install Anthropic's `skill-creator` from skills.sh. |
+| 6 | **0062** | Channel inbound files | #7 | M | 0058 | Worker already downloads Slack attachments; missing pass-through to agent. Standardize via channel adapter. |
+| 7 | **0063** | Channel outbound files | #8 | M | 0058 + 0062 | Agent generates HTML/JSON/etc → channel adapter uploads via `files.upload`. |
+| 8 | **0064** | UI dashboard cleanup | #1 + #2 + #3 | S | — | **Paper-first.** USER.md name in header; remove Sessions sidebar; fix Playwright logo + description. |
+| 9 | **0065** | Settings refactor | #5a + #5b + #5c | M | — | **Paper-first.** Settings becomes tabbed; add USER.md inline editor; remove Restart worker button. |
+| 10 | **0066** | Audio in (transcription) | #9 | M | 0062 | Voice notes via Slack → transcribe → text input to agent. |
+| 11 | **0067** | Audio out (TTS) | #10 | M | 0063 | Agent generates audio reply → channel uploads. |
 
 ### Original raw list (10 items, owner-supplied 2026-04-29)
 
 ```
-1.  USER.md name in dashboard (instead of "Alex")               → 0063
-2.  Remove "Sessions" sidebar entry                              → 0063
-3.  Playwright connector default-installed + fix logo + trim     → 0063
+1.  USER.md name in dashboard (instead of "Alex")               → 0064
+2.  Remove "Sessions" sidebar entry                              → 0064
+3.  Playwright connector default-installed + fix logo + trim     → 0064
 4.  Skills:
-    a. Support file tree, not just SKILL.md                      → 0059
-    b. Read & apply Anthropic best practices                     → 0060
-    c. Use Anthropic's skill-creator (skills.sh) as default      → 0060
+    a. Support file tree, not just SKILL.md                      → 0060
+    b. Read & apply Anthropic best practices                     → 0061
+    c. Use Anthropic's skill-creator (skills.sh) as default      → 0061
 5.  Settings page:
-    a. Layout in tabs                                            → 0064
-    b. Edit USER.md from settings                                → 0064
-    c. Remove "Restart worker" button                            → 0064
+    a. Layout in tabs                                            → 0065
+    b. Edit USER.md from settings                                → 0065
+    c. Remove "Restart worker" button                            → 0065
 6.  Slack as connector type=channel; future WPP/Telegram         → 0057 (code) + 0058 (cutover)
+                                                                   + 0059 (UI to manage them)
     same pattern; remove SLACK_* envvars
-7.  Zeno can read incoming files (images, JSON, etc) via channel → 0061
-8.  Zeno can send outgoing files via channel                     → 0062
-9.  Zeno can listen to / transcribe audio                        → 0065
-10. Zeno can send audio                                          → 0066
+7.  Zeno can read incoming files (images, JSON, etc) via channel → 0062
+8.  Zeno can send outgoing files via channel                     → 0063
+9.  Zeno can listen to / transcribe audio                        → 0066
+10. Zeno can send audio                                          → 0067
 ```
 
 ### Architecture decisions baked in
@@ -57,14 +59,15 @@ The **Active roadmap** section below is the exception — that's the committed s
 - **0057 split into code + cutover.** Owner uses Zeno daily via Slack; cannot risk breakage during dev. Code lands in worktree (`feat/spec-0057-slack-channel`), tested in-process, no Docker / no profile touched. Cutover (0058) is a separate spec executed live against `profiles/fn`.
 - **Channels and connectors are separate concepts.** New `agent/channels-catalog.json` parallel to existing `agent/connectors-catalog.json`. Channels are *substrate* (where the agent runs); connectors are *callable tools* (what the agent invokes). Storage layer compromise — both reuse the existing `connectors` + `connector_secrets` tables with a `kind` discriminator (avoid duplicating storage tables).
 - **Channel-first.** 0057+0058 land BEFORE files (0061, 0062) and audio (0065, 0066) so those features are channel-agnostic from day one. Adding WPP/Telegram later = new entry in `channels-catalog.json` + new adapter, no rework on file/audio code.
-- **Skills multi-file BEFORE skill-creator.** 0060 needs the multi-file infra to install Anthropic's skill-creator as a real skill.
-- **UI changes are Paper-first.** 0063 and 0064 both have Phase 0 = update artboards in the "Hearty island" Paper file.
+- **Skills multi-file BEFORE skill-creator.** 0061 needs the multi-file infra (0060) to install Anthropic's skill-creator as a real skill.
+- **UI changes are Paper-first.** 0059, 0064, and 0065 all have Phase 0 = update artboards in the "Hearty island" Paper file before any code.
+- **0059 inserted post-0058 cutover.** Originally the dashboard UI for channels was deferred to a "future polish spec." After the live cutover landed, the operator immediately hit the gap (no `/channels` route in dashboard means manage-via-curl-only). Promoted to in-sprint.
 - **All quick wins go through spec.** Even items 2 and 5c — owner chose spec discipline over chore-PR speed for full traceability.
 
 ### Decisions deferred to brainstorming time
 
-- **0059 skills storage shape:** (a) `skill_files` table with one row per file, (b) ZIP body in current `skills.body` column, (c) FS-based with DB metadata + path. Affects spec size significantly.
-- **0065+0066 audio providers:** Whisper (OpenAI) vs Deepgram for transcription; ElevenLabs vs Cartesia vs OpenAI TTS for synthesis. Cost vs quality trade-off.
+- **0060 skills storage shape:** (a) `skill_files` table with one row per file, (b) ZIP body in current `skills.body` column, (c) FS-based with DB metadata + path. Affects spec size significantly.
+- **0066+0067 audio providers:** Whisper (OpenAI) vs Deepgram for transcription; ElevenLabs vs Cartesia vs OpenAI TTS for synthesis. Cost vs quality trade-off.
 
 ### Items currently NOT in sprint (unblocked by sprint, but future specs)
 

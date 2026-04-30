@@ -157,7 +157,7 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
 - Add `channels` to the `NavId` type union.
 - Insert `{ id: 'channels', label: 'channels', to: '/channels' }` ABOVE `connectors` in the `NAV` array (conceptual ordering: where Zeno talks → what Zeno calls).
 - Add `if (path.startsWith('/channels')) return 'channels';` to the active-state matcher.
-- Add a `channels` icon entry to the `NavIcon` switch in `dashboard-sidebar.tsx`. The existing icons are inline SVG paths (no lucide-react import in this file). Add a new inline SVG matching the existing style — a "speech bubble" or "chat" silhouette is on-pattern for "channels". Concrete suggestion: a simple rounded-rect chat bubble with a tail, single fill color, 24×24 viewBox to match siblings (`crons`, `sessions`, `connectors`). Implementer copies the existing SVG visual weight (stroke vs fill, line thickness) so the sidebar reads as one consistent set.
+- Add a `channels` icon entry to the `NavIcon` switch in `dashboard-sidebar.tsx`. The existing icons are inline SVG paths (no lucide-react import in this file). Add a new inline SVG matching the existing style — a "speech bubble" or "chat" silhouette is on-pattern for "channels". Concrete spec to match siblings (`crons`, `sessions`, `connectors`): 24×24 viewBox, **stroke-based** (`fill: 'none'`, `stroke: 'currentColor'`, `strokeWidth: 1.5`), `strokeLinecap: 'round'`, `strokeLinejoin: 'round'` — verify against the existing entries in `dashboard-sidebar.tsx` (lines 132-145) and copy the same prop pattern. A simple rounded-rect chat bubble with a tail rendered as a stroked outline (no fills) reads as one consistent set with the other nav icons.
 
 ## Architecture
 

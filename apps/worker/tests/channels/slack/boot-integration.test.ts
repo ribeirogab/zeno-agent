@@ -1,9 +1,9 @@
 /**
- * Spec 0057 integration test: end-to-end resolver + adapter wiring at worker
+ * Spec 0058 integration test: end-to-end resolver + adapter wiring at worker
  * boot, exercising the `_appOverride` test escape hatch on SlackChannel.
  *
  * Chain under test:
- *   resolveSlackCredentials({ connectors, env, logger })
+ *   resolveSlackCredentials({ connectors, logger })
  *     ↓
  *   new SlackChannel({ appToken, botToken, _appOverride: <mocked App> })
  *     ↓
@@ -16,6 +16,9 @@
  * verifies the wire-up between them: the resolver's output flows into the
  * adapter's constructor, and `_appOverride` actually takes effect (no real
  * socket-mode connection opens).
+ *
+ * Spec 0058 simplified the resolver — the env_fallback path was removed.
+ * Only the DB-credentials wire-up remains testable here.
  */
 
 import { createLogger } from '@zeno/logger';
@@ -67,10 +70,10 @@ function makeMockApp(opts: { botUserId?: string } = {}): {
   };
 }
 
-describe('SlackChannel + resolver wire-up (spec 0057)', () => {
+describe('SlackChannel + resolver wire-up (spec 0058)', () => {
   it('resolver tokens flow into SlackChannel via _appOverride; start() dispatches auth test', async () => {
-    // Seed an installed Slack channel with both secrets — resolver should
-    // pick this up via DB-first resolution (no env tokens needed).
+    // Seed an installed Slack channel with both secrets — resolver picks this
+    // up from DB.
     connectors.create({
       slug: 'slack',
       displayName: 'Slack',
@@ -90,12 +93,7 @@ describe('SlackChannel + resolver wire-up (spec 0057)', () => {
     });
 
     // 1. Resolver returns the DB-stored tokens.
-    const creds = resolveSlackCredentials({
-      connectors,
-      env: { appToken: undefined, botToken: undefined },
-      logger,
-    });
-    expect(creds.source).toBe('connector_secrets');
+    const creds = resolveSlackCredentials({ connectors, logger });
     expect(creds.appToken).toBe('xapp-resolver-test');
     expect(creds.botToken).toBe('xoxb-resolver-test');
 
@@ -117,25 +115,5 @@ describe('SlackChannel + resolver wire-up (spec 0057)', () => {
     await slack.start(messageHandler);
     expect(mock.authTestSpy).toHaveBeenCalledTimes(1);
     expect(mock.authTestSpy).toHaveBeenCalledWith({ token: 'xoxb-resolver-test' });
-  });
-
-  it('falls back to .env tokens when no DB row exists', async () => {
-    // No DB row — env fallback path. Resolver returns env tokens; same wire-up.
-    const creds = resolveSlackCredentials({
-      connectors,
-      env: { appToken: 'xapp-env-x', botToken: 'xoxb-env-x' },
-      logger,
-    });
-    expect(creds.source).toBe('env_fallback');
-
-    const mock = makeMockApp();
-    const slack = new SlackChannel({
-      appToken: creds.appToken,
-      botToken: creds.botToken,
-      // biome-ignore lint/suspicious/noExplicitAny: test-only Bolt App stub
-      _appOverride: mock.app as any,
-    });
-    await slack.start(vi.fn());
-    expect(mock.authTestSpy).toHaveBeenCalledWith({ token: 'xoxb-env-x' });
   });
 });

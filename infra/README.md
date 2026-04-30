@@ -14,8 +14,9 @@ Slack App config (scopes, events, Socket Mode). Use it to recreate the Zeno app 
 
 After creation, you still need to:
 
-- Generate an **App-Level Token** (Settings → Basic Information → App-Level Tokens) with scope `connections:write` for Socket Mode → goes to `profiles/<name>/.env` as `SLACK_APP_TOKEN`
-- **Install** the app to your workspace (OAuth & Permissions → Install to Workspace) → copy the Bot User OAuth Token → goes to `profiles/<name>/.env` as `SLACK_BOT_TOKEN`
-- **Invite** the bot to a channel
+- Generate an **App-Level Token** (Settings → Basic Information → App-Level Tokens) with scope `connections:write` for Socket Mode → keep this token handy.
+- **Install** the app to your workspace (OAuth & Permissions → Install to Workspace) → copy the Bot User OAuth Token → keep this handy.
+- **Invite** the bot to a channel.
+- **Install Slack channel via Zeno's dashboard** (`/connectors` → click Add → pick Slack → paste the App Token + Bot Token). Tokens land in the DB `connector_secrets` table — NOT in `.env`. (See [[../context/specs/0058-fn-cutover-channel/spec.md|spec 0058]] for the migration that moved Slack tokens out of `.env`.)
 
 If you change scopes, events, or other Slack config later, update the manifest here AND in the Slack App UI (Features → App Manifest) so the two stay in sync.

@@ -531,3 +531,9 @@ If new questions surface during implementation:
 - **`transport` schema cleanup for channel rows.** Currently using `'remote'` as a placeholder. Future migration could either relax the constraint or rename the column. Cosmetic, not a correctness issue.
 - **Skill-to-channel routing rules** (e.g., "skill X only responds in channel Y"). Future spec, when concrete need arises.
 - **Replacing `.env` for ALL profiles** (not just `profiles/fn`). The fallback handles any profile; cutover is per-profile. New profiles just install via dashboard from day one.
+
+## Errata (post-merge)
+
+**2026-04-29 (spec 0058 cutover):** the 6-row resolution table described in Track 3 has been simplified to 4 rows. Cases 3, 4, 5, 6 (env_fallback paths) were removed when `profiles/fn` cut over to DB-only credentials and the `.env` fallback code became unreachable. See spec 0058 Phase H for the simplification. The `Config.slack` field, the `SLACK_*_TOKEN` Zod schema entries, and the `env_fallback` source field on `ResolvedSlackCredentials` are also gone.
+
+**2026-04-29 follow-up identified during cutover (Phase C.5):** `GET /api/connectors/:id` returns the legacy hardcoded UI discriminator `kind: 'connector'` (from `buildListItem`), not the new DB column `kind: 'mcp' | 'channel'`. The DB row is correctly stored as `kind='channel'` (verified during cutover); only the detail-endpoint response masks this. Future spec should expose the DB `kind` field on the detail endpoint (separate from the `kind: 'connector' | 'app'` UI discriminator). Not blocking — the resolver queries DB directly via `listByKind('channel')`, which works correctly.

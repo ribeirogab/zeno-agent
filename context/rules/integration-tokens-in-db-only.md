@@ -18,7 +18,6 @@ A toggle precisa ser uma **promessa forte**: clicou disable → Zeno perde a cre
 
 ## O que continua válido em `.env`
 
-- **Slack tokens** (`SLACK_APP_TOKEN`, `SLACK_BOT_TOKEN`) — usados pelo Channel adapter ANTES do agent ser invocado. Não dá pra mover sem refatorar Channel-as-Connector. Documentado em [`learnings/channel-vs-connector.md`](../learnings/channel-vs-connector.md) §Direção futura. **Exceção temporária**.
 - **Claude OAuth token** (`CLAUDE_CODE_OAUTH_TOKEN`) — credencial de boot do AgentBackend. Não é tool surface do agent.
 - **Dashboard auth** (`DASHBOARD_PASSWORD`, `DASHBOARD_SESSION_SECRET`) — credenciais da própria dashboard, não do agent.
 - **Runtime config** (`LOG_LEVEL`, `WORKSPACE_DIR`, `PROFILE`).
@@ -42,6 +41,9 @@ Quando adicionar nova integração via connector:
 
 ## Referências
 
-- [`learnings/channel-vs-connector.md`](../learnings/channel-vs-connector.md) — distinção entre Channel (input/output, vive em `.env` por enquanto) e Connector (tool surface, vive em DB)
-- [`specs/0034-connectors-dashboard/spec.md`](../specs/0034-connectors-dashboard/spec.md) — onde a infraestrutura DB-first do connector secrets vive
-- Constitution §Architecture principles — "Zero custom tools by default" (justifica por que Bash sempre disponível ao agent)
+- [`learnings/channel-vs-connector.md`](../learnings/channel-vs-connector.md) — distinção original entre Channel (transport) e Connector (tool surface). Note: spec 0058 unificou Slack como `kind='channel'` connector na mesma DB; Telegram/WPP futuros seguem o mesmo padrão.
+- [`learnings/2026-04-29-channel-as-connector-cutover.md`](../learnings/2026-04-29-channel-as-connector-cutover.md) — playbook + observações da migração que removeu a "exceção Slack" desta regra.
+- [`specs/0057-slack-channel/spec.md`](../specs/0057-slack-channel/spec.md) — código que viabilizou a migração.
+- [`specs/0058-fn-cutover-channel/spec.md`](../specs/0058-fn-cutover-channel/spec.md) — cutover live de `profiles/fn` + cleanup do `.env` fallback.
+- [`specs/0034-connectors-dashboard/spec.md`](../specs/0034-connectors-dashboard/spec.md) — onde a infraestrutura DB-first do connector secrets vive.
+- Constitution §Architecture principles — "Zero custom tools by default" (justifica por que Bash sempre disponível ao agent).

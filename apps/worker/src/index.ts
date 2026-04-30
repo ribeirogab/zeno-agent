@@ -390,14 +390,12 @@ async function main(): Promise<void> {
     process.env.GIT_COMMITTER_EMAIL = gitIdentity.email;
   }
 
-  // Spec 0057: resolve Slack creds via channel-connector DB row first, falling
-  // back to .env (legacy path). The resolver throws hard on misconfigured
-  // states (installed-but-empty / no-row-no-env). This decouples Slack from
-  // mandatory envvars and unifies it with the catalog/install flow used by
-  // every other connector.
+  // Spec 0058: resolve Slack creds via channel-connector DB row. The .env
+  // fallback path was removed in spec 0058 after profiles/fn cut over to
+  // DB-only credentials. Operators install Slack via dashboard at /connectors;
+  // the resolver throws hard on missing/empty installs.
   const slackCreds = resolveSlackCredentials({
     connectors,
-    env: config.slack,
     logger,
   });
   const slack = new SlackChannel({

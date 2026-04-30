@@ -91,9 +91,14 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
   ```
   Returns 404 if id doesn't exist OR row exists but `kind !== 'channel'` (defense in depth — never expose MCP rows via this endpoint).
 
-- `PATCH /api/channels/:id/secrets` — same shape as `PATCH /api/connectors/:id/secrets`: `{ secrets: Array<{ key: string, value: string }> }`. Replaces all secrets atomically. Returns 204. Reuses existing `ConnectorRepo.replaceSecrets()` underneath. Returns 404 for non-channel id.
+- `PATCH /api/channels/:id/secrets` — body: `{ secrets: Array<{ key: string, value: string }>, mode?: 'merge' | 'replace' }`. **Synchronous direct DB write** via `ConnectorRepo.replaceSecrets()` (NOT command-queue async like the connectors `PATCH /:id` `connector_update` flow — channels don't need an MCP-server-restart side-effect; secrets land in DB and the next worker boot picks them up).
+  - `mode: 'merge'` (default): route reads existing secrets, overlays submitted ones (match by key), passes merged set to `replaceSecrets()`. Lets UI submit only changed keys without losing unchanged values. THIS IS THE CONTRACT THE UI USES.
+  - `mode: 'replace'`: route passes submitted secrets directly to `replaceSecrets()`. Full replace. Useful for programmatic clients that want to wipe-and-replace.
+  - Returns 204. Returns 404 for non-channel id.
 
-- `DELETE /api/channels/:id` — uninstalls. Returns 204. Reuses existing `connector_uninstall` command path (the worker handler doesn't care about `kind`; FK CASCADE drops `connector_secrets`). Returns 404 for non-channel id.
+- `DELETE /api/channels/:id` — body none. **Synchronous direct DB delete** via `ConnectorRepo.delete()` (NOT command-queue — uninstall doesn't need worker side-effect; FK CASCADE drops `connector_secrets`). Returns 204. Returns 404 for non-channel id.
+
+**Why sync (not async) for channels:** the connectors `connector_update`/`connector_uninstall` command flow exists because MCP connectors require runtime side-effects (re-spawn MCP server with new env, refresh tool list, etc.). Channels have NO runtime side-effect during a secrets edit or uninstall — secrets are read at next worker boot, and uninstall is just a row delete. Direct sync writes are simpler, immediate (no polling needed for the UI), and correct.
 
 **Existing `apps/api/src/routes/connectors.ts:GET /:id`** stays unchanged; the legacy `kind: 'connector'` UI discriminator stays. Channel rows shouldn't be hit via the connectors detail endpoint in normal operation, but if they are, response is best-effort (works because both kinds share storage).
 
@@ -101,8 +106,8 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
 
 **New file:** `apps/dashboard/src/routes/_authed/channels.index.tsx` — copied from `connectors.index.tsx` and trimmed to channel-shape:
 
-- Uses TanStack Query to fetch `GET /api/channels` (already exposed by spec 0057) + `GET /api/channels/catalog`.
-- Renders one card per installed channel. Card shows: icon (from catalog `iconUrl`), name, status pill, "manage" link to `/channels/:id`.
+- Uses TanStack Query to fetch BOTH `GET /api/channels` (installed list) AND `GET /api/channels/catalog` (entries with iconUrl). The list endpoint deliberately omits `iconUrl` (per spec 0057's narrow projection); UI **joins client-side** by `catalogId` to derive each card's icon. This avoids amending the list endpoint and keeps the projection lean for future API consumers that don't need icons.
+- Renders one card per installed channel. Card shows: icon (resolved from catalog by matching `catalogId`), name, status pill, "manage" link to `/channels/:id`.
 - "Install" button (top-right, primary) opens the channels catalog install modal.
 - Empty state: card with channel-shaped placeholder + "Install Slack" CTA.
 - NO transport/tools/MCP-specific UI bits.
@@ -142,7 +147,7 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
 - Add `channels` to the `NavId` type union.
 - Insert `{ id: 'channels', label: 'channels', to: '/channels' }` ABOVE `connectors` in the `NAV` array (conceptual ordering: where Zeno talks → what Zeno calls).
 - Add `if (path.startsWith('/channels')) return 'channels';` to the active-state matcher.
-- Add a `channels` icon entry to the icon switch (`<MessageSquare>` from lucide-react, or whichever fits the design language).
+- Add a `channels` icon entry to the `NavIcon` switch in `dashboard-sidebar.tsx`. The existing icons are inline SVG paths (no lucide-react import in this file). Add a new inline SVG matching the existing style — a "speech bubble" or "chat" silhouette is on-pattern for "channels". Concrete suggestion: a simple rounded-rect chat bubble with a tail, single fill color, 24×24 viewBox to match siblings (`crons`, `sessions`, `connectors`). Implementer copies the existing SVG visual weight (stroke vs fill, line thickness) so the sidebar reads as one consistent set.
 
 ## Architecture
 
@@ -184,34 +189,52 @@ User pastes App Token + Bot Token, clicks Install
   ↓
 POST /api/connectors body: { source: 'catalog', catalogId: 'slack', kind: 'channel', secrets: [...] }
   ↓
-HTTP 204 (async via command queue)
+HTTP 204 (async via command queue — install IS still command-queued because
+the worker handler validates against the catalog and synthesizes the row)
   ↓
 Modal polls GET /api/channels every 1s up to 10s, looking for the slack row
   ↓
 Once found: close modal, toast "Slack installed", refetch /api/channels list
-  ↓
 List renders the new card; click → /channels/<id>
+  ↓
+If timeout (10s without finding the row): close modal, show error toast
+  "Install in progress — the channel will appear shortly. Refresh the page
+  if it doesn't show within a minute." Modal closes regardless; the row
+  WILL appear in the list once the worker processes the queue.
 ```
 
-(Polling pattern matches the spec 0058 cutover playbook — the API is async; UI must wait for the worker to process.)
+(Polling pattern matches the spec 0058 cutover playbook — install IS async via command queue; UI waits for the worker. Edit-secrets and uninstall are direct DB writes per Track 1, NO polling.)
 
 ### Data flow — view + edit secrets
 
 ```
-GET /api/channels/:id → response with masked secrets
+GET /api/channels/:id → response with masked secrets [{ key, masked: true, last4 }]
   ↓
-Detail page renders secret fields with last4 masking
+Detail page renders secret fields read-only with last4 masking
   ↓
-User clicks Edit → modal opens with empty input fields (NOT prefilled with masked values)
+User clicks Edit → modal opens with one empty input PER catalog secret key
+  (each input shows placeholder "currently set: ****<last4>" so operator knows
+  what's already configured; inputs themselves are EMPTY — no React-DevTools leak)
   ↓
-User pastes new tokens, clicks Save
+User fills SOME or ALL inputs (empty = "keep current value", filled = "replace")
   ↓
-PATCH /api/channels/:id/secrets with full secrets array
+On submit, UI computes the merged set: for each catalog secret key, use the
+input value if non-empty, else use a sentinel that the backend interprets
+as "keep" — see below.
+  ↓
+PATCH /api/channels/:id/secrets body: { secrets: Array<{ key, value }> }
+  with the FULL set of secrets (the merged result), not a partial update
   ↓
 HTTP 204; toast "Secrets updated"; modal closes; detail page refetches
 ```
 
-The secrets edit modal does NOT prefill (security best-practice — operator types fresh, no leak risk via React DevTools). Empty fields = "leave unchanged"; non-empty = "replace this key's value".
+**Full-replace semantics + UX merge:** `ConnectorRepo.replaceSecrets()` is full-replace (DELETE all, INSERT submitted). To support "edit just one secret, leave the other as-is," the UI must capture the unchanged secret values somehow. Two options:
+
+- **Option (a) [PREFERRED]:** the UI never sees plaintext of unchanged secrets. To merge, the API endpoint accepts a NEW `mode` field on the request body: `{ mode: 'merge' | 'replace', secrets: [...] }`. With `mode: 'merge'` (default), the backend reads existing secrets, overlays the submitted ones (matching by key), and calls `replaceSecrets()` with the merged set. With `mode: 'replace'`, behaves as full replace. UI submits `mode: 'merge'` always; only sends keys the operator changed. Cleaner UX, no plaintext leak.
+
+- **Option (b):** UI requires the operator to fill ALL fields every edit. Simpler API, worse UX. Rejected.
+
+**Spec mandates Option (a).** The `PATCH /api/channels/:id/secrets` body schema gains an optional `mode: 'merge' | 'replace'` field defaulting to `'merge'`. Track 1 endpoint description above already says "full-replace semantics" at the storage level — the route handler is what implements the merge before calling the storage layer.
 
 ### Data flow — uninstall
 
@@ -242,7 +265,7 @@ This spec ships when ALL the following pass on the branch:
 - [ ] `PATCH /api/channels/:id/secrets` replaces secrets atomically; 204 on success; 404 for non-channel rows.
 - [ ] `DELETE /api/channels/:id` enqueues uninstall command; 204 on success; 404 for non-channel rows.
 - [ ] All 3 endpoints require auth (cookie). 401 without.
-- [ ] Tests added in `apps/api/tests/routes/channels.test.ts` (1 happy path + 1 404 + 1 401 per endpoint = 9 tests minimum).
+- [ ] Tests added in `apps/api/tests/routes/channels.test.ts` (1 happy path + 1 404 for non-channel id + 1 401 unauthed per endpoint = 9 tests minimum). Pattern: copy the auth-cookie helper from `apps/api/tests/routes/connectors.test.ts` (the `signSession` + COOKIE_NAME pattern); existing 11 channels tests in `channels.test.ts` already use this — extend, don't duplicate the helper.
 
 **Dashboard list page (Track 2):**
 - [ ] `/channels` route renders.

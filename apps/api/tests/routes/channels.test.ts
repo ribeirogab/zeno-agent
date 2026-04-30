@@ -349,3 +349,196 @@ describe('GET /api/channels/:id (spec 0059)', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
+  function seedSlack() {
+    const repo = new ConnectorRepo(db);
+    return repo.create({
+      slug: 'slack',
+      displayName: 'Slack',
+      source: 'catalog',
+      catalogId: 'slack',
+      transport: 'remote',
+      command: null,
+      args: null,
+      url: null,
+      kind: 'channel',
+      secrets: [
+        { key: 'SLACK_APP_TOKEN', value: 'xapp-A-AAAA' },
+        { key: 'SLACK_BOT_TOKEN', value: 'xoxb-B-BBBB' },
+      ],
+      tools: [],
+    });
+  }
+
+  it('mode=merge preserves unchanged keys (REGRESSION TEST)', async () => {
+    const channel = seedSlack();
+    const app = makeApp(db);
+    const res = await app.request(`/api/channels/${channel.id}/secrets`, {
+      method: 'PATCH',
+      headers: { ...authed(), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'merge',
+        secrets: [{ key: 'SLACK_BOT_TOKEN', value: 'xoxb-B2-CCCC' }],
+      }),
+    });
+    expect(res.status).toBe(204);
+    const repo = new ConnectorRepo(db);
+    const after = repo.getSecrets(channel.id);
+    const byKey = Object.fromEntries(after.map((s) => [s.key, s.value]));
+    expect(byKey.SLACK_APP_TOKEN).toBe('xapp-A-AAAA'); // PRESERVED
+    expect(byKey.SLACK_BOT_TOKEN).toBe('xoxb-B2-CCCC'); // CHANGED
+  });
+
+  it('mode=replace removes keys not in submitted set', async () => {
+    const channel = seedSlack();
+    const app = makeApp(db);
+    const res = await app.request(`/api/channels/${channel.id}/secrets`, {
+      method: 'PATCH',
+      headers: { ...authed(), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'replace',
+        secrets: [{ key: 'SLACK_APP_TOKEN', value: 'xapp-NEW' }],
+      }),
+    });
+    expect(res.status).toBe(204);
+    const repo = new ConnectorRepo(db);
+    const after = repo.getSecrets(channel.id);
+    expect(after.map((s) => s.key)).toEqual(['SLACK_APP_TOKEN']);
+  });
+
+  it('defaults mode to merge when omitted', async () => {
+    const channel = seedSlack();
+    const app = makeApp(db);
+    const res = await app.request(`/api/channels/${channel.id}/secrets`, {
+      method: 'PATCH',
+      headers: { ...authed(), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        secrets: [{ key: 'SLACK_APP_TOKEN', value: 'xapp-NEW' }],
+      }),
+    });
+    expect(res.status).toBe(204);
+    const repo = new ConnectorRepo(db);
+    const after = repo.getSecrets(channel.id);
+    expect(after).toHaveLength(2); // both kept due to merge default
+  });
+
+  it('returns 404 for kind=mcp row', async () => {
+    const repo = new ConnectorRepo(db);
+    const mcp = repo.create({
+      slug: 'sentry',
+      displayName: 'Sentry',
+      source: 'catalog',
+      catalogId: 'sentry',
+      transport: 'stdio',
+      command: 'echo',
+      args: [],
+      kind: 'mcp',
+      secrets: [],
+      tools: [],
+    });
+    const app = makeApp(db);
+    const res = await app.request(`/api/channels/${mcp.id}/secrets`, {
+      method: 'PATCH',
+      headers: { ...authed(), 'content-type': 'application/json' },
+      body: JSON.stringify({ secrets: [{ key: 'X', value: 'Y' }] }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 401 unauthed', async () => {
+    const app = makeApp(db);
+    const res = await app.request('/api/channels/some-id/secrets', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ secrets: [] }),
+    });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('DELETE /api/channels/:id (spec 0059)', () => {
+  it('deletes the row + cascades secrets', async () => {
+    const repo = new ConnectorRepo(db);
+    const channel = repo.create({
+      slug: 'slack',
+      displayName: 'Slack',
+      source: 'catalog',
+      catalogId: 'slack',
+      transport: 'remote',
+      command: null,
+      args: null,
+      url: null,
+      kind: 'channel',
+      secrets: [{ key: 'SLACK_APP_TOKEN', value: 'xapp-x' }],
+      tools: [],
+    });
+    const app = makeApp(db);
+    const res = await app.request(`/api/channels/${channel.id}`, {
+      method: 'DELETE',
+      headers: authed(),
+    });
+    expect(res.status).toBe(204);
+    expect(repo.get(channel.id)).toBeNull();
+    expect(repo.getSecrets(channel.id)).toEqual([]);
+  });
+
+  it('returns 404 for kind=mcp row', async () => {
+    const repo = new ConnectorRepo(db);
+    const mcp = repo.create({
+      slug: 'sentry',
+      displayName: 'Sentry',
+      source: 'catalog',
+      catalogId: 'sentry',
+      transport: 'stdio',
+      command: 'echo',
+      args: [],
+      kind: 'mcp',
+      secrets: [],
+      tools: [],
+    });
+    const app = makeApp(db);
+    const res = await app.request(`/api/channels/${mcp.id}`, {
+      method: 'DELETE',
+      headers: authed(),
+    });
+    expect(res.status).toBe(404);
+    expect(repo.get(mcp.id)).not.toBeNull(); // not deleted
+  });
+
+  it('returns 401 unauthed', async () => {
+    const app = makeApp(db);
+    const res = await app.request('/api/channels/some-id', { method: 'DELETE' });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('GET /api/channels/catalog/setup/:catalogId (spec 0059)', () => {
+  it('returns slack setup helper with steps + manifest', async () => {
+    const app = makeApp(db);
+    const res = await app.request('/api/channels/catalog/setup/slack', { headers: authed() });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      steps: Array<{ index: number; html: string }>;
+      manifest: { filename: string; content: string } | null;
+    };
+    expect(body.steps).toHaveLength(3);
+    expect(body.steps[0]?.index).toBe(1);
+    expect(body.steps[0]?.html).toContain('api.slack.com/apps');
+    expect(body.manifest).not.toBeNull();
+    expect(body.manifest?.filename).toBe('slack-app-manifest.json');
+    expect(body.manifest?.content).toContain('"name": "zeno-agent"');
+  });
+
+  it('returns 404 for unknown catalogId', async () => {
+    const app = makeApp(db);
+    const res = await app.request('/api/channels/catalog/setup/discord', { headers: authed() });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 401 unauthed', async () => {
+    const app = makeApp(db);
+    const res = await app.request('/api/channels/catalog/setup/slack');
+    expect(res.status).toBe(401);
+  });
+});

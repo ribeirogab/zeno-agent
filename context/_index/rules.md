@@ -15,7 +15,8 @@ Rules are added when a project-specific safety or workflow constraint is discove
 ## `severity: important`
 
 - [[../rules/generated-files-location|Generated / temporary files go under `tmp/`]] — screenshots, scratch scripts, dumps, browser output. Never at repo root.
-- [[../rules/ui-in-paper|UI lives in Paper]] — every rendered `.tsx` must have a Paper frame registered in `packages/ui/DESIGN.md`.
+- [[../rules/ui-in-paper|UI lives in Paper]] — every rendered `.tsx` must have an artboard inside the matching route container in the `zeno-agent` Paper file.
+- [[../rules/design-md-canonical|DESIGN.md is canonical for design tokens]] — on any token change, edit `/DESIGN.md` first; `packages/ui/src/styles/tokens.css` and consumers follow in the same commit.
 
 ## `severity: advisory`
 

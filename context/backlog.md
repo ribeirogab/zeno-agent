@@ -62,7 +62,7 @@ The **Active roadmap** section below is the exception — that's the committed s
 - **Channels and connectors are separate concepts.** New `agent/channels-catalog.json` parallel to existing `agent/connectors-catalog.json`. Channels are *substrate* (where the agent runs); connectors are *callable tools* (what the agent invokes). Storage layer compromise — both reuse the existing `connectors` + `connector_secrets` tables with a `kind` discriminator (avoid duplicating storage tables).
 - **Channel-first.** 0057+0058 land BEFORE files (0061, 0062) and audio (0065, 0066) so those features are channel-agnostic from day one. Adding WPP/Telegram later = new entry in `channels-catalog.json` + new adapter, no rework on file/audio code.
 - **Skills multi-file BEFORE skill-creator.** 0061 needs the multi-file infra (0060) to install Anthropic's skill-creator as a real skill.
-- **UI changes are Paper-first.** 0059, 0064, and 0065 all have Phase 0 = update artboards in the "Hearty island" Paper file before any code.
+- **UI changes are Paper-first.** 0059, 0064, and 0065 all have Phase 0 = update artboards in the `zeno-agent` Paper file before any code.
 - **0059 inserted post-0058 cutover.** Originally the dashboard UI for channels was deferred to a "future polish spec." After the live cutover landed, the operator immediately hit the gap (no `/channels` route in dashboard means manage-via-curl-only). Promoted to in-sprint.
 - **All quick wins go through spec.** Even items 2 and 5c — owner chose spec discipline over chore-PR speed for full traceability.
 

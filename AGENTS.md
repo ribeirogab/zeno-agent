@@ -62,7 +62,8 @@ context/             Specs, learnings, conventions, rules
 | Project-specific rules | `context/rules/` |
 | Spec template | `context/specs/_template/` |
 | Note templates (learning, rule) | `context/templates/` |
-| Dashboard design (Paper artboards) | Spec 0008 + Paper file "Hearty island" |
+| Design system (tokens + intent) | `DESIGN.md` (root) — Imperial Terminal. Format spec: `context/conventions/design-md-format.md`. Canonical-source rule: `context/rules/design-md-canonical.md`. |
+| Dashboard design (Paper artboards) | Paper file `zeno-agent` (`01KPYCJ6QXK8Z1PEVQME9262RP`, page `1-0`). Routes are top-level container artboards in the sidebar. |
 
 ## Claude Code skills and commands
 

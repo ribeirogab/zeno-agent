@@ -1,6 +1,11 @@
 /*
  * Zeno design tokens — "Imperial Terminal"
  *
+ * THIS FILE IS DERIVED. The canonical source for token values lives in
+ * /DESIGN.md (YAML frontmatter). On any token change, edit /DESIGN.md
+ * first; this file follows in the same commit.
+ * See context/rules/design-md-canonical.md.
+ *
  * Ink-blue surfaces, imperial gold accent, mono-first typography.
  * Dark is the ONLY mode. No light palette.
  *

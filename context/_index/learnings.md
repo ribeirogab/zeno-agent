@@ -75,6 +75,7 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/tailwind-merge-position-conflict|tailwind-merge silently resolves position conflicts]] — `fixed` + `relative` in the same `cn()` string: merge keeps the last one, dialog renders invisible.
 - [[../learnings/css-keyframes-must-exist-for-animations|CSS animations referencing missing @keyframes fail silently]] — `animate-[name]` without a `@keyframes name` block: no error, element stays at initial state.
 - [[../learnings/paper-mcp-file-identity-check|Always verify Paper's open file before consulting]] — `get_basic_info` first; if `fileName` doesn't match the project, stop. The user works in parallel on multiple Paper files.
+- [[../learnings/per-frame-design-registry-failure|Per-frame Paper↔code registries don't survive restructures]] — the old `packages/ui/DESIGN.md` registry pattern; lesson informs spec 0070.
 - [[../learnings/tailwind-v4-import-needs-workspace-dep|`@import "@workspace/pkg/path.css"` needs the dep declared]] — PostCSS uses Node resolution; without the workspace dep in `package.json`, the `@import` errors `ENOENT` even though the file exists.
 
 ## `#meta` — Workflow and process

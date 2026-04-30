@@ -27,4 +27,4 @@ When adding a new status indicator or chip:
 - **Is it a filter chip in a segmented control?**
   - Uppercase, same style as kickers.
 
-When in doubt, check Paper's 03. Patterns artboard — if the motif exists there, match its casing exactly. `packages/ui/DESIGN.md` links to the frame.
+When in doubt, check the relevant route container in the `zeno-agent` Paper file (`design system` for primitives, the route name for feature components) and match the casing of the artboard exactly.

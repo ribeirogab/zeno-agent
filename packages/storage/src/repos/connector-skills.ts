@@ -5,7 +5,6 @@ interface SkillRow {
   id: string;
   name: string;
   description: string;
-  body: string;
   source: string;
   created_at: string;
   updated_at: string;
@@ -22,7 +21,6 @@ function rowToSkill(row: SkillRow): Skill {
     id: row.id,
     name: row.name,
     description: row.description,
-    body: row.body,
     source: row.source as SkillSource,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

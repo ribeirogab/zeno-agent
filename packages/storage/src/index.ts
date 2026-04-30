@@ -11,7 +11,7 @@ export { CronSkillRepo } from './repos/cron-skills.js';
 export { CronRepo } from './repos/crons.js';
 export { LogRepo } from './repos/logs.js';
 export { SessionRepo } from './repos/sessions.js';
-export { SkillRepo } from './repos/skills.js';
+export { SkillRepo, type SkillRoots } from './repos/skills.js';
 export type {
   AgentCapability,
   AgentCapabilityUpdate,

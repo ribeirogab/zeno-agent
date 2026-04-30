@@ -1,6 +1,7 @@
 /**
- * Spec 0053 — bootSkillsReconcile unit tests. Cover the UPSERT/INSERT-OR-IGNORE
- * split, orphan cleanup semantics, and the audit log.
+ * Spec 0053 / 0062 — bootSkillsReconcile unit tests. Cover the
+ * UPSERT/INSERT-OR-IGNORE split, orphan cleanup semantics, the audit log,
+ * and (spec 0062) the dashboard volume scan + safety guard.
  */
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -19,13 +20,14 @@ function mkSkill(root: string, name: string, description: string, body: string) 
   );
 }
 
-describe('bootSkillsReconcile (spec 0053)', () => {
+describe('bootSkillsReconcile (spec 0053 + 0062)', () => {
   let tmp: string;
   let agentRoot: string;
   let profileRoot: string;
+  let dashboardRoot: string;
   let db: DB;
   let skills: SkillRepo;
-  // Cast to a Logger-shaped mock; we only assert on `info`.
+  // Cast to a Logger-shaped mock; we only assert on `info` / `warn`.
   // biome-ignore lint/suspicious/noExplicitAny: vitest mock
   const logger = {
     info: vi.fn(),
@@ -40,12 +42,19 @@ describe('bootSkillsReconcile (spec 0053)', () => {
     tmp = mkdtempSync(join(tmpdir(), 'zeno-seed-'));
     agentRoot = join(tmp, 'agent', 'skills');
     profileRoot = join(tmp, 'profile', 'skills');
+    dashboardRoot = join(tmp, 'workspace', 'skills');
     mkdirSync(agentRoot, { recursive: true });
     mkdirSync(profileRoot, { recursive: true });
+    mkdirSync(dashboardRoot, { recursive: true });
     db = openDatabase(':memory:');
     runMigrations(db);
-    skills = new SkillRepo(db);
+    skills = new SkillRepo(db, {
+      agentSkillsRoot: agentRoot,
+      profileSkillsRoot: profileRoot,
+      dashboardSkillsRoot: dashboardRoot,
+    });
     logger.info.mockClear();
+    logger.warn.mockClear();
   });
 
   afterEach(() => {
@@ -60,13 +69,16 @@ describe('bootSkillsReconcile (spec 0053)', () => {
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: profileRoot,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
-    expect(report).toEqual({
+    expect(report).toMatchObject({
       zenoDefault: 1,
       profile: 1,
+      dashboard: 0,
       orphansRemoved: [],
       cascadeAffected: 0,
+      dashboardOrphansSkipped: [],
     });
     expect(skills.list()).toHaveLength(2);
     const dev = skills.list().find((s) => s.name === 'zeno-development');
@@ -75,26 +87,28 @@ describe('bootSkillsReconcile (spec 0053)', () => {
     expect(cr?.source).toBe('profile');
   });
 
-  it('zeno_default UPSERT updates body on subsequent boots when file changes', () => {
-    mkSkill(agentRoot, 'zeno-development', 'd', 'first');
+  it('zeno_default UPSERT updates description on subsequent boots when frontmatter changes', () => {
+    mkSkill(agentRoot, 'zeno-development', 'first desc', '# Workflow v1');
     bootSkillsReconcile({
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: null,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
     writeFileSync(
       join(agentRoot, 'zeno-development', 'SKILL.md'),
-      `---\nname: zeno-development\ndescription: d\n---\nsecond\n`,
+      `---\nname: zeno-development\ndescription: second desc\n---\n# Workflow v2\n`,
     );
     bootSkillsReconcile({
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: null,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
     const updated = skills.list().find((s) => s.name === 'zeno-development');
-    expect(updated?.body.trim()).toBe('second');
+    expect(updated?.description).toBe('second desc');
   });
 
   it('profile INSERT OR IGNORE preserves operator dashboard edits across boots', () => {
@@ -103,20 +117,22 @@ describe('bootSkillsReconcile (spec 0053)', () => {
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: profileRoot,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
     const seeded = skills.list().find((s) => s.name === 'fn-x');
     if (!seeded) throw new Error('not seeded');
-    // Simulate a dashboard edit.
-    skills.update(seeded.id, { body: 'edited-by-user' });
+    // Simulate a dashboard edit (description only, post-spec-0062).
+    skills.update(seeded.id, { description: 'edited-by-user' });
     bootSkillsReconcile({
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: profileRoot,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
     const after = skills.list().find((s) => s.name === 'fn-x');
-    expect(after?.body).toBe('edited-by-user');
+    expect(after?.description).toBe('edited-by-user');
   });
 
   it('orphan cleanup deletes zeno_default rows when file disappears', () => {
@@ -126,6 +142,7 @@ describe('bootSkillsReconcile (spec 0053)', () => {
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: null,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
     rmSync(join(agentRoot, 'zeno-b'), { recursive: true });
@@ -133,6 +150,7 @@ describe('bootSkillsReconcile (spec 0053)', () => {
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: null,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
     expect(report.orphansRemoved).toEqual(['zeno-b']);
@@ -145,6 +163,7 @@ describe('bootSkillsReconcile (spec 0053)', () => {
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: profileRoot,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
     rmSync(join(profileRoot, 'fn-x'), { recursive: true });
@@ -152,6 +171,7 @@ describe('bootSkillsReconcile (spec 0053)', () => {
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: profileRoot,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
     expect(report.orphansRemoved).toEqual([]);
@@ -164,6 +184,7 @@ describe('bootSkillsReconcile (spec 0053)', () => {
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: null,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
     rmSync(join(agentRoot, 'zeno-a'), { recursive: true });
@@ -172,6 +193,7 @@ describe('bootSkillsReconcile (spec 0053)', () => {
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: null,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
     const orphanCall = logger.info.mock.calls.find(
@@ -191,11 +213,13 @@ describe('bootSkillsReconcile (spec 0053)', () => {
       skills,
       agentSkillsRoot: join(tmp, 'does-not-exist'),
       profileSkillsRoot: null,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
-    expect(report).toEqual({
+    expect(report).toMatchObject({
       zenoDefault: 0,
       profile: 0,
+      dashboard: 0,
       orphansRemoved: [],
       cascadeAffected: 0,
     });
@@ -208,11 +232,13 @@ describe('bootSkillsReconcile (spec 0053)', () => {
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: null,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
-    expect(report).toEqual({
+    expect(report).toMatchObject({
       zenoDefault: 1,
       profile: 0,
+      dashboard: 0,
       orphansRemoved: [],
       cascadeAffected: 0,
     });
@@ -227,6 +253,7 @@ describe('bootSkillsReconcile (spec 0053)', () => {
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: null,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
     expect(report.zenoDefault).toBe(1);
@@ -252,6 +279,7 @@ describe('bootSkillsReconcile (spec 0053)', () => {
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: null,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
     // Only the kebab-cased one survives.
@@ -265,6 +293,7 @@ describe('bootSkillsReconcile (spec 0053)', () => {
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: null,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
     const skill = skills.list()[0];
@@ -282,9 +311,129 @@ describe('bootSkillsReconcile (spec 0053)', () => {
       skills,
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: null,
+      dashboardSkillsRoot: dashboardRoot,
       logger,
     });
     expect(report.orphansRemoved).toEqual(['zeno-a']);
     expect(report.cascadeAffected).toBe(1);
+  });
+
+  // Spec 0062 — dashboard volume scan tests
+  describe('dashboard volume scan (spec 0062)', () => {
+    it('UPSERTs dashboard skills found at /workspace/skills/', () => {
+      mkSkill(dashboardRoot, 'skill-creator', 'Builder for new skills', '# body');
+      const report = bootSkillsReconcile({
+        skills,
+        agentSkillsRoot: agentRoot,
+        profileSkillsRoot: null,
+        dashboardSkillsRoot: dashboardRoot,
+        logger,
+      });
+      expect(report.dashboard).toBe(1);
+      const row = skills.getByName('skill-creator');
+      expect(row?.source).toBe('dashboard');
+      expect(row?.description).toBe('Builder for new skills');
+    });
+
+    it('safety guard: dashboard root MISSING → skip orphan cleanup, emit WARN', () => {
+      // First boot seeds a dashboard skill.
+      mkSkill(dashboardRoot, 'skill-creator', 'd', 'b');
+      bootSkillsReconcile({
+        skills,
+        agentSkillsRoot: agentRoot,
+        profileSkillsRoot: null,
+        dashboardSkillsRoot: dashboardRoot,
+        logger,
+      });
+      // Delete the entire dashboard root (simulate restored backup with no volume).
+      rmSync(dashboardRoot, { recursive: true });
+      logger.warn.mockClear();
+      const report = bootSkillsReconcile({
+        skills,
+        agentSkillsRoot: agentRoot,
+        profileSkillsRoot: null,
+        dashboardSkillsRoot: dashboardRoot,
+        logger,
+      });
+      // Row should still exist — safety guard refused to delete.
+      expect(skills.getByName('skill-creator')).not.toBeNull();
+      expect(report.dashboardOrphansSkipped).toEqual(['skill-creator']);
+      const warnCall = logger.warn.mock.calls.find(
+        // biome-ignore lint/suspicious/noExplicitAny: vitest mock
+        (c: any[]) => c[0]?.event === 'skills_dashboard_orphan_cleanup_skipped',
+      );
+      expect(warnCall).toBeDefined();
+    });
+
+    it('safety guard: dashboard root EMPTY → skip orphan cleanup', () => {
+      mkSkill(dashboardRoot, 'skill-creator', 'd', 'b');
+      bootSkillsReconcile({
+        skills,
+        agentSkillsRoot: agentRoot,
+        profileSkillsRoot: null,
+        dashboardSkillsRoot: dashboardRoot,
+        logger,
+      });
+      rmSync(join(dashboardRoot, 'skill-creator'), { recursive: true });
+      // Root exists but is empty now.
+      const report = bootSkillsReconcile({
+        skills,
+        agentSkillsRoot: agentRoot,
+        profileSkillsRoot: null,
+        dashboardSkillsRoot: dashboardRoot,
+        logger,
+      });
+      // Row should still exist — safety guard refused to delete.
+      expect(skills.getByName('skill-creator')).not.toBeNull();
+      expect(report.dashboardOrphansSkipped).toEqual(['skill-creator']);
+    });
+
+    it('orphan cleanup runs when guard passes: deletes dashboard rows whose FS dir is missing', () => {
+      mkSkill(dashboardRoot, 'a', 'd', 'b');
+      mkSkill(dashboardRoot, 'b', 'd', 'b');
+      bootSkillsReconcile({
+        skills,
+        agentSkillsRoot: agentRoot,
+        profileSkillsRoot: null,
+        dashboardSkillsRoot: dashboardRoot,
+        logger,
+      });
+      // Delete one but keep the other. Guard passes (root exists + non-empty).
+      rmSync(join(dashboardRoot, 'b'), { recursive: true });
+      const report = bootSkillsReconcile({
+        skills,
+        agentSkillsRoot: agentRoot,
+        profileSkillsRoot: null,
+        dashboardSkillsRoot: dashboardRoot,
+        logger,
+      });
+      // 'b' is gone, 'a' survives.
+      expect(
+        skills
+          .list()
+          .map((s) => s.name)
+          .sort(),
+      ).toEqual(['a']);
+      expect(report.dashboardOrphansSkipped).toEqual([]);
+    });
+
+    it('skips .tmp-* extraction orphans during scan (they are not skills)', () => {
+      mkSkill(dashboardRoot, 'real-skill', 'd', 'b');
+      // Simulate a partial-extract orphan
+      mkdirSync(join(dashboardRoot, '.tmp-abc123'), { recursive: true });
+      writeFileSync(
+        join(dashboardRoot, '.tmp-abc123', 'SKILL.md'),
+        `---\nname: tmp-skill\ndescription: d\n---\nbody`,
+      );
+      const report = bootSkillsReconcile({
+        skills,
+        agentSkillsRoot: agentRoot,
+        profileSkillsRoot: null,
+        dashboardSkillsRoot: dashboardRoot,
+        logger,
+      });
+      expect(report.dashboard).toBe(1); // only real-skill, not the .tmp- one
+      expect(skills.list().map((s) => s.name)).toEqual(['real-skill']);
+    });
   });
 });

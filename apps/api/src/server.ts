@@ -58,7 +58,14 @@ export interface AppDeps {
   agentCapabilityRepo?: AgentCapabilityRepo;
   /** Directory holding Claude Code JSONL transcripts (e.g. `~/.claude/projects/-workspace`). */
   claudeHome: string;
-  /** Spec 0052: absolute path to ${claudeHome} (`~/.claude`) for skill materialization. Defaults to deps.claudeHome's parent dir if not set. */
+  /**
+   * Spec 0052 → 0062: removed. Skill content moved from `${claudeHome}/skills/`
+   * (the materializer's symlink farm) to `canonicalPath(skill)` resolved by
+   * SkillRepo. The route reads + writes there directly. The materializer
+   * keeps the symlink farm in sync via the watcher. Kept as optional + unused
+   * for back-compat with existing call sites; will be removed in a future
+   * cleanup spec.
+   */
   claudeHomeRoot?: string;
   /** Directory holding the agent profile files (SOUL.md, USER.md, crons.yaml). */
   profileDir: string;
@@ -167,15 +174,16 @@ export function createApp(deps: AppDeps): Hono {
       }),
     );
   }
-  // Spec 0052: skills (CRUD + downloads).
-  if (deps.skillRepo && deps.claudeHomeRoot) {
+  // Spec 0052 + 0062: skills (zip install + file CRUD + downloads).
+  if (deps.skillRepo && deps.connectorSkillRepo && deps.cronSkillRepo) {
     app.use('/api/skills', requireAuth({ secret: deps.config.sessionSecret, secure }));
     app.use('/api/skills/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
     app.route(
       '/api/skills',
       buildSkillsRoute({
         skills: deps.skillRepo,
-        claudeHome: deps.claudeHomeRoot,
+        connectorSkills: deps.connectorSkillRepo,
+        cronSkills: deps.cronSkillRepo,
         logger: apiLogger,
       }),
     );

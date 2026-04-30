@@ -1,363 +1,679 @@
-import { CornerBrackets, Dialog, DialogContent, DialogTitle } from '@zeno/ui';
+/**
+ * Spec 0062 — install modal accepts a .zip via multipart upload.
+ * fflate parses the zip in-memory to preview the SKILL.md frontmatter
+ * before submission. Once the operator clicks "Install", the original
+ * zip bytes are sent to POST /api/skills.
+ *
+ * Visual contract: artboard 6UD-0 (success) / 6WK-0 (error variants).
+ */
+
+import { strFromU8, unzipSync } from 'fflate';
 import type { JSX } from 'react';
-import { useState } from 'react';
-import { ApiError } from '@/lib/api-client';
-import { useInstallSkill } from '@/lib/use-skills';
+import { useEffect, useState } from 'react';
+import { useInstallSkillZip } from '@/lib/use-skills';
+import { SkillSourcePill } from './skill-source-pill';
 
-interface ParsedPreview {
-  name: string;
+interface InstallSkillModalProps {
+  onClose: () => void;
+}
+
+interface ZipPreview {
+  filename: string;
+  sizeBytes: number;
+  fileCount: number;
+  topLevel: string[];
+  skillName: string;
   description: string;
-  bodyLength: number;
+  raw: Blob;
 }
 
-interface ServerError {
-  code: 'invalid_frontmatter' | 'skill_already_exists' | 'unknown';
+interface ParseError {
+  code:
+    | 'no_skill_md'
+    | 'malformed_frontmatter'
+    | 'invalid_zip'
+    | 'missing_name'
+    | 'missing_description';
   message: string;
-  errors?: Array<{ field: string; code: string; message: string }>;
 }
 
-export function InstallSkillModal({ onClose }: { onClose: () => void }): JSX.Element {
-  const install = useInstallSkill();
-  const [content, setContent] = useState<string | null>(null);
-  const [filename, setFilename] = useState<string | null>(null);
-  const [parsed, setParsed] = useState<ParsedPreview | null>(null);
-  const [error, setError] = useState<ServerError | null>(null);
+const TOP_LEVEL_LIMIT = 8;
 
-  const onFileChosen = async (file: File) => {
-    const text = await file.text();
-    setContent(text);
-    setFilename(file.name);
-    setParsed(parseFrontmatterClient(text));
-    setError(null);
+function parseFrontmatter(raw: string): { name?: string; description?: string } | null {
+  const match = raw.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return null;
+  const block = match[1] ?? '';
+  const out: { name?: string; description?: string } = {};
+  for (const line of block.split('\n')) {
+    const m = line.match(/^([a-zA-Z0-9_-]+):\s*(.*)$/);
+    if (!m) continue;
+    const value = m[2]?.trim();
+    if (m[1] === 'name' && value) out.name = value;
+    if (m[1] === 'description' && value) out.description = value;
+  }
+  return out;
+}
+
+async function previewZip(file: File): Promise<ZipPreview | ParseError> {
+  let entries: Record<string, Uint8Array>;
+  try {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    entries = unzipSync(buf);
+  } catch (err) {
+    return { code: 'invalid_zip', message: `Could not parse zip: ${(err as Error).message}` };
+  }
+  const skillMdEntry = entries['SKILL.md'];
+  if (!skillMdEntry) {
+    return { code: 'no_skill_md', message: 'No SKILL.md found at root of zip' };
+  }
+  const skillMd = strFromU8(skillMdEntry);
+  const front = parseFrontmatter(skillMd);
+  if (!front) return { code: 'malformed_frontmatter', message: 'SKILL.md has no frontmatter' };
+  const skillName = front.name;
+  const description = front.description;
+  if (!skillName) return { code: 'missing_name', message: 'SKILL.md frontmatter missing `name`' };
+  if (!description)
+    return { code: 'missing_description', message: 'SKILL.md frontmatter missing `description`' };
+  const topLevelSet = new Set<string>();
+  let fileCount = 0;
+  for (const path of Object.keys(entries)) {
+    if (path.endsWith('/')) continue;
+    fileCount++;
+    const slash = path.indexOf('/');
+    if (slash === -1) topLevelSet.add(path);
+    else topLevelSet.add(`${path.slice(0, slash)}/`);
+  }
+  return {
+    filename: file.name,
+    sizeBytes: file.size,
+    fileCount,
+    topLevel: Array.from(topLevelSet).slice(0, TOP_LEVEL_LIMIT),
+    skillName,
+    description,
+    raw: file,
+  };
+}
+
+export function InstallSkillModal({ onClose }: InstallSkillModalProps): JSX.Element {
+  const [preview, setPreview] = useState<ZipPreview | null>(null);
+  const [parseError, setParseError] = useState<ParseError | null>(null);
+  const installMutation = useInstallSkillZip();
+
+  const handleFile = async (file: File): Promise<void> => {
+    setParseError(null);
+    setPreview(null);
+    const result = await previewZip(file);
+    if ('code' in result) setParseError(result);
+    else setPreview(result);
   };
 
-  const onConfirm = async () => {
-    if (!content) return;
-    setError(null);
-    try {
-      await install.mutateAsync({ content });
-      onClose();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        const body = err.body as {
-          error: string;
-          message?: string;
-          errors?: Array<{ field: string; code: string; message: string }>;
-        } | null;
-        if (body?.error === 'invalid_frontmatter') {
-          const next: ServerError = {
-            code: 'invalid_frontmatter',
-            message: 'Invalid frontmatter.',
-          };
-          if (body.errors) next.errors = body.errors;
-          setError(next);
-          return;
-        }
-        if (body?.error === 'skill_already_exists') {
-          setError({
-            code: 'skill_already_exists',
-            message: body.message ?? 'Skill já existe.',
-          });
-          return;
-        }
-      }
-      setError({
-        code: 'unknown',
-        message: err instanceof Error ? err.message : String(err),
-      });
-    }
+  const handleInstall = (): void => {
+    if (!preview) return;
+    installMutation.mutate(
+      { zip: preview.raw, filename: preview.filename },
+      {
+        onSuccess: () => {
+          onClose();
+        },
+      },
+    );
   };
 
-  const valid = parsed !== null && error === null;
-  const destructive =
-    error?.code === 'invalid_frontmatter' || error?.code === 'skill_already_exists';
+  const serverError = installMutation.error as
+    | (Error & { code?: string; status?: number })
+    | undefined;
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only run on unmount
+  useEffect(() => {
+    return () => {
+      installMutation.reset();
+    };
+  }, []);
 
   return (
-    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[640px]">
-        <CornerBrackets />
-        <Header destructive={destructive} filename={filename ?? 'SKILL.md'} />
-        <div className="flex flex-col gap-[18px] px-7 py-[22px]">
-          {!content && <Dropzone onFileChosen={onFileChosen} />}
-          {content && (
-            <FilePreview
-              filename={filename ?? 'SKILL.md'}
-              bytes={content.length}
-              parsed={parsed}
-              destructive={destructive}
+    // biome-ignore lint/a11y/noStaticElementInteractions: modal backdrop click closes
+    // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop click is supplemental; ESC handler omitted for v1
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.6)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 100,
+        padding: 20,
+      }}
+      onClick={onClose}
+    >
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: stop propagation only */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: not interactive */}
+      <div
+        style={{
+          width: 640,
+          maxWidth: '100%',
+          maxHeight: '90vh',
+          overflow: 'auto',
+          position: 'relative',
+          background: '#0F1119',
+          border: '1px solid #E8EAF51A',
+          fontFamily: 'JetBrains Mono, monospace',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Bracket position="top-left" />
+        <Bracket position="top-right" />
+        <Bracket position="bottom-left" />
+        <Bracket position="bottom-right" />
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            padding: '22px 28px 16px 28px',
+            borderBottom: '1px solid #E8EAF50F',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span
+              style={{
+                fontSize: 10,
+                lineHeight: '12px',
+                color: '#D9B362',
+                letterSpacing: '0.2em',
+                textTransform: 'uppercase',
+                fontWeight: 500,
+              }}
+            >
+              INSTALL · SKILL
+            </span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+              <span
+                style={{
+                  fontFamily: 'Fraunces, serif',
+                  fontSize: 24,
+                  lineHeight: '30px',
+                  color: '#E8EAF5',
+                  letterSpacing: '-0.015em',
+                }}
+              >
+                Add skill from
+              </span>
+              <span
+                style={{
+                  fontFamily: 'Fraunces, serif',
+                  fontSize: 24,
+                  lineHeight: '30px',
+                  color: '#D9B362',
+                  letterSpacing: '-0.015em',
+                  fontStyle: 'italic',
+                }}
+              >
+                zip
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              all: 'unset',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              border: '1px solid #E8EAF51F',
+              width: 28,
+              height: 28,
+              fontSize: 13,
+              color: '#8A8FAB',
+              cursor: 'pointer',
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', padding: '22px 28px', gap: 18 }}>
+          {!preview && !parseError ? (
+            <FilePicker onFile={handleFile} />
+          ) : (
+            <FilePickerSelected
+              filename={preview?.filename ?? '(error)'}
+              sizeBytes={preview?.sizeBytes ?? 0}
+              fileCount={preview?.fileCount ?? 0}
+              hasError={Boolean(parseError) || Boolean(serverError)}
+              onReplace={() => {
+                setPreview(null);
+                setParseError(null);
+                installMutation.reset();
+              }}
             />
           )}
-          {parsed && !error && (
-            <NameDescPreview name={parsed.name} description={parsed.description} />
+
+          {parseError && <ErrorBanner code={parseError.code} message={parseError.message} />}
+          {serverError && (
+            <ErrorBanner
+              code={serverError.code ?? 'unknown'}
+              message={serverError.message ?? 'Install failed'}
+            />
           )}
-          {error && <ErrorBlock error={error} />}
+
+          {preview && !parseError && !serverError && <PreviewCard preview={preview} />}
         </div>
-        <div className="flex items-center justify-between gap-2.5 bg-sidebar border-t border-border-subtle px-7 pt-4 pb-[22px]">
-          <span className="font-mono text-[10px] tracking-[0.06em] text-text-tertiary">
-            {!content && 'pick a SKILL.md from disk'}
-            {content && valid && `ready to install · ${content.length} bytes`}
-            {content && error && 'install blocked · fix and re-upload'}
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 28px',
+            background: '#05060F',
+            borderTop: '1px solid #E8EAF50F',
+          }}
+        >
+          <span
+            style={{
+              fontSize: 11,
+              color: parseError || serverError ? '#E55A4F' : '#4B4F66',
+              letterSpacing: '0.04em',
+            }}
+          >
+            {parseError || serverError
+              ? 'cannot install'
+              : preview
+                ? `ready to install · ${(preview.sizeBytes / 1024).toFixed(1)} KB · ${preview.fileCount} files`
+                : 'select a .zip to begin'}
           </span>
-          <div className="flex gap-2.5">
+          <div style={{ display: 'flex', gap: 10 }}>
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex items-center px-3.5 py-2 border border-border-strong font-mono text-xs font-medium tracking-[0.06em] uppercase text-text-primary hover:bg-panel-2 transition-colors duration-[120ms]"
+              style={{
+                padding: '9px 16px',
+                border: '1px solid #E8EAF51F',
+                background: 'transparent',
+                fontSize: 11,
+                color: '#8A8FAB',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                fontWeight: 500,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
             >
               cancel
             </button>
             <button
               type="button"
-              onClick={onConfirm}
-              disabled={!valid || install.isPending}
-              className="inline-flex items-center gap-2 px-3.5 py-2 bg-gold border border-gold font-mono text-xs font-bold tracking-[0.06em] uppercase text-text-ink hover:bg-gold/90 disabled:opacity-50 transition-colors duration-[120ms]"
+              onClick={handleInstall}
+              disabled={!preview || Boolean(parseError) || installMutation.isPending}
+              style={{
+                padding: '9px 16px',
+                gap: 8,
+                background:
+                  !preview || parseError || installMutation.isPending ? '#1B1F2E' : '#D9B362',
+                border: '1px solid',
+                borderColor:
+                  !preview || parseError || installMutation.isPending ? '#2A2F45' : '#D9B362',
+                fontSize: 11,
+                color: !preview || parseError || installMutation.isPending ? '#8A8FAB' : '#08090F',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                fontWeight: 700,
+                cursor: !preview || parseError ? 'default' : 'pointer',
+                opacity: !preview || parseError ? 0.45 : 1,
+                whiteSpace: 'nowrap',
+              }}
             >
-              {install.isPending ? 'installing…' : 'install skill'}
+              {installMutation.isPending ? 'installing…' : 'install →'}
             </button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function Header({
-  destructive,
-  filename,
-}: {
-  destructive: boolean;
-  filename: string;
-}): JSX.Element {
-  return (
-    <div
-      className={`flex items-start gap-3 border-b ${
-        destructive ? 'border-status-failed/30' : 'border-border-subtle'
-      } pt-[22px] px-7 pb-3.5`}
-    >
-      <div className="flex flex-col gap-1">
-        <span
-          className={`font-mono text-[10px] tracking-[0.2em] uppercase ${
-            destructive ? 'text-status-failed' : 'text-gold'
-          }`}
-        >
-          {destructive ? 'install · cannot proceed' : 'install · skill'}
-        </span>
-        <DialogTitle className="m-0 font-serif text-[22px] tracking-[-0.015em] leading-7 text-text-primary">
-          Install{' '}
-          <em className={`italic ${destructive ? 'text-status-failed' : 'text-gold'}`}>
-            {filename}
-          </em>
-        </DialogTitle>
       </div>
     </div>
   );
 }
 
-function Dropzone({ onFileChosen }: { onFileChosen: (file: File) => void }): JSX.Element {
+function Bracket({
+  position,
+}: {
+  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+}): JSX.Element {
+  const styles: Record<string, React.CSSProperties> = {
+    'top-left': {
+      top: -1,
+      left: -1,
+      borderTop: '2px solid #D9B362',
+      borderLeft: '2px solid #D9B362',
+    },
+    'top-right': {
+      top: -1,
+      right: -1,
+      borderTop: '2px solid #D9B362',
+      borderRight: '2px solid #D9B362',
+    },
+    'bottom-left': {
+      bottom: -1,
+      left: -1,
+      borderBottom: '2px solid #D9B362',
+      borderLeft: '2px solid #D9B362',
+    },
+    'bottom-right': {
+      bottom: -1,
+      right: -1,
+      borderBottom: '2px solid #D9B362',
+      borderRight: '2px solid #D9B362',
+    },
+  };
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        width: 14,
+        height: 14,
+        ...styles[position],
+      }}
+    />
+  );
+}
+
+function FilePicker({ onFile }: { onFile: (f: File) => void }): JSX.Element {
   return (
     <label
-      htmlFor="skill-file"
-      className="border border-dashed border-gold-line bg-gold-soft/[0.04] hover:bg-gold-soft/10 px-12 py-10 flex flex-col items-center gap-2 cursor-pointer transition-colors duration-[120ms]"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 8,
+        padding: '32px 24px',
+        background: '#08090F',
+        border: '1px dashed #E8EAF51F',
+        borderRadius: 4,
+        cursor: 'pointer',
+      }}
     >
-      <svg
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="text-gold"
-        role="img"
-        aria-label="Upload"
-      >
-        <title>Upload</title>
-        <path d="M12 4 V16 M6 10 L12 4 L18 10" />
-        <path d="M4 21 H20" />
-      </svg>
-      <span className="font-mono text-[13px] text-text-primary">Drop a SKILL.md here</span>
-      <span className="font-mono text-[11px] text-text-tertiary">or click to choose</span>
       <input
-        id="skill-file"
         type="file"
-        accept=".md,text/markdown"
-        className="hidden"
+        accept=".zip,application/zip"
+        style={{ display: 'none' }}
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) onFileChosen(f);
+          if (f) void onFile(f);
         }}
       />
+      <span style={{ fontSize: 13, color: '#E8EAF5', fontWeight: 500 }}>
+        drop a .zip or click to browse
+      </span>
+      <span style={{ fontSize: 11, color: '#4B4F66' }}>
+        max 5 MB total · max 1 MB per file · max 500 files
+      </span>
     </label>
   );
 }
 
-function FilePreview({
+function FilePickerSelected({
   filename,
-  bytes,
-  parsed,
-  destructive,
+  sizeBytes,
+  fileCount,
+  hasError,
+  onReplace,
 }: {
   filename: string;
-  bytes: number;
-  parsed: ParsedPreview | null;
-  destructive: boolean;
+  sizeBytes: number;
+  fileCount: number;
+  hasError: boolean;
+  onReplace: () => void;
 }): JSX.Element {
+  const bgColor = hasError ? '#E55A4F0F' : '#5BD17C0F';
+  const borderColor = hasError ? '#E55A4F4D' : '#5BD17C4D';
+  const iconColor = hasError ? '#E55A4F' : '#5BD17C';
   return (
     <div
-      className={`flex items-center py-2.5 px-3.5 gap-3 ${
-        destructive
-          ? 'bg-status-failed/[0.06] border border-status-failed/30'
-          : parsed
-            ? 'bg-status-active/[0.06] border border-status-active/30'
-            : 'bg-panel-2 border border-border-subtle'
-      }`}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        padding: '12px 14px',
+        gap: 12,
+        background: bgColor,
+        border: `1px solid ${borderColor}`,
+      }}
     >
       <svg
-        width="14"
-        height="14"
+        width="16"
+        height="16"
         viewBox="0 0 24 24"
         fill="none"
-        stroke={destructive ? '#F5718C' : parsed ? '#5BD17C' : '#8A8FAB'}
+        stroke={iconColor}
         strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="shrink-0"
-        role="img"
-        aria-label="File"
+        aria-hidden="true"
       >
-        <title>File</title>
-        <path d="M5 4 L19 4 V20 L5 20 Z" />
-        {destructive ? (
-          <path d="M9 9 L15 15 M15 9 L9 15" />
-        ) : parsed ? (
-          <path d="M9 12 L11 14 L15 10" />
-        ) : null}
+        <path d="M14 2 H6 a2 2 0 0 0-2 2 v16 a2 2 0 0 0 2 2 h12 a2 2 0 0 0 2-2 V8 z" />
+        <polyline points="14 2 14 8 20 8" />
       </svg>
-      <div className="flex flex-col grow shrink basis-0 min-w-0 gap-0.5">
-        <span className="font-mono text-xs leading-4 text-text-primary">{filename}</span>
-        <span className="font-mono text-[10px] leading-3 text-text-tertiary">
-          {(bytes / 1024).toFixed(1)} KB · {parsed ? 'frontmatter parseado' : 'parseando…'}
+      <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 0', minWidth: 0, gap: 2 }}>
+        <span style={{ fontSize: 12, color: '#E8EAF5', letterSpacing: '0.02em' }}>{filename}</span>
+        <span style={{ fontSize: 10, color: '#4B4F66' }}>
+          {(sizeBytes / 1024).toFixed(1)} KB · {fileCount} files
         </span>
       </div>
-      <span
-        className={`font-mono text-[10px] tracking-[0.12em] uppercase ${
-          destructive ? 'text-status-failed' : parsed ? 'text-status-active' : 'text-text-tertiary'
-        }`}
+      <button
+        type="button"
+        onClick={onReplace}
+        style={{
+          padding: '5px 10px',
+          border: '1px solid #E8EAF51F',
+          background: 'transparent',
+          fontSize: 10,
+          color: '#8A8FAB',
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          fontWeight: 500,
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+        }}
       >
-        {destructive ? 'invalid' : parsed ? 'valid' : 'parsing'}
-      </span>
+        replace file
+      </button>
     </div>
   );
 }
 
-function NameDescPreview({
-  name,
-  description,
-}: {
-  name: string;
-  description: string;
-}): JSX.Element {
+function PreviewCard({ preview }: { preview: ZipPreview }): JSX.Element {
   return (
-    <div className="flex flex-col gap-3">
-      <Field label="name" value={name} mono />
-      <Field label="description" value={description} />
-    </div>
+    <>
+      <span
+        style={{
+          fontSize: 10,
+          color: '#4B4F66',
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          fontWeight: 500,
+        }}
+      >
+        EXTRACTED PREVIEW
+      </span>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '18px 18px',
+          gap: 12,
+          background: '#151824',
+          border: '1px solid #E8EAF514',
+        }}
+      >
+        <Row label="name" value={preview.skillName} />
+        <Row label="desc" value={preview.description} mono={false} />
+        <Row
+          label="files"
+          value={`${preview.fileCount} · total ${(preview.sizeBytes / 1024).toFixed(1)} KB`}
+        />
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          <span
+            style={{
+              width: 80,
+              flexShrink: 0,
+              fontSize: 10,
+              lineHeight: '14px',
+              color: '#4B4F66',
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              fontWeight: 500,
+            }}
+          >
+            top-level
+          </span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {preview.topLevel.map((p) => (
+              <span
+                key={p}
+                style={{
+                  padding: '3px 8px',
+                  background: p === 'SKILL.md' ? '#D9B3621A' : '#1B1F2E',
+                  border: `1px solid ${p === 'SKILL.md' ? '#D9B36247' : '#2A2F45'}`,
+                  borderRadius: 3,
+                  fontSize: 11,
+                  color: p === 'SKILL.md' ? '#D9B362' : '#8A8FAB',
+                  fontWeight: p === 'SKILL.md' ? 500 : 400,
+                }}
+              >
+                {p}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+          <span
+            style={{
+              width: 80,
+              flexShrink: 0,
+              fontSize: 10,
+              color: '#4B4F66',
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              fontWeight: 500,
+            }}
+          >
+            source
+          </span>
+          <SkillSourcePill source="dashboard" />
+          <span style={{ fontSize: 11, color: '#4B4F66' }}>
+            → /workspace/skills/{preview.skillName}/
+          </span>
+        </div>
+      </div>
+    </>
   );
 }
 
-function Field({
+function Row({
   label,
   value,
-  mono,
+  mono = true,
 }: {
   label: string;
   value: string;
   mono?: boolean;
 }): JSX.Element {
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-gold">{label}</span>
-      <div
-        className={`bg-panel-2 border border-border-subtle px-3.5 py-2.5 ${mono ? 'font-mono' : 'font-sans'} text-[13px] text-text-primary`}
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+      <span
+        style={{
+          width: 80,
+          flexShrink: 0,
+          fontSize: 10,
+          lineHeight: '14px',
+          color: '#4B4F66',
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
+          fontWeight: 500,
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontFamily: mono ? 'JetBrains Mono, monospace' : 'Inter, system-ui, sans-serif',
+          fontSize: 13,
+          lineHeight: mono ? '18px' : '19px',
+          color: '#E8EAF5',
+          letterSpacing: mono ? '0.02em' : 'normal',
+          flex: '1 1 0',
+          minWidth: 0,
+          wordBreak: 'break-word',
+        }}
       >
         {value}
-      </div>
+      </span>
     </div>
   );
 }
 
-function ErrorBlock({ error }: { error: ServerError }): JSX.Element {
+const ERROR_COPY: Record<string, { heading: string; tail?: string }> = {
+  no_skill_md: {
+    heading: 'No SKILL.md found at root of zip',
+    tail: 'A skill bundle must contain a top-level SKILL.md with name + description frontmatter.',
+  },
+  malformed_frontmatter: {
+    heading: 'SKILL.md frontmatter is malformed',
+    tail: 'Expected `---` delimited YAML at the top with `name:` and `description:` fields.',
+  },
+  missing_name: { heading: 'SKILL.md frontmatter is missing `name`' },
+  missing_description: { heading: 'SKILL.md frontmatter is missing `description`' },
+  invalid_zip: { heading: 'Could not parse zip' },
+  skill_frontmatter_missing: { heading: 'No SKILL.md found at root of zip' },
+  skill_name_taken: { heading: 'A skill with that name is already installed' },
+  skill_size_exceeded: { heading: 'Bundle exceeds 5 MB total size cap' },
+  skill_file_too_large: { heading: 'A file exceeds the 1 MB per-file cap' },
+  skill_too_many_files: { heading: 'Bundle has too many files (cap: 500)' },
+  skill_path_invalid: { heading: 'Zip refused — unsafe path entries detected' },
+  skill_zip_invalid: { heading: 'Zip parse failed' },
+};
+
+function ErrorBanner({ code, message }: { code: string; message: string }): JSX.Element {
+  const copy = ERROR_COPY[code] ?? { heading: code };
   return (
-    <div className="flex flex-col gap-3 px-4 py-3.5 bg-status-failed/[0.06] border-t border-l-2 border-b border-r border-status-failed/30 border-l-status-failed">
-      <div className="flex items-center gap-2.5">
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '14px 16px',
+        gap: 8,
+        background: '#E55A4F0F',
+        border: '1px solid #E55A4F4D',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <svg
           width="14"
           height="14"
           viewBox="0 0 24 24"
           fill="none"
-          stroke="#F5718C"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          role="img"
-          aria-label="Warning"
+          stroke="#E55A4F"
+          strokeWidth="2"
+          aria-hidden="true"
         >
-          <title>Warning</title>
-          <path d="M12 3 L21 19 L3 19 Z" />
-          <path d="M12 9 V13 M12 16 V16.5" />
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12" y2="16" />
         </svg>
-        <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-status-failed font-semibold">
-          {error.code === 'skill_already_exists' ? 'name conflict' : 'validation errors'}
+        <span style={{ fontSize: 12, color: '#E55A4F', letterSpacing: '0.04em', fontWeight: 500 }}>
+          {copy.heading}
         </span>
       </div>
-      <p className="m-0 font-sans text-[13px] leading-[18px] text-text-secondary">
-        {error.message}
-      </p>
-      {error.errors && (
-        <ul className="m-0 list-none flex flex-col gap-1.5 pl-0">
-          {error.errors.map((e) => (
-            <li
-              key={`${e.field}-${e.code}`}
-              className="flex items-start gap-3 px-3 py-2 bg-panel border border-status-failed/20"
-            >
-              <span className="font-mono text-[9px] tracking-[0.18em] uppercase text-status-failed font-semibold w-[80px] shrink-0 pt-0.5">
-                {e.code === 'required'
-                  ? 'required'
-                  : e.code === 'invalid_format'
-                    ? 'format'
-                    : e.code}
-              </span>
-              <div className="flex-1 min-w-0">
-                <span className="font-mono text-xs text-text-primary">
-                  {e.field}: <span className="text-status-failed">{e.message}</span>
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      <span
+        style={{
+          fontFamily: 'Inter, system-ui, sans-serif',
+          fontSize: 12,
+          lineHeight: '18px',
+          color: '#8A8FAB',
+          paddingLeft: 22,
+        }}
+      >
+        {copy.tail ?? message}
+      </span>
     </div>
   );
-}
-
-/**
- * Best-effort client-side parse for the install preview. The server's parser
- * (apps/api/src/lib/parse-skill-frontmatter.ts) is the source of truth.
- */
-function parseFrontmatterClient(content: string): ParsedPreview | null {
-  const m = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-  if (!m) return null;
-  const [, yaml, body] = m;
-  if (!yaml) return null;
-  let name = '';
-  let description = '';
-  for (const line of yaml.split(/\n/)) {
-    const nameMatch = line.match(/^name:\s*(.+?)\s*$/);
-    if (nameMatch?.[1]) name = nameMatch[1].replace(/^["']|["']$/g, '');
-    const descMatch = line.match(/^description:\s*(.+?)\s*$/);
-    if (descMatch?.[1]) description = descMatch[1].replace(/^["']|["']$/g, '');
-  }
-  if (!name || !description) return null;
-  return { name, description, bodyLength: (body ?? '').length };
 }

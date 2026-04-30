@@ -1,4 +1,5 @@
 import { existsSync, type FSWatcher, watch } from 'node:fs';
+import { isAbsolute, relative } from 'node:path';
 import { createLogger } from '@zeno/logger';
 
 const logger = createLogger({ service: 'worker' });
@@ -16,27 +17,38 @@ interface ProfileWatcherOptions {
   onPromptFilesChanged: () => void;
   /** Called when profile/config.yaml changes. */
   onCronsChanged: () => void;
-  /** Spec 0052: called when ${claudeHome}/skills/<n>/SKILL.md changes. */
+  /** Spec 0052/0062: called when any skill content changes (SSH-edits in agent/profile/dashboard skills, dashboard zip uploads, etc.). */
   onSkillsChanged?: () => void;
   /**
-   * Spec 0052: absolute path to ${claudeHome}/skills. When provided, the
-   * watcher monitors it as a third source and dispatches `skills` events.
-   * When undefined, skill changes are not watched (e.g., test contexts).
+   * Spec 0062: absolute path to `/workspace/skills/` (the dashboard upload
+   * volume). When provided, the watcher monitors it as a third source
+   * and dispatches `skills` events. When undefined, only edits under
+   * `agent/skills/` and `profile/skills/` fire 'skills' events (via
+   * the classify-by-prefix rules below).
+   *
+   * NOTE: this REPLACES the spec-0052 `skillsPath` parameter (which used
+   * to point at `${claudeHome}/skills/`). Watching the materialized symlink
+   * farm produces redundant events because every dashboard write or SSH
+   * edit fires both at the canonical path AND at the symlink. After
+   * spec 0062 we watch only the canonical paths.
    */
-  skillsPath?: string;
+  dashboardSkillsPath?: string;
   /** Debounce window in ms. Defaults to 250 — enough to coalesce editor save bursts. */
   debounceMs?: number;
 }
 
 /**
- * Watches both agent/ and profile/ for hot-reloadable changes. Native fs.watch
- * (recursive) — no extra deps. Editor saves emit 5+ events; we coalesce per
- * group with a trailing-edge debounce.
+ * Watches agent/, profile/, and (spec 0062) /workspace/skills/ for
+ * hot-reloadable changes. Native fs.watch (recursive) — no extra deps.
+ * Editor saves emit 5+ events; we coalesce per group with a trailing-edge
+ * debounce.
  */
 export class ProfileWatcher {
   private readonly watchers: FSWatcher[] = [];
   private readonly timers = new Map<FileGroup, NodeJS.Timeout>();
   private readonly debounceMs: number;
+  /** Map of source label → absolute root path. Used by the macOS fallback to derive relative filename when fs.watch returns null/absolute. */
+  private readonly rootBySource = new Map<SourceKind, string>();
 
   constructor(private readonly opts: ProfileWatcherOptions) {
     this.debounceMs = opts.debounceMs ?? 250;
@@ -47,6 +59,7 @@ export class ProfileWatcher {
 
     const agentPath = findSourceDir(AGENT_CANDIDATES);
     if (agentPath) {
+      this.rootBySource.set('agent', agentPath);
       this.watchers.push(this.openWatcher('agent', agentPath));
       logger.info({ event: 'profile_watcher_started', source: 'agent', path: agentPath });
     } else {
@@ -55,20 +68,26 @@ export class ProfileWatcher {
 
     const profilePath = findSourceDir(PROFILE_CANDIDATES);
     if (profilePath) {
+      this.rootBySource.set('profile', profilePath);
       this.watchers.push(this.openWatcher('profile', profilePath));
       logger.info({ event: 'profile_watcher_started', source: 'profile', path: profilePath });
     } else {
       logger.warn({ event: 'profile_watcher_no_dir', source: 'profile' });
     }
 
-    // Spec 0052: skills bucket watches ${claudeHome}/skills/. Only when
+    // Spec 0062: skills bucket watches /workspace/skills/. Only when
     // both the path is configured and onSkillsChanged is provided.
-    if (this.opts.skillsPath && this.opts.onSkillsChanged && existsSync(this.opts.skillsPath)) {
-      this.watchers.push(this.openWatcher('skills', this.opts.skillsPath));
+    if (
+      this.opts.dashboardSkillsPath &&
+      this.opts.onSkillsChanged &&
+      existsSync(this.opts.dashboardSkillsPath)
+    ) {
+      this.rootBySource.set('skills', this.opts.dashboardSkillsPath);
+      this.watchers.push(this.openWatcher('skills', this.opts.dashboardSkillsPath));
       logger.info({
         event: 'profile_watcher_started',
         source: 'skills',
-        path: this.opts.skillsPath,
+        path: this.opts.dashboardSkillsPath,
       });
     }
   }
@@ -82,11 +101,33 @@ export class ProfileWatcher {
 
   private openWatcher(source: SourceKind, path: string): FSWatcher {
     return watch(path, { recursive: true }, (_eventType, filename) => {
-      if (!filename) return;
-      const group = classify(source, filename);
+      // macOS FSEvents fallback: if fs.watch delivers null or an absolute
+      // path instead of the expected root-relative path, derive the
+      // relative path ourselves.
+      const normalizedFilename = this.normalizeFilename(filename, source);
+      if (normalizedFilename === null) return;
+
+      const group = classify(source, normalizedFilename);
       if (group === 'ignored') return;
       this.schedule(group);
     });
+  }
+
+  /**
+   * Spec 0062: normalize the filename delivered by fs.watch into a
+   * root-relative path. On Linux/inotify this is already relative
+   * (`skills/foo/SKILL.md`); on macOS/FSEvents we sometimes get null or
+   * an absolute path. The fallback resolves against the watched root
+   * stored in `rootBySource`.
+   */
+  private normalizeFilename(filename: string | null, source: SourceKind): string | null {
+    if (filename === null) return null;
+    if (!isAbsolute(filename)) return filename;
+    const root = this.rootBySource.get(source);
+    if (!root) return filename; // fallback: hand the absolute path through; classify will reject
+    const rel = relative(root, filename);
+    if (rel.startsWith('..')) return null; // outside the root, ignore
+    return rel;
   }
 
   private schedule(group: FileGroup): void {
@@ -131,8 +172,14 @@ function findSourceDir(candidates: string[]): string | null {
 /**
  * Map a (source, filename) pair to its reload group.
  * `mcp.json` is ignored after spec 0032 (DB is the source of truth for MCPs).
- * Spec 0052: any change in the `skills` source bucket maps to 'skills'
- * (e.g. `${claudeHome}/skills/<n>/SKILL.md`).
+ *
+ * Spec 0062 — classify recognizes skill events from THREE buckets:
+ * - any change under the `skills` source root (= `/workspace/skills/`,
+ *   the dashboard volume)
+ * - any change in `agent/skills/<name>/...` (SSH-drop or rebuild-image swap)
+ * - any change in `profile/skills/<name>/...` (host edit of profile dirs)
+ * The ProfileWatcher's debounced 'skills' bucket fires the materializer +
+ * frontmatter resync.
  */
 export function classify(source: SourceKind, filename: string): FileGroup {
   const normalized = filename.replace(/\\/g, '/');
@@ -140,5 +187,8 @@ export function classify(source: SourceKind, filename: string): FileGroup {
   if (source === 'profile' && normalized === 'USER.md') return 'prompt';
   if (source === 'profile' && normalized === 'config.yaml') return 'crons';
   if (source === 'skills') return 'skills';
+  // Spec 0062: edits to agent/skills/* and profile/skills/* fire skills events.
+  if (source === 'agent' && normalized.startsWith('skills/')) return 'skills';
+  if (source === 'profile' && normalized.startsWith('skills/')) return 'skills';
   return 'ignored';
 }

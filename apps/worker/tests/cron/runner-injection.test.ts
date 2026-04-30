@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   ConnectorRepo,
   CronConnectorRepo,
@@ -8,6 +11,7 @@ import {
   type DB,
   openDatabase,
   runMigrations,
+  type Skill,
   SkillRepo,
 } from '@zeno/storage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -96,21 +100,44 @@ let cronConnectors: CronConnectorRepo;
 let skills: SkillRepo;
 let connectors: ConnectorRepo;
 let channel: StubChannel;
+let sandbox: string;
+let dashboardSkillsRoot: string;
+
+/** Spec 0062: seed both DB row + canonical FS file so the runner's body read works. */
+function seedSkillWithBody(input: { name: string; description: string; body: string }): Skill {
+  const skill = skills.create({ name: input.name, description: input.description });
+  const dir = skills.canonicalPath(skill);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    join(dir, 'SKILL.md'),
+    `---\nname: ${input.name}\ndescription: ${input.description}\n---\n\n${input.body}`,
+    'utf8',
+  );
+  return skill;
+}
 
 beforeEach(() => {
+  sandbox = mkdtempSync(join(tmpdir(), 'zeno-cron-runner-'));
+  const agentSkillsRoot = join(sandbox, 'agent', 'skills');
+  const profileSkillsRoot = join(sandbox, 'profile', 'skills');
+  dashboardSkillsRoot = join(sandbox, 'workspace', 'skills');
+  mkdirSync(agentSkillsRoot, { recursive: true });
+  mkdirSync(profileSkillsRoot, { recursive: true });
+  mkdirSync(dashboardSkillsRoot, { recursive: true });
   db = openDatabase(':memory:');
   runMigrations(db);
   crons = new CronRepo(db);
   cronRuns = new CronRunRepo(db);
   cronSkills = new CronSkillRepo(db);
   cronConnectors = new CronConnectorRepo(db);
-  skills = new SkillRepo(db);
+  skills = new SkillRepo(db, { agentSkillsRoot, profileSkillsRoot, dashboardSkillsRoot });
   connectors = new ConnectorRepo(db);
   channel = new StubChannel();
 });
 
 afterEach(() => {
   closeDatabase(db);
+  rmSync(sandbox, { recursive: true, force: true });
 });
 
 function makeRunner(backend: AgentBackend) {
@@ -119,6 +146,7 @@ function makeRunner(backend: AgentBackend) {
     cronRuns,
     cronSkills,
     cronConnectors,
+    skillRepo: skills,
     backend,
     getSystemPrompt: () => 'sys',
     workspaceDir: '/tmp',
@@ -153,7 +181,7 @@ describe('CronRunner injection (spec 0054)', () => {
       schedule: '* * * * *',
       source: 'chat',
     });
-    const skill = skills.create({
+    const skill = seedSkillWithBody({
       name: 'fn-flow',
       description: 'd',
       body: 'BODY-CONTENT',
@@ -204,7 +232,7 @@ describe('CronRunner injection (spec 0054)', () => {
       schedule: '* * * * *',
       source: 'chat',
     });
-    const skill = skills.create({ name: 's', description: 'd', body: 'B' });
+    const skill = seedSkillWithBody({ name: 's', description: 'd', body: 'B' });
     const conn = connectors.create({
       slug: 'linear',
       displayName: 'L',

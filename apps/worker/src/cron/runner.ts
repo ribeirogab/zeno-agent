@@ -1,9 +1,17 @@
 import { createLogger } from '@zeno/logger';
-import type { Cron, CronConnectorRepo, CronRepo, CronRunRepo, CronSkillRepo } from '@zeno/storage';
+import type {
+  Cron,
+  CronConnectorRepo,
+  CronRepo,
+  CronRunRepo,
+  CronSkillRepo,
+  SkillRepo,
+} from '@zeno/storage';
 import type { AgentBackend } from '@/agent/types';
 import type { Channel, MessageTarget } from '@/channels/types';
 import { nextRunAfter } from '@/cron/parser';
 import { buildZenoContextBlock } from '@/cron/zeno-context-block';
+import { readSkillBody } from '@/skills/read-body';
 
 const logger = createLogger({ service: 'worker' });
 
@@ -18,6 +26,8 @@ interface CronRunnerOptions {
    */
   cronSkills?: CronSkillRepo;
   cronConnectors?: CronConnectorRepo;
+  /** Spec 0062: needed to resolve canonicalPath(skill) so the cron runner can read body content from FS at fire time. Optional only for legacy test setups; production wiring always passes it. */
+  skillRepo?: SkillRepo;
   backend: AgentBackend;
   /** Returns the current system prompt — called per fire so profile/ hot-reload applies to cron runs too. */
   getSystemPrompt: () => string;
@@ -115,8 +125,15 @@ export class CronRunner {
       const linkedConnectors = this.opts.cronConnectors?.listForCron(cron.id) ?? [];
       const linkedSlugs = linkedConnectors.map((c) => c.slug);
 
+      // Spec 0062: body is read from FS at cron fire time. The materializer
+      // keeps canonical paths coherent; readSkillBody returns '' on any
+      // failure (file missing, malformed frontmatter) so a deleted file
+      // surfaces as an empty body rather than a thrown error.
       const blockResult = buildZenoContextBlock(
-        linkedSkills.map((s) => ({ name: s.name, body: s.body })),
+        linkedSkills.map((s) => ({
+          name: s.name,
+          body: this.opts.skillRepo ? readSkillBody(s, this.opts.skillRepo) : '',
+        })),
         linkedSlugs,
       );
 

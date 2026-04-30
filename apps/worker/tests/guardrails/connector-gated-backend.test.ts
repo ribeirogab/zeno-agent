@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   AgentCapabilityRepo,
   ConnectorRepo,
@@ -5,6 +8,7 @@ import {
   closeDatabase,
   openDatabase,
   runMigrations,
+  type Skill,
   SkillRepo,
 } from '@zeno/storage';
 import { describe, expect, it, vi } from 'vitest';
@@ -15,15 +19,58 @@ import { ConnectorGatedBackend } from '@/guardrails/connector-gated-backend';
  * Spec 0050: ConnectorGatedBackend wraps a ClaudeCodeBackend with a single
  * gate — the connector-permission policy. The PreToolUse hook is built once
  * at construction; it reads ConnectorRepo per call.
+ *
+ * Spec 0062: skill bodies live on disk. The test sandbox creates an
+ * `agent/skills/` and `dashboard/skills/` (= `/workspace/skills/`) tree
+ * so SkillRepo.canonicalPath(skill) resolves into a real directory and
+ * the hook's `readSkillBody` returns the seeded body.
  */
 function makeRepo() {
+  const sandbox = mkdtempSync(join(tmpdir(), 'zeno-gated-test-'));
+  const agentSkillsRoot = join(sandbox, 'agent', 'skills');
+  const profileSkillsRoot = join(sandbox, 'profile', 'skills');
+  const dashboardSkillsRoot = join(sandbox, 'workspace', 'skills');
+  mkdirSync(agentSkillsRoot, { recursive: true });
+  mkdirSync(profileSkillsRoot, { recursive: true });
+  mkdirSync(dashboardSkillsRoot, { recursive: true });
   const db = openDatabase(':memory:');
   runMigrations(db);
   const repo = new ConnectorRepo(db);
   const caps = new AgentCapabilityRepo(db);
-  const skillRepo = new SkillRepo(db);
+  const skillRepo = new SkillRepo(db, {
+    agentSkillsRoot,
+    profileSkillsRoot,
+    dashboardSkillsRoot,
+  });
   const skills = new ConnectorSkillRepo(db);
-  return { repo, caps, skillRepo, skills, close: () => closeDatabase(db) };
+
+  /**
+   * Seed both the DB row + the FS file so SkillRepo.canonicalPath(skill)
+   * resolves into a real SKILL.md the gated-backend hook can read.
+   */
+  function seedSkillWithBody(input: { name: string; description: string; body: string }): Skill {
+    const skill = skillRepo.create({ name: input.name, description: input.description });
+    const dir = skillRepo.canonicalPath(skill);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, 'SKILL.md'),
+      `---\nname: ${input.name}\ndescription: ${input.description}\n---\n\n${input.body}`,
+      'utf8',
+    );
+    return skill;
+  }
+
+  return {
+    repo,
+    caps,
+    skillRepo,
+    skills,
+    seedSkillWithBody,
+    close: () => {
+      closeDatabase(db);
+      rmSync(sandbox, { recursive: true, force: true });
+    },
+  };
 }
 
 function fakeInner(): ClaudeCodeBackend {
@@ -35,12 +82,13 @@ function fakeInner(): ClaudeCodeBackend {
 
 describe('ConnectorGatedBackend (spec 0050)', () => {
   it('delegates query() to the inner backend', async () => {
-    const { repo, caps, skills, close } = makeRepo();
+    const { repo, caps, skillRepo, skills, close } = makeRepo();
     const inner = fakeInner();
     const gated = new ConnectorGatedBackend(inner, {
       connectorRepo: repo,
       agentCapabilityRepo: caps,
       connectorSkillRepo: skills,
+      skillRepo,
     });
     const out = await gated.query({
       systemPrompt: 'sys',
@@ -54,7 +102,7 @@ describe('ConnectorGatedBackend (spec 0050)', () => {
   });
 
   it('PreToolUse hook ALLOWS a permitted MCP tool', async () => {
-    const { repo, caps, skills, close } = makeRepo();
+    const { repo, caps, skillRepo, skills, close } = makeRepo();
     repo.create({
       slug: 'echo',
       displayName: 'Echo',
@@ -70,6 +118,7 @@ describe('ConnectorGatedBackend (spec 0050)', () => {
       connectorRepo: repo,
       agentCapabilityRepo: caps,
       connectorSkillRepo: skills,
+      skillRepo,
     });
     const hook = gated.buildPreToolUseHook();
     const result = await hook({ tool_name: 'mcp__echo__read_x', tool_input: {} } as never, '', {
@@ -80,7 +129,7 @@ describe('ConnectorGatedBackend (spec 0050)', () => {
   });
 
   it('PreToolUse hook DENIES a non-MCP tool with policy_denied prefix when capability is off', async () => {
-    const { repo, caps, skills, close } = makeRepo();
+    const { repo, caps, skillRepo, skills, close } = makeRepo();
     // Spec 0053 made Bash default-on. Use a still-default-off capability
     // (Task) to exercise the deny path on a non-MCP tool.
     const inner = fakeInner();
@@ -88,6 +137,7 @@ describe('ConnectorGatedBackend (spec 0050)', () => {
       connectorRepo: repo,
       agentCapabilityRepo: caps,
       connectorSkillRepo: skills,
+      skillRepo,
     });
     const hook = gated.buildPreToolUseHook();
     const result = await hook(
@@ -104,7 +154,7 @@ describe('ConnectorGatedBackend (spec 0050)', () => {
   });
 
   it('PreToolUse hook DENIES when connector permission=never', async () => {
-    const { repo, caps, skills, close } = makeRepo();
+    const { repo, caps, skillRepo, skills, close } = makeRepo();
     repo.create({
       slug: 'github',
       displayName: 'GitHub',
@@ -119,6 +169,7 @@ describe('ConnectorGatedBackend (spec 0050)', () => {
       connectorRepo: repo,
       agentCapabilityRepo: caps,
       connectorSkillRepo: skills,
+      skillRepo,
     });
     const hook = gated.buildPreToolUseHook();
     const result = await hook({ tool_name: 'mcp__github__merge_pr', tool_input: {} } as never, '', {
@@ -131,7 +182,7 @@ describe('ConnectorGatedBackend (spec 0050)', () => {
 
   // Spec 0052 phase B.3
   it('PreToolUse hook injects linked-skill bodies when ALLOWED tool is from a connector with linked skills', async () => {
-    const { repo, caps, skillRepo, skills, close } = makeRepo();
+    const { repo, caps, skillRepo, skills, seedSkillWithBody, close } = makeRepo();
     const connector = repo.create({
       slug: 'sentry',
       displayName: 'Sentry',
@@ -149,7 +200,7 @@ describe('ConnectorGatedBackend (spec 0050)', () => {
       secrets: [],
       url: 'https://x',
     });
-    const skill = skillRepo.create({
+    const skill = seedSkillWithBody({
       name: 'sentry-flow',
       description: 'How Flávia triages Sentry issues',
       body: '# Sentry triage\n\n1. filter by env=prod\n2. group by release',
@@ -161,6 +212,7 @@ describe('ConnectorGatedBackend (spec 0050)', () => {
       connectorRepo: repo,
       agentCapabilityRepo: caps,
       connectorSkillRepo: skills,
+      skillRepo,
     });
     const hook = gated.buildPreToolUseHook();
     const first = await hook(
@@ -201,12 +253,13 @@ describe('ConnectorGatedBackend (spec 0050)', () => {
       tools: [{ toolName: 'do', description: null, category: 'read', permission: 'always_allow' }],
       secrets: [],
     });
-    skillRepo.create({ name: 'unrelated', description: 'd', body: 'b' }); // not linked
+    skillRepo.create({ name: 'unrelated', description: 'd' }); // not linked
     const inner = fakeInner();
     const gated = new ConnectorGatedBackend(inner, {
       connectorRepo: repo,
       agentCapabilityRepo: caps,
       connectorSkillRepo: skills,
+      skillRepo,
     });
     const hook = gated.buildPreToolUseHook();
     const result = await hook(
@@ -241,7 +294,7 @@ describe('ConnectorGatedBackend (spec 0054 — cron pre-inject + audit via ALS)'
       secrets: [],
       url: 'https://x',
     });
-    const skill = r.skillRepo.create({
+    const skill = r.seedSkillWithBody({
       name: 'sentry-flow',
       description: 'How Flávia triages Sentry',
       body: '# Sentry triage',
@@ -251,12 +304,13 @@ describe('ConnectorGatedBackend (spec 0054 — cron pre-inject + audit via ALS)'
   }
 
   it('cron pre-injected skill is marked as cached so the hook does not re-inject it', async () => {
-    const { repo, caps, skill, skills, close } = seed();
+    const { repo, caps, skill, skillRepo, skills, close } = seed();
     const inner = fakeInner();
     const gated = new ConnectorGatedBackend(inner, {
       connectorRepo: repo,
       agentCapabilityRepo: caps,
       connectorSkillRepo: skills,
+      skillRepo,
     });
     const hook = gated.buildPreToolUseHook();
     // Run the hook inside a cron context that has pre-injected this skill.
@@ -279,8 +333,8 @@ describe('ConnectorGatedBackend (spec 0054 — cron pre-inject + audit via ALS)'
   });
 
   it('partial dedup — one cached + one fresh skill builds body for the fresh only', async () => {
-    const { repo, caps, skillRepo, skills, connector, close } = seed();
-    const skill2 = skillRepo.create({
+    const { repo, caps, skillRepo, skills, seedSkillWithBody, connector, close } = seed();
+    const skill2 = seedSkillWithBody({
       name: 'extra-skill',
       description: 'd',
       body: '# Extra body',
@@ -292,6 +346,7 @@ describe('ConnectorGatedBackend (spec 0054 — cron pre-inject + audit via ALS)'
       connectorRepo: repo,
       agentCapabilityRepo: caps,
       connectorSkillRepo: skills,
+      skillRepo,
     });
     const sentryFlow = skillRepo.list().find((s) => s.name === 'sentry-flow');
     if (!sentryFlow) throw new Error('seed missing');
@@ -317,7 +372,7 @@ describe('ConnectorGatedBackend (spec 0054 — cron pre-inject + audit via ALS)'
   });
 
   it('audit context: hook emits cron_used_unlinked_connector once per (slug, tool) triplet', async () => {
-    const { repo, caps, skills, close } = makeRepo();
+    const { repo, caps, skillRepo, skills, close } = makeRepo();
     repo.create({
       slug: 'github',
       displayName: 'GitHub',
@@ -389,7 +444,7 @@ describe('ConnectorGatedBackend (spec 0054 — cron pre-inject + audit via ALS)'
   });
 
   it('audit context: hook does NOT emit when slug IS in linkedSlugs', async () => {
-    const { repo, caps, skills, close } = makeRepo();
+    const { repo, caps, skillRepo, skills, close } = makeRepo();
     repo.create({
       slug: 'github',
       displayName: 'GitHub',
@@ -450,7 +505,7 @@ describe('ConnectorGatedBackend (spec 0054 — cron pre-inject + audit via ALS)'
   });
 
   it('hook outside any runInCronContext sees no cron state (pure spec 0050/0052 path)', async () => {
-    const { repo, caps, skills, close } = makeRepo();
+    const { repo, caps, skillRepo, skills, close } = makeRepo();
     repo.create({
       slug: 'github',
       displayName: 'GitHub',
@@ -473,6 +528,7 @@ describe('ConnectorGatedBackend (spec 0054 — cron pre-inject + audit via ALS)'
       connectorRepo: repo,
       agentCapabilityRepo: caps,
       connectorSkillRepo: skills,
+      skillRepo,
     });
     const hook = gated.buildPreToolUseHook();
     // No runInCronContext wrap — chat-style call.
@@ -490,12 +546,13 @@ describe('ConnectorGatedBackend (spec 0054 — cron pre-inject + audit via ALS)'
   });
 
   it('cron state is per-call: nested runInCronContext does NOT leak into a sibling call', async () => {
-    const { repo, caps, skill, skills, close } = seed();
+    const { repo, caps, skill, skillRepo, skills, close } = seed();
     const inner = fakeInner();
     const gated = new ConnectorGatedBackend(inner, {
       connectorRepo: repo,
       agentCapabilityRepo: caps,
       connectorSkillRepo: skills,
+      skillRepo,
     });
     const hook = gated.buildPreToolUseHook();
     // First call: pre-inject the skill.
@@ -554,6 +611,7 @@ describe('ConnectorGatedBackend (spec 0054 — cron pre-inject + audit via ALS)'
       connectorRepo: repo,
       agentCapabilityRepo: caps,
       connectorSkillRepo: skills,
+      skillRepo,
     });
     const hook = gated.buildPreToolUseHook();
     // Two concurrent cron contexts. Each pre-injects a different skill.

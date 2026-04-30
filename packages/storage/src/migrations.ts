@@ -525,6 +525,40 @@ ALTER TABLE connectors ADD COLUMN kind TEXT NOT NULL DEFAULT 'mcp'
   CHECK (kind IN ('mcp', 'channel'));
 `,
   },
+  {
+    id: 19,
+    name: "spec 0062 — drop skills.body column. Bytes move from DB to FS (each skill is now a directory tree at canonicalPath(skill) rooted in agentSkillsRoot/profileSkillsRoot/dashboardSkillsRoot per source). DB stays the catalog (id, name UNIQUE, description, source, timestamps). The pre-migration script `apps/worker/src/skills/migrate-bodies-to-fs.ts` runs BEFORE this migration to write existing dashboard bodies to /workspace/skills/ and flip diverged profile rows to source='dashboard' so no content is lost. SQLite cannot DROP COLUMN with CHECK constraints — recreate the table with the same id values, copy rows, swap. connector_skills + cron_skills FK rows are preserved by saving + restoring around the table swap (same pattern as migration 14).",
+    sql: `
+-- Save link tables before recreating skills (foreign_keys=ON would cascade-delete them).
+CREATE TEMP TABLE _spec0062_cs_backup AS SELECT * FROM connector_skills;
+DELETE FROM connector_skills;
+CREATE TEMP TABLE _spec0062_crs_backup AS SELECT * FROM cron_skills;
+DELETE FROM cron_skills;
+
+CREATE TABLE skills_new (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'dashboard' CHECK (source IN ('zeno_default','profile','dashboard')),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+INSERT INTO skills_new (id, name, description, source, created_at, updated_at)
+  SELECT id, name, description, source, created_at, updated_at FROM skills;
+DROP TABLE skills;
+ALTER TABLE skills_new RENAME TO skills;
+CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name);
+CREATE INDEX IF NOT EXISTS idx_skills_source ON skills(source);
+
+-- Restore links now that the skills table is rebuilt with the same id values.
+INSERT INTO connector_skills (connector_id, skill_id, created_at)
+  SELECT connector_id, skill_id, created_at FROM _spec0062_cs_backup;
+DROP TABLE _spec0062_cs_backup;
+INSERT INTO cron_skills (cron_id, skill_id, created_at)
+  SELECT cron_id, skill_id, created_at FROM _spec0062_crs_backup;
+DROP TABLE _spec0062_crs_backup;
+`,
+  },
 ];
 
 /**

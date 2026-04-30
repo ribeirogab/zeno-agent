@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { mkdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createLogger, type Logger } from '@zeno/logger';
@@ -42,7 +43,8 @@ import { resolveGitIdentity } from '@/github/git-identity';
 import { ConnectorGatedBackend } from '@/guardrails/connector-gated-backend';
 import { LogsRetention } from '@/logs/retention';
 import { ProfileWatcher } from '@/profile/watcher';
-import { materializeSkillsToFs } from '@/skills/materialize';
+import { cleanupTmpExtractDirs, materializeSkillsToFs } from '@/skills/materialize';
+import { preMigrateBodiesToFs } from '@/skills/migrate-bodies-to-fs';
 import { bootSkillsReconcile } from '@/skills/seed';
 
 interface RunResult {
@@ -182,6 +184,30 @@ async function main(): Promise<void> {
   const dbPath = join(config.workspaceDir, 'zeno.db');
   const db = openDatabase(dbPath);
   bootLogger.info({ event: 'db_opened', path: dbPath }, 'database opened');
+
+  // Spec 0062 boot steps 1 + 2: BEFORE migrations run, clean up any
+  // partial-extract orphans in /workspace/skills/ AND move existing
+  // dashboard bodies (and diverged profile bodies) from the DB to FS.
+  // The pre-migration script is guarded by PRAGMA — it's a no-op if
+  // skills.body has already been dropped (i.e., this image was deployed
+  // once already).
+  const dashboardSkillsRoot = join(config.workspaceDir, 'skills');
+  const agentSkillsRoot = resolveAgentSkillsRoot();
+  const profileSkillsRoot = resolveProfileSkillsRoot();
+  // Spec 0062: ensure the dashboard volume root exists before anything else
+  // touches it. The watcher's existsSync gate only runs at start-up; without
+  // the dir present, watcher won't subscribe and dashboard zip-installs will
+  // require a worker restart to fire hot-reload.
+  await mkdir(dashboardSkillsRoot, { recursive: true });
+  await cleanupTmpExtractDirs(dashboardSkillsRoot);
+  preMigrateBodiesToFs({
+    db,
+    agentSkillsRoot,
+    profileSkillsRoot: profileSkillsRoot ?? '/app/profile/skills',
+    dashboardSkillsRoot,
+    logger: bootLogger,
+  });
+
   runMigrations(db);
   bootLogger.info({ event: 'migrations_applied' }, 'migrations applied');
   const sessions = new SessionRepo(db);
@@ -191,7 +217,11 @@ async function main(): Promise<void> {
   const logs = new LogRepo(db);
   const connectors = new ConnectorRepo(db);
   const connectorApps = new ConnectorAppRepo(db);
-  const skillRepo = new SkillRepo(db);
+  const skillRepo = new SkillRepo(db, {
+    agentSkillsRoot,
+    profileSkillsRoot: profileSkillsRoot ?? '/app/profile/skills',
+    dashboardSkillsRoot,
+  });
   const connectorSkillRepo = new ConnectorSkillRepo(db);
   const cronSkillRepo = new CronSkillRepo(db);
   const cronConnectorRepo = new CronConnectorRepo(db);
@@ -231,13 +261,13 @@ async function main(): Promise<void> {
   // IGNORE (operator-editable after first seed). Then the materializer
   // writes the resulting DB state to FS.
   const claudeHome = join(homedir(), '.claude');
-  const skillsPath = join(claudeHome, 'skills');
-  const agentSkillsRoot = resolveAgentSkillsRoot();
-  const profileSkillsRoot = resolveProfileSkillsRoot();
+  // Spec 0062: agentSkillsRoot, profileSkillsRoot, dashboardSkillsRoot are
+  // resolved earlier (above the SkillRepo construction). Reuse them here.
   bootSkillsReconcile({
     skills: skillRepo,
     agentSkillsRoot,
     profileSkillsRoot,
+    dashboardSkillsRoot,
     logger,
   });
   const initialMaterialize = await materializeSkillsToFs({ skillRepo, claudeHome, logger });
@@ -382,6 +412,7 @@ async function main(): Promise<void> {
     connectorRepo: connectors,
     agentCapabilityRepo,
     connectorSkillRepo,
+    skillRepo, // Spec 0062: needed to resolve canonicalPath for FS body reads.
     logger,
   };
 
@@ -432,6 +463,7 @@ async function main(): Promise<void> {
     cronRuns,
     cronSkills: cronSkillRepo,
     cronConnectors: cronConnectorRepo,
+    skillRepo, // Spec 0062: needed to read body content from FS at fire time.
     backend: backendForRunner,
     getSystemPrompt: () => promptHolder.value,
     workspaceDir: config.workspaceDir,
@@ -533,17 +565,63 @@ async function main(): Promise<void> {
       crons.replaceStaticSet(next);
       logger.info({ event: 'static_crons_reloaded', count: next.length }, 'static crons reloaded');
     },
-    // Spec 0052: skill bucket watches ${claudeHome}/skills/. The Claude
-    // Agent SDK auto-discovers from this dir, so a change here means the
-    // next agent query will see it natively. We log the event for
-    // observability — no in-memory state to refresh.
+    // Spec 0062: skill bucket watches /workspace/skills/ (dashboard volume)
+    // AND fires on agent/skills/* + profile/skills/* (via classify rules
+    // in watcher.ts). Each event re-runs the materializer so symlinks at
+    // ${claudeHome}/skills/ stay in sync after deletes/installs/edits.
+    // Wrapped in try/catch so a transient FS error doesn't kill the
+    // watcher loop. The Claude Agent SDK auto-discovers from
+    // ${claudeHome}/skills/ on every query (lazy), so the materializer
+    // is the only piece needed in-band.
     onSkillsChanged: () => {
-      logger.info(
-        { event: 'skills_reloaded' },
-        'skills FS change detected; SDK will re-discover on next query',
-      );
+      void (async () => {
+        try {
+          const result = await materializeSkillsToFs({ skillRepo, claudeHome, logger });
+          logger.info(
+            { event: 'skills_reloaded', written: result.written, deleted: result.deleted },
+            'skills FS change detected; symlink farm re-materialized',
+          );
+          // Spec 0062 — watcher path frontmatter resync (safety net for
+          // SSH-edits to SKILL.md that bypass the API). For each skill in
+          // DB, re-parse SKILL.md frontmatter; UPDATE skills.description
+          // if it differs from the row. Idempotent: if the API path already
+          // synced, this is a no-op.
+          for (const skill of skillRepo.list()) {
+            try {
+              const skillMd = await readFile(
+                join(skillRepo.canonicalPath(skill), 'SKILL.md'),
+                'utf8',
+              );
+              const fmMatch = skillMd.match(/^---\n([\s\S]*?)\n---/);
+              if (!fmMatch) continue;
+              const descLine = fmMatch[1]?.split('\n').find((l) => l.startsWith('description:'));
+              if (!descLine) continue;
+              const newDesc = descLine.replace(/^description:\s*/, '').trim();
+              if (newDesc && newDesc !== skill.description) {
+                skillRepo.update(skill.id, { description: newDesc });
+                logger.info(
+                  {
+                    event: 'skill_description_resynced_from_fs',
+                    skillId: skill.id,
+                    name: skill.name,
+                  },
+                  `SSH-edit detected on ${skill.name}/SKILL.md — description resynced from FS`,
+                );
+              }
+            } catch {
+              // SKILL.md missing for this skill — happens transiently during
+              // delete; let the next reconciler pass resolve it.
+            }
+          }
+        } catch (err) {
+          logger.warn(
+            { event: 'skills_materialize_failed_on_watch', err: String(err) },
+            'materializer threw on watcher event; SDK may see stale symlinks until next event',
+          );
+        }
+      })();
     },
-    skillsPath,
+    dashboardSkillsPath: dashboardSkillsRoot,
   });
 
   await slack.start(core.bind(slack));

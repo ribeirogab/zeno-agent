@@ -592,31 +592,32 @@ describe('migrations: github_app_v2_backfill_tools (migration 7)', () => {
 // Skills are content-only markdown playbooks; capabilities are global
 // non-MCP tool toggles seeded disabled-by-default.
 describe('migrations: skills + agent_capabilities (migration 11)', () => {
-  it('creates the skills table with the expected columns', () => {
+  it('creates the skills table with the expected columns (post spec 0062: no body)', () => {
     const db = openDatabase(':memory:');
     runMigrations(db);
 
     const cols = db.prepare('PRAGMA table_info(skills)').all() as PragmaTableInfoRow[];
     const names = cols.map((c) => c.name);
-    for (const name of ['id', 'name', 'description', 'body', 'created_at', 'updated_at']) {
+    // Spec 0062 migration 19: body is gone (content moved to FS).
+    for (const name of ['id', 'name', 'description', 'source', 'created_at', 'updated_at']) {
       expect(names, `skills missing ${name}`).toContain(name);
     }
+    expect(names, 'spec 0062 should have dropped body column').not.toContain('body');
     closeDatabase(db);
   });
 
   it('enforces UNIQUE on skills.name', () => {
     const db = openDatabase(':memory:');
     runMigrations(db);
-    db.prepare('INSERT INTO skills (id, name, description, body) VALUES (?, ?, ?, ?)').run(
+    db.prepare('INSERT INTO skills (id, name, description) VALUES (?, ?, ?)').run(
       'a',
       'frontend-design',
       'desc',
-      'body',
     );
     expect(() =>
       db
-        .prepare('INSERT INTO skills (id, name, description, body) VALUES (?, ?, ?, ?)')
-        .run('b', 'frontend-design', 'desc2', 'body2'),
+        .prepare('INSERT INTO skills (id, name, description) VALUES (?, ?, ?)')
+        .run('b', 'frontend-design', 'desc2'),
     ).toThrow();
     closeDatabase(db);
   });
@@ -631,11 +632,10 @@ describe('migrations: skills + agent_capabilities (migration 11)', () => {
       INSERT INTO connectors (id, slug, display_name, source, transport)
       VALUES ('c1', 'sentry', 'Sentry', 'catalog', 'remote')
     `).run();
-    db.prepare('INSERT INTO skills (id, name, description, body) VALUES (?, ?, ?, ?)').run(
+    db.prepare('INSERT INTO skills (id, name, description) VALUES (?, ?, ?)').run(
       's1',
       'sentry-flow',
       'desc',
-      'body',
     );
     db.prepare('INSERT INTO connector_skills (connector_id, skill_id) VALUES (?, ?)').run(
       'c1',
@@ -657,11 +657,10 @@ describe('migrations: skills + agent_capabilities (migration 11)', () => {
       INSERT INTO connectors (id, slug, display_name, source, transport)
       VALUES ('c2', 'linear', 'Linear', 'catalog', 'remote')
     `).run();
-    db.prepare('INSERT INTO skills (id, name, description, body) VALUES (?, ?, ?, ?)').run(
+    db.prepare('INSERT INTO skills (id, name, description) VALUES (?, ?, ?)').run(
       's2',
       'linear-tips',
       'desc',
-      'body',
     );
     db.prepare('INSERT INTO connector_skills (connector_id, skill_id) VALUES (?, ?)').run(
       'c2',
@@ -808,25 +807,22 @@ describe('migrations: skills.source column (migration 14, spec 0053)', () => {
     runMigrations(db);
     expect(() =>
       db
-        .prepare(
-          `INSERT INTO skills (id, name, description, body, source) VALUES ('x','a','d','b','other')`,
-        )
+        .prepare(`INSERT INTO skills (id, name, description, source) VALUES ('x','a','d','other')`)
         .run(),
     ).toThrow();
     closeDatabase(db);
   });
 
   it('backfills pre-existing rows to source=dashboard', () => {
-    // Simulate a DB that ran migrations through 11 (skills table + zero source column)
-    // by inserting a row with the post-11 schema before migration 14 mutates it.
-    // Cheap proxy: open a fresh DB, run all migrations, insert a row, and check source.
+    // After spec 0062 migration 19 the body column is gone. The DEFAULT on
+    // source still applies — inserting a row without specifying source still
+    // gets 'dashboard'.
     const db = openDatabase(':memory:');
     runMigrations(db);
-    db.prepare(`INSERT INTO skills (id, name, description, body) VALUES (?, ?, ?, ?)`).run(
+    db.prepare(`INSERT INTO skills (id, name, description) VALUES (?, ?, ?)`).run(
       'sk-1',
       'pre-existing',
       'd',
-      'b',
     );
     const row = db.prepare('SELECT source FROM skills WHERE id = ?').get('sk-1') as
       | { source: string }
@@ -850,21 +846,32 @@ describe('migrations: skills.source column (migration 14, spec 0053)', () => {
    * table recreate. db.ts opens with `foreign_keys=ON`; without the
    * backup-and-restore dance the `DROP TABLE skills` would cascade-delete
    * every `connector_skills` row pointing at it. This simulates an upgrade
-   * from spec 0052 state by manually re-running the migration 14 SQL after
-   * seeding sample link rows.
+   * from spec 0052 state by manually re-running the migration 14-style SQL
+   * (with the body column, since this exercises the historical migration
+   * shape) after seeding sample link rows.
+   *
+   * Spec 0062: the production migration 14 has not changed; only the LIVE
+   * skills schema lost `body` (via migration 19). This test still uses the
+   * with-body shape locally because it's manually replaying migration 14's
+   * historical SQL — exercising what would have happened on a 0053-era DB.
    */
   it('migration 14 preserves connector_skills rows across the table recreate', () => {
     const db = openDatabase(':memory:');
     runMigrations(db);
 
-    // Seed: a connector + skill + link.
+    // Seed: a connector + skill + link. Post-0062 the live schema has no
+    // `body` column, so we insert without it and rely on the row preservation
+    // through the manual table-recreate below.
     db.prepare(
       `INSERT INTO connectors (id, slug, display_name, source, transport)
        VALUES (?, ?, ?, ?, ?)`,
     ).run('con-1', 'echo', 'Echo', 'custom', 'stdio');
-    db.prepare(
-      `INSERT INTO skills (id, name, description, body, source) VALUES (?, ?, ?, ?, ?)`,
-    ).run('sk-1', 'a-skill', 'd', 'b', 'dashboard');
+    db.prepare(`INSERT INTO skills (id, name, description, source) VALUES (?, ?, ?, ?)`).run(
+      'sk-1',
+      'a-skill',
+      'd',
+      'dashboard',
+    );
     db.prepare(`INSERT INTO connector_skills (connector_id, skill_id) VALUES (?, ?)`).run(
       'con-1',
       'sk-1',
@@ -873,9 +880,9 @@ describe('migrations: skills.source column (migration 14, spec 0053)', () => {
       (db.prepare('SELECT COUNT(*) AS c FROM connector_skills').get() as { c: number }).c,
     ).toBe(1);
 
-    // Re-run migration 14's body manually as if upgrading. The migrations
-    // table will block automatic re-runs, so we call the SQL directly to
-    // exercise the recreate path.
+    // Re-run a migration-14-style recreate manually (without the body column,
+    // since the live table no longer has one post-0062). The point of the
+    // test is the link preservation, not the column shape.
     db.exec(`
       CREATE TEMP TABLE _spec0053_cs_backup_test AS SELECT * FROM connector_skills;
       DELETE FROM connector_skills;
@@ -883,13 +890,12 @@ describe('migrations: skills.source column (migration 14, spec 0053)', () => {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
         description TEXT NOT NULL,
-        body TEXT NOT NULL,
         source TEXT NOT NULL DEFAULT 'dashboard' CHECK (source IN ('zeno_default','profile','dashboard')),
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
       );
-      INSERT INTO skills_new2 (id, name, description, body, source, created_at, updated_at)
-        SELECT id, name, description, body, source, created_at, updated_at FROM skills;
+      INSERT INTO skills_new2 (id, name, description, source, created_at, updated_at)
+        SELECT id, name, description, source, created_at, updated_at FROM skills;
       DROP TABLE skills;
       ALTER TABLE skills_new2 RENAME TO skills;
       INSERT INTO connector_skills (connector_id, skill_id, created_at)
@@ -952,7 +958,7 @@ describe('migrations: cron_skills + cron_connectors (migrations 16 + 17)', () =>
       "INSERT INTO crons (id, name, prompt, schedule, source) VALUES ('c1', 'c1', 'p', '* * * * *', 'chat')",
     );
     db.exec(
-      "INSERT INTO skills (id, name, description, body, source) VALUES ('s1', 's1', 'd', 'b', 'dashboard')",
+      "INSERT INTO skills (id, name, description, source) VALUES ('s1', 's1', 'd', 'dashboard')",
     );
     db.exec("INSERT INTO cron_skills (cron_id, skill_id) VALUES ('c1', 's1')");
     expect((db.prepare('SELECT COUNT(*) AS c FROM cron_skills').get() as { c: number }).c).toBe(1);
@@ -968,7 +974,7 @@ describe('migrations: cron_skills + cron_connectors (migrations 16 + 17)', () =>
       "INSERT INTO crons (id, name, prompt, schedule, source) VALUES ('c1', 'c1', 'p', '* * * * *', 'chat')",
     );
     db.exec(
-      "INSERT INTO skills (id, name, description, body, source) VALUES ('s1', 's1', 'd', 'b', 'dashboard')",
+      "INSERT INTO skills (id, name, description, source) VALUES ('s1', 's1', 'd', 'dashboard')",
     );
     db.exec("INSERT INTO cron_skills (cron_id, skill_id) VALUES ('c1', 's1')");
     db.exec("DELETE FROM skills WHERE id = 's1'");
@@ -1015,7 +1021,8 @@ describe('migrations: cron_skills + cron_connectors (migrations 16 + 17)', () =>
     runMigrations(db);
     const second = runMigrations(db);
     expect(second.applied).toEqual([]);
-    expect(second.current).toBe(18);
+    // Spec 0062 added migration 19. The "current" is the highest applied id.
+    expect(second.current).toBe(19);
     closeDatabase(db);
   });
 });

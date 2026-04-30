@@ -44,10 +44,16 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { HookCallback, PreToolUseHookInput } from '@anthropic-ai/claude-agent-sdk';
 import type { Logger } from '@zeno/logger';
-import type { AgentCapabilityRepo, ConnectorRepo, ConnectorSkillRepo } from '@zeno/storage';
+import type {
+  AgentCapabilityRepo,
+  ConnectorRepo,
+  ConnectorSkillRepo,
+  SkillRepo,
+} from '@zeno/storage';
 import type { ClaudeCodeBackend } from '@/agent/backends/claude-code';
 import type { AgentBackend, AgentInput, AgentOutput } from '@/agent/types';
 import { checkConnectorPermission } from '@/guardrails/policies/connector-permission';
+import { readSkillBody } from '@/skills/read-body';
 
 const TOOL_NAME_REGEX = /^mcp__([a-z0-9][a-z0-9-]*)__(.+)$/;
 
@@ -61,6 +67,8 @@ export interface ConnectorGatedBackendDeps {
    * the agent sees the playbook before executing the tool.
    */
   connectorSkillRepo: ConnectorSkillRepo;
+  /** Spec 0062: needed to resolve `canonicalPath(skill)` so the hook can read body content from FS at injection time. */
+  skillRepo: SkillRepo;
   /** Optional logger; if set, the hook emits `skill_injected` and `cron_used_unlinked_connector` events. */
   logger?: Logger;
 }
@@ -176,7 +184,14 @@ export class ConnectorGatedBackend implements AgentBackend {
       },
       `injected ${remaining.length} linked skill(s) for connector ${slug}`,
     );
-    const bodies = remaining.map((s) => `## ${s.name}\n\n${s.body}`).join('\n\n---\n\n');
+    // Spec 0062: body is read from FS via `canonicalPath(skill)/SKILL.md`
+    // at injection time. The materializer keeps that path coherent, and
+    // readSkillBody returns '' on any read failure (file missing, malformed
+    // frontmatter) — caller policy: include the skill name with empty body
+    // rather than throwing.
+    const bodies = remaining
+      .map((s) => `## ${s.name}\n\n${readSkillBody(s, this.deps.skillRepo)}`)
+      .join('\n\n---\n\n');
     return `# Linked skills for connector \`${slug}\`\n\nThe operator has linked the following skill(s) to this connector. They describe how this operator wants tools of \`${slug}\` to be used. Read them before continuing with the tool call.\n\n${bodies}`;
   }
 

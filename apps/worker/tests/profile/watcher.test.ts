@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProfileWatcher } from '@/profile/watcher';
+import { classify, ProfileWatcher } from '@/profile/watcher';
 
 let workdir: string;
 const originalCwd = process.cwd();
@@ -93,30 +93,26 @@ describe('ProfileWatcher', () => {
     expect(onCronsChanged).not.toHaveBeenCalled();
   });
 
-  // Spec 0050 retired the `skills/` ignored-path branch in classify(); the
-  // skill bootstrap is gone, so any non-watched filename now falls through
-  // to the generic 'ignored' bucket.
-  //
-  // Spec 0052 reintroduces a 'skills' bucket — but as a *third source*
-  // pointing at ${claudeHome}/skills/, NOT a path inside agent/ or profile/.
-  // Test below covers it.
-  it('routes ${claudeHome}/skills/<n>/SKILL.md edits to onSkillsChanged', async () => {
-    const skillsPath = join(workdir, 'claude-skills');
-    mkdirSync(join(skillsPath, 'frontend-design'), { recursive: true });
+  // Spec 0062: the 'skills' bucket now points at /workspace/skills/
+  // (dashboardSkillsPath) instead of ${claudeHome}/skills/. The materialized
+  // symlink farm is no longer watched.
+  it('routes /workspace/skills/<n>/SKILL.md edits to onSkillsChanged', async () => {
+    const dashboardSkillsPath = join(workdir, 'workspace-skills');
+    mkdirSync(join(dashboardSkillsPath, 'skill-creator'), { recursive: true });
     const onSkillsChanged = vi.fn();
     const watcher = new ProfileWatcher({
       onPromptFilesChanged: vi.fn(),
       onCronsChanged: vi.fn(),
       onSkillsChanged,
-      skillsPath,
+      dashboardSkillsPath,
       debounceMs: 50,
     });
     watcher.start();
     await wait(50);
 
     writeFileSync(
-      join(skillsPath, 'frontend-design', 'SKILL.md'),
-      '---\nname: frontend-design\n---\n\nbody',
+      join(dashboardSkillsPath, 'skill-creator', 'SKILL.md'),
+      '---\nname: skill-creator\ndescription: d\n---\n\nbody',
       'utf8',
     );
 
@@ -128,6 +124,86 @@ describe('ProfileWatcher', () => {
     // the callback fired at least once (debounce still coalesces within a
     // single editor save burst, which is what matters in production).
     expect(onSkillsChanged.mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // Spec 0062: edits to agent/skills/* and profile/skills/* fire onSkillsChanged
+  // (so power-user SSH-drops or rebuild-image swaps trigger hot-reload).
+  it('routes agent/skills/<n>/SKILL.md edits to onSkillsChanged', async () => {
+    mkdirSync(join(workdir, 'agent', 'skills', 'zeno-development'), { recursive: true });
+    const onSkillsChanged = vi.fn();
+    const watcher = new ProfileWatcher({
+      onPromptFilesChanged: vi.fn(),
+      onCronsChanged: vi.fn(),
+      onSkillsChanged,
+      debounceMs: 50,
+    });
+    watcher.start();
+    await wait(50);
+
+    writeFileSync(
+      join(workdir, 'agent', 'skills', 'zeno-development', 'SKILL.md'),
+      '---\nname: zeno-development\ndescription: d\n---\nbody',
+      'utf8',
+    );
+
+    await wait(150);
+    watcher.stop();
+
+    expect(onSkillsChanged.mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('routes profile/skills/<n>/SKILL.md edits to onSkillsChanged', async () => {
+    mkdirSync(join(workdir, 'profile', 'skills', 'fn-code-review'), { recursive: true });
+    const onSkillsChanged = vi.fn();
+    const watcher = new ProfileWatcher({
+      onPromptFilesChanged: vi.fn(),
+      onCronsChanged: vi.fn(),
+      onSkillsChanged,
+      debounceMs: 50,
+    });
+    watcher.start();
+    await wait(50);
+
+    writeFileSync(
+      join(workdir, 'profile', 'skills', 'fn-code-review', 'SKILL.md'),
+      '---\nname: fn-code-review\ndescription: d\n---\nbody',
+      'utf8',
+    );
+
+    await wait(150);
+    watcher.stop();
+
+    expect(onSkillsChanged.mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // Spec 0062: classify unit tests for the new prefix rules.
+  describe('classify (spec 0062)', () => {
+    it('returns "skills" when source=agent and filename starts with "skills/"', () => {
+      expect(classify('agent', 'skills/zeno-development/SKILL.md')).toBe('skills');
+      expect(classify('agent', 'skills/zeno-development/references/foo.md')).toBe('skills');
+    });
+
+    it('returns "skills" when source=profile and filename starts with "skills/"', () => {
+      expect(classify('profile', 'skills/fn-code-review/SKILL.md')).toBe('skills');
+      expect(classify('profile', 'skills/fn-code-review/references/foo.md')).toBe('skills');
+    });
+
+    it('returns "skills" for any filename when source=skills', () => {
+      expect(classify('skills', 'skill-creator/SKILL.md')).toBe('skills');
+      expect(classify('skills', 'whatever.txt')).toBe('skills');
+    });
+
+    it('preserves spec-0052 routes — SOUL.md → prompt, USER.md → prompt, config.yaml → crons', () => {
+      expect(classify('agent', 'SOUL.md')).toBe('prompt');
+      expect(classify('profile', 'USER.md')).toBe('prompt');
+      expect(classify('profile', 'config.yaml')).toBe('crons');
+    });
+
+    it('non-skill / non-special files fall through to "ignored"', () => {
+      expect(classify('agent', 'mcp.json')).toBe('ignored');
+      expect(classify('profile', 'mcp.json')).toBe('ignored');
+      expect(classify('agent', 'random.md')).toBe('ignored');
+    });
   });
 
   it('does not crash when a handler throws', async () => {

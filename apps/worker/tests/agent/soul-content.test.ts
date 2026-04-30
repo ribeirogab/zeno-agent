@@ -41,7 +41,7 @@ describe('SOUL.md content lint (spec 0060)', () => {
     // mandatory when matching. The exact wording can evolve, but the
     // contract MUST be present: "read the SKILL.md" + "follow ... literally"
     // (or equivalent imperative language).
-    const skillsSectionMatch = soul.match(/^##\s+Skills\s*$([\s\S]*?)(?=^##\s|\Z)/m);
+    const skillsSectionMatch = soul.match(/^##\s+Skills\s*$([\s\S]*?)(?=^##\s|Z)/m);
     expect(skillsSectionMatch, 'no "## Skills" section found').not.toBeNull();
     const body = skillsSectionMatch?.[1] ?? '';
     expect(body).toMatch(/SKILL\.md/);

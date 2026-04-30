@@ -51,7 +51,15 @@ function main(): void {
   const logRepo = new LogRepo(db);
   const connectorRepo = new ConnectorRepo(db);
   const connectorAppRepo = new ConnectorAppRepo(db);
-  const skillRepo = new SkillRepo(db);
+  // Spec 0062: SkillRepo takes per-source roots so canonicalPath(skill) can
+  // resolve into a real FS dir. The API uses the in-container paths
+  // (mirrored from docker-compose mounts). The /workspace/skills/ volume
+  // is writable; agent + profile are read-only.
+  const skillRepo = new SkillRepo(db, {
+    agentSkillsRoot: '/app/agent/skills',
+    profileSkillsRoot: '/app/profile/skills',
+    dashboardSkillsRoot: join(config.workspaceDir, 'skills'),
+  });
   const connectorSkillRepo = new ConnectorSkillRepo(db);
   const cronSkillRepo = new CronSkillRepo(db);
   const cronConnectorRepo = new CronConnectorRepo(db);

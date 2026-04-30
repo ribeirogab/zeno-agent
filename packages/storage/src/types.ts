@@ -305,13 +305,16 @@ export interface RecordInvocationInput {
 // API, UPSERT'd from `agent/skills/`); `profile` is shipped with the active
 // profile (INSERT OR IGNORE seed; editable via dashboard); `dashboard` is
 // uploaded via the API like in spec 0052.
+//
+// Spec 0062: skill bytes moved from DB (`body TEXT`) to FS (canonical path
+// per source). The `Skill` type only carries metadata; whoever wants the
+// content reads it from the canonical path (resolved by SkillRepo.canonicalPath).
 export type SkillSource = 'zeno_default' | 'profile' | 'dashboard';
 
 export interface Skill {
   id: string;
   name: string;
   description: string;
-  body: string;
   source: SkillSource;
   createdAt: string;
   updatedAt: string;
@@ -320,14 +323,12 @@ export interface Skill {
 export interface CreateSkillInput {
   name: string;
   description: string;
-  body: string;
   /** Spec 0053. Defaults to 'dashboard' for backward compat with spec 0052 uploads. */
   source?: SkillSource;
 }
 
 export interface UpdateSkillInput {
   description?: string;
-  body?: string;
 }
 
 // M:N link between connectors and skills. Pre-tool-use hook injects linked

@@ -73,7 +73,7 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
     id: string,
     slug: string,            // 'slack', 'telegram', etc.
     catalogId: string,        // 'slack', etc.
-    displayName: string,
+    displayName: string,    // non-nullable per packages/storage/src/types.ts
     description: string | null,
     status: ConnectorStatus,
     lastError: string | null,
@@ -153,7 +153,17 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
 (Both are extracted, not inlined, to mirror the connectors pattern at `apps/dashboard/src/components/connectors/` and keep the route files focused on layout/data-fetching.)
 
 **Reused primitives** (no new shared components introduced):
-- `StatusPill` — the connectors routes (`connectors.index.tsx` line ~358, `connectors.$id.tsx` line ~369) define a file-local `StatusPill` function with the variants `'active' | 'error' | 'off' | 'pending'`. **Copy this function** verbatim into the channels route(s) — it is NOT exported as a shared component, and per the Q4 Option-C decision (copy not share between channels and connectors) we do NOT introduce a new shared component for it. Same enum, same visual logic. If a future spec wants to extract a shared `<StatusPill>`, that's a separate refactor.
+- `StatusPill` — both connectors routes define a file-local `StatusPill` function, but with **inconsistent signatures**: `connectors.index.tsx` (`StatusPill` near the bottom of the file) uses variants `'active' | 'error' | 'off' | 'pending'`; `connectors.$id.tsx` uses `'active' | 'error' | 'disabled' | 'pending'` (`'off'` vs `'disabled'` is the divergence). For channels, **adopt the `connectors.index.tsx` signature** (`'active' | 'error' | 'off' | 'pending'`) as canonical and copy that function into channels — it's the more thoughtful variant set ("off" reads better than "disabled" in a status pill). Per the Q4 Option-C decision (copy not share between channels and connectors) we do NOT introduce a new shared component for it. If a future spec wants to extract a shared `<StatusPill>` and reconcile the connectors detail page, that's a separate refactor.
+- **DB-status → pill-variant mapping** (also copied from `connectors.index.tsx` lines 152-159): channel rows arrive at the UI with `status: ConnectorStatus` (= `'enabled' | 'disabled' | 'pending'` from `packages/storage/src/types.ts`). Translate before rendering:
+  ```ts
+  const visualStatus =
+    channel.status === 'enabled'
+      ? (channel.lastError ? 'error' : 'active')
+      : channel.status === 'disabled'
+        ? 'off'
+        : 'pending';
+  ```
+  Both the list page (Track 2) and the detail page (Track 3) MUST use this exact derivation so the four pill variants stay reachable. Without this mapping, raw `'enabled'` / `'disabled'` strings would hit `StatusPill` and produce no rendering or a runtime config-lookup error.
 - Form inputs, dialog, button, card — all from shadcn/ui under `apps/dashboard/src/components/ui/`. These ARE genuinely shared primitives.
 
 ### Track 5 — Sidebar nav
@@ -273,7 +283,7 @@ DELETE /api/channels/:id → SYNC direct DB delete via ConnectorRepo.delete()
   ↓
 HTTP 204 returned immediately
   ↓
-Toast "Slack uninstalled"; navigate to /channels
+Toast "{displayName} uninstalled" (renders as "Slack uninstalled" today); navigate to /channels
 List refetches; the row is already gone (no eventual-consistency wait)
 ```
 

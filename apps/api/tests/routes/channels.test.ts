@@ -542,16 +542,20 @@ describe('GET /api/channels/catalog/setup/:catalogId (spec 0059)', () => {
     expect(res.status).toBe(401);
   });
 
-  // Spec 0059 R3 regression: the channel-setup-helpers module reads
-  // infra/slack-app-manifest.json relative to process.cwd(). In production
-  // the worker runs with cwd=/app and the file MUST be present at
-  // /app/infra/slack-app-manifest.json (handled by infra/Dockerfile copying
-  // it into the runtime stage). If the file is missing — e.g. somebody
-  // refactors the Dockerfile — this test fails because the helper falls
-  // through both candidate paths and returns manifest: null, breaking the
-  // documented install flow. The test mocks process.cwd() to a tmp dir with
-  // no infra/ folder to simulate the failure mode.
-  it('returns manifest: null when slack-app-manifest.json is unreachable (regression)', async () => {
+  // Spec 0059: graceful-degradation contract for the setup helper.
+  //
+  // The channel-setup-helpers module reads infra/slack-app-manifest.json via
+  // process.cwd() at request time. In production the worker runs with cwd=/app
+  // and the file is delivered there by infra/Dockerfile (runtime stage COPY
+  // line). If the file is unreachable for any reason, the helper falls through
+  // both candidate paths and returns `manifest: null` with steps still intact —
+  // the install modal then hides the manifest block but keeps the numbered
+  // steps. This test pins that contract by mocking process.cwd() to a tmp dir
+  // without infra/ and asserting the degraded shape. (Note: a missing file in
+  // production is a Dockerfile regression that this unit test cannot catch
+  // — that requires container-level integration testing — but pinning the
+  // graceful-degradation contract here ensures the resolver never throws.)
+  it('returns manifest: null when slack-app-manifest.json is unreachable (graceful degradation)', async () => {
     const { mkdtempSync, rmSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
     const { join } = await import('node:path');

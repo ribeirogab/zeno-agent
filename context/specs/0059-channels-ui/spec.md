@@ -287,7 +287,7 @@ This spec ships when ALL the following pass on the branch:
 - [ ] Two artboards updated in "Hearty island" Paper file (channels index + detail).
 - [ ] Catalog install modal artboard added.
 - [ ] Owner reviews artboards in Paper. Changes round-trip until owner approves visually.
-- [ ] Approved Paper exports referenced from plan.md.
+- [ ] Approved Paper export filenames captured in plan.md (one filename per artboard) so the implementer has unambiguous visual references.
 
 **API surface (Track 1):**
 - [ ] `GET /api/channels/:id` returns channel-shape response for kind='channel' rows; 404 for kind='mcp' or unknown ids.
@@ -299,8 +299,9 @@ This spec ships when ALL the following pass on the branch:
 **Dashboard list page (Track 2):**
 - [ ] `/channels` route renders.
 - [ ] Empty state shows "Install Slack" CTA.
-- [ ] After install, list shows Slack card with icon, name, status pill, "manage" link.
-- [ ] Install modal opens; submits successfully; polls for the row; closes on success.
+- [ ] After install, list shows Slack card with icon (joined client-side from `/api/channels/catalog`), name, status pill, "manage" link.
+- [ ] Install modal opens and submits successfully (POST returns 204).
+- [ ] Polling matches the predicate `catalogId === submittedCatalogId` and the modal closes; new card appears in the list. Timeout path: modal closes with the "install in progress" toast.
 
 **Dashboard detail page (Track 3):**
 - [ ] `/channels/:id` route renders.

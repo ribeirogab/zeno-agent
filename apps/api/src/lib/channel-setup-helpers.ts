@@ -58,9 +58,7 @@ export function getChannelSetupHelper(catalogId: string): ChannelSetupHelper | n
     const content = resolveSlackManifestContent();
     return {
       steps: SLACK_STEPS,
-      manifest: content
-        ? { filename: 'slack-app-manifest.json', content }
-        : null,
+      manifest: content ? { filename: 'slack-app-manifest.json', content } : null,
     };
   }
   return null;

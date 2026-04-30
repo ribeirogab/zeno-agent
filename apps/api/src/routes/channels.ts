@@ -21,8 +21,8 @@
  * in `connectors.ts:POST /`.
  */
 
-import type { ConnectorRepo } from '@zeno/storage';
 import { zValidator } from '@hono/zod-validator';
+import type { ConnectorRepo } from '@zeno/storage';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { getChannelSetupHelper } from '@/lib/channel-setup-helpers';

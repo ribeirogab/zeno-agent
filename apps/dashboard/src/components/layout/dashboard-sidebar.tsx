@@ -3,12 +3,23 @@ import { Crest } from '@zeno/ui';
 import type { JSX, ReactNode } from 'react';
 import { type ServiceStatus, useHealth } from '@/lib/use-health';
 
-type NavId = 'home' | 'crons' | 'sessions' | 'connectors' | 'skills' | 'logs' | 'settings';
+type NavId =
+  | 'home'
+  | 'crons'
+  | 'sessions'
+  | 'channels'
+  | 'connectors'
+  | 'skills'
+  | 'logs'
+  | 'settings';
 
 const NAV: { id: NavId; label: string; to: string; badge?: number }[] = [
   { id: 'home', label: 'home', to: '/' },
   { id: 'crons', label: 'crons', to: '/crons' },
   { id: 'sessions', label: 'sessions', to: '/sessions' },
+  // Spec 0059: channels (transport substrate) sit ABOVE connectors
+  // (tool surface) — conceptual ordering: where Zeno talks vs what Zeno calls.
+  { id: 'channels', label: 'channels', to: '/channels' },
   { id: 'connectors', label: 'connectors', to: '/connectors' },
   { id: 'skills', label: 'skills', to: '/skills' },
   { id: 'logs', label: 'logs', to: '/logs' },
@@ -41,6 +52,7 @@ function navIdForPath(path: string): NavId {
   if (path === '/') return 'home';
   if (path.startsWith('/crons')) return 'crons';
   if (path.startsWith('/sessions')) return 'sessions';
+  if (path.startsWith('/channels')) return 'channels';
   if (path.startsWith('/connectors')) return 'connectors';
   if (path.startsWith('/skills')) return 'skills';
   if (path.startsWith('/logs')) return 'logs';
@@ -160,6 +172,13 @@ function NavIcon({ id }: { id: NavId }): JSX.Element {
       return (
         <svg {...props} aria-hidden="true">
           <path d="M4 6h16v10H9l-5 4z" />
+        </svg>
+      );
+    case 'channels':
+      // chat-bubble silhouette (spec 0059) — stroke-based, matches set
+      return (
+        <svg {...props} aria-hidden="true">
+          <path d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7l-4 4v-4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
         </svg>
       );
     case 'connectors':

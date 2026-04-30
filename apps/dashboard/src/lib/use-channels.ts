@@ -72,8 +72,7 @@ export const channelsKeys = {
   list: () => [...channelsKeys.all] as const,
   detail: (id: string) => [...channelsKeys.all, id] as const,
   catalog: () => [...channelsKeys.all, 'catalog'] as const,
-  setupHelper: (catalogId: string) =>
-    [...channelsKeys.all, 'catalog', 'setup', catalogId] as const,
+  setupHelper: (catalogId: string) => [...channelsKeys.all, 'catalog', 'setup', catalogId] as const,
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -101,9 +100,7 @@ export function useChannelsCatalog() {
     queryFn: async () => {
       // /api/channels/catalog returns { channels: [...] } (wrapped),
       // NOT a flat array — see file header.
-      const wrapped = await apiFetch<{ channels: ChannelCatalogEntry[] }>(
-        '/api/channels/catalog',
-      );
+      const wrapped = await apiFetch<{ channels: ChannelCatalogEntry[] }>('/api/channels/catalog');
       return wrapped.channels;
     },
   });
@@ -111,11 +108,8 @@ export function useChannelsCatalog() {
 
 export function useChannelSetupHelper(catalogId: string | null | undefined) {
   return useQuery({
-    queryKey: catalogId
-      ? channelsKeys.setupHelper(catalogId)
-      : ['channels', 'setup', 'noop'],
-    queryFn: () =>
-      apiFetch<ChannelSetupHelper>(`/api/channels/catalog/setup/${catalogId}`),
+    queryKey: catalogId ? channelsKeys.setupHelper(catalogId) : ['channels', 'setup', 'noop'],
+    queryFn: () => apiFetch<ChannelSetupHelper>(`/api/channels/catalog/setup/${catalogId}`),
     enabled: !!catalogId,
   });
 }

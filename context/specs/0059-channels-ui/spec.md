@@ -106,7 +106,8 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
 
 **New file:** `apps/dashboard/src/routes/_authed/channels.index.tsx` — copied from `connectors.index.tsx` and trimmed to channel-shape:
 
-- Uses TanStack Query to fetch BOTH `GET /api/channels` (installed list) AND `GET /api/channels/catalog` (entries with iconUrl). The list endpoint deliberately omits `iconUrl` (per spec 0057's narrow projection); UI **joins client-side** by `catalogId` to derive each card's icon. This avoids amending the list endpoint and keeps the projection lean for future API consumers that don't need icons.
+- Uses TanStack Query to fetch BOTH `GET /api/channels` (installed list — flat array) AND `GET /api/channels/catalog` (entries with iconUrl — **wrapped: `{ channels: ChannelCatalogEntry[] }`**, NOT a flat array; this asymmetry exists because spec 0057 designed the catalog response that way; do NOT copy the connectors-catalog hook pattern verbatim — connectors catalog returns a flat array, channels catalog does not). The list endpoint deliberately omits `iconUrl` (per spec 0057's narrow projection); UI **joins client-side** by `catalogId` against `response.channels` to derive each card's icon. This avoids amending the list endpoint and keeps the projection lean for future API consumers that don't need icons.
+- React Query keys: use `['channels']` for the list, `['channels', id]` for detail, `['channels', 'catalog']` for the catalog. Keep namespace separate from the existing connectors keys (`['connectors']`, `['catalog']`) to avoid stale-data collisions.
 - Renders one card per installed channel. Card shows: icon (resolved from catalog by matching `catalogId`), name, status pill, "manage" link to `/channels/:id`.
 - "Install" button (top-right, primary) opens the channels catalog install modal.
 - Empty state: card with channel-shaped placeholder + "Install Slack" CTA.

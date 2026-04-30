@@ -1,0 +1,309 @@
+---
+status: draft
+feature: channels-ui
+created: 2026-04-29
+shipped: null
+---
+# Spec 0059 — Channels UI section in dashboard
+
+**Status:** Draft
+**Branch:** `feat/spec-0059-channels-ui` (worktree: `../zeno-agent-worktrees/0059-channels-ui/`)
+**Scope:** Add a dedicated `/channels` section to the dashboard so the operator can install, view, edit secrets for, and uninstall channel transports (Slack today; future Telegram, WhatsApp) via UI — matching the management ergonomics already available for MCP connectors. Without this spec, channels are manageable only via curl + DB queries (the operator-facing gap that surfaced post-spec-0058 cutover). Stacked on `main` after PR #23 lands.
+
+**Paper-first.** Phase 0 of this spec updates artboards in the "Hearty island" Paper file with the new `/channels` index + detail layouts, gets visual approval, then implementation follows the approved Paper export.
+
+## Context
+
+Specs 0057 + 0058 shipped Slack as a `kind='channel'` connector and migrated `profiles/fn` from `.env`-based credentials to DB-stored connector secrets. The supporting API surface (`GET /api/channels/catalog`, `GET /api/channels`, `POST /api/connectors` with `kind: 'channel'`) all works. The `connectors` table cleanly hosts both kinds.
+
+**What's still missing:** any UI for it. The dashboard's `/connectors` page filters `kind='mcp'` (so channel rows don't pollute the MCP list), and there's no `/channels` route. Operator's only management path today is direct curl with cookie auth — exactly the kind of friction the project's "everything via dashboard" rule (`context/_index/rules.md`, `tmp/zeno-cleanup-contract.md`) exists to prevent. Specs 0057/0058 explicitly deferred the UI to a "future polish spec" — this is that spec.
+
+The dashboard has well-established patterns at `/connectors` (list page at `connectors.index.tsx`, detail page at `connectors.$id.tsx`, catalog install modal at `components/connectors/catalog-install-modal.tsx`). Spec 0059 mirrors those patterns for channels — by **copying** files into a `channels/` namespace rather than generalizing. Per subagent counterpoint (`Option B` on Q2): MCP and channels will diverge sharply (channels = transport, often singleton, OAuth-flow-bound; MCP = capability, n:m, tool catalog). A shared `kind`-prop component becomes a god component within two months. Copies are cheaper than premature abstraction here.
+
+## Problem Statement
+
+Three problems the UI gap creates:
+
+1. **Operator can't manage Slack via dashboard.** Install requires `curl -X POST /api/connectors`. View secrets requires direct DB query (`docker exec ... sqlite3`). Rotation requires curl PATCH. Uninstall requires curl DELETE. This violates the project rule that *all integrations are configurable via the dashboard*.
+
+2. **No discoverability for future channels.** When Telegram/WhatsApp specs ship (already in roadmap as 0066+), there's no place to put them. Dashboard has nav entries for `connectors`, `crons`, `sessions`, `skills` — no `channels`. Adding the UI now establishes the pattern; future channels just become a new entry in `agent/channels-catalog.json`.
+
+3. **Channel state is invisible.** If a Slack token gets revoked, or a `connections:write` scope is missing, or the channel adapter logged an error during socket-mode reconnect — the operator only sees this in `docker logs zeno-fn-agent-1`. A channels detail page surfaces `lastError`, `lastErrorAt`, `lastVerifiedAt` (fields already on the row, never displayed).
+
+## Non-Goals
+
+The following are explicitly OUT of scope for spec 0059:
+
+- **Adding new channel types.** Telegram/WhatsApp are future specs (0066+ TBD). Spec 0059 only ships UI for the EXISTING catalog (Slack today; structure ready for more). Each future channel adds one entry to `agent/channels-catalog.json` and zero dashboard code.
+- **Custom channels (non-catalog).** Like spec 0057's connector install flow, channels only support `source: 'catalog'`. No "Custom channel" install path.
+- **Test endpoint.** MCP connectors have a `POST /test` endpoint that exercises auth before install. Channels don't have an equivalent concept (no MCP server to spawn; the auth happens when socket-mode connects on next worker boot). UI shows `lastVerifiedAt` from the row (when present); explicit test action is out of scope.
+- **Toggle enable/disable.** Connector status can be `enabled | disabled | pending`. UI for spec 0059 shows status read-only. Toggling is a future polish.
+- **Lifecycle log / invocations log.** MCP detail page shows recent invocation history. Channels don't invoke (they receive). Out of scope.
+- **Bulk operations.** No "select multiple, uninstall all" — there's only ever 1 of each channel kind for v1.
+- **Editing the dashboard `/connectors` page.** It already filters `kind='mcp'` correctly (per spec 0057). No regressions, no refactor.
+- **Rebranding / visual redesign.** Channels page uses the existing "Hearty island" design language. Tier 0 rebranding (per `backlog.md`) is a future spec; channels just adopts whatever design system is current.
+- **Accessibility audit.** Existing dashboard isn't audited for a11y; channels page matches. Future spec covers a11y across the board.
+- **Multi-profile installations.** A single dashboard manages a single profile's channels. Spec 0059 doesn't touch profile switching (already deferred per backlog Tier 3 #21).
+
+## Approach
+
+The work breaks into 4 tracks. Phase 0 (Paper artboards) gates the rest — design lands before code.
+
+### Track 0 — Paper artboards (Phase 0)
+
+Update the "Hearty island" Paper file with two new artboards:
+
+1. **Channels index** — list view with Slack card (icon, name, status pill, "manage" button). Empty state: "No channels installed" + "Install Slack" CTA opening the catalog install modal.
+2. **Channels detail** — Slack-installed view. Header (icon + name + status + uninstall in overflow menu). Body sections: **Secrets** (masked tokens with edit button) + **Last verified** + **Last error** (only if non-null).
+3. **Catalog install modal (channels variant)** — list of catalog entries (Slack today; future TG/WPP appear automatically). Click → expands the secret fields (App Token, Bot Token with help text from catalog). Submit → success toast + redirect to detail.
+
+Mirrors the design language of `/connectors` index + detail (same card grid, same secret-field component, same status pills). NEW components are the empty-state card and the channel-specific detail layout.
+
+**Approval gate:** owner reviews the artboards in Paper. Changes round-trip until approved. THEN implementation begins.
+
+### Track 1 — API: dedicated `/api/channels/:id` detail endpoints
+
+Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collision in API.
+
+**New endpoints in `apps/api/src/routes/channels.ts`:**
+
+- `GET /api/channels/:id` — returns the channel row in a channel-specific shape:
+  ```ts
+  {
+    id: string,
+    slug: string,            // 'slack', 'telegram', etc.
+    catalogId: string,        // 'slack', etc.
+    displayName: string,
+    description: string | null,
+    status: ConnectorStatus,
+    lastError: string | null,
+    lastErrorAt: string | null,
+    lastVerifiedAt: string | null,
+    createdAt: string,
+    updatedAt: string,
+    iconUrl: string | null,   // resolved from channels-catalog
+    secrets: Array<{          // masked, mirrors /api/connectors/:id shape
+      key: string,
+      masked: true,
+      last4: string,
+    }>,
+  }
+  ```
+  Returns 404 if id doesn't exist OR row exists but `kind !== 'channel'` (defense in depth — never expose MCP rows via this endpoint).
+
+- `PATCH /api/channels/:id/secrets` — same shape as `PATCH /api/connectors/:id/secrets`: `{ secrets: Array<{ key: string, value: string }> }`. Replaces all secrets atomically. Returns 204. Reuses existing `ConnectorRepo.replaceSecrets()` underneath. Returns 404 for non-channel id.
+
+- `DELETE /api/channels/:id` — uninstalls. Returns 204. Reuses existing `connector_uninstall` command path (the worker handler doesn't care about `kind`; FK CASCADE drops `connector_secrets`). Returns 404 for non-channel id.
+
+**Existing `apps/api/src/routes/connectors.ts:GET /:id`** stays unchanged; the legacy `kind: 'connector'` UI discriminator stays. Channel rows shouldn't be hit via the connectors detail endpoint in normal operation, but if they are, response is best-effort (works because both kinds share storage).
+
+### Track 2 — Dashboard route: `/channels` index page
+
+**New file:** `apps/dashboard/src/routes/_authed/channels.index.tsx` — copied from `connectors.index.tsx` and trimmed to channel-shape:
+
+- Uses TanStack Query to fetch `GET /api/channels` (already exposed by spec 0057) + `GET /api/channels/catalog`.
+- Renders one card per installed channel. Card shows: icon (from catalog `iconUrl`), name, status pill, "manage" link to `/channels/:id`.
+- "Install" button (top-right, primary) opens the channels catalog install modal.
+- Empty state: card with channel-shaped placeholder + "Install Slack" CTA.
+- NO transport/tools/MCP-specific UI bits.
+
+### Track 3 — Dashboard route: `/channels/:id` detail page
+
+**New file:** `apps/dashboard/src/routes/_authed/channels.$id.tsx` — copied from `connectors.$id.tsx` and trimmed:
+
+- Header: icon + name + status pill + uninstall in overflow menu.
+- Body sections (in order):
+  1. **Secrets** — list of masked secret fields. Edit button opens a modal that PATCHes via `PATCH /api/channels/:id/secrets`. Mirrors connectors page pattern.
+  2. **Last verified** — pretty-formatted date if non-null; "Never verified" otherwise.
+  3. **Last error** — red callout with `lastError` text + `lastErrorAt`, only if `lastError !== null`.
+- NO transport/command/args/url section.
+- NO tool catalog list.
+- NO invocation history list.
+- Uninstall confirmation dialog: "Uninstall Slack? Bot will stop responding to messages." Confirm → DELETE → toast + redirect to `/channels` index.
+
+### Track 4 — Channels-specific components
+
+**New folder:** `apps/dashboard/src/components/channels/`:
+
+- `channels-catalog-install-modal.tsx` — copied from `connectors/catalog-install-modal.tsx` and adapted:
+  - Fetches `/api/channels/catalog` (not `/api/connectors/catalog`).
+  - POSTs to `/api/connectors` with `kind: 'channel'` + `source: 'catalog'` body shape (per spec 0057).
+  - Renders catalog entries as a simple list (one click → secrets form). Slack-only today so the list is degenerate, but structure stays for TG/WPP.
+- Other detail-page modals (uninstall confirm, edit-secrets) — inline within the route file or extracted to `components/channels/` as needed.
+
+**Shared shadcn primitives** (already exist; no new shared components):
+- `<StatusBadge>` — channels reuse the existing connector status badge component (same enum).
+- Form inputs, dialog, button, card — all from shadcn/ui under `apps/dashboard/src/components/ui/`.
+
+### Track 5 — Sidebar nav
+
+**Modify:** `apps/dashboard/src/components/layout/dashboard-sidebar.tsx`:
+
+- Add `channels` to the `NavId` type union.
+- Insert `{ id: 'channels', label: 'channels', to: '/channels' }` ABOVE `connectors` in the `NAV` array (conceptual ordering: where Zeno talks → what Zeno calls).
+- Add `if (path.startsWith('/channels')) return 'channels';` to the active-state matcher.
+- Add a `channels` icon entry to the icon switch (`<MessageSquare>` from lucide-react, or whichever fits the design language).
+
+## Architecture
+
+### Component map
+
+```
+apps/api/src/routes/
+└── channels.ts                                       # +3 endpoints (GET :id, PATCH :id/secrets, DELETE :id)
+
+apps/api/tests/routes/
+└── channels.test.ts                                  # +tests for the 3 new endpoints
+
+apps/dashboard/src/routes/_authed/
+├── channels.index.tsx                                # NEW (list + install modal)
+├── channels.$id.tsx                                  # NEW (detail + uninstall + edit secrets)
+├── connectors.index.tsx                              # unchanged
+└── connectors.$id.tsx                                # unchanged
+
+apps/dashboard/src/components/
+├── channels/                                         # NEW folder
+│   ├── channels-catalog-install-modal.tsx            # NEW (copy of connectors/catalog-install-modal.tsx, channel API endpoints)
+│   ├── channels-edit-secrets-modal.tsx               # NEW (mirror of connectors edit-secrets pattern)
+│   └── channels-uninstall-confirm-dialog.tsx         # NEW (simple confirm)
+└── layout/
+    └── dashboard-sidebar.tsx                         # +channels nav entry
+
+agent/
+└── (no changes — channels-catalog.json + slack.svg already exist from spec 0057)
+```
+
+### Data flow — install Slack
+
+```
+User clicks "Install Slack" on /channels (empty state)
+  ↓
+Modal opens, fetches GET /api/channels/catalog
+  ↓
+User pastes App Token + Bot Token, clicks Install
+  ↓
+POST /api/connectors body: { source: 'catalog', catalogId: 'slack', kind: 'channel', secrets: [...] }
+  ↓
+HTTP 204 (async via command queue)
+  ↓
+Modal polls GET /api/channels every 1s up to 10s, looking for the slack row
+  ↓
+Once found: close modal, toast "Slack installed", refetch /api/channels list
+  ↓
+List renders the new card; click → /channels/<id>
+```
+
+(Polling pattern matches the spec 0058 cutover playbook — the API is async; UI must wait for the worker to process.)
+
+### Data flow — view + edit secrets
+
+```
+GET /api/channels/:id → response with masked secrets
+  ↓
+Detail page renders secret fields with last4 masking
+  ↓
+User clicks Edit → modal opens with empty input fields (NOT prefilled with masked values)
+  ↓
+User pastes new tokens, clicks Save
+  ↓
+PATCH /api/channels/:id/secrets with full secrets array
+  ↓
+HTTP 204; toast "Secrets updated"; modal closes; detail page refetches
+```
+
+The secrets edit modal does NOT prefill (security best-practice — operator types fresh, no leak risk via React DevTools). Empty fields = "leave unchanged"; non-empty = "replace this key's value".
+
+### Data flow — uninstall
+
+```
+User clicks "Uninstall" in detail page overflow menu
+  ↓
+Confirm dialog: "Uninstall Slack? Bot will stop responding."
+  ↓
+DELETE /api/channels/:id → enqueues connector_uninstall
+  ↓
+Optimistic UI: navigate to /channels, show toast "Slack uninstalled"
+  ↓
+List refetches (channel will disappear once worker processes the uninstall)
+```
+
+## Test plan / Success criteria
+
+This spec ships when ALL the following pass on the branch:
+
+**Paper-first (Phase 0):**
+- [ ] Two artboards updated in "Hearty island" Paper file (channels index + detail).
+- [ ] Catalog install modal artboard added.
+- [ ] Owner reviews artboards in Paper. Changes round-trip until owner approves visually.
+- [ ] Approved Paper exports referenced from plan.md.
+
+**API surface (Track 1):**
+- [ ] `GET /api/channels/:id` returns channel-shape response for kind='channel' rows; 404 for kind='mcp' or unknown ids.
+- [ ] `PATCH /api/channels/:id/secrets` replaces secrets atomically; 204 on success; 404 for non-channel rows.
+- [ ] `DELETE /api/channels/:id` enqueues uninstall command; 204 on success; 404 for non-channel rows.
+- [ ] All 3 endpoints require auth (cookie). 401 without.
+- [ ] Tests added in `apps/api/tests/routes/channels.test.ts` (1 happy path + 1 404 + 1 401 per endpoint = 9 tests minimum).
+
+**Dashboard list page (Track 2):**
+- [ ] `/channels` route renders.
+- [ ] Empty state shows "Install Slack" CTA.
+- [ ] After install, list shows Slack card with icon, name, status pill, "manage" link.
+- [ ] Install modal opens; submits successfully; polls for the row; closes on success.
+
+**Dashboard detail page (Track 3):**
+- [ ] `/channels/:id` route renders.
+- [ ] Header shows icon + name + status.
+- [ ] Secrets section shows masked App Token + Bot Token.
+- [ ] Edit secrets modal works (empty inputs = no change; filled = replace).
+- [ ] Uninstall confirm dialog → confirm → redirect to `/channels` + toast.
+
+**Sidebar (Track 5):**
+- [ ] "channels" entry visible above "connectors".
+- [ ] Active state correctly highlights when on `/channels` or `/channels/:id`.
+
+**E2E (cleanup contract Rule 1):**
+- [ ] Live dashboard at `http://localhost:3001/channels` renders correctly against the running `profiles/fn` (which has Slack already installed since spec 0058 cutover).
+- [ ] Detail page at `http://localhost:3001/channels/<slack-id>` shows the actual installed Slack with masked tokens.
+- [ ] Edit secrets modal can rotate tokens (and the cutover validation works again — operator rotates, restart container, Slack reconnects with new tokens).
+- [ ] Uninstall flow tested in a sandbox if possible; in production, defer to a future genuine token rotation event.
+
+**Quality gate:**
+- [ ] `pnpm run quality-gate` green: 30/30 turbo tasks. Test count delta: +9 API tests minimum (storage and worker untouched).
+
+**Branch review (Rule 2):**
+- [ ] R1+R2+R3 fresh reviews CLEAN consecutive. Reset on any blocking finding.
+
+## Risks and Mitigations
+
+| Risk | Mitigation |
+|---|---|
+| Channels page diverges in implementation from the approved Paper artboards | Phase 0 gate is hard — no code starts until owner approves Paper. plan.md cites the approved Paper export; tasks.md verifies pixel-pegging at each step. |
+| Copy-paste from connectors files introduces bugs by leaving MCP-specific bits behind | Each new file gets a top-of-file comment listing what was REMOVED from the connectors counterpart. Implementer audits against the list. Quality gate catches type errors; manual smoke test catches semantic ones. |
+| New `/api/channels/:id` endpoint accidentally returns MCP rows for an MCP id | 404 contract: explicit `if (row.kind !== 'channel') return 404`. Test asserts this. Defense in depth — the channels UI never reaches `/api/connectors/:id` so even if the connectors endpoint leaks, the channels page is unaffected. |
+| Edit-secrets modal accidentally prefills with masked values | Spec mandates empty fields. Test asserts "modal opens with empty inputs". |
+| Sidebar `channels` nav entry breaks on profiles where channels-catalog is malformed | Channels page handles `loadChannelsCatalog` failure (already in spec 0057) by showing an empty list + a banner ("Channels catalog not loaded"). Sidebar entry still appears — channels nav doesn't depend on catalog availability. |
+| Uninstall command races with worker processing | Optimistic UI navigates immediately; list refetch eventually shows the channel gone. If worker fails to process (rare), refresh the page; row reappears with `lastError`. |
+| Existing `/connectors` page accidentally regresses | Per Q2 Option B (no shared domain components), `/connectors` files are 100% untouched. Test suite includes existing connectors tests; quality gate catches any accidental import collision. |
+| Channels-catalog endpoint down (e.g. catalog file missing) | Install modal handles fetch failure with an error state ("Channels catalog unavailable"). Existing channels still listable from `/api/channels`. |
+| Secret rotation via edit modal locks operator out of Slack | Mitigation: existing connector secret rotation already works via `PATCH /api/connectors/:id/secrets`. Channels reuse the same storage layer. Risk is no higher than for MCP connectors. |
+
+## Open Questions
+
+None blocking. Q1-Q6 closed before writing this spec:
+
+- Q1 (URL structure): separate `/channels` + `/channels/:id` routes.
+- Q2 (component reuse): Option B — copy connectors files into channels namespace; only shadcn primitives shared. Per subagent counterpoint.
+- Q3 (detail page scope): minimal v1 (view masked secrets, edit, uninstall).
+- Q4 (API kind exposure): Option C — dedicated `/api/channels/:id` + `/secrets` + `DELETE` endpoints. Per subagent counterpoint.
+- Q5 (sidebar nav): `channels` above `connectors` in the nav array.
+- Q6 (empty state): simple "Install Slack" CTA → catalog install modal.
+
+## Out-of-scope follow-ups
+
+- **Telegram / WhatsApp channels.** Future specs (0066+ TBD). Adding a channel = new entry in `agent/channels-catalog.json` + new adapter class. Channels UI handles them automatically (catalog-driven).
+- **Toggle enable/disable.** Future polish. Schema field exists (`status: 'enabled' | 'disabled' | 'pending'`); UI toggle is the only delta.
+- **Test connection action.** MCP connectors have a "Test" button that exercises auth before/after install. Channels could have an equivalent (e.g. "ping Slack auth" button). Future polish.
+- **Lifecycle log per channel.** Connector-style invocation history doesn't apply (channels receive, don't invoke); but error history (`lastError`/`lastErrorAt` over time) could be useful. Future polish.
+- **Custom channels.** Today catalog-only. If someone wants to register a non-catalog channel (e.g. local Webhook or test fixture), that's a separate spec.
+- **Multi-instance channels** (e.g. install Slack twice for two different workspaces in one profile). Today single-instance per slug. Multi-install needs slug collision handling + a "workspace" concept on the row.
+- **Spec 0058's `GET /api/connectors/:id` legacy `kind: 'connector'` discriminator** stays. Channels UI doesn't use `/api/connectors/:id`; the issue tracked in spec 0058's Errata is moot for this spec.

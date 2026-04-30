@@ -119,13 +119,13 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
 
 - Header: icon + name + status pill + uninstall in overflow menu.
 - Body sections (in order):
-  1. **Secrets** — list of masked secret fields. Edit button opens a modal that PATCHes via `PATCH /api/channels/:id/secrets`. Mirrors connectors page pattern.
+  1. **Secrets** — list of masked secret fields. Edit button opens `channels-edit-secrets-modal.tsx` (Track 4) which PATCHes via `PATCH /api/channels/:id/secrets`. Mirrors connectors page pattern.
   2. **Last verified** — pretty-formatted date if non-null; "Never verified" otherwise.
   3. **Last error** — red callout with `lastError` text + `lastErrorAt`, only if `lastError !== null`.
 - NO transport/command/args/url section.
 - NO tool catalog list.
 - NO invocation history list.
-- Uninstall confirmation dialog: "Uninstall Slack? Bot will stop responding to messages." Confirm → DELETE → toast + redirect to `/channels` index.
+- Uninstall: opens `channels-uninstall-confirm-dialog.tsx` (Track 4): "Uninstall Slack? Bot will stop responding to messages." Confirm → DELETE → toast + redirect to `/channels` index.
 
 ### Track 4 — Channels-specific components
 
@@ -145,7 +145,10 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
   - Error state for catalog fetch failure ("Channels catalog unavailable").
 
   Slack-only today; structure stays for TG/WPP without modification.
-- Other detail-page modals (uninstall confirm, edit-secrets) — inline within the route file or extracted to `components/channels/` as needed.
+- `channels-edit-secrets-modal.tsx` — extracted (NOT inlined). Modal opened from the detail page's Edit button. Renders one input per catalog secret key with placeholder "currently set: ****<last4>"; on submit, POSTs `PATCH /api/channels/:id/secrets` with `{ mode: 'merge', secrets: [...] }` (only changed keys per Data flow — view + edit secrets).
+- `channels-uninstall-confirm-dialog.tsx` — extracted (NOT inlined). Simple shadcn AlertDialog, "Uninstall Slack? Bot will stop responding to messages." Confirm → DELETE → toast + redirect.
+
+(Both are extracted, not inlined, to mirror the connectors pattern at `apps/dashboard/src/components/connectors/` and keep the route files focused on layout/data-fetching.)
 
 **Shared shadcn primitives** (already exist; no new shared components):
 - `<StatusBadge>` — channels reuse the existing connector status badge component (same enum).
@@ -158,7 +161,7 @@ Per Q4 decision: parallel endpoints, channel-shape responses, NO `kind` collisio
 - Add `channels` to the `NavId` type union.
 - Insert `{ id: 'channels', label: 'channels', to: '/channels' }` ABOVE `connectors` in the `NAV` array (conceptual ordering: where Zeno talks → what Zeno calls).
 - Add `if (path.startsWith('/channels')) return 'channels';` to the active-state matcher.
-- Add a `channels` icon entry to the `NavIcon` switch in `dashboard-sidebar.tsx`. The existing icons are inline SVG paths (no lucide-react import in this file). Add a new inline SVG matching the existing style — a "speech bubble" or "chat" silhouette is on-pattern for "channels". Concrete spec to match siblings (`crons`, `sessions`, `connectors`): 24×24 viewBox, **stroke-based** (`fill: 'none'`, `stroke: 'currentColor'`, `strokeWidth: 1.5`), `strokeLinecap: 'round'`, `strokeLinejoin: 'round'` — verify against the existing entries in `dashboard-sidebar.tsx` (lines 132-145) and copy the same prop pattern. A simple rounded-rect chat bubble with a tail rendered as a stroked outline (no fills) reads as one consistent set with the other nav icons.
+- Add a `channels` icon entry to the `NavIcon` switch in `dashboard-sidebar.tsx`. The existing icons are inline SVG paths (no lucide-react import in this file). Add a new inline SVG matching the existing style — a "speech bubble" or "chat" silhouette is on-pattern for "channels". Concrete spec to match siblings (`crons`, `sessions`, `connectors`): 24×24 viewBox, **stroke-based** (`fill: 'none'`, `stroke: 'currentColor'`, `strokeWidth: 1.5`), `strokeLinecap: 'round'`, `strokeLinejoin: 'round'` — copy the shared `props` object at the top of the `NavIcon` switch in `dashboard-sidebar.tsx` (the same one used by every existing icon). A simple rounded-rect chat bubble with a tail rendered as a stroked outline (no fills) reads as one consistent set with the other nav icons.
 
 ## Architecture
 
@@ -203,12 +206,18 @@ POST /api/connectors body: { source: 'catalog', catalogId: 'slack', kind: 'chann
 HTTP 204 (async via command queue — install IS still command-queued because
 the worker handler validates against the catalog and synthesizes the row)
   ↓
-Modal polls GET /api/channels every 1s up to 10s, looking for the slack row
+Modal polls GET /api/channels every 1s up to 10s. **Success predicate**:
+the response array contains an entry where `catalogId === submittedCatalogId`
+('slack' for today). Status is NOT checked — by the time the row exists in
+the DB, the worker has already passed catalog validation and bound the row;
+status may be 'enabled' or 'disabled' depending on subsequent verification,
+but the operator can manage either via the detail page. Polling on `status`
+would hang forever if Slack has a transient verify failure on first connect.
   ↓
-Once found: close modal, toast "Slack installed", refetch /api/channels list
-List renders the new card; click → /channels/<id>
+Once predicate matches: close modal, toast "Slack installed", refetch
+/api/channels list. List renders the new card; click → /channels/<id>
   ↓
-If timeout (10s without finding the row): close modal, show error toast
+If timeout (10s without the predicate matching): close modal, show error toast
   "Install in progress — the channel will appear shortly. Refresh the page
   if it doesn't show within a minute." Modal closes regardless; the row
   WILL appear in the list once the worker processes the queue.
@@ -309,7 +318,7 @@ This spec ships when ALL the following pass on the branch:
 - [ ] Uninstall flow tested in a sandbox if possible; in production, defer to a future genuine token rotation event.
 
 **Quality gate:**
-- [ ] `pnpm run quality-gate` green: 30/30 turbo tasks. Test count delta: +9 API tests minimum (storage and worker untouched).
+- [ ] `pnpm run quality-gate` green: 30/30 turbo tasks. Test count delta: +10 API tests minimum — 9 standard (3 endpoints × {happy / 404-non-channel / 401-unauthed}) + 1 merge-mode regression (storage and worker untouched).
 
 **Branch review (Rule 2):**
 - [ ] R1+R2+R3 fresh reviews CLEAN consecutive. Reset on any blocking finding.

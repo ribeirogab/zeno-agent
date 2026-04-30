@@ -541,4 +541,36 @@ describe('GET /api/channels/catalog/setup/:catalogId (spec 0059)', () => {
     const res = await app.request('/api/channels/catalog/setup/slack');
     expect(res.status).toBe(401);
   });
+
+  // Spec 0059 R3 regression: the channel-setup-helpers module reads
+  // infra/slack-app-manifest.json relative to process.cwd(). In production
+  // the worker runs with cwd=/app and the file MUST be present at
+  // /app/infra/slack-app-manifest.json (handled by infra/Dockerfile copying
+  // it into the runtime stage). If the file is missing — e.g. somebody
+  // refactors the Dockerfile — this test fails because the helper falls
+  // through both candidate paths and returns manifest: null, breaking the
+  // documented install flow. The test mocks process.cwd() to a tmp dir with
+  // no infra/ folder to simulate the failure mode.
+  it('returns manifest: null when slack-app-manifest.json is unreachable (regression)', async () => {
+    const { mkdtempSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const tmpDir = mkdtempSync(join(tmpdir(), 'channel-setup-helper-test-'));
+    const originalCwd = process.cwd();
+
+    // Move out of the worktree root so neither candidate path can resolve.
+    process.chdir(tmpDir);
+    try {
+      // Re-import so the helper picks up the new cwd. Cache-bust via a query
+      // string is not needed — the module reads cwd at request time.
+      const { getChannelSetupHelper } = await import('../../src/lib/channel-setup-helpers');
+      const helper = getChannelSetupHelper('slack');
+      expect(helper).not.toBeNull();
+      expect(helper?.steps).toHaveLength(3);
+      expect(helper?.manifest).toBeNull();
+    } finally {
+      process.chdir(originalCwd);
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });

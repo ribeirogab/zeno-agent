@@ -1,0 +1,3 @@
+upstream: https://github.com/anthropics/skills/tree/main/skills/skill-creator
+sha: 5128e1865d670f5d6c9cef000e6dfc4e951fb5b9
+synced: 2026-04-30

@@ -4,7 +4,7 @@ tags:
   - convention
 related:
   - "[[connectors-only-pivot]]"
-  - "[[../specs/2026-04-27-zeno-redefinition/spec|spec 0049]]"
+  - "[[../specs/2026-04-27-zeno-redefinition/spec-zeno-redefinition|spec 0049]]"
   - "[[../constitution|constitution]]"
 created: 2026-04-27
 ---

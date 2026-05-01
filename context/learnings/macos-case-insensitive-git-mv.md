@@ -4,7 +4,7 @@ tags:
   - git
   - macos
 related:
-  - "[[../specs/2026-04-16-dashboard-kebab-case/spec]]"
+  - "[[../specs/2026-04-16-dashboard-kebab-case/spec-dashboard-kebab-case]]"
 created: 2026-04-17
 ---
 # macOS case-insensitive FS needs two-step `git mv` for case-only renames

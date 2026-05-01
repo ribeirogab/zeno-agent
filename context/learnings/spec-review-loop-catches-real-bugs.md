@@ -4,8 +4,8 @@ tags:
   - workflow
   - meta
 related:
-  - "[[../specs/2026-04-16-dashboard-crud/spec|spec 0013]]"
-  - "[[../specs/2026-04-16-dashboard-logs/spec|spec 0014]]"
+  - "[[../specs/2026-04-16-dashboard-crud/spec-dashboard-crud|spec 0013]]"
+  - "[[../specs/2026-04-16-dashboard-logs/spec-dashboard-logs|spec 0014]]"
 created: 2026-04-16
 ---
 # The spec-document-reviewer loop catches real design bugs — don't skip it

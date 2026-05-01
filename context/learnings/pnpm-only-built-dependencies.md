@@ -4,7 +4,7 @@ tags:
   - tooling
   - pnpm
 related:
-  - "[[../specs/2026-04-16-database-foundation/spec|spec 0005]]"
+  - "[[../specs/2026-04-16-database-foundation/spec-database-foundation|spec 0005]]"
 created: 2026-04-16
 ---
 # Use `pnpm.onlyBuiltDependencies` to allow native module builds non-interactively

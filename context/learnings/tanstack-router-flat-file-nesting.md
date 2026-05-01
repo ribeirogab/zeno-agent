@@ -4,7 +4,7 @@ tags:
   - dashboard
   - tanstack-router
 related:
-  - "[[../specs/2026-04-16-dashboard-crud/spec|spec 0013]]"
+  - "[[../specs/2026-04-16-dashboard-crud/spec-dashboard-crud|spec 0013]]"
 created: 2026-04-16
 ---
 # TanStack Router flat-file naming needs `.index` for nested paths

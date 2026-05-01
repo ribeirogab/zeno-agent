@@ -4,7 +4,7 @@ tags:
   - logger
   - gotcha
 related:
-  - "[[../specs/2026-04-16-dashboard-logs/spec|spec 0014]]"
+  - "[[../specs/2026-04-16-dashboard-logs/spec-dashboard-logs|spec 0014]]"
 created: 2026-04-16
 ---
 # Module-level loggers skip the dbSink. Pass the logger through.

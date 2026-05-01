@@ -4,8 +4,8 @@ tags:
   - claude-agent-sdk
   - mcp
 related:
-  - "[[../specs/2026-04-16-cron-scheduled-tasks/spec|spec 0007]]"
-  - "[[../specs/2026-04-16-mcp-configuration/spec|spec 0004]]"
+  - "[[../specs/2026-04-16-cron-scheduled-tasks/spec-cron-scheduled-tasks|spec 0007]]"
+  - "[[../specs/2026-04-16-mcp-configuration/spec-mcp-configuration|spec 0004]]"
 created: 2026-04-16
 ---
 # In-process MCP servers don't share a public type with the SDK's mcpServers option

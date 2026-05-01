@@ -4,7 +4,7 @@ tags:
   - dashboard
   - ux
 related:
-  - "[[../specs/2026-04-16-dashboard-crud/spec|spec 0013]]"
+  - "[[../specs/2026-04-16-dashboard-crud/spec-dashboard-crud|spec 0013]]"
   - "[[db-as-contract-pattern]]"
 created: 2026-04-16
 ---

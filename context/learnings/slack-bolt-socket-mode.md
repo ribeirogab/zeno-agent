@@ -3,7 +3,7 @@ tags:
   - learning
   - reference
 related:
-  - "[[../specs/2026-04-15-slack-zeno-mvp/spec|Zeno MVP spec]]"
+  - "[[../specs/2026-04-15-slack-zeno-mvp/spec-slack-zeno-mvp|Zeno MVP spec]]"
   - "[[slack-mcp-vs-bolt]]"
 created: 2026-04-15
 ---

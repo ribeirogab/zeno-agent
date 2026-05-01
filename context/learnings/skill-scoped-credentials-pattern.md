@@ -4,13 +4,13 @@ tags:
   - concept
 related:
   - "[[agent-skills-open-standard]]"
-  - "[[../specs/2026-04-21-agent-profile-split/spec|spec 0021]]"
+  - "[[../specs/2026-04-21-agent-profile-split/spec-agent-profile-split|spec 0021]]"
 created: 2026-04-21
 status: superseded
 superseded_by: 0049
 ---
 
-> **Superseded** by spec [[../specs/2026-04-27-zeno-redefinition/spec|2026-04-27-zeno-redefinition]] (connectors-only positioning). Skills no longer exist as a runtime concept; credentials in Zeno today are owned by connectors (DB-stored, dashboard-managed). If skills return bundled with connectors, the credential boundary becomes the connector's, not the skill's. See [[connectors-only-pivot]].
+> **Superseded** by spec [[../specs/2026-04-27-zeno-redefinition/spec-zeno-redefinition|2026-04-27-zeno-redefinition]] (connectors-only positioning). Skills no longer exist as a runtime concept; credentials in Zeno today are owned by connectors (DB-stored, dashboard-managed). If skills return bundled with connectors, the credential boundary becomes the connector's, not the skill's. See [[connectors-only-pivot]].
 
 # Skill-scoped credentials: self-contained auth inside the skill folder
 

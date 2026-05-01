@@ -3,7 +3,7 @@ tags:
   - learning
   - concept
 related:
-  - "[[../specs/2026-04-21-multi-profile-isolation/spec|spec 0022]]"
+  - "[[../specs/2026-04-21-multi-profile-isolation/spec-multi-profile-isolation|spec 0022]]"
 created: 2026-04-21
 ---
 # GitHub App authentication: JWT → installation token rotation

@@ -5,7 +5,7 @@ tags:
   - sqlite
 related:
   - "[[sqlite-current-timestamp-tiebreaker]]"
-  - "[[../specs/2026-04-16-dashboard-logs/spec|spec 0014]]"
+  - "[[../specs/2026-04-16-dashboard-logs/spec-dashboard-logs|spec 0014]]"
 created: 2026-04-16
 ---
 # Use `INTEGER PRIMARY KEY AUTOINCREMENT` when a cursor must survive DELETEs

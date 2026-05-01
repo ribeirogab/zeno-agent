@@ -5,7 +5,7 @@ tags:
   - storage
 related:
   - "[[claude-agent-sdk-typescript]]"
-  - "[[../specs/2026-04-16-dashboard-crud/spec|spec 0013]]"
+  - "[[../specs/2026-04-16-dashboard-crud/spec-dashboard-crud|spec 0013]]"
 created: 2026-04-16
 ---
 # Claude Agent SDK session transcripts: where they live + how to parse

@@ -4,7 +4,7 @@ tags:
   - design
   - ui
 related:
-  - "[[../specs/2026-04-16-paper-design-system/spec]]"
+  - "[[../specs/2026-04-16-paper-design-system/spec-paper-design-system]]"
   - "[[../rules/ui-in-paper]]"
 created: 2026-04-17
 ---

@@ -1,6 +1,6 @@
 ---
 feature: guardrails-approval
-spec: "[[spec]]"
+spec: "[[spec-guardrails-approval]]"
 created: 2026-04-22
 status: pending-validation
 ---

@@ -1,55 +1,47 @@
 # Zeno — Agent Instructions
 
-Zeno is a personal agent. The person who owns this instance is described in `profiles/<name>/USER.md` (gitignored — see `profiles/default/USER.example.md` for the template). This repository is Zeno's workspace — the place where its identity, capabilities, configuration, and operating knowledge live.
+Zeno is a personal agent. The owner of this instance is described in `profiles/<name>/USER.md` (gitignored — see `profiles/default/USER.example.md`). This repo is Zeno's workspace: identity, capabilities, configuration, and operating knowledge.
 
 ## Before starting any work
 
 1. **Read `context/_index/home.md`** for project-specific knowledge.
 2. **Read `context/constitution.md`** for non-negotiable principles.
-3. **If the user is asking you to implement, modify, or create something**, assess the request: "Can I describe the complete solution in one sentence?"
-   - **Yes** → implement directly.
-   - **No** → invoke `/brainstorming` → `spec.md` → `/writing-plans` → `plan.md` + `tasks.md` → implement.
-   - **Almost** (1-2 open decisions) → ask the user whether to spec or go direct.
+3. **If asked to implement, modify, or create something**, assess: "Can I describe the complete solution in one sentence?" — **Yes** → implement; **No** → invoke `/brainstorming` → `spec.md` → `/writing-plans` → `plan.md` + `tasks.md` → implement; **Almost** (1-2 open decisions) → ask whether to spec or go direct. If the user is asking, investigating, or exploring — just answer.
 
-   If the user is asking a question, investigating, or exploring — just answer.
+## Work ethic — never the lazy path
+
+When you see two ways to do something — quick-and-shallow vs. correct-and-thorough — **default to correct**. You may surface the lighter option with tradeoffs, but never silently pick the worse one to finish faster. Cutting corners now creates work later. If the task is hard, do it right; don't redefine "done" downward.
+
+## When stuck or in doubt — read the vault first
+
+`context/` is your project brain. Before grinding on a hard problem, before guessing, before asking the user a question whose answer might already be captured: search `context/learnings/`, `context/conventions/`, `context/rules/`, the relevant spec, and `context/constitution.md`. Use `recall` or grep. Reading the vault is the **first move**, not the last. If it answers the question, cite the note; if it almost does, update the note after you fill the gap.
 
 ## After completing any task
 
-If you discovered something non-obvious during implementation — a gotcha, a constraint, a surprising behavior — create an atomic note in `context/learnings/` using the template at `context/templates/learning.md`. Link it to the relevant spec with a wikilink if applicable. Do this without asking permission.
+If you discovered something non-obvious — a gotcha, constraint, or surprising behavior — create an atomic note in `context/learnings/` using `context/templates/learning.md`. Link it to the relevant spec with a wikilink. Do this without asking. Generated/temporary output (screenshots, scratch scripts, dumps) goes under `tmp/` per `context/rules/generated-files-location.md`.
 
-## Generated / temporary files
+## After completing a spec
 
-Anything you produce that isn't part of the codebase (screenshots, scratch scripts, dumps, browser output) goes under `tmp/`. See `context/rules/generated-files-location.md` for sub-folder conventions.
+When a spec is shipped (all tasks done, `status: shipped`), always run an explicit reflection step:
 
-## Commands
+1. Ask: "What did I learn implementing this that wasn't obvious from the spec?" Consider gotchas, constraints, surprising library behavior, and decisions that reversed mid-implementation.
+2. If there's at least one useful learning, create one atomic note per learning in `context/learnings/`, link it back to the spec, and add it to `context/_index/learnings.md`.
+3. If nothing non-obvious came up, say so explicitly ("No new learnings from this spec") — silence is not reflection.
 
-The project is a Turborepo monorepo orchestrated by `pnpm` workspaces. **All runtime is Docker-only** — there are no `pnpm dev`/`start` scripts to run apps locally. Use `pnpm run quality-gate` for fast local IDE-driven feedback.
+## Commands (most used)
+
+Turborepo + `pnpm` workspaces. **Runtime is Docker-only** — use `pnpm run quality-gate` for fast IDE feedback.
 
 | Command | What it does |
 |---|---|
-| `pnpm run quality-gate` | Run lint + typecheck + tests across all workspaces (via `turbo run`). Fast, runs locally, gates every commit. |
-| `pnpm run lint` / `pnpm run typecheck` / `pnpm run test` / `pnpm run build` | Individual turbo passes; each fans out to all workspaces. |
-| `pnpm run docker:build` | Build the multi-stage container image (shared across profiles). |
-| `pnpm run docker:up` / `pnpm run docker:down` | Start / stop the default profile container. Use `PROFILE=<name>` for other profiles. |
-| `pnpm run docker:logs` | Tail container logs (`-f`). Output is prefixed `[worker]` / `[api]`. |
-| `pnpm run docker:sh` | Open an interactive shell inside the running container. |
-| `pnpm run docker:setup-token` | One-time helper to acquire the Claude OAuth token. |
+| `pnpm run quality-gate` | Lint + typecheck + tests across all workspaces. Gates every commit. |
+| `pnpm run docker:build` | Build the multi-stage container image. |
+| `pnpm run docker:up` / `docker:down` | Start / stop the default profile container (`PROFILE=<name>` for others). |
+| `pnpm run docker:logs` | Tail container logs (prefixed `[worker]` / `[api]`). |
+| `pnpm run docker:sh` | Shell into the running container. |
+| `pnpm run docker:setup-token` | One-time Claude OAuth token helper. |
 
-**Dashboard URL (after `docker:up`):** http://localhost:3000
-
-## Workspace layout
-
-```
-apps/worker/         Slack listener + cron runner + profile watcher + agent core (Node)
-apps/api/            Hono HTTP server + auth + read endpoints + serves dashboard build (Node, port 3000)
-apps/dashboard/      Vite + React + TanStack + shadcn SPA (built into static assets)
-packages/storage/    @zeno/storage — DB connection + migrations + repos + types
-packages/logger/     @zeno/logger — pino factory tipado
-infra/               Dockerfile + docker-compose.<profile>.yml + docker.sh + entrypoint.sh
-agent/               SOUL.md, mcp.json, connectors-catalog.json (Zeno's identity — shared across profiles)
-profiles/default/    .env, USER.md, config.yaml (user config per profile)
-context/             Specs, learnings, conventions, rules
-```
+Dashboard: http://localhost:3000
 
 ## Knowledge locations
 
@@ -57,21 +49,20 @@ context/             Specs, learnings, conventions, rules
 |---|---|
 | Non-negotiable principles | `context/constitution.md` |
 | Specs (active + shipped) | `context/specs/` |
-| Architecture, patterns, gotchas | `context/learnings/` (indexed by `context/_index/learnings.md`) |
-| Code style conventions | `context/conventions/` (indexed by `context/_index/conventions.md`) |
-| Project-specific rules | `context/rules/` |
-| Spec template | `context/specs/_template/` |
-| Note templates (learning, rule) | `context/templates/` |
-| Design system (tokens + intent) | `DESIGN.md` (root) — Imperial Terminal. Format spec: `context/conventions/design-md-format.md`. Canonical-source rule: `context/rules/design-md-canonical.md`. |
-| Dashboard design (Paper artboards) | Paper file `zeno-agent` (`01KPYCJ6QXK8Z1PEVQME9262RP`, page `1-0`). Routes are top-level container artboards in the sidebar. |
+| Architecture, patterns, gotchas | `context/learnings/` (MOC: `context/_index/learnings.md`) |
+| Code style conventions | `context/conventions/` (MOC: `context/_index/conventions.md`) |
+| Project rules | `context/rules/` |
+| Spec / note templates | `context/specs/_template/`, `context/templates/` |
+| Design system | `DESIGN.md` (Imperial Terminal). Spec: `context/conventions/design-md-format.md`. |
+| Dashboard design (Paper) | Paper file `zeno-agent` (`01KPYCJ6QXK8Z1PEVQME9262RP`, page `1-0`). |
 
-## Claude Code skills and commands
+## Skills and slash commands
 
-These are committed to `.claude/` and provide the project's agentic workflow when working on this codebase via Claude Code. **They are not loaded by Zeno's runtime** — Zeno's runtime skills are DB-managed markdown playbooks materialized to `~/.claude/skills/<name>/SKILL.md` and auto-discovered by the Claude Agent SDK (spec 0052; option wiring fixed in spec 0060). The `.claude/` skills here are a separate repo-local set used only by Claude Code while editing this codebase. See `context/constitution.md` for the broader architecture.
+Repo-local skills under `.claude/` for Claude Code only — **not** loaded by Zeno's runtime (runtime skills are DB-managed playbooks per spec 0052/0060).
 
-- **`brainstorming`** — design exploration before writing a spec.
-- **`writing-plans`** — turn an approved design into a task list.
-- **`recall`** — quick project reconnaissance of the `context/` vault.
-- **`/open-pr`** — **required** command to open pull requests with auto-generated title and description. Always use this command when creating a PR.
-- **`/learn`** — investigate a topic in the project and save findings as a learning note in `context/learnings/`.
-- **`/spec`** — take the current conversation and enter the spec flow, skipping already-discussed questions.
+- **`brainstorming`** — design exploration before a spec.
+- **`writing-plans`** — turn an approved design into tasks.
+- **`recall`** — quick reconnaissance of `context/`.
+- **`/open-pr`** — required for opening PRs (auto title + description).
+- **`/learn`** — investigate a topic and save a learning note.
+- **`/spec`** — promote the current conversation into the spec flow.

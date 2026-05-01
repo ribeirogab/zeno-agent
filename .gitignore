@@ -1,8 +1,5 @@
-# Obsidian workspace (machine-local)
-context/.obsidian/workspace.json
-context/.obsidian/workspace-mobile.json
-context/.obsidian/cache
-context/.obsidian/plugins/*/data.json
+# Obsidian vault config (machine-local — Obsidian rewrites these on every open)
+context/.obsidian/
 
 # OS
 .DS_Store

@@ -2,8 +2,8 @@
 tags:
   - learning
 related:
-  - "[[../specs/0036-connectors-100-validation/spec|spec 0036]]"
-  - "[[../specs/0034-connectors-dashboard/spec|spec 0034]]"
+  - "[[../specs/2026-04-26-connectors-100-validation/spec|spec 0036]]"
+  - "[[../specs/2026-04-26-connectors-dashboard/spec|spec 0034]]"
   - "[[../rules/integration-tokens-in-db-only|integration tokens in DB only]]"
 created: 2026-04-26
 ---
@@ -50,7 +50,7 @@ When validating a feature against a live integration:
 
 ## Resolved 2026-04-26
 
-All three findings resolved by [[../specs/0038-connectors-three-findings/spec]] (status: shipped). Each fix landed with a regression test in [[../specs/0037-connectors-test-strategy/spec]] Phase A:
+All three findings resolved by [[../specs/2026-04-26-connectors-three-findings/spec]] (status: shipped). Each fix landed with a regression test in [[../specs/2026-04-26-connectors-test-strategy/spec]] Phase A:
 
 - **#1**: catalog regenerated to match live `@sentry/mcp-server` (22 tools). Test: `apps/worker/tests/connectors-e2e/p1-catalog.test.ts` P1.5 (snapshot self-consistency).
 - **#2**: `authCheckTool` field added to catalog schema; `discoverTools` calls it after `tools/list` and surfaces auth errors via the broadened classifyError regex (now matches Sentry's "Authorization Expired" phrasing). Sentry catalog uses `whoami`. Test: P1.3 (fixture `FIXTURE_FAIL=auth` mode + `authCheckTool: 'read_echo'` returns `errorKind: 'auth'`).

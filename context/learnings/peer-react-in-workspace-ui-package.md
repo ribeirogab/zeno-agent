@@ -5,7 +5,7 @@ tags:
   - react
   - monorepo
 related:
-  - "[[../specs/0016-ui-package/spec]]"
+  - "[[../specs/2026-04-16-ui-package/spec]]"
 created: 2026-04-17
 ---
 # `@zeno/ui` must declare React as a peer, not a dep

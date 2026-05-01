@@ -3,7 +3,7 @@ tags:
   - learning
   - reference
 related:
-  - "[[../specs/0001-slack-zeno-mvp/spec|Zeno MVP spec]]"
+  - "[[../specs/2026-04-15-slack-zeno-mvp/spec|Zeno MVP spec]]"
   - "[[claude-agent-sdk-typescript]]"
   - "[[claude-bare-mode-no-oauth]]"
 created: 2026-04-15

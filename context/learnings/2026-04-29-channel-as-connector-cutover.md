@@ -1,6 +1,6 @@
 ---
 created: 2026-04-29
-specs: ["[[0057-slack-channel]]", "[[0058-fn-cutover-channel]]"]
+specs: ["[[2026-04-29-slack-channel]]", "[[2026-04-29-fn-cutover-channel]]"]
 tags: [architecture, channels, connectors, cutover, slack]
 ---
 # Channels as connectors — cutover pattern + observations

@@ -4,7 +4,7 @@ tags:
   - gotcha
   - design
 related:
-  - "[[../specs/0070-design-md-format/spec]]"
+  - "[[../specs/2026-04-30-design-md-format/spec]]"
   - "[[../rules/design-md-canonical]]"
   - "[[../conventions/design-md-format]]"
 created: 2026-04-30
@@ -15,7 +15,7 @@ The pre-2026-04-30 `packages/ui/DESIGN.md` carried a per-component table of Pape
 
 ## Context
 
-Discovered while writing spec `[[../specs/0070-design-md-format/spec]]`. Reading `packages/ui/src/styles/tokens.css` showed gold accent and dark-only; reading `packages/ui/DESIGN.md` showed coral and dual-mode. The registry pattern compounded the staleness: every code change that added/removed a primitive needed a manual table edit in DESIGN.md, and every Paper restructure invalidated the URLs.
+Discovered while writing spec `[[../specs/2026-04-30-design-md-format/spec]]`. Reading `packages/ui/src/styles/tokens.css` showed gold accent and dark-only; reading `packages/ui/DESIGN.md` showed coral and dual-mode. The registry pattern compounded the staleness: every code change that added/removed a primitive needed a manual table edit in DESIGN.md, and every Paper restructure invalidated the URLs.
 
 ## How to Apply
 

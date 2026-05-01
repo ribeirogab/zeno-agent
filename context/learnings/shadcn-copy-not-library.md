@@ -4,7 +4,7 @@ tags:
   - dashboard
   - ui
 related:
-  - "[[../specs/0012-dashboard-foundation/spec|spec 0012]]"
+  - "[[../specs/2026-04-16-dashboard-foundation/spec|spec 0012]]"
 created: 2026-04-16
 ---
 # shadcn primitives are code you own, not a dep

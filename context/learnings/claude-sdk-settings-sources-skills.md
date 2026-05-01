@@ -3,7 +3,7 @@ tags:
   - learning
   - gotcha
 related:
-  - "[[../specs/0021-agent-profile-split/spec|spec 0021]]"
+  - "[[../specs/2026-04-21-agent-profile-split/spec|spec 0021]]"
   - "[[claude-agent-sdk-typescript]]"
 created: 2026-04-21
 ---

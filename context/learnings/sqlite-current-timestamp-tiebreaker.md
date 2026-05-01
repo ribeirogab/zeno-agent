@@ -4,7 +4,7 @@ tags:
   - storage
   - sqlite
 related:
-  - "[[0013-dashboard-crud]]"
+  - "[[2026-04-16-dashboard-crud]]"
 created: 2026-04-16
 ---
 # SQLite `CURRENT_TIMESTAMP` needs a rowid tie-breaker

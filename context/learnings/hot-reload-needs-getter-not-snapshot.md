@@ -4,8 +4,8 @@ tags:
   - architecture
   - hot-reload
 related:
-  - "[[../specs/0010-profile-hot-reload/spec|spec 0010]]"
-  - "[[../specs/0007-cron-scheduled-tasks/spec|spec 0007]]"
+  - "[[../specs/2026-04-16-profile-hot-reload/spec|spec 0010]]"
+  - "[[../specs/2026-04-16-cron-scheduled-tasks/spec|spec 0007]]"
 created: 2026-04-16
 ---
 # Long-lived components must read mutable state via a getter, not a captured snapshot

@@ -3,10 +3,10 @@ created: 2026-04-26
 updated: 2026-04-29
 tags: [architecture, ports-and-adapters]
 related:
-  - "[[../specs/0032-connectors-backend/spec|0032-connectors-backend]]"
-  - "[[../specs/0029-connectors-ui/spec|0029-connectors-ui]]"
-  - "[[../specs/0057-slack-channel/spec|0057-slack-channel]]"
-  - "[[../specs/0058-fn-cutover-channel/spec|0058-fn-cutover-channel]]"
+  - "[[../specs/2026-04-26-connectors-backend/spec|2026-04-26-connectors-backend]]"
+  - "[[../specs/2026-04-25-connectors-ui/spec|2026-04-25-connectors-ui]]"
+  - "[[../specs/2026-04-29-slack-channel/spec|2026-04-29-slack-channel]]"
+  - "[[../specs/2026-04-29-fn-cutover-channel/spec|2026-04-29-fn-cutover-channel]]"
   - "[[2026-04-29-channel-as-connector-cutover|cutover playbook]]"
   - "[[../constitution|constitution]]"
 ---

@@ -11,7 +11,7 @@ status: superseded
 superseded_by: 0049
 ---
 
-> **Superseded** by spec [[../specs/0049-zeno-redefinition/spec|0049-zeno-redefinition]] (connectors-only positioning). The pattern includes `SKILL.md` as part of Zeno's expected workspace shape; skills are no longer a runtime concept. SOUL.md and USER.md remain canonical; references to per-skill markdown reflect the old thesis. See [[connectors-only-pivot]].
+> **Superseded** by spec [[../specs/2026-04-27-zeno-redefinition/spec|2026-04-27-zeno-redefinition]] (connectors-only positioning). The pattern includes `SKILL.md` as part of Zeno's expected workspace shape; skills are no longer a runtime concept. SOUL.md and USER.md remain canonical; references to per-skill markdown reflect the old thesis. See [[connectors-only-pivot]].
 
 # Workspace markdown files — the emerging agent-config lingua franca
 

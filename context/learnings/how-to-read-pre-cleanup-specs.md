@@ -4,7 +4,7 @@ tags:
   - convention
 related:
   - "[[connectors-only-pivot]]"
-  - "[[../specs/0049-zeno-redefinition/spec|spec 0049]]"
+  - "[[../specs/2026-04-27-zeno-redefinition/spec|spec 0049]]"
   - "[[../constitution|constitution]]"
 created: 2026-04-27
 ---
@@ -32,4 +32,4 @@ When you open a `context/specs/00XX-*/spec.md` or `context/learnings/*.md` whose
 3. **Don't apply the prescriptions.** A superseded spec might say "add a skill that does X" — the modern answer is "install or build a connector that exposes a tool for X, and let the agent compose it".
 4. **Use them for archaeology, not direction.** They explain how Zeno arrived at where it is; they do not point at where it's going.
 
-If you find a spec or learning that *seems* to describe the old thesis but is **not** marked superseded, raise it: either the file should be marked, or it has content the predicate ("would a reader treat this as canonical and reintroduce skills as primary?") clears. The decision table for the supersede pass lives in `context/specs/0049-zeno-redefinition/tasks.md` (Task 5.1) as the working record.
+If you find a spec or learning that *seems* to describe the old thesis but is **not** marked superseded, raise it: either the file should be marked, or it has content the predicate ("would a reader treat this as canonical and reintroduce skills as primary?") clears. The decision table for the supersede pass lives in `context/specs/2026-04-27-zeno-redefinition/tasks.md` (Task 5.1) as the working record.

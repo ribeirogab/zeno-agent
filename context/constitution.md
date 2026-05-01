@@ -45,7 +45,7 @@ Principles that frame all of the above:
 
 ## Tooling and workflow principles
 
-**Stack (locked in via spec `0001-slack-zeno-mvp` + Task 0 discovery):**
+**Stack (locked in via spec `2026-04-15-slack-zeno-mvp` + Task 0 discovery):**
 
 - **Language:** TypeScript, strict mode.
 - **Runtime:** Node.js 24 LTS — see `[[learnings/node-lts-current]]`.

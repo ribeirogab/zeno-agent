@@ -4,7 +4,7 @@ tags:
   - react
   - tanstack-query
 related:
-  - "[[../specs/0019-dashboard-optimistic-updates/spec]]"
+  - "[[../specs/2026-04-17-dashboard-optimistic-updates/spec]]"
   - "[[fire-and-forget-mutation-ux]]"
   - "[[db-as-contract-pattern]]"
 created: 2026-04-17

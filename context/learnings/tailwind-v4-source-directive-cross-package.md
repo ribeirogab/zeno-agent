@@ -4,7 +4,7 @@ tags:
   - tailwind
   - monorepo
 related:
-  - "[[../specs/0016-ui-package/spec]]"
+  - "[[../specs/2026-04-16-ui-package/spec]]"
 created: 2026-04-17
 ---
 # Tailwind v4 `@source` directive lets packages own their own content globs

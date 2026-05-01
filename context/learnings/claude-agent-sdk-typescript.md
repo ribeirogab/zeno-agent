@@ -3,7 +3,7 @@ tags:
   - learning
   - reference
 related:
-  - "[[../specs/0001-slack-zeno-mvp/spec|Zeno MVP spec]]"
+  - "[[../specs/2026-04-15-slack-zeno-mvp/spec|Zeno MVP spec]]"
   - "[[claude-code-oauth-token]]"
   - "[[claude-code-cli-headless]]"
 created: 2026-04-15
@@ -14,7 +14,7 @@ The official TypeScript SDK for programmatic Claude Code: **`@anthropic-ai/claud
 
 ## Context
 
-Discovered during Task 0 (discovery) of spec `0001-slack-zeno-mvp`. The original plan was to `spawn('claude', ['-p', ...])` as a subprocess per request; this finding makes that unnecessary. Source: [Claude Code docs — Agent SDK TypeScript reference](https://code.claude.com/docs/en/agent-sdk/typescript).
+Discovered during Task 0 (discovery) of spec `2026-04-15-slack-zeno-mvp`. The original plan was to `spawn('claude', ['-p', ...])` as a subprocess per request; this finding makes that unnecessary. Source: [Claude Code docs — Agent SDK TypeScript reference](https://code.claude.com/docs/en/agent-sdk/typescript).
 
 ## How to Apply
 

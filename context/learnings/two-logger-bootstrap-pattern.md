@@ -5,7 +5,7 @@ tags:
   - architecture
 related:
   - "[[logger-factory-dbsink-propagation]]"
-  - "[[../specs/0014-dashboard-logs/spec|spec 0014]]"
+  - "[[../specs/2026-04-16-dashboard-logs/spec|spec 0014]]"
 created: 2026-04-16
 ---
 # Use a boot logger + main logger when the DB is a dependency of logging

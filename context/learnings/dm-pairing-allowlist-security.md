@@ -53,6 +53,6 @@ When Zeno's workspace becomes multi-user (or the Slack app is installed somewher
 - The constitution's "Personal scope" guardrail should state this allowlist-trigger explicitly, so a future-you in a hurry doesn't skip it.
 
 **Existing references in Zeno:**
-- `context/specs/0001-slack-zeno-mvp/spec.md` Non-Goal #1 documents this deferral.
+- `context/specs/2026-04-15-slack-zeno-mvp/spec.md` Non-Goal #1 documents this deferral.
 - `context/constitution.md` Scope guardrails mention single-user.
 - `src/channels/slack/adapter.ts` — no allowlist check; the point to add it is inside `dispatch()` right after `normalizeSlackEvent`.

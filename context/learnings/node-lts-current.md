@@ -3,7 +3,7 @@ tags:
   - learning
   - reference
 related:
-  - "[[../specs/0001-slack-zeno-mvp/spec|Zeno MVP spec]]"
+  - "[[../specs/2026-04-15-slack-zeno-mvp/spec|Zeno MVP spec]]"
   - "[[docker-node-image-variants]]"
 created: 2026-04-15
 ---

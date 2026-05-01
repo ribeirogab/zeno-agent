@@ -3,7 +3,7 @@ tags:
   - learning
   - concept
 related:
-  - "[[../specs/0001-slack-zeno-mvp/spec|Zeno MVP spec]]"
+  - "[[../specs/2026-04-15-slack-zeno-mvp/spec|Zeno MVP spec]]"
   - "[[slack-bolt-socket-mode]]"
   - "[[mcp-github-server-status]]"
 created: 2026-04-15

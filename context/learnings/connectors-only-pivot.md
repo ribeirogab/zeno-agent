@@ -4,9 +4,9 @@ tags:
   - architecture
   - "#pivot"
 related:
-  - "[[../specs/0049-zeno-redefinition/spec|spec 0049]]"
-  - "[[../specs/0052-skills/spec|spec 0052]]"
-  - "[[../specs/0060-soul-skills-realign/spec|spec 0060]]"
+  - "[[../specs/2026-04-27-zeno-redefinition/spec|spec 0049]]"
+  - "[[../specs/2026-04-28-skills/spec|spec 0052]]"
+  - "[[../specs/2026-04-30-soul-skills-realign/spec|spec 0060]]"
   - "[[../constitution|constitution]]"
   - "[[channel-vs-connector]]"
   - "[[how-to-read-pre-cleanup-specs]]"

@@ -20,7 +20,7 @@ status: superseded
 superseded_by: 0049
 ---
 
-> **Superseded** by spec [[../specs/0049-zeno-redefinition/spec|0049-zeno-redefinition]] (connectors-only positioning). The "what to adopt" recommendations include `SKILL.md + MCP servers` as Zeno's future capability surface — that direction is no longer canonical; the new direction is connectors as the single capability surface, skills deferred. The OpenClaw/Hermes study itself remains useful third-party reference. See [[connectors-only-pivot]].
+> **Superseded** by spec [[../specs/2026-04-27-zeno-redefinition/spec|2026-04-27-zeno-redefinition]] (connectors-only positioning). The "what to adopt" recommendations include `SKILL.md + MCP servers` as Zeno's future capability surface — that direction is no longer canonical; the new direction is connectors as the single capability surface, skills deferred. The OpenClaw/Hermes study itself remains useful third-party reference. See [[connectors-only-pivot]].
 
 # Lessons for Zeno — what to adopt from OpenClaw and Hermes, what to leave behind
 

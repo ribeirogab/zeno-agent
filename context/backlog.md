@@ -58,7 +58,7 @@ The **Active roadmap** section below is the exception — that's the committed s
 
 ### Architecture decisions baked in
 
-- **0057 split into code + cutover.** Owner uses Zeno daily via Slack; cannot risk breakage during dev. Code lands in worktree (`feat/spec-0057-slack-channel`), tested in-process, no Docker / no profile touched. Cutover (0058) is a separate spec executed live against `profiles/fn`.
+- **0057 split into code + cutover.** Owner uses Zeno daily via Slack; cannot risk breakage during dev. Code lands in worktree (`feat/spec-2026-04-29-slack-channel`), tested in-process, no Docker / no profile touched. Cutover (0058) is a separate spec executed live against `profiles/fn`.
 - **Channels and connectors are separate concepts.** New `agent/channels-catalog.json` parallel to existing `agent/connectors-catalog.json`. Channels are *substrate* (where the agent runs); connectors are *callable tools* (what the agent invokes). Storage layer compromise — both reuse the existing `connectors` + `connector_secrets` tables with a `kind` discriminator (avoid duplicating storage tables).
 - **Channel-first.** 0057+0058 land BEFORE files (0061, 0062) and audio (0065, 0066) so those features are channel-agnostic from day one. Adding WPP/Telegram later = new entry in `channels-catalog.json` + new adapter, no rework on file/audio code.
 - **Skills multi-file BEFORE skill-creator.** 0061 needs the multi-file infra (0060) to install Anthropic's skill-creator as a real skill.
@@ -196,7 +196,7 @@ Sidebar end state:
 > skills               (S3v2 + readonly + install variants + delete variants)
 ```
 
-Each container = `1500–2000px wide`, `fit-content` height, vertical flex column. Existing artboards are reparented inside via `move_nodes` (preserves nodeIds, so `context/specs/0061-skills-multi-file-paper/tasks.md` table of artboard IDs continues to resolve).
+Each container = `1500–2000px wide`, `fit-content` height, vertical flex column. Existing artboards are reparented inside via `move_nodes` (preserves nodeIds, so `context/specs/2026-04-30-skills-multi-file-paper/tasks.md` table of artboard IDs continues to resolve).
 
 **Migration plan (~1h-1h30):**
 1. Create one piloto container artboard (`skills` is the smallest — 6 artboards) and `move_nodes` the existing S3v2 / S3v2-readonly / M-skill-1v2 / M-skill-1c / M-skill-4v2 / M-skill-4v2-profile inside.

@@ -17,18 +17,42 @@ If `$ARGUMENTS` is empty or `all`, run every check below. Otherwise restrict to 
 
 ## Checks
 
+### Markdown-aware preprocessing (used by checks 1, 2, and 3)
+
+All three wikilink checks below need to ignore `[[...]]` patterns that appear inside markdown fenced code blocks (```` ```...``` ````) or inline backticks (`` `...` ``). Without this, snippets like `` `[[wikilinks]]` `` (illustrative example) or `[[1, 2]]` inside a TypeScript code block produce false positives.
+
+The standard preprocessor used below is an awk filter that strips both forms before any wikilink scan:
+
+```bash
+strip_code() {
+  awk '
+    /^```/ { in_fence = !in_fence; next }
+    !in_fence { gsub(/`[^`]*`/, ""); print }
+  ' "$1"
+}
+```
+
+Every `grep` for `[[...]]` in checks 1–3 runs against the output of `strip_code "$file"`, not the raw file.
+
 ### 1. Orphan learnings (no inbound wikilinks)
 
 A learning that no other file links to is invisible to the agent — the vault is wikilink-traversed, and an unlinked note will never surface.
 
-The regex must match wikilinks regardless of optional path prefix (`[[../learnings/foo]]`) or display-text suffix (`[[foo|display]]`) — Obsidian and the canonical vault scaffold use both styles.
+The regex must match wikilinks regardless of optional path prefix (`[[../learnings/foo]]`) or display-text suffix (`[[foo|display]]`) — Obsidian and the canonical vault scaffold use both styles. References inside fenced code blocks or inline backticks do **not** count as inbound links.
 
 ```bash
 for f in context/learnings/*.md; do
   base=$(basename "$f" .md)
   # Match [[base]], [[base|...]], [[base#anchor]], or [[<any-path>/base...]]
-  hits=$(grep -rlnE --include='*.md' --exclude-dir=learnings \
-    "\[\[([^]|#]*/)?${base}([]|#])" context/ 2>/dev/null | wc -l | tr -d ' ')
+  # but only outside fenced code blocks and inline backticks
+  hits=0
+  while read -r candidate; do
+    awk '
+      /^```/ { in_fence = !in_fence; next }
+      !in_fence { gsub(/`[^`]*`/, ""); print }
+    ' "$candidate" \
+      | grep -qE "\[\[([^]|#]*/)?${base}([]|#])" && hits=$((hits + 1))
+  done < <(find context/ -name '*.md' -not -path 'context/learnings/*' 2>/dev/null)
   [ "$hits" = "0" ] && echo "ORPHAN: $f"
 done
 ```
@@ -42,11 +66,17 @@ For each orphan, ask the user one of:
 
 A wikilink whose target file does not exist breaks the navigation contract.
 
-Resolve targets Obsidian-style: strip the path prefix and search the vault for any file or directory whose basename matches. Skip files inside `templates/` and `_template/` — those legitimately use placeholder wikilinks like `[[plan]]`, `[[spec]]`, `[[related-note]]`, `[[wikilinks]]` that are filled in when the template is copied.
+Resolve targets Obsidian-style: strip the path prefix and search the vault for any file or directory whose basename matches. Skip files inside `templates/` and `_template/` — those legitimately use placeholder wikilinks like `[[plan]]`, `[[spec]]`, `[[related-note]]`, `[[wikilinks]]` that are filled in when the template is copied. Wikilinks inside fenced code blocks or inline backticks are also skipped (illustrative examples, not navigation contracts).
 
 ```bash
-grep -rohE --include='*.md' --exclude-dir=templates --exclude-dir=_template \
-  '\[\[[^]|#]+' context/ 2>/dev/null \
+find context/ -name '*.md' -not -path '*/templates/*' -not -path '*/_template/*' 2>/dev/null \
+  | while read -r f; do
+      awk '
+        /^```/ { in_fence = !in_fence; next }
+        !in_fence { gsub(/`[^`]*`/, ""); print }
+      ' "$f"
+    done \
+  | grep -ohE '\[\[[^]|#]+' \
   | sed 's/\[\[//' | sort -u \
   | while read -r target; do
       [ -z "$target" ] && continue
@@ -65,18 +95,23 @@ For each broken link, locate the source file with `grep -rln "\[\[$target" conte
 
 `context/_index/*.md` files list notes by topic. An entry whose target was renamed or archived is a stale MOC line.
 
-Same Obsidian-style resolution as check 2.
+Same Obsidian-style resolution as check 2, with the same code-block-aware preprocessing.
 
 ```bash
 for moc in context/_index/*.md; do
-  grep -oE '\[\[[^]|#]+' "$moc" 2>/dev/null | sed 's/\[\[//' | while read -r t; do
-    [ -z "$t" ] && continue
-    base="${t##*/}"
-    base="${base%/}"
-    [ -z "$base" ] && continue
-    found=$(find context/ \( -name "$base.md" -o \( -type d -name "$base" \) \) -print -quit 2>/dev/null)
-    [ -z "$found" ] && echo "STALE in $(basename "$moc"): [[$t]]"
-  done
+  awk '
+    /^```/ { in_fence = !in_fence; next }
+    !in_fence { gsub(/`[^`]*`/, ""); print }
+  ' "$moc" \
+    | grep -oE '\[\[[^]|#]+' | sed 's/\[\[//' \
+    | while read -r t; do
+        [ -z "$t" ] && continue
+        base="${t##*/}"
+        base="${base%/}"
+        [ -z "$base" ] && continue
+        found=$(find context/ \( -name "$base.md" -o \( -type d -name "$base" \) \) -print -quit 2>/dev/null)
+        [ -z "$found" ] && echo "STALE in $(basename "$moc"): [[$t]]"
+      done
 done
 ```
 

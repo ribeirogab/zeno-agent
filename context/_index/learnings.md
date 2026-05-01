@@ -11,6 +11,7 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 ## `#concept` — Architecture and patterns
 
 - [[../learnings/channel-vs-connector|Channel vs Connector — duas integrações externas, dois papéis]] — input/output adapter (constitution port) vs MCP tool surface (DB-managed). Slack é os dois. Princípio para qualquer integração nova.
+- [[../learnings/2026-04-29-channel-as-connector-cutover|Channels as connectors — cutover pattern]] — extending the connectors table with a `kind` discriminator instead of a parallel `channels` table; what worked, what to repeat for future channels.
 - [[../learnings/lessons-for-zeno-from-openclaw-hermes|Lessons for Zeno from OpenClaw and Hermes]] — synthesis + strategic positioning + what to adopt/defer.
 - [[../learnings/async-local-storage-for-sdk-callbacks|AsyncLocalStorage for per-call state in SDK callbacks]] — how `GuardedBackend` gives per-call context to the SDK's constructor-level `canUseTool` hook.
 - [[../learnings/classifier-reuses-oauth-via-sdk-query|Classifier reuses OAuth via SDK query()]] — auxiliary LLM calls inside Zeno reuse the agent SDK with empty tools; no API key, no new dep.
@@ -77,6 +78,8 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/paper-mcp-file-identity-check|Always verify Paper's open file before consulting]] — `get_basic_info` first; if `fileName` doesn't match the project, stop. The user works in parallel on multiple Paper files.
 - [[../learnings/per-frame-design-registry-failure|Per-frame Paper↔code registries don't survive restructures]] — the old `packages/ui/DESIGN.md` registry pattern; lesson informs spec 0070.
 - [[../learnings/tailwind-v4-import-needs-workspace-dep|`@import "@workspace/pkg/path.css"` needs the dep declared]] — PostCSS uses Node resolution; without the workspace dep in `package.json`, the `@import` errors `ENOENT` even though the file exists.
+- [[../learnings/tailwind-v4-unlayered-css-overrides-utilities|Unlayered CSS in Tailwind v4 silently beats utilities]] — base resets outside `@layer base` win over every utility; wrap them or every `font-mono` etc. is mute.
+- [[../learnings/connectors-validation-findings|Connectors validation surfaced three real findings]] — what the 0036 validation pass caught (token-source enforcement, etc.); each finding feeds a follow-up spec.
 
 ## `#meta` — Workflow and process
 

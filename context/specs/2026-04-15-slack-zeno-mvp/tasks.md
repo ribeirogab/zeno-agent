@@ -87,7 +87,7 @@ Edit `context/_index/learnings.md` — under each tag section (`#reference`, `#c
 ```markdown
 ## `#reference` — Environment and commands
 
-- [[../learnings/claude-code-headless-cli|Claude Code headless CLI]] — invocation pattern and flags (as of 2026-04-15).
+- [[../learnings/claude-code-cli-headless|Claude Code headless CLI]] — invocation pattern and flags (as of 2026-04-15).
 - [[../learnings/slack-bolt-socket-mode|Slack Bolt Socket Mode]] — current stable setup.
 - ...
 ```

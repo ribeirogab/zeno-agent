@@ -15,7 +15,7 @@ created: 2026-04-27
 - [ ] Step 1: Open `context/constitution.md`. Locate the section starting at `## Why Zeno exists` (currently lines 11-21).
 - [ ] Step 2: Rewrite the section so the central thesis is "**Zeno is a personal agent that operates across the apps you use, by composing the connectors you install. The channel (Slack today; others later) is the I/O boundary; everything else flows through connectors.**" The section must list the 5 layers in order (connectors > channel > backend > core > skills future) with a one-sentence description per layer. The "Skills (future)" line states they are deferred from the runtime and may return possibly bundled with connectors.
 - [ ] Step 3: Verify the rewritten section does not mention "intelligence lives in skills", "skills are the product", "skill layer wins", or "agentskills.io as the standard skills follow" (the latter is recontextualized in Task 1.2 as inspiration).
-- [ ] Step 4: Verify the rewritten section keeps the cross-link to `[[../profiles/USER.md|USER.md]]` for who the user is, and the cross-link to `[[learnings/channel-vs-connector]]` if it survived.
+- [ ] Step 4: Verify the rewritten section keeps the path reference to `profiles/USER.md` for who the user is, and the cross-link to `[[learnings/channel-vs-connector]]` if it survived.
 
 ### Task 1.2: Rewrite "Architecture principles" first paragraph
 

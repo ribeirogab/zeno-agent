@@ -7,11 +7,11 @@ related:
   - "[[../specs/2026-04-25-connectors-ui/spec|2026-04-25-connectors-ui]]"
   - "[[../specs/2026-04-29-slack-channel/spec|2026-04-29-slack-channel]]"
   - "[[../specs/2026-04-29-fn-cutover-channel/spec|2026-04-29-fn-cutover-channel]]"
-  - "[[2026-04-29-channel-as-connector-cutover|cutover playbook]]"
+  - "[[channel-as-connector-cutover|cutover playbook]]"
   - "[[../constitution|constitution]]"
 ---
 
-> **2026-04-29 update:** spec 0058 unified Slack into the `connectors` table with `kind='channel'`. The "Slack tokens vivem em `.env`" sections below are HISTORICAL — Slack tokens now live in DB `connector_secrets` like every other integration. The Channel/Connector conceptual distinction (transport-the-agent-runs-inside vs tool-the-agent-calls) still holds; only the storage divergence is gone. See [[2026-04-29-channel-as-connector-cutover|cutover playbook]] for the migration narrative + observations.
+> **2026-04-29 update:** spec 0058 unified Slack into the `connectors` table with `kind='channel'`. The "Slack tokens vivem em `.env`" sections below are HISTORICAL — Slack tokens now live in DB `connector_secrets` like every other integration. The Channel/Connector conceptual distinction (transport-the-agent-runs-inside vs tool-the-agent-calls) still holds; only the storage divergence is gone. See [[channel-as-connector-cutover|cutover playbook]] for the migration narrative + observations.
 
 # Channel vs Connector — duas integrações externas, dois papéis
 

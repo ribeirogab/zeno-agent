@@ -42,7 +42,7 @@ Quando adicionar nova integração via connector:
 ## Referências
 
 - [`learnings/channel-vs-connector.md`](../learnings/channel-vs-connector.md) — distinção original entre Channel (transport) e Connector (tool surface). Note: spec 0058 unificou Slack como `kind='channel'` connector na mesma DB; Telegram/WPP futuros seguem o mesmo padrão.
-- [`learnings/2026-04-29-channel-as-connector-cutover.md`](../learnings/2026-04-29-channel-as-connector-cutover.md) — playbook + observações da migração que removeu a "exceção Slack" desta regra.
+- [`learnings/channel-as-connector-cutover.md`](../learnings/channel-as-connector-cutover.md) — playbook + observações da migração que removeu a "exceção Slack" desta regra.
 - [`specs/2026-04-29-slack-channel/spec.md`](../specs/2026-04-29-slack-channel/spec.md) — código que viabilizou a migração.
 - [`specs/2026-04-29-fn-cutover-channel/spec.md`](../specs/2026-04-29-fn-cutover-channel/spec.md) — cutover live de `profiles/fn` + cleanup do `.env` fallback.
 - [`specs/2026-04-26-connectors-dashboard/spec.md`](../specs/2026-04-26-connectors-dashboard/spec.md) — onde a infraestrutura DB-first do connector secrets vive.

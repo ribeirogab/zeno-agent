@@ -29,9 +29,16 @@ shipped: null
 
 {{numbered user flows or acceptance scenarios}}
 
-## Success Criteria
+## Acceptance Criteria
 
-{{observable, verifiable checks for "this feature is done"}}
+Each criterion must be a binary, observable check that someone other than the implementer can verify in under a minute. **No vague verbs** ("works well", "is fast", "is robust", "handles errors gracefully") — replace them with specific, measurable conditions. If a criterion cannot be verified without reading the implementation, it is not an acceptance criterion; rewrite it.
+
+- [ ] {{ e.g. `POST /users` with a duplicate email returns 409 and body `{"code":"DUPLICATE_EMAIL"}` }}
+- [ ] {{ e.g. p95 latency for `GET /feed` stays under 200ms with a 1k-row fixture }}
+- [ ] {{ e.g. the migration script runs idempotently — running it twice on the same DB yields no diff }}
+- [ ] {{ ... }}
+
+Tick each `[x]` when verified. A spec is **not shippable** with empty or `{{placeholder}}` acceptance criteria — `/harness-review-spec` will reject it.
 
 ## Risks and Mitigations
 

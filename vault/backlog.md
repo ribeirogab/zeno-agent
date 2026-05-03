@@ -1,7 +1,7 @@
 ---
 status: living
 created: 2026-04-16
-updated: 2026-04-29
+updated: 2026-05-03
 ---
 # Backlog — ideas, not specs
 
@@ -23,9 +23,9 @@ The **Active roadmap** section below is the exception — that's the committed s
 | 2 | **0058** | Migrate profiles/fn to channel connector | rest of #6 | M | 0057 | ✅ **PR #23 OPEN.** Production cutover live (since 2026-04-29T22:13Z). `.env` fallback removed in Phase H. |
 | 3 | **0059** | Channels UI section in dashboard | UI for #6 | M | 0057 | **Paper-first.** Adds `/channels` route in dashboard, mirrors `/connectors` pattern (list + install modal). Without this, channel install requires curl — operator can't manage Slack via UI. **Inserted as response to operator gap discovered post-0058 cutover.** |
 | 4 | **0060** | SOUL realign + skill awareness | (bug) | S | — | ✅ **MERGED PR #25.** Wraps `systemPrompt` in `claude_code` preset+append shape so SDK auto-discovers skills + rewrites SOUL.md. Skills back end-to-end. |
-| 5 | **0061** | Skills multi-file — Paper artboards | #4a | S | 0060 | **Paper-first.** Redesign Skill detail (file tree + editor), Install modal (zip + fflate preview), Delete modal (cascade preview). Owner approval gates 0062. |
-| 6 | **0062** | Skills multi-file infra (impl) | #4a | L | 0061 | DB metadata + FS-canonical content (no `body` column). Symlink-based materializer. API for upload-zip / per-file CRUD / download-zip. Dashboard file-tree editor. **Awaits Paper approval (0061).** |
-| 7 | **0063** | Skills best-practices + skill-creator | #4b + #4c | M | 0062 | Apply Anthropic best-practices. Install Anthropic's `skill-creator` from skills.sh. |
+| 5 | **0061** | Skills multi-file — Paper artboards | #4a | S | 0060 | ✅ **MERGED PR #26.** Paper-first redesign of Skill detail (file tree + editor), Install modal (zip + fflate preview), Delete modal (cascade preview). |
+| 6 | **0062** | Skills multi-file infra (impl) | #4a | L | 0061 | ✅ **MERGED PR #26.** DB metadata + FS-canonical content (no `body` column). Symlink-based materializer. API for upload-zip / per-file CRUD / download-zip. Dashboard file-tree editor. |
+| 7 | **0063** | Skills best-practices + skill-creator | #4b + #4c | M | 0062 | ✅ **MERGED PR #29.** Anthropic best-practices applied to runtime skills. `.claude/skills/skill-creator` + `skill-improver` installed for project-local authoring. |
 | 8 | **0064** | Channel inbound files | #7 | M | 0058 | Worker already downloads Slack attachments; missing pass-through to agent. Standardize via channel adapter. |
 | 9 | **0065** | Channel outbound files | #8 | M | 0058 + 0064 | Agent generates HTML/JSON/etc → channel adapter uploads via `files.upload`. |
 | 10 | **0066** | UI dashboard cleanup | #1 + #2 + #3 | S | — | **Paper-first.** USER.md name in header; remove Sessions sidebar; fix Playwright logo + description. |

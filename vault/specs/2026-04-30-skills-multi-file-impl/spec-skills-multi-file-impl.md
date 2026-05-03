@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: skills-multi-file
 created: 2026-04-30
-shipped: null
+shipped: 2026-04-30
 ---
 # Spec 0062 — Skills multi-file infrastructure (implementation)
 
-**Status:** Draft
+**Status:** Shipped (2026-04-30, PR #26)
 **Scope:** Extend spec 0052 single-`SKILL.md` skills to **arbitrary file trees** (SKILL.md + supporting refs / scripts / examples / images). Storage shape: **DB metadata only, content lives on disk**. Materializer becomes symlink-based. Unblocks spec 0063 (auto-install Anthropic skill-creator). **Depends on spec 0061 (Paper artboards)** — implementation does not start until owner approves the artboards.
 
 ## Context

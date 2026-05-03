@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: skills-best-practices-skill-creator
 created: 2026-04-30
-shipped: null
+shipped: 2026-04-30
 ---
 # Spec 0063 — Skills best-practices + skill-creator authoring tools
 
-**Status:** Draft
+**Status:** Shipped (2026-04-30, PR #29)
 **Scope:** Make Zeno's three runtime skills (`zeno-development`, `fn-code-review`, `fn-sentry-fix`) follow Anthropic's skill-authoring best-practices — without losing any of their current purpose or trigger behavior — by introducing a project-local Claude Code authoring toolchain in `.claude/skills/`. **Zeno's runtime is not touched.**
 
 ## Context

@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: skills-multi-file-paper
 created: 2026-04-30
-shipped: null
+shipped: 2026-04-30
 ---
 # Spec 0061 — Skills multi-file Paper artboards
 
-**Status:** Draft
+**Status:** Shipped (2026-04-30, PR #26)
 **Scope:** Phase 0 Paper-first work for spec 0062 (Skills multi-file infra). Owner-approved artboards in the "Hearty island" Paper file are the gating deliverable before any code in 0062 ships.
 
 ## Context

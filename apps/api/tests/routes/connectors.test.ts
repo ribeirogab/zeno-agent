@@ -20,6 +20,9 @@ let db: DB;
 beforeEach(() => {
   db = openDatabase(':memory:');
   runMigrations(db);
+  // Spec 0066 C: drop the seeded Playwright row so 'empty list' /
+  // 'installed counts' assertions in this file behave as before.
+  db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
 });
 
 function makeApp(database: DB) {

@@ -141,7 +141,6 @@ export function createApp(deps: AppDeps): Hono {
   app.route(
     '/api/settings',
     buildSettingsRoute({
-      commands: deps.commandRepo,
       profileDir: deps.profileDir,
     }),
   );

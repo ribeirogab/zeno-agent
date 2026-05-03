@@ -14,9 +14,9 @@
       "packages/**/*.tsx",
       "packages/**/*.json",
       "*.json",
-      "!**/dist/**",
-      "!**/node_modules/**",
-      "!**/.turbo/**",
+      "!**/dist",
+      "!**/node_modules",
+      "!**/.turbo",
       "!apps/dashboard/src/route-tree.gen.ts",
       "!apps/design/src/route-tree.gen.ts"
     ]

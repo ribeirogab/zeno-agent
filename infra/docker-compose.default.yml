@@ -7,6 +7,8 @@ services:
       dockerfile: infra/Dockerfile
     image: zeno-agent:dev
     env_file: profiles/default/.env
+    environment:
+      ZENO_PROFILE: default
     init: true
     ports:
       - "3000:3000"

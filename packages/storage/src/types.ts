@@ -68,7 +68,9 @@ export type CommandType =
   | 'cron_resume'
   | 'cron_run_now'
   | 'cron_delete'
-  | 'worker_restart'
+  // Spec 0067 C: 'worker_restart' removed. Historical rows in the
+  // commands table keep their type string; the dispatcher silently
+  // skips unknown types.
   | 'connector_create'
   | 'connector_update'
   | 'connector_refresh_tools'

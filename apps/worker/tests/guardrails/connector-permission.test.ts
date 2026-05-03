@@ -11,6 +11,10 @@ import { checkConnectorPermission } from '@/guardrails/policies/connector-permis
 function makeRepos() {
   const db = openDatabase(':memory:');
   runMigrations(db);
+  // Spec 0066 C: drop the seeded Playwright row — this test exercises
+  // the 'tool not in connector_repo' (built-in MCP) path which the
+  // seed otherwise contaminates.
+  db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
   const repo = new ConnectorRepo(db);
   const caps = new AgentCapabilityRepo(db);
   return { repo, caps, close: () => closeDatabase(db) };

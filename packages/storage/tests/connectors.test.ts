@@ -7,6 +7,10 @@ import type { CreateConnectorInput } from '../src/types';
 function freshDb(): DB {
   const db = openDatabase(':memory:');
   runMigrations(db);
+  // Spec 0066 C: migration 20 seeds the Playwright connector. Repo
+  // tests want a truly empty starting state — wipe the seeded row so
+  // assertions about empty-list / list counts behave as before.
+  db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
   return db;
 }
 

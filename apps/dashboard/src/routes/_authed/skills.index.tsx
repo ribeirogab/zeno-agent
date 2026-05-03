@@ -73,7 +73,11 @@ function Hero({
         <p className="m-0 font-sans text-sm leading-[1.6] text-text-secondary">
           Markdown playbooks the agent reads on demand. Sobe um SKILL.md, linka a um connector se
           quiser. Capabilities (Read, Edit, Bash, ...) ficam em{' '}
-          <Link to="/settings" className="text-gold hover:underline">
+          <Link
+            to="/settings"
+            search={{ tab: 'capabilities' }}
+            className="text-gold hover:underline"
+          >
             /settings
           </Link>
           .

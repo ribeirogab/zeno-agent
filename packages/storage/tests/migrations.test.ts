@@ -170,6 +170,9 @@ describe('migrations: connectors (migration 5)', () => {
   it('cascades secrets/tools/invocations on connector delete', () => {
     const db = openDatabase(':memory:');
     runMigrations(db);
+    // Spec 0066 C: drop the seeded Playwright connector so this
+    // test isolates the cascade behavior of the inserted 'cid' row.
+    db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
 
     db.prepare(
       `INSERT INTO connectors (id, slug, display_name, source, transport)
@@ -286,6 +289,10 @@ describe('migrations: github_app_v2_dedup (migration 6)', () => {
   it('cascades connector deletes when an app is removed', () => {
     const db = openDatabase(':memory:');
     runMigrations(db);
+    // Spec 0066 C: drop the seeded Playwright connector — this test
+    // asserts that only the `c3` standalone row survives the app
+    // deletion, which would fail with Playwright present.
+    db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
 
     db.prepare(
       `INSERT INTO connector_apps (id, catalog_id, app_id, app_slug, app_name, pem, pem_sha256)
@@ -1021,8 +1028,8 @@ describe('migrations: cron_skills + cron_connectors (migrations 16 + 17)', () =>
     runMigrations(db);
     const second = runMigrations(db);
     expect(second.applied).toEqual([]);
-    // Spec 0062 added migration 19. The "current" is the highest applied id.
-    expect(second.current).toBe(19);
+    // Spec 0066 C added migration 20. The "current" is the highest applied id.
+    expect(second.current).toBe(20);
     closeDatabase(db);
   });
 });
@@ -1076,6 +1083,133 @@ describe('migrations: connectors.kind (migration 18, spec 0057)', () => {
         "INSERT INTO connectors (id, slug, display_name, source, transport, status, kind) VALUES ('x1', 'bogus', 'Bogus', 'catalog', 'stdio', 'enabled', 'unknown')",
       ),
     ).toThrow(/CHECK constraint failed/);
+    closeDatabase(db);
+  });
+});
+
+// Spec 0066 C: migration 20 seeds the Playwright connector on
+// first boot (Chromium ships in the container image; default-install
+// gives every fresh boot working browser automation without setup).
+// Must be idempotent and must NOT reinstall an operator-removed row.
+describe('migrations: seed playwright connector (migration 20, spec 0066 C)', () => {
+  it('seeds the Playwright connector on a fresh DB', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    const row = db
+      .prepare(
+        `SELECT slug, display_name, source, catalog_id, transport, command, args, status
+         FROM connectors WHERE slug = 'playwright'`,
+      )
+      .get() as {
+      slug: string;
+      display_name: string;
+      source: string;
+      catalog_id: string;
+      transport: string;
+      command: string;
+      args: string;
+      status: string;
+    };
+    expect(row).toBeDefined();
+    expect(row.slug).toBe('playwright');
+    expect(row.source).toBe('catalog');
+    expect(row.catalog_id).toBe('playwright');
+    expect(row.transport).toBe('stdio');
+    expect(row.command).toBe('npx');
+    expect(JSON.parse(row.args)).toEqual(['-y', '@playwright/mcp@latest']);
+    expect(row.status).toBe('enabled');
+
+    const tools = db
+      .prepare(
+        `SELECT tool_name, category, permission FROM connector_tool_permissions p
+         JOIN connectors c ON c.id = p.connector_id
+         WHERE c.slug = 'playwright' ORDER BY tool_name`,
+      )
+      .all() as Array<{ tool_name: string; category: string; permission: string }>;
+    expect(tools.map((t) => t.tool_name)).toEqual([
+      'browser_click',
+      'browser_navigate',
+      'browser_snapshot',
+      'browser_take_screenshot',
+      'browser_type',
+    ]);
+    closeDatabase(db);
+  });
+
+  it('is a no-op on a second migration run (idempotent insert)', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    const beforeCount = (
+      db.prepare("SELECT COUNT(*) AS c FROM connectors WHERE slug = 'playwright'").get() as {
+        c: number;
+      }
+    ).c;
+    expect(beforeCount).toBe(1);
+
+    runMigrations(db);
+
+    const afterCount = (
+      db.prepare("SELECT COUNT(*) AS c FROM connectors WHERE slug = 'playwright'").get() as {
+        c: number;
+      }
+    ).c;
+    expect(afterCount).toBe(1);
+
+    const toolsCount = (
+      db
+        .prepare(
+          `SELECT COUNT(*) AS c FROM connector_tool_permissions p
+           JOIN connectors c ON c.id = p.connector_id WHERE c.slug = 'playwright'`,
+        )
+        .get() as { c: number }
+    ).c;
+    expect(toolsCount).toBe(5);
+    closeDatabase(db);
+  });
+
+  it('preserves an operator uninstall (does NOT re-enable)', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+
+    // Operator uninstalled Playwright via the dashboard.
+    db.prepare("UPDATE connectors SET status = 'disabled' WHERE slug = 'playwright'").run();
+
+    // Boot rolls migrations again — the seed must not flip status.
+    runMigrations(db);
+
+    const row = db.prepare("SELECT status FROM connectors WHERE slug = 'playwright'").get() as {
+      status: string;
+    };
+    expect(row.status).toBe('disabled');
+    closeDatabase(db);
+  });
+
+  it('preserves an operator full deletion (does NOT recreate)', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+
+    // Operator deleted the row outright (e.g. via uninstall handler that
+    // hard-removes connectors).
+    db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
+    expect(
+      (
+        db.prepare("SELECT COUNT(*) AS c FROM connectors WHERE slug = 'playwright'").get() as {
+          c: number;
+        }
+      ).c,
+    ).toBe(0);
+
+    // Re-running migrations should NOT re-seed (id 20 is already in the
+    // migrations table, so the SQL block doesn't execute).
+    runMigrations(db);
+
+    expect(
+      (
+        db.prepare("SELECT COUNT(*) AS c FROM connectors WHERE slug = 'playwright'").get() as {
+          c: number;
+        }
+      ).c,
+    ).toBe(0);
     closeDatabase(db);
   });
 });

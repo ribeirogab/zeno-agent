@@ -41,6 +41,9 @@ afterAll(() => {
 beforeEach(() => {
   db = openDatabase(':memory:');
   runMigrations(db);
+  // Spec 0066 C: drop the seeded Playwright row so listing assertions
+  // here ('standalone connectors', 'empty list') behave as before.
+  db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
 });
 
 function makeApp() {

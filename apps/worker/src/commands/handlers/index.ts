@@ -9,7 +9,6 @@ import { buildConnectorUpdateHandler } from '@/commands/handlers/connector-updat
 import { buildCreateHandler } from '@/commands/handlers/create';
 import { buildDeleteHandler } from '@/commands/handlers/delete';
 import { buildPauseHandler } from '@/commands/handlers/pause';
-import { buildRestartHandler } from '@/commands/handlers/restart';
 import { buildResumeHandler } from '@/commands/handlers/resume';
 import { buildRunNowHandler, type RunnerLike } from '@/commands/handlers/run-now';
 import type { GitHubAppAuth } from '@/github/app-auth';
@@ -41,7 +40,6 @@ export function buildHandlerMap(deps: HandlerDeps): HandlerMap {
     cron_resume: buildResumeHandler(deps.crons),
     cron_run_now: buildRunNowHandler(deps.crons, deps.runner),
     cron_delete: buildDeleteHandler(deps.crons),
-    worker_restart: buildRestartHandler(deps.exit),
     connector_create: buildConnectorCreateHandler({
       connectors: deps.connectors,
       getGithubApp: deps.getGithubApp,

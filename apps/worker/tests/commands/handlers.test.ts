@@ -205,23 +205,7 @@ describe('cron_create handler', () => {
   });
 });
 
-describe('worker_restart handler', () => {
-  it('calls exit(0) and returns ok', async () => {
-    const exit = vi.fn();
-    const localHandlers = buildHandlerMap({
-      crons,
-      cronRuns,
-      runner: { runOnce: vi.fn() },
-      exit,
-    });
-    const result = await localHandlers.worker_restart(
-      makeCmd({
-        id: 'cmd-1',
-        type: 'worker_restart',
-      }),
-    );
-    expect(result.ok).toBe(true);
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    expect(exit).toHaveBeenCalledWith(0);
-  });
-});
+// Spec 0067 C: worker_restart handler removed. The HandlerMap no longer
+// includes 'worker_restart'; the api route that enqueued the command is
+// gone too. Existing rows of type='worker_restart' in the commands table
+// are silently no-ops at the dispatcher (unknown handler).

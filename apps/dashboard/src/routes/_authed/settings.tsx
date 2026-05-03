@@ -1,17 +1,40 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { type JSX, type ReactNode, useState } from 'react';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import type { JSX, ReactNode } from 'react';
 import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
-import { RestartWorkerModal } from '@/components/modals/restart-worker-modal';
 import { AboutRow } from '@/components/settings/about-row';
 import { AgentCapabilitiesSection } from '@/components/settings/agent-capabilities-section';
 import { BackendCard } from '@/components/settings/backend-card';
 import { ProfileFileRow } from '@/components/settings/profile-file-row';
+import { TabStrip } from '@/components/settings/tab-strip';
+import { UserMdEditor } from '@/components/settings/user-md-editor';
 import { SettingsSectionSkeleton } from '@/components/skeletons/settings-section-skeleton';
-import { useRestartWorker } from '@/lib/mutations';
 import { useHealth } from '@/lib/use-health';
 import { type SettingsSnapshot, useSettings } from '@/lib/use-settings';
 
+// Spec 0067 A: settings page in 4 tabs. Default = `profile`. URL
+// reflects the active tab via `?tab=` search param so each tab is
+// deep-linkable. Unknown / missing values fall back to the default.
+const TABS = ['profile', 'capabilities', 'backend', 'about'] as const;
+type SettingsTab = (typeof TABS)[number];
+const TAB_LABELS: Record<SettingsTab, string> = {
+  profile: 'profile',
+  capabilities: 'capabilities',
+  backend: 'backend',
+  about: 'about',
+};
+
+export interface SettingsSearch {
+  tab: SettingsTab;
+}
+
+function isTab(value: unknown): value is SettingsTab {
+  return typeof value === 'string' && (TABS as readonly string[]).includes(value);
+}
+
 export const Route = createFileRoute('/_authed/settings')({
+  validateSearch: (search: Record<string, unknown>): SettingsSearch => ({
+    tab: isTab(search.tab) ? search.tab : 'profile',
+  }),
   component: SettingsScreen,
 });
 
@@ -25,48 +48,66 @@ function formatUptime(seconds: number): string {
 function SettingsScreen(): JSX.Element {
   const q = useSettings();
   const health = useHealth();
-  const restartWorker = useRestartWorker();
-  const [showRestart, setShowRestart] = useState(false);
+  const { tab } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
 
   return (
     <>
       <DashboardTopstrip crumbs={[{ label: 'settings', current: true }]} />
-      <div className="max-w-[1080px] w-full mx-auto px-12 pt-10 pb-30 flex flex-col gap-10 min-w-0">
-        <Header onRestart={() => setShowRestart(true)} />
+      <div className="max-w-[1080px] w-full mx-auto px-12 pt-10 pb-30 flex flex-col gap-8 min-w-0">
+        <Header />
+        <TabStrip
+          tabs={TABS.map((id) => ({ id, label: TAB_LABELS[id] }))}
+          activeId={tab}
+          onChange={(next) => {
+            navigate({ search: { tab: next } });
+          }}
+        />
         {q.isLoading || !q.data ? (
-          <>
-            <SettingsSectionSkeleton title="backend" rows={1} />
-            <SettingsSectionSkeleton title="profile files" rows={5} />
-            <SettingsSectionSkeleton title="about" rows={3} />
-          </>
+          <SettingsSectionSkeleton title={tab} rows={3} />
         ) : (
-          <>
-            <AgentCapabilitiesSection />
-            <BackendSection backend={q.data.backend} />
-            <ProfileFilesSection files={q.data.profileFiles} />
-            <AboutSection
-              backend={q.data.backend.name}
-              uptime={health.data?.uptime}
-              version="v0.3.1"
-            />
-          </>
+          <TabContent tab={tab} data={q.data} uptime={health.data?.uptime} version="v0.3.1" />
         )}
       </div>
-      <RestartWorkerModal
-        open={showRestart}
-        onOpenChange={setShowRestart}
-        onConfirm={() => {
-          restartWorker.mutate();
-          setShowRestart(false);
-        }}
-      />
     </>
   );
 }
 
+function TabContent({
+  tab,
+  data,
+  uptime,
+  version,
+}: {
+  tab: SettingsTab;
+  data: SettingsSnapshot;
+  uptime: number | undefined;
+  version: string;
+}): JSX.Element {
+  switch (tab) {
+    case 'profile':
+      return (
+        <div className="flex flex-col gap-10">
+          <UserMdEditor />
+          <ReadOnlyProfileFilesSection files={data.profileFiles} />
+        </div>
+      );
+    case 'capabilities':
+      return <AgentCapabilitiesSection />;
+    case 'backend':
+      return <BackendSection backend={data.backend} />;
+    case 'about':
+      return <AboutSection backend={data.backend.name} uptime={uptime} version={version} />;
+  }
+}
+
 // ─── Header ───────────────────────────────────────────────────────────────────
 
-function Header({ onRestart }: { onRestart: () => void }): JSX.Element {
+// Spec 0067 C: Restart Worker button + modal removed. The profile
+// watcher hot-reloads on file changes and DB-managed connectors don't
+// need a worker restart. For a hard reset, run docker compose restart
+// from the host (documented on the about tab).
+function Header(): JSX.Element {
   return (
     <header className="flex items-end justify-between gap-6 border-b border-border-subtle pb-6">
       <div className="flex flex-col flex-1">
@@ -81,7 +122,6 @@ function Header({ onRestart }: { onRestart: () => void }): JSX.Element {
           <InlineCode>profile/</InlineCode> — edit there and Zeno hot-reloads.
         </p>
       </div>
-      <RestartWorkerButton onClick={onRestart} />
     </header>
   );
 }
@@ -91,41 +131,6 @@ function InlineCode({ children }: { children: ReactNode }): JSX.Element {
     <span className="inline-block align-baseline bg-panel-2 border border-border-subtle px-1.5 py-px font-mono text-xs leading-[1.6] text-gold">
       {children}
     </span>
-  );
-}
-
-function RestartWorkerButton({ onClick }: { onClick: () => void }): JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="self-end shrink-0 inline-flex items-center gap-2 px-3.5 py-2 border border-status-failed/30 font-mono text-xs font-medium tracking-[0.06em] leading-4 uppercase text-status-failed hover:bg-status-failed/[0.06] hover:border-status-failed transition-colors duration-[120ms]"
-    >
-      <RestartIcon />
-      restart worker
-    </button>
-  );
-}
-
-function RestartIcon(): JSX.Element {
-  return (
-    <svg
-      aria-hidden="true"
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="shrink-0"
-    >
-      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-      <path d="M21 3v5h-5" />
-      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-      <path d="M3 21v-5h5" />
-    </svg>
   );
 }
 
@@ -166,15 +171,23 @@ function BackendSection({ backend }: { backend: SettingsSnapshot['backend'] }): 
   );
 }
 
-function ProfileFilesSection({ files }: { files: SettingsSnapshot['profileFiles'] }): JSX.Element {
+// Spec 0067 B: USER.md is now editable inline (see <UserMdEditor>).
+// Other profile files stay read-only — SOUL.md is committed identity,
+// crons.yaml is legacy (manage via /crons).
+function ReadOnlyProfileFilesSection({
+  files,
+}: {
+  files: SettingsSnapshot['profileFiles'];
+}): JSX.Element {
+  const readOnly = files.filter((f) => f.path !== 'USER.md');
   return (
-    <Section title="profile files" meta="bind-mounted · edits apply on next agent turn">
+    <Section title="other profile files" meta="read-only · bind-mounted">
       <div className="bg-panel border border-border-subtle flex flex-col">
-        {files.length === 0 ? (
+        {readOnly.length === 0 ? (
           <div className="px-5 py-4 font-mono text-xs text-text-tertiary">no files mounted.</div>
         ) : (
-          files.map((f, i) => (
-            <ProfileFileRow key={f.path} file={f} last={i === files.length - 1} />
+          readOnly.map((f, i) => (
+            <ProfileFileRow key={f.path} file={f} last={i === readOnly.length - 1} />
           ))
         )}
       </div>
@@ -193,10 +206,22 @@ function AboutSection({
 }): JSX.Element {
   return (
     <Section title="about" meta="runtime">
-      <div className="bg-panel border border-border-subtle flex flex-col">
-        <AboutRow label="dashboard" value={`vite · react · tanstack-router · ${version}`} />
-        <AboutRow label="backend" value={backend} />
-        <AboutRow label="uptime" value={uptime !== undefined ? formatUptime(uptime) : '—'} last />
+      <div className="flex flex-col gap-3">
+        <div className="bg-panel border border-border-subtle flex flex-col">
+          <AboutRow label="dashboard" value={`vite · react · tanstack-router · ${version}`} />
+          <AboutRow label="backend" value={backend} />
+          <AboutRow label="uptime" value={uptime !== undefined ? formatUptime(uptime) : '—'} last />
+        </div>
+        {/* Spec 0067 C — replace the Restart Worker button copy. */}
+        <div className="border-l-2 border-status-active/60 bg-status-active/[0.04] px-4 py-3 flex flex-col gap-1">
+          <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-status-active">
+            hot-reload
+          </span>
+          <p className="m-0 font-sans text-[13px] leading-[1.5] text-text-secondary">
+            Worker auto-reloads on profile changes. For a hard reset, run{' '}
+            <InlineCode>docker compose restart</InlineCode> from the host.
+          </p>
+        </div>
       </div>
     </Section>
   );

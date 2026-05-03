@@ -2,21 +2,16 @@ import { Link, useLocation } from '@tanstack/react-router';
 import { Crest } from '@zeno/ui';
 import type { JSX, ReactNode } from 'react';
 import { type ServiceStatus, useHealth } from '@/lib/use-health';
+import { useSettings } from '@/lib/use-settings';
 
-type NavId =
-  | 'home'
-  | 'crons'
-  | 'sessions'
-  | 'channels'
-  | 'connectors'
-  | 'skills'
-  | 'logs'
-  | 'settings';
+type NavId = 'home' | 'crons' | 'channels' | 'connectors' | 'skills' | 'logs' | 'settings';
 
+// Spec 0066 B: `sessions` removed from the primary nav. The route
+// stays mounted (`/sessions/*`) and is reachable from log entries
+// and cron run history — operators don't navigate there to act.
 const NAV: { id: NavId; label: string; to: string; badge?: number }[] = [
   { id: 'home', label: 'home', to: '/' },
   { id: 'crons', label: 'crons', to: '/crons' },
-  { id: 'sessions', label: 'sessions', to: '/sessions' },
   // Spec 0059: channels (transport substrate) sit ABOVE connectors
   // (tool surface) — conceptual ordering: where Zeno talks vs what Zeno calls.
   { id: 'channels', label: 'channels', to: '/channels' },
@@ -51,12 +46,12 @@ export function DashboardSidebar(): JSX.Element {
 function navIdForPath(path: string): NavId {
   if (path === '/') return 'home';
   if (path.startsWith('/crons')) return 'crons';
-  if (path.startsWith('/sessions')) return 'sessions';
   if (path.startsWith('/channels')) return 'channels';
   if (path.startsWith('/connectors')) return 'connectors';
   if (path.startsWith('/skills')) return 'skills';
   if (path.startsWith('/logs')) return 'logs';
   if (path.startsWith('/settings')) return 'settings';
+  // /sessions/* deep-links land on the route but no nav item highlights
   return 'home';
 }
 
@@ -166,12 +161,6 @@ function NavIcon({ id }: { id: NavId }): JSX.Element {
           <circle cx="12" cy="13" r="7" />
           <path d="M12 9v4l2.5 2" />
           <path d="M9 2h6" />
-        </svg>
-      );
-    case 'sessions':
-      return (
-        <svg {...props} aria-hidden="true">
-          <path d="M4 6h16v10H9l-5 4z" />
         </svg>
       );
     case 'channels':
@@ -292,16 +281,47 @@ function StatusRow({
   );
 }
 
+/**
+ * Compute initials for the avatar tile.
+ *
+ * Spec 0066 A:
+ * - Multi-word names ("Maria José", "John Doe") → first char of first
+ *   word + first char of last word ("MJ", "JD").
+ * - Single-word names → first 2 chars uppercased ("Operator" → "GA").
+ * - Empty / undefined → fall back to first 2 chars of the slug.
+ * - Anything else (numeric, symbols) is uppercased verbatim and sliced.
+ */
+export function deriveInitials(name: string | null | undefined, slug: string): string {
+  const source = (name?.trim() || slug).trim();
+  if (!source) return '··';
+  const words = source.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    const first = words[0]?.[0] ?? '';
+    const last = words[words.length - 1]?.[0] ?? '';
+    return (first + last).toUpperCase();
+  }
+  return source.slice(0, 2).toUpperCase();
+}
+
 function User(): JSX.Element {
+  const settings = useSettings();
+  // Spec 0066 A: read identity from USER.md frontmatter via the API.
+  // Until the response lands we render placeholders — never the old
+  // hardcoded 'alex' / 'single-owner · hmac' strings.
+  const profile = settings.data?.profile;
+  const displayName = profile?.name ?? profile?.slug ?? '…';
+  const subtitle = profile ? `${profile.slug} · profile` : '';
+  const initials = profile ? deriveInitials(profile.name, profile.slug) : '··';
+
   return (
     <div className="flex items-center gap-2.5 px-2 py-2.5 border-t border-border-subtle">
       <div className="w-[26px] h-[26px] bg-gold text-text-ink grid place-items-center font-mono text-[11px] font-semibold tracking-[0.04em] shrink-0">
-        AL
+        {initials}
       </div>
       <div className="flex flex-col flex-1 min-w-0">
-        <span className="font-mono text-xs text-text-primary">alex</span>
-        <span className="font-mono text-[9px] text-text-tertiary tracking-[0.1em]">
-          single-owner · hmac
+        <span className="font-mono text-xs text-text-primary truncate">{displayName}</span>
+        <span className="font-mono text-[9px] text-text-tertiary tracking-[0.1em] truncate">
+          {subtitle}
         </span>
       </div>
       <Link

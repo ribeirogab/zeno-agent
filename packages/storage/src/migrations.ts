@@ -559,6 +559,52 @@ INSERT INTO cron_skills (cron_id, skill_id, created_at)
 DROP TABLE _spec0062_crs_backup;
 `,
   },
+  {
+    id: 20,
+    name: "spec 0066 C — seed Playwright connector on first boot. Chromium ships pre-installed in the Zeno container image, so making the connector default-installed costs zero extra disk and gives every fresh boot immediate browser-automation capability without operator setup. Idempotent via the slug UNIQUE constraint: re-running migrations is a no-op, and an operator who manually uninstalled (status='disabled') Playwright before this migration is preserved (the WHERE NOT EXISTS guard skips the row entirely). The connector_tool_permissions rows mirror the trimmed catalog list (5 essentials: navigate, snapshot, screenshot, click, type) frozen at migration-write time. If the catalog later evolves, only NEW Playwright installs (post-uninstall + reinstall via the dashboard) get the updated tools — same pattern as the github-app v2 backfill (migration 7).",
+    sql: `
+INSERT INTO connectors (
+  id, slug, display_name, description, source, catalog_id,
+  transport, command, args, status
+)
+SELECT
+  lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' ||
+        substr(hex(randomblob(2)),2) || '-' ||
+        substr('89ab',1+(abs(random())%4),1) || substr(hex(randomblob(2)),2) || '-' ||
+        hex(randomblob(6))),
+  'playwright',
+  'Playwright',
+  'Browser automation. Navigate, snapshot, click, type, screenshot.',
+  'catalog',
+  'playwright',
+  'stdio',
+  'npx',
+  '["-y","@playwright/mcp@latest"]',
+  'enabled'
+WHERE NOT EXISTS (SELECT 1 FROM connectors WHERE slug = 'playwright');
+
+INSERT INTO connector_tool_permissions (connector_id, tool_name, description, category, permission)
+SELECT
+  c.id,
+  t.column1,
+  t.column2,
+  t.column3,
+  t.column4
+FROM connectors c
+CROSS JOIN (VALUES
+  ('browser_navigate', 'Navigate to a URL in the browser.', 'read', 'always_allow'),
+  ('browser_snapshot', 'Capture an accessibility snapshot of the current page.', 'read', 'always_allow'),
+  ('browser_take_screenshot', 'Take a screenshot of the current page or an element.', 'read', 'always_allow'),
+  ('browser_click', 'Click on a web page element.', 'interactive', 'ask'),
+  ('browser_type', 'Type text into an editable element.', 'interactive', 'ask')
+) t
+WHERE c.slug = 'playwright'
+  AND NOT EXISTS (
+    SELECT 1 FROM connector_tool_permissions p
+    WHERE p.connector_id = c.id AND p.tool_name = t.column1
+  );
+`,
+  },
 ];
 
 /**

@@ -31,6 +31,9 @@ afterEach(() => {
 function makeRepo(): { repo: ConnectorRepo; close: () => void } {
   const db = openDatabase(':memory:');
   runMigrations(db);
+  // Spec 0066 C: migration 20 seeds Playwright. mcp-build tests want
+  // a clean slate so they can assert the built-ins-only path.
+  db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
   return { repo: new ConnectorRepo(db), close: () => closeDatabase(db) };
 }
 

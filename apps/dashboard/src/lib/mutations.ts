@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@zeno/ui';
 import { apiFetch } from '@/lib/api-client';
 import { formatError } from '@/lib/format-error';
@@ -118,12 +118,33 @@ export function useCreateCron() {
   });
 }
 
-// Plain useMutation — no cache effect, so no optimistic primitive.
-export function useRestartWorker() {
+// Spec 0067 B: write USER.md from the inline editor on the profile
+// settings tab. Plain useMutation (no optimistic primitive) — the
+// chokidar watcher in the worker reloads the system prompt on the
+// rename event, and `settings` query invalidation refreshes the
+// last-modified timestamp shown in the editor header.
+export interface UpdateUserMdResponse {
+  path: string;
+  bytes: number;
+  mtime: string;
+  content: string;
+}
+
+export function useUpdateUserMd() {
   const toast = useToast();
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => apiFetch<void>('/api/settings/restart', { method: 'POST' }),
-    onSuccess: () => toast.success('restarting worker…'),
+    mutationFn: (content: string) =>
+      apiFetch<UpdateUserMdResponse>('/api/settings/profile-files/USER.md', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ content }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      queryClient.invalidateQueries({ queryKey: ['settings', 'user-md'] });
+      toast.success('USER.md saved · agent reloads next turn');
+    },
     onError: (err) => toast.fail(formatError(err)),
   });
 }

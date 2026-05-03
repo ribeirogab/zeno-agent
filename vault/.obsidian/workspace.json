@@ -1,0 +1,219 @@
+{
+  "main": {
+    "id": "b08f0d5c88c29c22",
+    "type": "split",
+    "children": [
+      {
+        "id": "765a05213d366d67",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "43454e1a098f962f",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "d543241294e60f9e",
+    "type": "split",
+    "children": [
+      {
+        "id": "a30f4c276ab7a01f",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "ed8606f00f18ec18",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "17c6a0ac520fb44c",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "b56bcf597f633689",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "e5e17d47884a77dd",
+    "type": "split",
+    "children": [
+      {
+        "id": "53ca19c2f5b6c89c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "af1677c908382131",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "f462be0d35203042",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "0f55e56005bc4f19",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "5da5921de9c51f8b",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "a2a793e14d84492b",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "43454e1a098f962f",
+  "lastOpenFiles": [
+    "_index/specs.md.bak",
+    "specs/2026-04-30-soul-skills-realign/spec-soul-skills-realign.md",
+    "specs/2026-04-30-skills-multi-file-paper/tasks-skills-multi-file-paper.md",
+    "specs/2026-04-30-skills-multi-file-paper/spec-skills-multi-file-paper.md",
+    "specs/2026-04-30-skills-multi-file-impl/tasks-skills-multi-file-impl.md",
+    "specs/2026-04-30-skills-multi-file-impl/plan-skills-multi-file-impl.md",
+    "specs/2026-04-30-skills-multi-file-impl/spec-skills-multi-file-impl.md",
+    "specs/2026-04-30-skills-best-practices-skill-creator/tasks-skills-best-practices-skill-creator.md",
+    "specs/2026-04-30-skills-best-practices-skill-creator/plan-skills-best-practices-skill-creator.md",
+    "specs/2026-04-30-skills-best-practices-skill-creator/spec-skills-best-practices-skill-creator.md",
+    "specs/2026-04-30-design-md-format/tasks-design-md-format.md",
+    "specs/2026-04-30-design-md-format/plan-design-md-format.md",
+    "specs/2026-04-30-design-md-format/spec-design-md-format.md",
+    "specs/2026-04-29-slack-channel/tasks-slack-channel.md",
+    "specs/2026-04-29-slack-channel/plan-slack-channel.md",
+    "specs/2026-04-29-slack-channel/spec-slack-channel.md",
+    "specs/2026-04-29-fn-sentry-fix-adjust/tasks-fn-sentry-fix-adjust.md",
+    "specs/2026-04-29-fn-sentry-fix-adjust/plan-fn-sentry-fix-adjust.md",
+    "specs/2026-04-29-fn-sentry-fix-adjust/spec-fn-sentry-fix-adjust.md",
+    "specs/2026-04-29-fn-cutover-channel/tasks-fn-cutover-channel.md",
+    "specs/2026-04-29-fn-cutover-channel/plan-fn-cutover-channel.md",
+    "specs/2026-04-29-fn-cutover-channel/spec-fn-cutover-channel.md",
+    "specs/2026-04-29-channels-ui/tasks-channels-ui.md",
+    "specs/2026-04-29-channels-ui/plan-channels-ui.md",
+    "specs/2026-04-29-channels-ui/spec-channels-ui.md",
+    "specs/2026-04-28-skills-and-capability-defaults/tasks-skills-and-capability-defaults.md",
+    "Untitled.canvas",
+    "specs/0024-fn-dev-workflow",
+    "specs/0023-guardrails-approval",
+    "specs/0021-agent-profile-split",
+    "specs/0020-cron-schedule-picker",
+    "specs/0019-dashboard-optimistic-updates",
+    "specs/0018-dashboard-ux-cleanup",
+    "specs/0017-paper-design-system",
+    "specs/0016-ui-package",
+    "specs/0015-dashboard-kebab-case",
+    "specs/0014-dashboard-logs"
+  ]
+}

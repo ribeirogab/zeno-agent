@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: channels-ui
 created: 2026-04-29
-shipped: null
+shipped: 2026-04-30
 ---
 # Spec 0059 — Channels UI section in dashboard
 
-**Status:** Draft
+**Status:** Shipped (2026-04-30, PR #24)
 **Branch:** `feat/spec-2026-04-29-channels-ui` (worktree: `../zeno-agent-worktrees/2026-04-29-channels-ui/`)
 **Scope:** Add a dedicated `/channels` section to the dashboard so the operator can install, view, edit secrets for, and uninstall channel transports (Slack today; future Telegram, WhatsApp) via UI — matching the management ergonomics already available for MCP connectors. Without this spec, channels are manageable only via curl + DB queries (the operator-facing gap that surfaced post-spec-0058 cutover). Stacked on `main` after PR #23 lands.
 

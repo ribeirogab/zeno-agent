@@ -2,6 +2,7 @@ import type { FormEvent, JSX, ReactNode } from 'react';
 import { useState } from 'react';
 import { SchedulePicker } from '@/components/crons/schedule-picker';
 import type { CreateCronInput } from '@/lib/mutations';
+import { useSettings } from '@/lib/use-settings';
 
 export interface CronFormState {
   name: string;
@@ -108,9 +109,7 @@ export function CronForm({
                 className="flex-1 bg-transparent border-0 outline-0 font-mono text-[13px] leading-4 text-text-primary"
               />
             </div>
-            <span className="font-mono text-[10px] tracking-[0.04em] leading-3 text-text-tertiary">
-              or DM alex
-            </span>
+            <DmHint />
           </div>
         </Field>
         <Field label="prompt" helper="prompt sent to the agent on every tick">
@@ -145,6 +144,20 @@ export function CronForm({
         </div>
       </div>
     </form>
+  );
+}
+
+// Spec 0066 A follow-up: DM hint targets the operator described in
+// USER.md frontmatter, not the legacy hardcoded 'alex'. Falls back to
+// the profile slug when frontmatter has no name.
+function DmHint(): JSX.Element {
+  const settings = useSettings();
+  const profile = settings.data?.profile;
+  const target = profile?.name ?? profile?.slug ?? 'you';
+  return (
+    <span className="font-mono text-[10px] tracking-[0.04em] leading-3 text-text-tertiary">
+      or DM {target}
+    </span>
   );
 }
 

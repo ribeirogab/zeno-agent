@@ -2,6 +2,7 @@ import { Dialog, DialogContent, useToast } from '@zeno/ui';
 import type { JSX, ReactNode } from 'react';
 import { useState } from 'react';
 import type { CreateCronInput } from '@/lib/mutations';
+import { useSettings } from '@/lib/use-settings';
 
 export interface NewCronModalProps {
   open: boolean;
@@ -129,9 +130,7 @@ export function NewCronModal({ open, onOpenChange, onCreate }: NewCronModalProps
                     className="flex-1 bg-transparent border-0 outline-0 font-mono text-[13px] leading-4 text-text-primary"
                   />
                 </div>
-                <span className="font-mono text-[10px] tracking-[0.04em] leading-3 text-text-tertiary">
-                  or DM alex
-                </span>
+                <DmHint />
               </div>
             </Field>
             <Field label="prompt" helper="prompt sent to the agent on every tick">
@@ -176,6 +175,19 @@ export function NewCronModal({ open, onOpenChange, onCreate }: NewCronModalProps
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Spec 0066 A follow-up: same as cron-form's DmHint — keep them in
+// sync if either is restyled.
+function DmHint(): JSX.Element {
+  const settings = useSettings();
+  const profile = settings.data?.profile;
+  const target = profile?.name ?? profile?.slug ?? 'you';
+  return (
+    <span className="font-mono text-[10px] tracking-[0.04em] leading-3 text-text-tertiary">
+      or DM {target}
+    </span>
   );
 }
 

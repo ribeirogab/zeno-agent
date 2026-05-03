@@ -12,6 +12,7 @@ import { homeSubtitle } from '@/lib/home-subtitle';
 import { type Activity, useActivity } from '@/lib/use-activity';
 import { useHealth } from '@/lib/use-health';
 import { useNextCrons } from '@/lib/use-next-crons';
+import { useSettings } from '@/lib/use-settings';
 import { useSparkline } from '@/lib/use-sparkline';
 import { useStats } from '@/lib/use-stats';
 
@@ -19,7 +20,14 @@ export const Route = createFileRoute('/_authed/')({
   component: HomeScreen,
 });
 
-const USER_NAME = 'alex';
+// Spec 0066 A follow-up: derive the displayed name from the API
+// (`profile.name` parsed from USER.md frontmatter, fallback to slug).
+// Replaces the previous hardcoded 'alex' constant.
+function useDisplayName(): string {
+  const settings = useSettings();
+  const profile = settings.data?.profile;
+  return profile?.name ?? profile?.slug ?? '…';
+}
 
 function HomeScreen(): JSX.Element {
   const stats = useStats();
@@ -29,6 +37,7 @@ function HomeScreen(): JSX.Element {
   const sparkSessions = useSparkline('sessions');
   const sparkRuns = useSparkline('runs');
   const sparkFailures = useSparkline('failures');
+  const displayName = useDisplayName();
 
   if (stats.isLoading || activity.isLoading) {
     return (
@@ -45,7 +54,7 @@ function HomeScreen(): JSX.Element {
   if (isFirstRun) return <HomeEmpty />;
 
   const now = new Date();
-  const greeting = greetingForHour(now.getHours(), USER_NAME);
+  const greeting = greetingForHour(now.getHours(), displayName);
   const subtitle = homeSubtitle({
     stats: stats.data,
     lastTickAt: health.data?.lastTickAt,
@@ -293,11 +302,12 @@ function SectionHeader({ label, hint }: { label: string; hint: string }): JSX.El
 
 function HomeEmpty(): JSX.Element {
   const toast = useToast();
+  const displayName = useDisplayName();
   return (
     <>
       <DashboardTopstrip crumbs={[{ label: 'home', current: true }]} />
       <div className="max-w-[1080px] w-full mx-auto px-12 pt-14 pb-30 flex flex-col gap-10 min-w-0">
-        <FirstRunHero />
+        <FirstRunHero displayName={displayName} />
         <FirstRunChecklist
           onPasteToken={() =>
             toast.success(
@@ -312,7 +322,7 @@ function HomeEmpty(): JSX.Element {
   );
 }
 
-function FirstRunHero(): JSX.Element {
+function FirstRunHero({ displayName }: { displayName: string }): JSX.Element {
   return (
     <header className="flex flex-col gap-3.5">
       <div className="flex items-baseline justify-between gap-6">
@@ -324,7 +334,7 @@ function FirstRunHero(): JSX.Element {
         </span>
       </div>
       <h1 className="m-0 font-serif text-[64px] font-normal tracking-[-0.02em] leading-[1.05] text-text-primary">
-        Hi <em className="italic text-gold">{USER_NAME}</em>. Let's wire Zeno up.
+        Hi <em className="italic text-gold">{displayName}</em>. Let's wire Zeno up.
       </h1>
       <p className="m-0 max-w-[640px] font-sans text-base leading-[1.6] text-text-secondary">
         Everything's quiet — that's expected on a fresh profile. Two steps below get the agent

@@ -5,6 +5,7 @@ tags:
 related:
   - "[[claude-code-cli-headless]]"
   - "[[claude-code-oauth-token]]"
+  - "[[claude-agent-sdk-typescript]]"
 created: 2026-04-15
 ---
 # Claude Code `--bare` mode skips OAuth

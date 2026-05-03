@@ -2,6 +2,10 @@
 name: UI lives in Paper
 severity: important
 tags: [design, ui, governance]
+related:
+  - "[[../conventions/design-md-format]]"
+  - "[[../learnings/per-frame-design-registry-failure]]"
+  - "[[design-md-canonical]]"
 ---
 
 # UI lives in Paper

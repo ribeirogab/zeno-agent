@@ -5,6 +5,8 @@ related:
   - "[[../specs/2026-04-26-connectors-100-validation/spec-connectors-100-validation|spec 0036]]"
   - "[[../specs/2026-04-26-connectors-dashboard/spec-connectors-dashboard|spec 0034]]"
   - "[[../rules/integration-tokens-in-db-only|integration tokens in DB only]]"
+  - "[[../specs/2026-04-26-connectors-test-strategy/spec-connectors-test-strategy]]"
+  - "[[../specs/2026-04-26-connectors-three-findings/spec-connectors-three-findings]]"
 created: 2026-04-26
 ---
 # Connectors validation surfaced three real findings

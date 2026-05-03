@@ -3,6 +3,8 @@ status: shipped
 feature: connectors-100-validation
 created: 2026-04-26
 shipped: 2026-04-26
+related:
+  - "[[final-report]]"
 ---
 # Connectors 100% Coverage Validation — Spec
 

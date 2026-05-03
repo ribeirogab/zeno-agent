@@ -3,6 +3,8 @@ status: shipped
 feature: dashboard-logs
 created: 2026-04-16
 shipped: 2026-04-16
+related:
+  - "[[../../learnings/db-as-contract-pattern]]"
 ---
 # Dashboard Logs — Spec
 

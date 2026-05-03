@@ -3,6 +3,8 @@ status: shipped
 feature: dashboard-ux-cleanup
 created: 2026-04-16
 shipped: 2026-04-17
+related:
+  - "[[../../learnings/shadcn-copy-not-library]]"
 ---
 # Dashboard UX Cleanup — Spec
 

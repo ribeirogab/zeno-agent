@@ -38,7 +38,7 @@ Each criterion must be a binary, observable check that someone other than the im
 - [ ] {{ e.g. the migration script runs idempotently — running it twice on the same DB yields no diff }}
 - [ ] {{ ... }}
 
-Tick each `[x]` when verified. A spec is **not shippable** with empty or `{{placeholder}}` acceptance criteria — `/harness-review-spec` will reject it.
+Tick each `[x]` when verified. A spec is **not shippable** with empty or `{{placeholder}}` acceptance criteria — `/memex-review-spec` will reject it.
 
 ## Risks and Mitigations
 

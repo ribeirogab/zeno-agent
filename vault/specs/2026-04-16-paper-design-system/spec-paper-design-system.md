@@ -3,6 +3,8 @@ status: shipped
 feature: paper-design-system
 created: 2026-04-16
 shipped: 2026-04-17
+related:
+  - "[[../../rules/ui-in-paper]]"
 ---
 # Paper Design System — Spec
 

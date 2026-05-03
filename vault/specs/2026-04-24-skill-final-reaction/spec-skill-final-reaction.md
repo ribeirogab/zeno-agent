@@ -4,6 +4,8 @@ superseded_by: 0050
 feature: skill-final-reaction
 created: 2026-04-24
 shipped: null
+related:
+  - "[[../../learnings/connectors-only-pivot]]"
 ---
 
 > **Superseded** by spec [[../2026-04-27-strip-skills-and-classifier/spec|2026-04-27-strip-skills-and-classifier]] (connectors-only positioning, see [[../../learnings/connectors-only-pivot]]). This spec built on the runtime skill mechanism (skill-typed final reactions); skills as a runtime concept were removed in spec 0050. If skills return bundled with connectors, a future spec will revisit how connector-bundled domain knowledge can influence the channel response.

@@ -3,6 +3,9 @@ status: shipped
 feature: ui-package
 created: 2026-04-16
 shipped: 2026-04-17
+related:
+  - "[[../../learnings/moduleresolution-split-worker-vs-dashboard]]"
+  - "[[../../learnings/workspace-node-modules-in-docker]]"
 ---
 # Extract @zeno/ui Package — Spec
 

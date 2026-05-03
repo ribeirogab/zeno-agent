@@ -9,6 +9,8 @@ applies-to:
   - packages/ui/src/styles/tokens.css
   - apps/dashboard/src/styles/globals.css
 created: 2026-04-30
+related:
+  - "[[../learnings/per-frame-design-registry-failure]]"
 ---
 # DESIGN.md is the canonical source for design tokens
 

@@ -5,6 +5,8 @@ tags:
 related:
   - "[[agent-skills-open-standard]]"
   - "[[../specs/2026-04-21-agent-profile-split/spec-agent-profile-split|spec 0021]]"
+  - "[[connectors-only-pivot]]"
+  - "[[../specs/2026-04-27-zeno-redefinition/spec-zeno-redefinition]]"
 created: 2026-04-21
 status: superseded
 superseded_by: 0049

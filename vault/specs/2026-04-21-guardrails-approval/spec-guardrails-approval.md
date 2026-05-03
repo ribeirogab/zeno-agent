@@ -4,6 +4,8 @@ superseded_by: 0050
 feature: guardrails-approval
 created: 2026-04-21
 shipped: null
+related:
+  - "[[../../learnings/connectors-only-pivot]]"
 ---
 
 > **Superseded** by spec [[../2026-04-27-strip-skills-and-classifier/spec|2026-04-27-strip-skills-and-classifier]] (connectors-only positioning, see [[../../learnings/connectors-only-pivot]]). The Haiku classifier, Slack approver, policy chain, and `approvals_log` table described here were removed in spec 0050. The single guardrail that survives is the connector-permission gate (per-tool dashboard toggle).

@@ -3,6 +3,8 @@ status: shipped
 feature: dashboard-visual-rebuild
 created: 2026-04-26
 shipped: 2026-04-26
+related:
+  - "[[../../learnings/apps-design-role-and-ui-boundary]]"
 ---
 # Dashboard Visual Rebuild — Spec
 

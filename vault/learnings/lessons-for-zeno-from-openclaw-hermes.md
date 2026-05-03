@@ -15,6 +15,8 @@ related:
   - "[[multi-agent-routing-channels-to-agents]]"
   - "[[profile-isolation-via-env-var]]"
   - "[[hermes-prompt-caching-invariants]]"
+  - "[[connectors-only-pivot]]"
+  - "[[../specs/2026-04-27-zeno-redefinition/spec-zeno-redefinition]]"
 created: 2026-04-15
 status: superseded
 superseded_by: 0049

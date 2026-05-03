@@ -6,6 +6,9 @@ related:
   - "[[openclaw-architecture]]"
   - "[[hermes-architecture]]"
   - "[[agent-skills-open-standard]]"
+  - "[[connectors-only-pivot]]"
+  - "[[lessons-for-zeno-from-openclaw-hermes]]"
+  - "[[../specs/2026-04-27-zeno-redefinition/spec-zeno-redefinition]]"
 created: 2026-04-15
 status: superseded
 superseded_by: 0049

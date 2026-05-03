@@ -3,6 +3,9 @@ status: draft
 feature: skills
 created: 2026-04-28
 shipped: null
+related:
+  - "[[../../learnings/apps-design-role-and-ui-boundary]]"
+  - "[[../../learnings/skill-scoped-credentials-pattern]]"
 ---
 # Skills — Spec
 

@@ -3,6 +3,9 @@ status: shipped
 feature: dashboard-optimistic-updates
 created: 2026-04-17
 shipped: 2026-04-17
+related:
+  - "[[../../learnings/db-as-contract-pattern]]"
+  - "[[../../learnings/fire-and-forget-mutation-ux]]"
 ---
 # Dashboard Optimistic Updates — Spec
 

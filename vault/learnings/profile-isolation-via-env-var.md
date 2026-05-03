@@ -5,6 +5,7 @@ tags:
 related:
   - "[[hermes-architecture]]"
   - "[[lessons-for-zeno-from-openclaw-hermes]]"
+  - "[[multi-agent-routing-channels-to-agents]]"
 created: 2026-04-15
 ---
 # Profile isolation via a single env var (Hermes `HERMES_HOME`)

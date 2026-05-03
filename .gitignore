@@ -1,5 +1,6 @@
 # Obsidian vault config (machine-local — Obsidian rewrites these on every open)
-context/.obsidian/
+vault/.obsidian/
+Untitled.canvas
 
 # OS
 .DS_Store

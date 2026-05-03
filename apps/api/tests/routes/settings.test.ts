@@ -92,8 +92,8 @@ describe('GET /api/settings', () => {
     expect(body.profile.slug).toBe('default');
   });
 
-  it('returns profile.name=null when USER.md has no frontmatter', async () => {
-    writeFileSync(join(profileDir, 'USER.md'), '# just a heading\n\nno frontmatter here');
+  it('returns profile.name=null when USER.md has no frontmatter and no Name: in body', async () => {
+    writeFileSync(join(profileDir, 'USER.md'), '# just a heading\n\nno name in here');
     const res = await makeApp(db).request('/api/settings', { headers: authed() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBeNull();
@@ -104,6 +104,43 @@ describe('GET /api/settings', () => {
     const res = await makeApp(db).request('/api/settings', { headers: authed() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBeNull();
+  });
+
+  // Spec 0066 A follow-up (PR #32): parse `**Name:** X` or `Name: X`
+  // from the markdown body when frontmatter is absent. Match the
+  // real-world fn profile shape.
+  it('parses profile.name from `**Name:** X` markdown body', async () => {
+    writeFileSync(
+      join(profileDir, 'USER.md'),
+      '# User\n\n## Identity\n\n- **Name:** Operator\n- **GitHub username:** `octocat`\n',
+    );
+    const res = await makeApp(db).request('/api/settings', { headers: authed() });
+    const body = (await res.json()) as { profile: { name: string | null; slug: string } };
+    expect(body.profile.name).toBe('Operator');
+  });
+
+  it('parses profile.name from plain `Name: X` markdown line', async () => {
+    writeFileSync(join(profileDir, 'USER.md'), '# User\n\nName: Maria José\n\nbio');
+    const res = await makeApp(db).request('/api/settings', { headers: authed() });
+    const body = (await res.json()) as { profile: { name: string | null; slug: string } };
+    expect(body.profile.name).toBe('Maria José');
+  });
+
+  it('frontmatter wins over body when both are present', async () => {
+    writeFileSync(
+      join(profileDir, 'USER.md'),
+      '---\nname: FromFrontmatter\n---\n\n- **Name:** FromBody\n',
+    );
+    const res = await makeApp(db).request('/api/settings', { headers: authed() });
+    const body = (await res.json()) as { profile: { name: string | null; slug: string } };
+    expect(body.profile.name).toBe('FromFrontmatter');
+  });
+
+  it('strips trailing markdown emphasis from body name', async () => {
+    writeFileSync(join(profileDir, 'USER.md'), '# User\n\n**Name:** *Operator*\n');
+    const res = await makeApp(db).request('/api/settings', { headers: authed() });
+    const body = (await res.json()) as { profile: { name: string | null; slug: string } };
+    expect(body.profile.name).toBe('Operator');
   });
 
   it('reads profile.slug from ZENO_PROFILE env', async () => {

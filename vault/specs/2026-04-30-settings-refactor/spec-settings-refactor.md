@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: settings-refactor
 created: 2026-04-30
-shipped: null
+shipped: 2026-05-03
 ---
 # Spec 0067 — Settings refactor (tabs + USER.md inline editor + remove Restart)
 
-**Status:** Draft
+**Status:** Shipped (2026-05-03, PR #30)
 **Scope:** Restructure `/settings` from a single long vertical scroll into four horizontal tabs (`profile` default, `capabilities`, `backend`, `about`); make `USER.md` inline-editable from the `profile` tab (textarea + Cmd+S + unsaved-changes guard + last-modified timestamp); remove the `Restart Worker` button + its modal entirely; remove the `mcp.json` row from `profileFiles` (post-spec-0032 it's a DB-managed lie); document the `docker compose restart` escape hatch in `about`.
 
 ## Context

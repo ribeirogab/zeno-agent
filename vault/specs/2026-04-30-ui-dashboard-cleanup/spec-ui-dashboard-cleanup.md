@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: ui-dashboard-cleanup
 created: 2026-04-30
-shipped: null
+shipped: 2026-05-03
 ---
 # Spec 0066 — UI dashboard cleanup
 
-**Status:** Draft
+**Status:** Shipped (2026-05-03, PR #30 + follow-ups #31/#32/#33)
 **Scope:** Four small UI/UX corrections in the dashboard chrome and connectors catalog: (a) replace the hardcoded `"alex"` identity in the sidebar with the live USER.md name + active profile slug; (b) remove `sessions` from the primary nav (keep the route reachable by deep-link); (c) make Playwright a first-boot-installed connector with the official multicolor logo and a trimmed tool surface; (d) replace stylized/placeholder connector logos in the catalog (Slack, GitHub, Klaviyo, Swarmia) with their official brand-color assets.
 
 ## Context

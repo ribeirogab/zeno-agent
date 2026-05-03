@@ -28,8 +28,8 @@ The **Active roadmap** section below is the exception — that's the committed s
 | 7 | **0063** | Skills best-practices + skill-creator | #4b + #4c | M | 0062 | ✅ **MERGED PR #29.** Anthropic best-practices applied to runtime skills. `.claude/skills/skill-creator` + `skill-improver` installed for project-local authoring. |
 | 8 | **0064** | Channel inbound files | #7 | M | 0058 | Worker already downloads Slack attachments; missing pass-through to agent. Standardize via channel adapter. |
 | 9 | **0065** | Channel outbound files | #8 | M | 0058 + 0064 | Agent generates HTML/JSON/etc → channel adapter uploads via `files.upload`. |
-| 10 | **0066** | UI dashboard cleanup | #1 + #2 + #3 | S | — | **Paper-first.** USER.md name in header; remove Sessions sidebar; fix Playwright logo + description. |
-| 11 | **0067** | Settings refactor | #5a + #5b + #5c | M | — | **Paper-first.** Settings becomes tabbed; add USER.md inline editor; remove Restart worker button. |
+| 10 | **0066** | UI dashboard cleanup | #1 + #2 + #3 | S | — | ✅ **MERGED PR #30** (+ follow-ups #31/#32/#33). USER.md name in header, Sessions/Logs hidden from sidebar, Playwright logo + multicolor brand assets fixed. |
+| 11 | **0067** | Settings refactor | #5a + #5b + #5c | M | — | ✅ **MERGED PR #30.** Settings tabbed (`profile`/`capabilities`/`backend`/`about`); USER.md inline editor on profile tab; Restart Worker button removed. |
 | 12 | **0068** | Audio in (transcription) | #9 | M | 0064 | Voice notes via Slack → transcribe → text input to agent. |
 | 13 | **0069** | Audio out (TTS) | #10 | M | 0065 | Agent generates audio reply → channel uploads. |
 

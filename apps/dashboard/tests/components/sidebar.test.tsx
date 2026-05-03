@@ -42,7 +42,7 @@ describe('<DashboardSidebar>', () => {
     useSettingsMock.mockReset();
   });
 
-  it('renders all 7 nav items in lowercase (spec 0066 B: no sessions)', () => {
+  it('renders 6 nav items in lowercase (spec 0066 B: no sessions, no logs)', () => {
     useSettingsMock.mockReturnValue(settingsResult({ name: 'Operator', slug: 'fn' }));
     render(<DashboardSidebar />);
     expect(screen.getByText('home')).toBeDefined();
@@ -50,14 +50,14 @@ describe('<DashboardSidebar>', () => {
     expect(screen.getByText('channels')).toBeDefined();
     expect(screen.getByText('connectors')).toBeDefined();
     expect(screen.getByText('skills')).toBeDefined();
-    expect(screen.getByText('logs')).toBeDefined();
     expect(screen.getByText('settings')).toBeDefined();
   });
 
-  it('does not render a "sessions" nav item (spec 0066 B)', () => {
+  it('does not render "sessions" or "logs" nav items (spec 0066 B + follow-up)', () => {
     useSettingsMock.mockReturnValue(settingsResult({ name: 'Operator', slug: 'fn' }));
     render(<DashboardSidebar />);
     expect(screen.queryByText('sessions')).toBeNull();
+    expect(screen.queryByText('logs')).toBeNull();
   });
 
   it('renders the user row from USER.md name + slug (spec 0066 A)', () => {

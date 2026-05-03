@@ -338,13 +338,24 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     if (!knownIcons.has(filename)) return c.json({ error: 'not_found' }, 404);
     const path = resolveIconPath(filename);
     if (!path) return c.json({ error: 'not_found' }, 404);
-    const body = readFileSync(path, 'utf8');
-    return new Response(body, {
+    // Spec 0066 D: catalog now mixes SVG (slack/github/playwright/linear/
+    // sentry) and PNG (klaviyo/swarmia — official brands don't publish
+    // public-domain SVG marks). Read raw bytes (not UTF-8) so PNG isn't
+    // corrupted, and pick MIME from the extension.
+    const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();
+    const mime =
+      ext === '.png'
+        ? 'image/png'
+        : ext === '.jpg' || ext === '.jpeg'
+          ? 'image/jpeg'
+          : 'image/svg+xml';
+    const body = readFileSync(path);
+    return new Response(new Uint8Array(body), {
       status: 200,
       headers: {
-        'Content-Type': 'image/svg+xml',
-        // 5min cache: long enough for perf during a session, short enough that
-        // catalog SVG edits propagate without forcing the operator to hard-reload.
+        'Content-Type': mime,
+        // 5min cache: long enough for perf during a session, short enough
+        // that catalog edits propagate without forcing a hard-reload.
         'Cache-Control': 'public, max-age=300',
       },
     });

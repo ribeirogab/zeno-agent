@@ -4,11 +4,13 @@ import type { JSX, ReactNode } from 'react';
 import { type ServiceStatus, useHealth } from '@/lib/use-health';
 import { useSettings } from '@/lib/use-settings';
 
-type NavId = 'home' | 'crons' | 'channels' | 'connectors' | 'skills' | 'logs' | 'settings';
+type NavId = 'home' | 'crons' | 'channels' | 'connectors' | 'skills' | 'settings';
 
 // Spec 0066 B: `sessions` removed from the primary nav. The route
 // stays mounted (`/sessions/*`) and is reachable from log entries
 // and cron run history — operators don't navigate there to act.
+// Spec 0066 follow-up: `logs` removed from the primary nav for the
+// same reason — debugging surface, reachable via deep-link.
 const NAV: { id: NavId; label: string; to: string; badge?: number }[] = [
   { id: 'home', label: 'home', to: '/' },
   { id: 'crons', label: 'crons', to: '/crons' },
@@ -17,7 +19,6 @@ const NAV: { id: NavId; label: string; to: string; badge?: number }[] = [
   { id: 'channels', label: 'channels', to: '/channels' },
   { id: 'connectors', label: 'connectors', to: '/connectors' },
   { id: 'skills', label: 'skills', to: '/skills' },
-  { id: 'logs', label: 'logs', to: '/logs' },
   { id: 'settings', label: 'settings', to: '/settings' },
 ];
 
@@ -49,9 +50,9 @@ function navIdForPath(path: string): NavId {
   if (path.startsWith('/channels')) return 'channels';
   if (path.startsWith('/connectors')) return 'connectors';
   if (path.startsWith('/skills')) return 'skills';
-  if (path.startsWith('/logs')) return 'logs';
   if (path.startsWith('/settings')) return 'settings';
-  // /sessions/* deep-links land on the route but no nav item highlights
+  // /sessions/* and /logs/* deep-links land on the route but no nav
+  // item highlights — they're debugging surfaces, not primary nav.
   return 'home';
 }
 
@@ -184,12 +185,6 @@ function NavIcon({ id }: { id: NavId }): JSX.Element {
           {/* book-page icon — playbooks */}
           <path d="M6 3 H18 V21 H6 Z" />
           <path d="M9 8 H15 M9 12 H15 M9 16 H13" />
-        </svg>
-      );
-    case 'logs':
-      return (
-        <svg {...props} aria-hidden="true">
-          <path d="M4 5h16M4 10h16M4 15h10M4 20h16" />
         </svg>
       );
     case 'settings':

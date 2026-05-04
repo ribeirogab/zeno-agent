@@ -1,10 +1,10 @@
 ---
 name: Question
-about: Ask about usage or behaviour (prefer Discussions)
+about: Ask about usage or behaviour
 labels: question
 ---
 
-Most questions belong in Discussions: https://github.com/ribeirogab/zeno-agent/discussions. File an issue here only if your question cannot be answered there.
+Have a question that is not a bug or a feature request? Open it here. The maintainer is solo and may not respond quickly — see the README's Status badge for support expectations.
 
 ## Question
 

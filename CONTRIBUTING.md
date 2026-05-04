@@ -4,7 +4,7 @@ Thank you for taking the time to look at the project. This document is the contr
 
 ## Welcome
 
-zeno-agent is a personal agent that operates across the apps you use, by composing the connectors you install. The codebase, conventions, and operating principles are documented in [`vault/`](./vault/). Contributions are welcome — issues, pull requests, and discussions all help.
+zeno-agent is a personal agent that operates across the apps you use, by composing the connectors you install. The codebase, conventions, and operating principles are documented in [`vault/`](./vault/). Contributions are welcome — issues and pull requests both help.
 
 ## Before contributing
 
@@ -21,7 +21,7 @@ Issues live at https://github.com/ribeirogab/zeno-agent/issues. Choose the templ
 
 - **Bug report** — for a reproducible defect.
 - **Feature request** — for a new capability or behaviour change.
-- **Question** — for usage or behaviour questions. The issue chooser will route you to GitHub Discussions first; file an issue here only if the question cannot be answered there.
+- **Question** — for usage or behaviour questions. The maintainer is solo; expect best-effort responses.
 
 Blank issues are disabled. The templates exist to give the maintainer enough context to act on the report.
 

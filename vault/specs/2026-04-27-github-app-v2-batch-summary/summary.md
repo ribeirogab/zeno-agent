@@ -200,7 +200,7 @@ PER-INSTALLATION DETAIL (C10)
 │ │ └──┘ token re-minted every turn                            │││
 │ └────────────────────────────────────────────────────────────┘│
 │ INSTALLATION ID public  ENV VAR          used by skills · gh   │
-│ │ 125887887     COPY  │ │ ACMEBOOKS_GH_TOKEN       EDIT │     │
+│ │ 12345678     COPY  │ │ ACMEBOOKS_GH_TOKEN       EDIT │     │
 │                                                                │
 │ tool permissions  51 tools · 3 categories · scoped to AcmeBooks│
 │ READ-ONLY     8 tools                                          │

@@ -228,7 +228,7 @@ Returns:
       "connectorId": "...",
       "slug": "github-app-acmebooks",
       "displayName": "AcmeBooks",
-      "installationId": "125887887",
+      "installationId": "12345678",
       "envVar": "ACMEBOOKS_GH_TOKEN",
       "status": "enabled",
       "lastVerifiedAt": "2026-04-27T13:00:00Z",

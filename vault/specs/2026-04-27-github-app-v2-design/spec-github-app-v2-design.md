@@ -41,9 +41,9 @@ When the operator has multiple installations of the GitHub App (e.g., `github-ap
 
 **Reasons:** simpler data model (no `connector_app_tool_defaults` + `connector_tool_permission_overrides` split). Schema stays as today (`connector_tool_permissions` keyed per-installation). UI is consistent with how Linear/Sentry/etc. have their permissions.
 
-**Trade-off accepted:** mais cliques pra setar a mesma regra em 4 instalações. Aceitável porque casos comuns (uma regra por org) valem o esforço — e eles tendem a ser diferentes mesmo.
+**Trade-off accepted:** more clicks to set the same rule across 4 installations. Acceptable because common cases (one rule per org) are worth the effort — and they tend to be different anyway.
 
-### Q5 — `app_id` na detail page: secret-style ou plain text?
+### Q5 — `app_id` on the detail page: secret-style or plain text?
 
 **Decision: Option A — plain text + copy button.** `app_id` is technically PUBLIC (visible at github.com/apps/<your-app>). Masking it with last4 makes no sense for a 7-digit number visible to anyone.
 
@@ -115,7 +115,7 @@ Two rows of new artboards on the Paper canvas.
 | ID | Name | Position | Resolves |
 |---|---|---|---|
 | `4F0-0` | C10 · `/connectors/github-app-acmebooks` (per-installation detail) | left: 0 | Brechas 4 (LAST VERIFIED present), 7 (TEST INSTALLATION button works), 17 (per-row test). Breadcrumb shows `connectors / github-app / AcmeBooks` (App ancestor). Inherited app callout in gold ("app credentials inherited from github-app · view app ↗") + per-installation fields (installation_id + env_var with edit) + tool permissions section (51 tools · 3 categories · scoped to AcmeBooks). |
-| `4MB-0` | C9 · `/connectors/_app/github-app` (App detail · empty state) | left: 1520 | Brecha 2 (UX para adicionar primeira installation). **C9 is the empty-state variant of C8** (same page, different state — positioned in Row 2 for visual grouping with lifecycle modals). Status pill amber "no installs yet". Empty state: 3 placeholder org icons with `?`, hero text "No installations yet", 2-step instructions (`1. install on a GitHub org · 2. come back to wire`), gold CTA "+ ADD YOUR FIRST INSTALLATION". |
+| `4MB-0` | C9 · `/connectors/_app/github-app` (App detail · empty state) | left: 1520 | Gap 2 (UX to add first installation). **C9 is the empty-state variant of C8** (same page, different state — positioned in Row 2 for visual grouping with lifecycle modals). Status pill amber "no installs yet". Empty state: 3 placeholder org icons with `?`, hero text "No installations yet", 2-step instructions (`1. install on a GitHub org · 2. come back to wire`), gold CTA "+ ADD YOUR FIRST INSTALLATION". |
 | `4TT-0` | M7 · Add installation (auto-discover) | left: 3040 | Brechas 2 (UX add), 16 (auto-discover via /app/installations). Discovery list with 5 orgs (1 selectable + 4 already-wired with green WIRED indicator). Selected row highlighted gold. Selection preview panel: derived slug + suggested env_var (editable). Manual fallback link. Test result strip. Footer with CANCEL / TEST SELECTION / ADD INSTALLATION. |
 | `4X2-0` | M8 · Add installation (manual fallback) | left: 3920 | Brecha 16 alt path. Display name + installation_id + auto-suggested env_var. "back to auto-discover" link. Test result strip. CANCEL · TEST · ADD INSTALLATION. |
 | `4YH-0` | M9 · Rotate PEM (destructive) | left: 4800 | Brecha 10 (PEM rotation). Red border modal, DESTRUCTIVE pill, warning callout listing exact consequences (all 4 installations affected, env vars refresh, no undo). Current PEM masked with "WILL BE REPLACED" red label. New PEM upload + sha256 + "matches app id 12345" verification. Type-app-id-to-confirm field. Red ROTATE KEY button. |
@@ -128,25 +128,25 @@ From the original gap inventory:
 
 | Tier | # | Gap | Artboard(s) |
 |---|---|---|---|
-| 1 | 1 | UI custom de install não existe | M6 (first install) + M7/M8 (add installation) |
-| 1 | 2 | Sem UX pra adicionar instalação | C9 (empty CTA) + M7 (auto-discover) + M8 (manual) |
-| 1 | 3 | `0 tools` na linha App | C7 (App row aggregated 4/4) + C8 (each install row shows 51) |
-| 1 | 4 | `LAST VERIFIED` vazio | C8 (last verified per-installation) + C10 (TEST INSTALLATION button) |
-| 1 | 5 | Sem hot-reload | (Backend resolves; UI evidences via "applies on next worker tick" copy in M11; not a UI surface for v1) |
-| 1 | 6 | Validação install-time | M6 (test result strip "credentials valid · N available") |
-| 1 | 7 | refresh-tools quebrado | C10 TEST INSTALLATION |
-| 2 | 8 | always_sensitive em yaml | (Spec 0047 — out of scope) |
-| 2 | 9 | UX remover | M10 (consequence list + type-to-confirm) |
+| 1 | 1 | Custom install UI does not exist | M6 (first install) + M7/M8 (add installation) |
+| 1 | 2 | No UX to add an installation | C9 (empty CTA) + M7 (auto-discover) + M8 (manual) |
+| 1 | 3 | `0 tools` on the App row | C7 (App row aggregated 4/4) + C8 (each install row shows 51) |
+| 1 | 4 | Empty `LAST VERIFIED` | C8 (last verified per-installation) + C10 (TEST INSTALLATION button) |
+| 1 | 5 | No hot-reload | (Backend resolves; UI evidences via "applies on next worker tick" copy in M11; not a UI surface for v1) |
+| 1 | 6 | Install-time validation | M6 (test result strip "credentials valid · N available") |
+| 1 | 7 | refresh-tools broken | C10 TEST INSTALLATION |
+| 2 | 8 | always_sensitive in yaml | (Spec 0047 — out of scope) |
+| 2 | 9 | Remove UX | M10 (consequence list + type-to-confirm) |
 | 2 | 10 | PEM rotation | M9 (destructive flow) |
 | 2 | 11 | PEM reveal pattern | C8 (REVEAL button + sha256 fingerprint + last-rotated metadata replaces last4 mask) |
-| 2 | 12 | connector_update sem cache invalidate | M11 ("applies on next worker tick") |
-| 2 | 13 | Health check binário | (Backend, not UI) |
-| 2 | 14 | Modelo dados duplicado | (Schema decision in 0044; UI already treats App as primary entity) |
-| 3 | 15 | app_id como secret errado | C8 ("App ID · public · safe to share") + M6 (label "find at github.com/apps/<your-app>") |
+| 2 | 12 | connector_update without cache invalidate | M11 ("applies on next worker tick") |
+| 2 | 13 | Binary health check | (Backend, not UI) |
+| 2 | 14 | Duplicated data model | (Schema decision in 0044; UI already treats App as primary entity) |
+| 3 | 15 | app_id as a wrong secret | C8 ("App ID · public · safe to share") + M6 (label "find at github.com/apps/<your-app>") |
 | 3 | 16 | installation_id auto-discover | M7 |
-| 3 | 17 | Botão Test por-linha | C8 kebab + C10 TEST INSTALLATION |
+| 3 | 17 | Per-row Test button | C8 kebab + C10 TEST INSTALLATION |
 | 3 | 18 | Klaviyo classification | (Spec 0048) |
-| 3 | 19 | PEM validation frágil | M6/M9 ("valid PEM · sha256 …" inline check) |
+| 3 | 19 | Fragile PEM validation | M6/M9 ("valid PEM · sha256 …" inline check) |
 | 3 | 20 | installation_id validation | M8 (numeric pattern in helper text) |
 | 3 | 21 | Test e2e intercept | (Spec 0044 — backend tests) |
 | 3 | 22 | Test install endpoint | (Spec 0044 — backend tests) |
@@ -155,8 +155,8 @@ From the original gap inventory:
 | Subtle | — | Cache stale outage | (Backend; spec 0048 surfaces failures in dashboard) |
 | Subtle | — | Slug derivation reversibility | M7 ("slug → github-app-designkitchen · derived from name (locked)" prevents accidental edits) |
 | Subtle | — | env_var uniqueness | M7 (auto-suggested) + M11 (rename + warning) |
-| Subtle | — | Logs barulhentos | (Spec 0048) |
-| Subtle | — | Visibilidade falha refresh | (Spec 0048) |
+| Subtle | — | Noisy logs | (Spec 0048) |
+| Subtle | — | Refresh failure visibility | (Spec 0048) |
 
 Tiers 1+2 fully visualized; Tier 3 mostly visualized (the few delegated to other specs are noted explicitly).
 

@@ -15,66 +15,66 @@ This spec ships strictly behind 0043 (visual design) and is the foundation for 0
 
 User invoked `/brainstorming` and answered Q1-Q5 explicitly.
 
-### Q1 — Modelo de dados: refatorar `connector_apps` ou manter dedup nas 5 reserved-key secrets?
+### Q1 — Data model: refactor `connector_apps` or keep dedup across the 5 reserved-key secrets?
 
 **Decision: Option B — new `connector_apps` table.**
 
 Rationale:
-- Schema honesto: App é uma entidade única; modelar como tal evita o "miente" de 4 cópias do mesmo PEM.
-- Atomic rotation: `UPDATE connector_apps SET pem = ? WHERE id = ?` é 1 write atômico vs 4 não-atômicos no shape antigo.
-- Audit limpo: 1 entry "PEM rotated" em vez de 4 secret updates encadeados.
-- Schema migration é única; trade-off único (~30 LOC SQL + test).
-- Permite multi-app no futuro sem refactor (apenas `connector_apps.id` deixa de ser singleton).
+- Honest schema: App is a single entity; modeling it as such avoids the "lie" of 4 copies of the same PEM.
+- Atomic rotation: `UPDATE connector_apps SET pem = ? WHERE id = ?` is 1 atomic write vs 4 non-atomic writes in the old shape.
+- Clean audit: 1 "PEM rotated" entry instead of 4 chained secret updates.
+- Schema migration is single; single trade-off (~30 LOC SQL + test).
+- Allows multi-app in the future without refactor (only `connector_apps.id` stops being a singleton).
 
-### Q2 — Migração das 4 linhas existentes
+### Q2 — Migration of the 4 existing rows
 
-**Decision: Option A — 1-shot SQL migration no boot.**
-
-Rationale:
-- Single user with 4 known rows. Migration roda 1× no boot do worker, never again.
-- Idempotente: checa se a linha em `connector_apps` já existe antes de inserir.
-- Risco real (migration tem bug) é mitigado pelo backup do `.db` em volume Docker (`workspace-<your-profile>`).
-- Lazy migration (Option B) duplicaria code paths permanentemente sem ganho real.
-- Re-install manual (Option C) é fricção operacional gratuita.
-
-### Q3 — Hot-reload do GitHubAppAuth
-
-**Decision: Option B — surgical mutations, 5 métodos**:
-- `addInstallation({name, id, envVar})` — append + mint inicial assíncrono
-- `removeInstallation(name)` — drop, limpa cache, `delete process.env[envVar]`
-- `renameInstallation(name, oldEnvVar, newEnvVar)` — preserva cache, só re-aliases env var
-- `rotatePem(newPem)` — substitui chave em memória, invalida TODOS os caches
-- `appUninstall()` — tear down completo (cache, env vars, refresh interval)
+**Decision: Option A — 1-shot SQL migration at boot.**
 
 Rationale:
-- Cada método tem semântica clara → testes isolados são naturais (cobre brechas 21+22)
-- Preserva cache em mutations que não invalidam tokens (rename de env_var)
-- Full reload (Option A) perde cache desnecessariamente
-- Polling DB (Option C) tem latency baseline ruim e wasteful
-- Roteamento dos handlers para os métodos é explícito no callsite (cada handler chama o método específico)
+- Single user with 4 known rows. Migration runs 1× on worker boot, never again.
+- Idempotent: checks if the row in `connector_apps` already exists before inserting.
+- Real risk (migration has a bug) is mitigated by the `.db` backup in the Docker volume (`workspace-<your-profile>`).
+- Lazy migration (Option B) would permanently duplicate code paths with no real gain.
+- Manual re-install (Option C) is gratuitous operational friction.
 
-### Q4 — Cobertura de testes
+### Q3 — Hot-reload of GitHubAppAuth
 
-**Decision: Option C — Unit + integration + e2e com GitHub API real.**
+**Decision: Option B — surgical mutations, 5 methods**:
+- `addInstallation({name, id, envVar})` — append + async initial mint
+- `removeInstallation(name)` — drop, clears cache, `delete process.env[envVar]`
+- `renameInstallation(name, oldEnvVar, newEnvVar)` — preserves cache, only re-aliases env var
+- `rotatePem(newPem)` — replaces key in memory, invalidates ALL caches
+- `appUninstall()` — full tear down (cache, env vars, refresh interval)
 
 Rationale:
-- Spec 0042 shippado SEM testes para o intercept ou install endpoint — gap real reconhecido pelo usuário.
-- Unit only (Option A) perde bugs de wiring (handler → GitHubAppAuth).
-- Unit+integration (Option B) cobre realistic surface mas perde contract bugs com a GitHub API.
-- C catches API breaking changes (raros mas reais — GitHub mudou shapes em 2022).
-- Trade-off da C aceito: 1-2 testes flaky em CI (network, secrets). Mitigação: tag `@live` que pode ser pulado em CI ofuscado e rodado manualmente em pre-release.
+- Each method has clear semantics → isolated tests are natural (covers gaps 21+22)
+- Preserves cache in mutations that don't invalidate tokens (env_var rename)
+- Full reload (Option A) loses cache unnecessarily
+- DB polling (Option C) has bad baseline latency and is wasteful
+- Routing of handlers to methods is explicit at the callsite (each handler calls the specific method)
 
-### Q5 — JWT signing + GitHub API client: onde mora?
+### Q4 — Test coverage
+
+**Decision: Option C — Unit + integration + e2e with real GitHub API.**
+
+Rationale:
+- Spec 0042 shipped WITHOUT tests for the intercept or install endpoint — real gap acknowledged by the user.
+- Unit only (Option A) misses wiring bugs (handler → GitHubAppAuth).
+- Unit+integration (Option B) covers realistic surface but misses contract bugs with the GitHub API.
+- C catches API breaking changes (rare but real — GitHub changed shapes in 2022).
+- C trade-off accepted: 1-2 flaky tests in CI (network, secrets). Mitigation: `@live` tag that can be skipped in obfuscated CI and run manually pre-release.
+
+### Q5 — JWT signing + GitHub API client: where does it live?
 
 **Decision: Option B — extract to `packages/github-app/`.**
 
 Rationale:
-- Single source of truth (worker + api precisam dos mesmos building blocks).
-- `GitHubAppAuth` (worker) vira wrapper stateful em cima de funções stateless da package.
-- Padrão já estabelecido no monorepo (`mcp-discover`, `storage`, `logger`).
-- Testes centralizam num único set de mock-fetch.
-- Duplicate (Option A) eventualmente diverge.
-- Cross-process (Option C) é overengineering pra single-process scenario.
+- Single source of truth (worker + api need the same building blocks).
+- `GitHubAppAuth` (worker) becomes a stateful wrapper on top of stateless functions from the package.
+- Pattern already established in the monorepo (`mcp-discover`, `storage`, `logger`).
+- Tests centralized in a single mock-fetch set.
+- Duplicate (Option A) eventually diverges.
+- Cross-process (Option C) is overengineering for a single-process scenario.
 
 ## Context
 

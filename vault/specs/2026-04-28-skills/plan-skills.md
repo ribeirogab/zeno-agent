@@ -9,20 +9,20 @@ created: 2026-04-28
 
 ## Approach
 
-Quatro fases sequenciais, cada uma terminando em typecheck/test verde + commit independente. Phase ordering chosen pra desbloquear stack-de-baixo-pra-cima e isolar a discovery em Phase B (que é a única zona de incerteza técnica, atrelada ao comportamento do Claude Agent SDK):
+Four sequential phases, each ending in a green typecheck/test + an independent commit. Phase ordering chosen to unblock the stack bottom-up and isolate the discovery work in Phase B (the only zone of technical uncertainty, tied to Claude Agent SDK behavior):
 
-- **Phase A — Storage layer** (DB migration + 3 repos + types). Schema é a interface entre worker e API; sai primeiro pra travar o contrato. Um único commit cobre `migrations.ts` + 3 repos + 3 test files. Sem risco — todas as decisões de schema já foram tomadas.
-- **Phase B — Worker runtime**. Subdividido em 3 sub-phases:
-  - **B.0 (gate-zero)**: validação empírica do auto-discovery do SDK. Decisão binária Path A (SDK auto-descobre `~/.claude/skills/`) vs Path B (tools custom `mcp__zeno__list_skills` + `read_skill`). Resultado em commit message + nota inline em `mcp-build.ts`.
+- **Phase A — Storage layer** (DB migration + 3 repos + types). The schema is the interface between worker and API; it ships first to lock down the contract. A single commit covers `migrations.ts` + 3 repos + 3 test files. No risk — all schema decisions have already been made.
+- **Phase B — Worker runtime**. Subdivided into 3 sub-phases:
+  - **B.0 (gate-zero)**: empirical validation of the SDK's auto-discovery. Binary decision Path A (SDK auto-discovers `~/.claude/skills/`) vs Path B (custom tools `mcp__zeno__list_skills` + `read_skill`). Result captured in the commit message + an inline note in `mcp-build.ts`.
   - **B.1**: SkillsMaterializer (DB → FS) + ProfileWatcher integration (`onSkillsChanged` → AgentCore reload).
-  - **B.2**: Capabilities-aware gate. `connector-permission.ts` ganha consulta a `AgentCapabilityRepo.isEnabled(toolName)` no branch non-MCP (substitui o hardblock).
-  - **B.3**: Pre-tool-use hook injection. Hook detecta `mcp__<slug>__*`, busca skills linkadas via `ConnectorSkillRepo.listForConnector(slug)`, injeta bodies como `additionalContext` (campo SDK exato a ser confirmado em sub-task explícita antes de codar).
-- **Phase C — API + Dashboard** (Paper-first). Subdividido em:
+  - **B.2**: Capabilities-aware gate. `connector-permission.ts` gains a lookup against `AgentCapabilityRepo.isEnabled(toolName)` in the non-MCP branch (replaces the hardblock).
+  - **B.3**: Pre-tool-use hook injection. The hook detects `mcp__<slug>__*`, fetches linked skills via `ConnectorSkillRepo.listForConnector(slug)`, and injects bodies as `additionalContext` (exact SDK field to be confirmed in an explicit sub-task before coding).
+- **Phase C — API + Dashboard** (Paper-first). Subdivided into:
   - **C.1**: API endpoints — `/api/skills` CRUD + `/api/skills/download[-all]` + `/api/connectors/:id/skills` + `/api/agent-capabilities` GET/PATCH.
-  - **C.2**: Frontmatter parser — valida `name` + `description`. Ignora silenciosamente `allowed-tools` (campo legacy de skills.sh).
-  - **C.3**: `apps/design` twin — implementa SET1, S1/S2/S3, modais, linked-skills section. Regra **3-clean-reviews por tela contra Paper** aplica.
-  - **C.4**: `apps/dashboard` — espelha `apps/design`. Zero divergência visual.
-- **Phase D — Quality gate + Docker boot + 3-round review por phase + final batch + push + PR**. Cada phase (A, B, C) já termina com 3-round review antes de avançar. Após Phase D, mais 3 rounds sobre o batch completo.
+  - **C.2**: Frontmatter parser — validates `name` + `description`. Silently ignores `allowed-tools` (legacy field from skills.sh).
+  - **C.3**: `apps/design` twin — implements SET1, S1/S2/S3, modals, linked-skills section. The **3-clean-reviews per screen against Paper** rule applies.
+  - **C.4**: `apps/dashboard` — mirrors `apps/design`. Zero visual divergence.
+- **Phase D — Quality gate + Docker boot + 3-round review per phase + final batch + push + PR**. Each phase (A, B, C) already ends with a 3-round review before moving on. After Phase D, 3 more rounds over the complete batch.
 
 ## Architecture
 
@@ -177,10 +177,10 @@ Each commit ends in a green typecheck (`pnpm run typecheck`) for the affected wo
 
 | Risk | Decision |
 |---|---|
-| Claude Agent SDK não auto-descobre `~/.claude/skills/`. Phase B fica em Path B (tools custom). | B.0 gate-zero é a primeira sub-phase — não passa pra B.1 sem a decisão fechada. Path B já tem contrato definido em `[[spec-skills]]` (tools `mcp__zeno__list_skills` + `read_skill`). Se cair em Path B, B.1+ assume esse path consistentemente. |
-| `additionalContext` (ou nome equivalente) não existe na SDK do jeito que assumimos. Hook injection (B.3) trava. | B.3 começa com sub-task explícita: ler tipos do `@anthropic-ai/claude-agent-sdk` ou rodar smoke test do hook isolado pra descobrir o shape correto do return. Se o campo não existe, alternativas: retornar mensagem `user` sintética via outro mecanismo (ex: chamada do agent.send antes do tool), OU registrar a skill content como mensagem normal antes da query. Sub-task termina com **decisão documentada inline em `connector-gated-backend.ts`**. |
-| Watcher race-condition: edit no dashboard escreve DB + materializa FS, watcher dispara, AgentCore tá no meio de query. | ProfileWatcher já tem debounce 50ms. AgentCore reload é graceful (espera turno terminar antes de pegar nova config). Padrão idêntico ao SOUL.md hoje. |
-| Token explosion em turnos com muitos calls do mesmo connector. | Cache do hook é por turn_id + slug → injeta UMA vez por turno por connector, mesmo se a tool do connector é chamada 10 vezes. Per spec Risks. |
-| Operator habilita Bash globalmente, esquece, instala skill maliciosa que usa Bash. | Aceitação: threat model é single-operator self-hosted. Banner pink "SHELL ACCESS ENABLED" no settings page (Paper artboard SET1) é o lembrete principal. Per-skill sandbox runtime é Non-Goal de v1. |
-| Migration 11 em DB legado: skill table novas + capability seeds com tool list que pode mudar em SDKs futuras. | `INSERT OR IGNORE` para seeds preserva idempotência. Tool nova que aparece num SDK update sem migration: gate denega por default (não está em `agent_capabilities`) → comportamento safe. Operator pode requisitar nova migration pra liberar. |
-| Paper-first workflow exige aprovação operador antes de implementação. | Já cumprido — 11 artboards aprovados em `2026-04-28` (S1, S2, S3, C-skill-1, SET1, M-skill-1, M-skill-1b, M-skill-2, M-skill-4, M-skill-5). Phase C.3 só inicia depois desse OK explícito. |
+| The Claude Agent SDK does not auto-discover `~/.claude/skills/`. Phase B falls back to Path B (custom tools). | B.0 gate-zero is the first sub-phase — it does not advance to B.1 without the decision locked in. Path B already has a contract defined in `[[spec-skills]]` (tools `mcp__zeno__list_skills` + `read_skill`). If Path B is chosen, B.1+ commits to that path consistently. |
+| `additionalContext` (or an equivalent name) does not exist in the SDK the way we assumed. Hook injection (B.3) gets stuck. | B.3 starts with an explicit sub-task: read types from `@anthropic-ai/claude-agent-sdk` or run an isolated smoke test of the hook to discover the correct return shape. If the field does not exist, alternatives: return a synthetic `user` message via another mechanism (e.g., calling agent.send before the tool), OR register the skill content as a normal message before the query. The sub-task ends with **a decision documented inline in `connector-gated-backend.ts`**. |
+| Watcher race-condition: an edit in the dashboard writes to the DB + materializes the FS, the watcher fires while AgentCore is mid-query. | ProfileWatcher already debounces 50ms. AgentCore reload is graceful (waits for the turn to finish before picking up new config). Identical pattern to SOUL.md today. |
+| Token explosion in turns with many calls to the same connector. | Hook cache is keyed by turn_id + slug → injected ONCE per turn per connector, even if the connector's tool is called 10 times. Per spec Risks. |
+| The operator enables Bash globally, forgets, and installs a malicious skill that uses Bash. | Acceptance: threat model is single-operator self-hosted. A pink "SHELL ACCESS ENABLED" banner on the settings page (Paper artboard SET1) is the primary reminder. Per-skill sandbox runtime is a Non-Goal of v1. |
+| Migration 11 on a legacy DB: new skill tables + capability seeds with a tool list that may change in future SDKs. | `INSERT OR IGNORE` for seeds preserves idempotence. A new tool that appears in an SDK update without a migration: the gate denies by default (it is not in `agent_capabilities`) → safe behavior. The operator can request a new migration to enable it. |
+| Paper-first workflow requires operator approval before implementation. | Already satisfied — 11 artboards approved on `2026-04-28` (S1, S2, S3, C-skill-1, SET1, M-skill-1, M-skill-1b, M-skill-2, M-skill-4, M-skill-5). Phase C.3 only starts after this explicit OK. |

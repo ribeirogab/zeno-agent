@@ -5,7 +5,7 @@ updated: 2026-05-04
 ---
 # Backlog — ideas, not specs
 
-Running list of things that came up but don't justify a spec yet. Each item should be promoted to `context/specs/NNNN-name/` when (a) the underlying problem is felt in real use, or (b) the scope stops being "nice-to-have" and becomes "blocking something".
+Running list of things that came up but don't justify a spec yet. Each item should be promoted to `vault/specs/NNNN-name/` when (a) the underlying problem is felt in real use, or (b) the scope stops being "nice-to-have" and becomes "blocking something".
 
 Don't build from this file directly. Use it to remember what was discussed and what to watch for.
 
@@ -15,7 +15,7 @@ The **Active roadmap** section below is the exception — that's the committed s
 
 ## Active roadmap — committed sprint (2026-04-29, last update 2026-04-29 post-cutover)
 
-11 specs, in execution order. Each ships independently. Later specs depend on earlier ones (dep column). Promote each to `context/specs/NNNN-<slug>/` when work starts.
+11 specs, in execution order. Each ships independently. Later specs depend on earlier ones (dep column). Promote each to `vault/specs/NNNN-<slug>/` when work starts.
 
 | Order | Spec # | Title | Items covered | Size | Dep | Notes |
 |---|---|---|---|---|---|---|
@@ -105,7 +105,7 @@ The **Active roadmap** section below is the exception — that's the committed s
 1. Both Claude + Codex enabled + active (Claude #1, Codex #2).
 2. Only Claude enabled (Codex disabled or not configured).
 3. Only Codex enabled (Claude disabled).
-4. Both disabled — warning banner: "agente parado, habilita um backend".
+4. Both disabled — warning banner: "agent stopped, enable a backend".
 5. Only Codex configured + enabled (Claude not configured at all).
 
 Plus the reorder interaction (drag handle hover state) and the full "Configure Codex" modal flow (auth field schema, auto-flow if applicable, verification handshake).

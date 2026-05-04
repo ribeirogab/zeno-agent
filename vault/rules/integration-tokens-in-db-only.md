@@ -12,7 +12,7 @@ Tokens de integração externa (Sentry, Linear, Notion, GitHub MCP, Cloudflare, 
 
 O agent tem acesso a `Bash` por padrão (constitution: "Zero custom tools by default. Capabilities come from Claude Code's built-in toolset"). Tudo que entra em `process.env` do worker é visível pelo agent via `env | grep` + chamável via `curl`.
 
-Isso significa: se você deixou um `INTEGRATION_TOKEN` no `.env` ao mesmo tempo em que tem o connector instalado, **o toggle "disable" do connector vira mentira**. Disable corta a via MCP, mas o agent encontra o token no env, abre Bash, e bate direto na REST API. Foi exatamente o que aconteceu com Sentry no profile fn em 2026-04-26 (logs preservados — agent rodou `curl https://us.sentry.io/api/0/projects/flavia-nasser/worker/issues/ -H "Authorization: Bearer $SENTRY_AUTH_TOKEN"` mesmo com o connector OFF).
+Isso significa: se você deixou um `INTEGRATION_TOKEN` no `.env` ao mesmo tempo em que tem o connector instalado, **o toggle "disable" do connector vira mentira**. Disable corta a via MCP, mas o agent encontra o token no env, abre Bash, e bate direto na REST API. Foi exatamente o que aconteceu com Sentry em produção em 2026-04-26 (logs preservados — agent rodou `curl https://us.sentry.io/api/0/projects/<org>/worker/issues/ -H "Authorization: Bearer $SENTRY_AUTH_TOKEN"` mesmo com o connector OFF).
 
 A toggle precisa ser uma **promessa forte**: clicou disable → Zeno perde a credencial → Zeno não consegue acessar a integração. Pra essa promessa segurar, a credencial **só pode existir em um lugar que a toggle controla**: a DB do connector.
 
@@ -23,7 +23,7 @@ A toggle precisa ser uma **promessa forte**: clicou disable → Zeno perde a cre
 - **`ZENO_MASTER_KEY`** (spec 0071) — 32-byte master key for envelope encryption of every DB credential. Itself an env-only secret because it has to bootstrap before any DB read.
 - **Runtime config** (`LOG_LEVEL`, `WORKSPACE_DIR`, `PROFILE`).
 - **GitHub PAT pessoal** (`GH_TOKEN`) — usado por `dev-workflow`/`code-review` skills via `gh` CLI. Esses skills NÃO têm connector equivalente hoje. Quando virar connector (`@modelcontextprotocol/server-github`), aplicar a regra.
-- **GitHub App tokens** (`ACME_GH_TOKEN`, `QS_GH_TOKEN`, etc.) — gerados em runtime pelo bootstrap do `github_app` (não vêm do `.env`); ficam em `process.env` durante o turn. Idealmente migram pra connector também, mas isso é spec própria.
+- **GitHub App tokens** (per-installation, e.g. `<ORG>_GH_TOKEN`) — gerados em runtime pelo bootstrap do `github_app` (não vêm do `.env`); ficam em `process.env` durante o turn. Idealmente migram pra connector também, mas isso é spec própria.
 
 ## O que muda quando essa regra é violada
 
@@ -45,6 +45,5 @@ Quando adicionar nova integração via connector:
 - [`learnings/channel-vs-connector.md`](../learnings/channel-vs-connector.md) — distinção original entre Channel (transport) e Connector (tool surface). Note: spec 0058 unificou Slack como `kind='channel'` connector na mesma DB; Telegram/WPP futuros seguem o mesmo padrão.
 - [`learnings/channel-as-connector-cutover.md`](../learnings/channel-as-connector-cutover.md) — playbook + observações da migração que removeu a "exceção Slack" desta regra.
 - [`specs/2026-04-29-slack-channel/spec.md`](../specs/2026-04-29-slack-channel/spec.md) — código que viabilizou a migração.
-- [`specs/2026-04-29-fn-cutover-channel/spec.md`](../specs/2026-04-29-fn-cutover-channel/spec.md) — cutover live de `profiles/fn` + cleanup do `.env` fallback.
 - [`specs/2026-04-26-connectors-dashboard/spec.md`](../specs/2026-04-26-connectors-dashboard/spec.md) — onde a infraestrutura DB-first do connector secrets vive.
 - Constitution §Architecture principles — "Zero custom tools by default" (justifica por que Bash sempre disponível ao agent).

@@ -486,7 +486,7 @@ DROP TABLE _spec0053_cs_backup;
   },
   {
     id: 15,
-    name: "spec 0053 follow-up — seed `Skill` capability enabled-by-default. The `Skill` tool is the Claude Code harness mechanism for invoking a skill (loading its SKILL.md body into context); without it the SDK's auto-discovery may fall back to explicit `Skill` calls which our gate denies, leaving the agent to act without the skill content. Same rationale as ToolSearch (migration 12): harness internals, not a real capability — actual tool calls still pass the gate. Operators can disable in /settings if they want strict harness lockdown. Without this, every fn-code-review test produced free-form output (## Review headers, emojis, praise) because the skill body never reached context.",
+    name: "spec 0053 follow-up — seed `Skill` capability enabled-by-default. The `Skill` tool is the Claude Code harness mechanism for invoking a skill (loading its SKILL.md body into context); without it the SDK's auto-discovery may fall back to explicit `Skill` calls which our gate denies, leaving the agent to act without the skill content. Same rationale as ToolSearch (migration 12): harness internals, not a real capability — actual tool calls still pass the gate. Operators can disable in /settings if they want strict harness lockdown. Without this, every code-review test produced free-form output (## Review headers, emojis, praise) because the skill body never reached context.",
     sql: `
 INSERT OR IGNORE INTO agent_capabilities (tool_name, enabled) VALUES
   ('Skill', 1);

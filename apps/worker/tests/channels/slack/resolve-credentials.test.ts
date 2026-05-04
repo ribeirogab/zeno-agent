@@ -5,10 +5,10 @@ import { resolveSlackCredentials } from '@/channels/slack/resolve-credentials';
 
 /**
  * Spec 0058: 4-row resolution table (the .env fallback path was removed after
- * profiles/fn cut over to DB-only credentials). Tests use REAL ConnectorRepo
- * against in-memory SQLite — no mocks. This matches the existing repo test
- * pattern and keeps the resolver tests honest (real SQL constraints exercised
- * end-to-end).
+ * the operator's profile cut over to DB-only credentials). Tests use REAL
+ * ConnectorRepo against in-memory SQLite — no mocks. This matches the existing
+ * repo test pattern and keeps the resolver tests honest (real SQL constraints
+ * exercised end-to-end).
  */
 
 const logger = createLogger({ service: 'test' });

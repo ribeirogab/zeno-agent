@@ -9,9 +9,9 @@ created: 2026-04-16
 ---
 # Generated / temporary files go under `tmp/`
 
-Every file an agent produces that is **not part of the codebase** — screenshots, debug scripts, scratch notes, dumps, log captures, browser session output, manual test artifacts, anything the user didn't explicitly ask to commit — goes under `/Users/operator/www/agents/<redacted>/<redacted>/tmp/` (gitignored).
+Every file an agent produces that is **not part of the codebase** — screenshots, debug scripts, scratch notes, dumps, log captures, browser session output, manual test artifacts, anything the user didn't explicitly ask to commit — goes under `tmp/` (gitignored, at the repo root).
 
-Never drop temp files at the repo root or inside `src/`, `apps/`, `packages/`, `infra/`, `context/`, `profiles/`, `agent/`, or `.claude/`.
+Never drop temp files at the repo root or inside `src/`, `apps/`, `packages/`, `infra/`, `vault/`, `profiles/`, `agent/`, or `.claude/`.
 
 ## Why
 
@@ -35,4 +35,4 @@ Sub-folders by concern (create as needed):
 
 **For any tool that writes to CWD with a configurable path:** prepend `tmp/<concern>/`.
 
-**For documents the user asked to commit:** those belong in their proper home (`context/`, `apps/`, `packages/`, etc), not in `tmp/`. When in doubt, ask.
+**For documents the user asked to commit:** those belong in their proper home (`vault/`, `apps/`, `packages/`, etc), not in `tmp/`. When in doubt, ask.

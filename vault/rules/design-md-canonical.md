@@ -39,7 +39,7 @@ The npm dep is `version: alpha`. If a future release breaks the format incompati
 1. Drop `@google/design.md` from `package.json` devDeps.
 2. Drop the `design:*` scripts.
 3. Keep `DESIGN.md` itself unchanged — it remains a useful plain-markdown spec.
-4. Update `context/conventions/design-md-format.md` to note the vendored format is now authoritative.
+4. Update `vault/conventions/design-md-format.md` to note the vendored format is now authoritative.
 
 ## Out of scope
 

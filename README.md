@@ -31,7 +31,7 @@ zeno-agent/
 │       └── config.example.yaml # crons + config template
 ├── apps/                     # worker + api + dashboard
 ├── packages/                 # @zeno/storage + @zeno/logger + @zeno/ui + @zeno/github-app + @zeno/mcp-discover
-├── context/                  # maintainer knowledge vault (NOT in container)
+├── vault/                  # maintainer knowledge vault (NOT in container)
 └── infra/                    # Dockerfile, docker-compose, entrypoint, docker.sh
 ```
 
@@ -151,7 +151,7 @@ Profiles are fully isolated — the work container cannot see personal credentia
 - **Agent identity** (`agent/`) — `SOUL.md` (system prompt) + `mcp.json` (built-in MCPs the runtime always exposes) + `connectors-catalog.json` (curated connectors the dashboard installs from). Shared across all profiles.
 - **Profile** (`profiles/<name>/`) — `.env` + `USER.md` + `config.yaml`. One per context (personal, work, etc.), mounted read-only into the container.
 
-Full spec: `context/specs/0001-slack-zeno-mvp/`. For the connectors-only positioning, see `context/specs/0049-zeno-redefinition/spec.md` and `context/learnings/connectors-only-pivot.md`.
+Full spec: `vault/specs/0001-slack-zeno-mvp/`. For the connectors-only positioning, see `vault/specs/0049-zeno-redefinition/spec.md` and `vault/learnings/connectors-only-pivot.md`.
 
 ## Development
 

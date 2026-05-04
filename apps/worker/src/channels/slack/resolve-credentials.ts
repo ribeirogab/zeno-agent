@@ -14,8 +14,9 @@ import type { ConnectorRepo } from '@zeno/storage';
  * Synchronous because better-sqlite3 is synchronous.
  *
  * Spec 0057's `env_fallback` path (cases 3 + 5 of the old table) is gone —
- * `profiles/fn` cut over to DB-only credentials in spec 0058 and the fallback
- * code became unreachable. New profiles MUST install Slack via dashboard.
+ * the operator's profile cut over to DB-only credentials in spec 0058 and
+ * the fallback code became unreachable. New profiles MUST install Slack via
+ * dashboard.
  */
 
 export interface SlackCredentialsResolverDeps {

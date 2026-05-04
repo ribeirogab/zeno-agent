@@ -153,7 +153,7 @@ describe('ProfileWatcher', () => {
   });
 
   it('routes profile/skills/<n>/SKILL.md edits to onSkillsChanged', async () => {
-    mkdirSync(join(workdir, 'profile', 'skills', 'fn-code-review'), { recursive: true });
+    mkdirSync(join(workdir, 'profile', 'skills', 'code-review'), { recursive: true });
     const onSkillsChanged = vi.fn();
     const watcher = new ProfileWatcher({
       onPromptFilesChanged: vi.fn(),
@@ -165,8 +165,8 @@ describe('ProfileWatcher', () => {
     await wait(50);
 
     writeFileSync(
-      join(workdir, 'profile', 'skills', 'fn-code-review', 'SKILL.md'),
-      '---\nname: fn-code-review\ndescription: d\n---\nbody',
+      join(workdir, 'profile', 'skills', 'code-review', 'SKILL.md'),
+      '---\nname: code-review\ndescription: d\n---\nbody',
       'utf8',
     );
 
@@ -184,8 +184,8 @@ describe('ProfileWatcher', () => {
     });
 
     it('returns "skills" when source=profile and filename starts with "skills/"', () => {
-      expect(classify('profile', 'skills/fn-code-review/SKILL.md')).toBe('skills');
-      expect(classify('profile', 'skills/fn-code-review/references/foo.md')).toBe('skills');
+      expect(classify('profile', 'skills/code-review/SKILL.md')).toBe('skills');
+      expect(classify('profile', 'skills/code-review/references/foo.md')).toBe('skills');
     });
 
     it('returns "skills" for any filename when source=skills', () => {

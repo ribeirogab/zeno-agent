@@ -185,7 +185,7 @@ describe('CronRunner injection (spec 0054)', () => {
       source: 'chat',
     });
     const skill = seedSkillWithBody({
-      name: 'fn-flow',
+      name: 'demo-flow',
       description: 'd',
       body: 'BODY-CONTENT',
     });
@@ -196,7 +196,7 @@ describe('CronRunner injection (spec 0054)', () => {
     const userMessage = backend.capturedQueries[0]?.userMessage ?? '';
     expect(userMessage).toContain('[zeno_context]');
     expect(userMessage).toContain('linked_skills:');
-    expect(userMessage).toContain('## fn-flow');
+    expect(userMessage).toContain('## demo-flow');
     expect(userMessage).toContain('BODY-CONTENT');
     expect(userMessage).toMatch(/\[\/zeno_context\]\n\ndo it$/);
     expect(backend.capturedCronOpts?.skillIds).toEqual([skill.id]);

@@ -92,7 +92,7 @@ describe('fetchInstallations', () => {
         },
         {
           id: 200,
-          account: { login: 'operator', type: 'User' },
+          account: { login: 'octocat', type: 'User' },
           permissions: { contents: 'read' },
           repository_selection: 'all',
         },

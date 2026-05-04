@@ -482,9 +482,9 @@ async function main(): Promise<void> {
   }
 
   // Spec 0058: resolve Slack creds via channel-connector DB row. The .env
-  // fallback path was removed in spec 0058 after profiles/fn cut over to
-  // DB-only credentials. Operators install Slack via dashboard at /connectors;
-  // the resolver throws hard on missing/empty installs.
+  // fallback path was removed in spec 0058 after the operator's profile cut
+  // over to DB-only credentials. Operators install Slack via dashboard at
+  // /connectors; the resolver throws hard on missing/empty installs.
   const slackCreds = resolveSlackCredentials({
     connectors,
     logger,

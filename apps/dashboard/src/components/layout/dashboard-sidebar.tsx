@@ -301,7 +301,7 @@ function StatusRow({
  * Spec 0066 A:
  * - Multi-word names ("Maria José", "John Doe") → first char of first
  *   word + first char of last word ("MJ", "JD").
- * - Single-word names → first 2 chars uppercased ("Operator" → "GA").
+ * - Single-word names → first 2 chars uppercased ("Alex" → "AL").
  * - Empty / undefined → fall back to first 2 chars of the slug.
  * - Anything else (numeric, symbols) is uppercased verbatim and sliced.
  */

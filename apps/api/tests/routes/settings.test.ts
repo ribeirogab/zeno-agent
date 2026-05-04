@@ -77,11 +77,11 @@ describe('GET /api/settings', () => {
   it('parses profile.name from USER.md frontmatter', async () => {
     writeFileSync(
       join(profileDir, 'USER.md'),
-      '---\nname: Operator\ngithub: octocat\n---\n\n# bio',
+      '---\nname: Alex\ngithub: alex-octocat\n---\n\n# bio',
     );
     const res = await makeApp(db).request('/api/settings', { headers: authed() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
-    expect(body.profile.name).toBe('Operator');
+    expect(body.profile.name).toBe('Alex');
     expect(body.profile.slug).toBe('default');
   });
 
@@ -100,23 +100,22 @@ describe('GET /api/settings', () => {
   });
 
   it('returns profile.name=null when frontmatter has no `name:` key', async () => {
-    writeFileSync(join(profileDir, 'USER.md'), '---\ngithub: octocat\n---\n\n# bio');
+    writeFileSync(join(profileDir, 'USER.md'), '---\ngithub: alex-octocat\n---\n\n# bio');
     const res = await makeApp(db).request('/api/settings', { headers: authed() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBeNull();
   });
 
-  // Spec 0066 A follow-up (PR #32): parse `**Name:** X` or `Name: X`
-  // from the markdown body when frontmatter is absent. Match the
-  // real-world fn profile shape.
+  // Parse `**Name:** X` or `Name: X` from the markdown body when
+  // frontmatter is absent. Matches the common per-team profile shape.
   it('parses profile.name from `**Name:** X` markdown body', async () => {
     writeFileSync(
       join(profileDir, 'USER.md'),
-      '# User\n\n## Identity\n\n- **Name:** Operator\n- **GitHub username:** `octocat`\n',
+      '# User\n\n## Identity\n\n- **Name:** Alex\n- **GitHub username:** `alex-octocat`\n',
     );
     const res = await makeApp(db).request('/api/settings', { headers: authed() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
-    expect(body.profile.name).toBe('Operator');
+    expect(body.profile.name).toBe('Alex');
   });
 
   it('parses profile.name from plain `Name: X` markdown line', async () => {
@@ -137,19 +136,19 @@ describe('GET /api/settings', () => {
   });
 
   it('strips trailing markdown emphasis from body name', async () => {
-    writeFileSync(join(profileDir, 'USER.md'), '# User\n\n**Name:** *Operator*\n');
+    writeFileSync(join(profileDir, 'USER.md'), '# User\n\n**Name:** *Alex*\n');
     const res = await makeApp(db).request('/api/settings', { headers: authed() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
-    expect(body.profile.name).toBe('Operator');
+    expect(body.profile.name).toBe('Alex');
   });
 
   it('reads profile.slug from ZENO_PROFILE env', async () => {
     const previous = process.env.ZENO_PROFILE;
-    process.env.ZENO_PROFILE = 'fn';
+    process.env.ZENO_PROFILE = 'work';
     try {
       const res = await makeApp(db).request('/api/settings', { headers: authed() });
       const body = (await res.json()) as { profile: { name: string | null; slug: string } };
-      expect(body.profile.slug).toBe('fn');
+      expect(body.profile.slug).toBe('work');
     } finally {
       if (previous === undefined) {
         delete process.env.ZENO_PROFILE;
@@ -170,14 +169,14 @@ describe('GET /api/settings', () => {
 // listing in GET /api/settings).
 describe('GET /api/settings/profile-files/USER.md', () => {
   it('returns the file content + mtime', async () => {
-    writeFileSync(join(profileDir, 'USER.md'), '---\nname: Operator\n---\n\n# Bio');
+    writeFileSync(join(profileDir, 'USER.md'), '---\nname: Alex\n---\n\n# Bio');
     const res = await makeApp(db).request('/api/settings/profile-files/USER.md', {
       headers: authed(),
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { path: string; content: string; bytes: number };
     expect(body.path).toBe('USER.md');
-    expect(body.content).toContain('name: Operator');
+    expect(body.content).toContain('name: Alex');
     expect(body.bytes).toBeGreaterThan(0);
   });
 
@@ -207,7 +206,7 @@ describe('PUT /api/settings/profile-files/USER.md', () => {
   }
 
   it('writes and returns mtime+content (200)', async () => {
-    const next = '---\nname: Operator (Gabe)\n---\n\nupdated bio.';
+    const next = '---\nname: Alex (Gabe)\n---\n\nupdated bio.';
     const res = await putUserMd(db, next);
     expect(res.status).toBe(200);
     const body = (await res.json()) as { path: string; content: string; mtime: string };

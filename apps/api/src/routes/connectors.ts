@@ -66,9 +66,9 @@ function slugify(displayName: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-// Spec 0042: lowercase + kebab-case for github-app installation names.
+// Lowercase + kebab-case for github-app installation names.
 // Different from slugify in that it doesn't first lowercase ASCII removal —
-// installation names are user-controlled (e.g., "AcmeBooks", "Flavia-Nasser-OMS")
+// installation names are user-controlled (e.g., "AcmeBooks", "Acme-Hosting")
 // and we want to preserve hyphens already present.
 function kebabLower(name: string): string {
   return name

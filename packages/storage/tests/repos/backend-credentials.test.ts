@@ -39,7 +39,7 @@ describe('BackendCredentialsRepo', () => {
 
   it('isolates rows across profiles (DEK isolation)', () => {
     repo.upsert({ backendId: 'claude-code', fieldName: 'oauth_token', value: 'sk-ant-default' });
-    const otherRepo = new BackendCredentialsRepo(db, { masterKey: MASTER_KEY, profileId: 'fn' });
+    const otherRepo = new BackendCredentialsRepo(db, { masterKey: MASTER_KEY, profileId: 'work' });
     expect(otherRepo.getValue('claude-code', 'oauth_token')).toBeNull();
   });
 

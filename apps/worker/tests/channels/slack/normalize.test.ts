@@ -11,7 +11,7 @@ describe('normalizeSlackEvent', () => {
       channel: 'C1',
       ts: '1710000000.000100',
       thread_ts: undefined,
-      text: '<@UBOT> quais repos tem na octocat?',
+      text: '<@UBOT> what repos are in acme-org?',
     };
     const message = normalizeSlackEvent(raw, BOT_USER_ID);
     expect(message).not.toBeNull();
@@ -20,7 +20,7 @@ describe('normalizeSlackEvent', () => {
     expect(message.userId).toBe('U1');
     expect(message.conversationId).toBe('C1');
     expect(message.threadId).toBe('1710000000.000100');
-    expect(message.text).toBe('quais repos tem na octocat?');
+    expect(message.text).toBe('what repos are in acme-org?');
     expect(message.messageRef).toBe('1710000000.000100');
     expect(message.correlationId).toMatch(/^[0-9a-f-]+$/);
   });
@@ -32,7 +32,7 @@ describe('normalizeSlackEvent', () => {
       channel: 'C1',
       ts: '1710000100.000200',
       thread_ts: '1710000000.000100',
-      text: '<@UBOT> segue aqui',
+      text: '<@UBOT> follow up here',
     };
     const message = normalizeSlackEvent(raw, BOT_USER_ID);
     expect(message?.threadId).toBe('1710000000.000100');
@@ -46,12 +46,12 @@ describe('normalizeSlackEvent', () => {
       user: 'U1',
       channel: 'D1',
       ts: '1710000000.000100',
-      text: 'oi',
+      text: 'hi',
     };
     const message = normalizeSlackEvent(raw, BOT_USER_ID);
     expect(message?.threadId).toBeNull();
     expect(message?.conversationId).toBe('D1');
-    expect(message?.text).toBe('oi');
+    expect(message?.text).toBe('hi');
   });
 
   it('returns null for bot messages (to avoid loops)', () => {

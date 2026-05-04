@@ -28,7 +28,7 @@ describe('BackendSettingsRepo', () => {
 
   it('isolates rows across profiles', () => {
     repo.set('active_backend_id', 'claude-code');
-    const otherProfile = new BackendSettingsRepo(db, 'fn');
+    const otherProfile = new BackendSettingsRepo(db, 'work');
     expect(otherProfile.get('active_backend_id')).toBeNull();
     closeDatabase(db);
   });

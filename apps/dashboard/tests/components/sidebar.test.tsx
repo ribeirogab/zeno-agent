@@ -49,7 +49,7 @@ describe('<DashboardSidebar>', () => {
   });
 
   it('renders 6 nav items in lowercase (spec 0066 B: no sessions, no logs)', () => {
-    useSettingsMock.mockReturnValue(settingsResult({ name: 'Operator', slug: 'fn' }));
+    useSettingsMock.mockReturnValue(settingsResult({ name: 'Alex', slug: 'work' }));
     render(<DashboardSidebar />);
     expect(screen.getByText('home')).toBeDefined();
     expect(screen.getByText('crons')).toBeDefined();
@@ -60,18 +60,18 @@ describe('<DashboardSidebar>', () => {
   });
 
   it('does not render "sessions" or "logs" nav items (spec 0066 B + follow-up)', () => {
-    useSettingsMock.mockReturnValue(settingsResult({ name: 'Operator', slug: 'fn' }));
+    useSettingsMock.mockReturnValue(settingsResult({ name: 'Alex', slug: 'work' }));
     render(<DashboardSidebar />);
     expect(screen.queryByText('sessions')).toBeNull();
     expect(screen.queryByText('logs')).toBeNull();
   });
 
   it('renders the user row from USER.md name + slug (spec 0066 A)', () => {
-    useSettingsMock.mockReturnValue(settingsResult({ name: 'Operator', slug: 'fn' }));
+    useSettingsMock.mockReturnValue(settingsResult({ name: 'Alex', slug: 'work' }));
     render(<DashboardSidebar />);
-    expect(screen.getByText('Operator')).toBeDefined();
-    expect(screen.getByText('fn · profile')).toBeDefined();
-    expect(screen.getByText('GA')).toBeDefined();
+    expect(screen.getByText('Alex')).toBeDefined();
+    expect(screen.getByText('work · profile')).toBeDefined();
+    expect(screen.getByText('AL')).toBeDefined();
   });
 
   it('falls back to slug when USER.md has no name (spec 0066 A)', () => {
@@ -90,7 +90,7 @@ describe('<DashboardSidebar>', () => {
   });
 
   it('renders the runtime status panel with backend·claude-code and uptime', () => {
-    useSettingsMock.mockReturnValue(settingsResult({ name: 'Operator', slug: 'fn' }));
+    useSettingsMock.mockReturnValue(settingsResult({ name: 'Alex', slug: 'work' }));
     render(<DashboardSidebar />);
     expect(screen.getByText('runtime')).toBeDefined();
     expect(screen.getByText('claude-code')).toBeDefined();
@@ -101,23 +101,23 @@ describe('<DashboardSidebar>', () => {
 
 describe('deriveInitials (spec 0066 A)', () => {
   it('first+last char for multi-word names', () => {
-    expect(deriveInitials('Maria José', 'fn')).toBe('MJ');
-    expect(deriveInitials('John Doe', 'fn')).toBe('JD');
-    expect(deriveInitials('Ana Lúcia Silva', 'fn')).toBe('AS');
+    expect(deriveInitials('Maria José', 'work')).toBe('MJ');
+    expect(deriveInitials('John Doe', 'work')).toBe('JD');
+    expect(deriveInitials('Ana Lúcia Silva', 'work')).toBe('AS');
   });
 
   it('first 2 chars for single-word names', () => {
-    expect(deriveInitials('Operator', 'fn')).toBe('GA');
+    expect(deriveInitials('Alex', 'work')).toBe('AL');
     expect(deriveInitials('alex', 'default')).toBe('AL');
   });
 
   it('falls back to slug when name is null/empty', () => {
     expect(deriveInitials(null, 'default')).toBe('DE');
-    expect(deriveInitials('', 'fn')).toBe('FN');
-    expect(deriveInitials('   ', 'fn')).toBe('FN');
+    expect(deriveInitials('', 'work')).toBe('WO');
+    expect(deriveInitials('   ', 'work')).toBe('WO');
   });
 
   it('handles single-char names by padding via slug-style slice', () => {
-    expect(deriveInitials('X', 'fn')).toBe('X');
+    expect(deriveInitials('X', 'work')).toBe('X');
   });
 });

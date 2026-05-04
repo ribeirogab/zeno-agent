@@ -119,7 +119,7 @@ describe('migrations: connectors (migration 5)', () => {
 
     // Valid slugs succeed
     expect(() => insertOk('linear')).not.toThrow();
-    expect(() => insertOk('fn-scrum')).not.toThrow();
+    expect(() => insertOk('acme-scrum')).not.toThrow();
     expect(() => insertOk('google-drive')).not.toThrow();
     expect(() => insertOk('a')).not.toThrow();
 
@@ -301,11 +301,11 @@ describe('migrations: github_app_v2_dedup (migration 6)', () => {
     db.prepare(
       `INSERT INTO connectors (id, slug, display_name, source, transport, app_id)
        VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run('c1', 'github-app-acme', 'GitHub acme', 'catalog', 'stdio', 'app-1');
+    ).run('c1', 'github-app-acmebooks', 'GitHub acmebooks', 'catalog', 'stdio', 'app-1');
     db.prepare(
       `INSERT INTO connectors (id, slug, display_name, source, transport, app_id)
        VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run('c2', 'github-app-operator', 'GitHub operator', 'catalog', 'stdio', 'app-1');
+    ).run('c2', 'github-app-acme', 'GitHub acme', 'catalog', 'stdio', 'app-1');
     db.prepare(
       `INSERT INTO connectors (id, slug, display_name, source, transport)
        VALUES (?, ?, ?, ?, ?)`,
@@ -331,22 +331,10 @@ describe('migrations: github_app_v2_dedup (migration 6)', () => {
     // rows. We're simulating the data state at the moment migration 6 ran.
     const seed = db.transaction(() => {
       const connectors = [
-        ['c1', 'github-app-acme', 'GitHub — FlaviaNasser', 'FlaviaNasser', 'inst-100'],
-        [
-          'c2',
-          'github-app-flavia-nasser-oms',
-          'GitHub — Flavia-Nasser-OMS',
-          'Flavia-Nasser-OMS',
-          'inst-200',
-        ],
-        ['c3', 'github-app-fnlivros', 'GitHub — AcmeBooks', 'AcmeBooks', 'inst-300'],
-        [
-          'c4',
-          'github-app-operator-hospedagem',
-          'GitHub — Operator-Hospedagem',
-          'Operator-Hospedagem',
-          'inst-400',
-        ],
+        ['c1', 'github-app-acmebooks', 'GitHub — AcmeBooks', 'AcmeBooks', 'inst-100'],
+        ['c2', 'github-app-acme-hosting', 'GitHub — Acme-Hosting', 'Acme-Hosting', 'inst-200'],
+        ['c3', 'github-app-acmecorp', 'GitHub — AcmeCorp', 'AcmeCorp', 'inst-300'],
+        ['c4', 'github-app-foo-hosting', 'GitHub — Foo-Hosting', 'Foo-Hosting', 'inst-400'],
       ];
       for (const [id, slug, displayName, instName, instId] of connectors) {
         db.prepare(

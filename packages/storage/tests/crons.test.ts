@@ -17,7 +17,7 @@ describe('CronRepo', () => {
     const created = repo.create({
       name: 'daily-hi',
       description: 'send hi every day',
-      prompt: 'mande oi pro Operator',
+      prompt: 'say hi to Alex',
       schedule: '0 9 * * *',
       source: 'chat',
       createdBy: 'U123',

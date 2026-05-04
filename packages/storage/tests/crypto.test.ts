@@ -3,7 +3,7 @@ import { decrypt, encrypt } from '../src/crypto';
 
 const MASTER_KEY = Buffer.from('a'.repeat(64), 'hex');
 const PROFILE_A = 'default';
-const PROFILE_B = 'fn';
+const PROFILE_B = 'work';
 
 describe('crypto', () => {
   it('round-trips plaintext', () => {

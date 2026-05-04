@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and discussions
+    url: https://github.com/ribeirogab/zeno-agent/discussions
+    about: Ask usage questions, share ideas, or chat with the community.
+  - name: Security vulnerability
+    url: https://github.com/ribeirogab/zeno-agent/security/advisories/new
+    about: Report a security vulnerability privately. Do not open a public issue.

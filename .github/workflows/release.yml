@@ -38,9 +38,23 @@ jobs:
         id: resolve
         run: |
           if [ -z "${{ inputs.version }}" ]; then
-            TAG="v$(date -u +%Y).$(date -u +%-m).$(date -u +%-d)"
+            BASE="v$(date -u +%Y).$(date -u +%-m).$(date -u +%-d)"
+            TAG="$BASE"
+            N=1
+            while git rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1; do
+              TAG="$BASE.$N"
+              N=$((N+1))
+              if [ $N -gt 99 ]; then
+                echo "::error::100 tags on $BASE already exist; pass an explicit version input." >&2
+                exit 1
+              fi
+            done
           else
             TAG="${{ inputs.version }}"
+            if git rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1; then
+              echo "::error::tag $TAG already exists; pick another version." >&2
+              exit 1
+            fi
           fi
           if [ -z "${{ inputs.title }}" ]; then
             TITLE="$TAG"

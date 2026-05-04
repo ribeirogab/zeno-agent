@@ -10,6 +10,8 @@ zeno-agent is a personal project maintained by a single operator (`@ribeirogab`)
 
 The project uses **CalVer** in the form `vYYYY.M.D` — year, month and day **without** zero-padding (e.g. `v2026.5.4`, not `v2026.05.04`). It does not use SemVer. There is no compatibility promise between tags. Tags are immutable: a published tag will never be moved or rewritten.
 
+If two releases ship on the same day, the second one auto-appends a counter — `v2026.5.4`, then `v2026.5.4.1`, `v2026.5.4.2`, and so on. The release workflow detects the collision and resolves it automatically when the version input is left empty. Passing an explicit `version` input that collides with an existing tag aborts the workflow.
+
 ## Release process
 
 Trunk-based:

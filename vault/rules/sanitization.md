@@ -71,6 +71,7 @@ Before every commit, the author (human or agent) self-audits the diff:
 ## Out of scope
 
 - **Git authorship metadata.** The author name and email on a commit are necessary attribution and out of this rule's scope. The repo's canonical remote URL (e.g. mentioned in onboarding prose) is treated the same way: it is the public address of the project, not a leaked identifier.
+- **The maintainer's public GitHub handle** as attribution. The handle (`ribeirogab`) is the same kind of public identifier as the canonical remote URL and the git author metadata; it is allowed in attribution contexts (shields.io BUILT BY badges, the Maintainership section of `GOVERNANCE.md`, references to the project's solo operator). The maintainer's real first name in narrative prose remains forbidden under category 1.
 - **Famous public OSS projects** as technical context (`@anthropic-ai/sdk`, `vitest`, `pnpm`, etc.) and **public SaaS vendor names** when used as integration targets (Sentry, Linear, Klaviyo, Notion, Slack, GitHub, etc.).
 - **Meta-references inside this rule and its spec.** This file's example column and the spec at `vault/specs/2026-05-04-oss-prep-sanitization/` document the rule by quoting categories abstractly. They do not need to be re-scrubbed against themselves.
 

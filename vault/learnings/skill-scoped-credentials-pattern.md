@@ -20,13 +20,13 @@ A skill can carry its own credentials (AWS keys, API tokens, private keys) as fi
 
 ## Context
 
-Implemented for the `acme` skill: AWS read-only credentials, GitHub App private key, and Terraform IaC all live inside `profiles/fn/skills/acme/`. The skill is entirely self-contained — clone the profile dir to a new machine and everything works.
+Implemented for an example operator skill (e.g. `acme`): AWS read-only credentials, GitHub App private key, and Terraform IaC all live inside `profiles/<example>/skills/acme/`. The skill is entirely self-contained — clone the profile dir to a new machine and everything works.
 
 ## How It Works
 
 Example layout:
 ```
-profiles/<name>/skills/acme/
+profiles/<name>/skills/<skill-name>/
 ├── SKILL.md                  # entrypoint — tells the agent how to auth
 ├── aws.md / github.md        # reference docs (progressive disclosure)
 ├── .aws/
@@ -41,9 +41,9 @@ profiles/<name>/skills/acme/
 
 The skill tells the agent to set env vars per-command:
 ```bash
-export AWS_CONFIG_FILE=/app/profile/skills/acme/.aws/config
-export AWS_SHARED_CREDENTIALS_FILE=/app/profile/skills/acme/.aws/credentials
-aws --profile fn sts get-caller-identity
+export AWS_CONFIG_FILE=/app/profile/skills/<skill-name>/.aws/config
+export AWS_SHARED_CREDENTIALS_FILE=/app/profile/skills/<skill-name>/.aws/credentials
+aws --profile acme sts get-caller-identity
 ```
 
 This avoids relying on the container's default `~/.aws/` (which other skills might own).

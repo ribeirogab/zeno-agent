@@ -13,17 +13,9 @@ profiles/default/*
 !profiles/default/USER.example.md
 !profiles/default/config.example.yaml
 
-# Spec 0053 — profile skills are file-seeded source of truth (boot
-# seeder reads them into the DB), so they MUST live in git. Each
-# profile that ships skills opts in explicitly here:
-#   !profiles/<name>/                 — un-ignore the dir
-#   profiles/<name>/*                 — re-ignore its top-level (.env, etc.)
-#   !profiles/<name>/skills/          — un-ignore the skills dir
-#   !profiles/<name>/skills/**        — un-ignore everything inside
-!profiles/fn/
-profiles/fn/*
-!profiles/fn/skills/
-!profiles/fn/skills/**
+# Profile skills live on disk and are seeded into the DB at boot;
+# they are intentionally not tracked in git. Profiles other than
+# `default` follow the `profiles/*/` rule above.
 
 # Profile-specific compose files (only default is committed)
 infra/docker-compose.*.yml

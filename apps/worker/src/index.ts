@@ -105,12 +105,11 @@ function buildBackend(logger: Logger, opts: BackendBuildOptions): AgentBackend {
   }
 }
 
-async function healthChecks(logger: Logger, config: Config): Promise<void> {
-  const ghResult = await run('gh', ['auth', 'status'], { GH_TOKEN: config.github.token });
-  if (ghResult.code !== 0) {
-    throw new Error(`gh auth failed: ${ghResult.err.slice(0, 200)}`);
-  }
-  logger.info({ event: 'github_auth_ok' }, 'gh CLI authenticated');
+async function healthChecks(logger: Logger, _config: Config): Promise<void> {
+  // Spec 0044: GitHub access lives in `connector_apps` (App installation
+  // tokens minted by app-auth.ts). The legacy `gh auth status` boot probe
+  // against a global GH_TOKEN PAT was removed — the App installation health
+  // is verified per-installation when the App is loaded from the DB.
 
   const claudeResult = await run('claude', ['--version']);
   if (claudeResult.code !== 0) {
@@ -281,24 +280,6 @@ async function main(): Promise<void> {
     return token ? { CLAUDE_CODE_OAUTH_TOKEN: token } : undefined;
   };
 
-  // Spec 0071: one-shot legacy import. If CLAUDE_CODE_OAUTH_TOKEN is in env
-  // (from the pre-0071 .env contract) AND no row exists yet, write it to DB
-  // and emit a one-time log. The dashboard surfaces a banner asking the
-  // operator to remove the env var. Subsequent boots see the row and skip.
-  if (
-    config.claude.legacyOauthToken &&
-    backendCredentials.getValue('claude-code', 'oauth_token') === null
-  ) {
-    backendCredentials.upsert({
-      backendId: 'claude-code',
-      fieldName: 'oauth_token',
-      value: config.claude.legacyOauthToken,
-    });
-    bootLogger.info(
-      { event: 'claude_token_imported_from_env_legacy' },
-      'imported CLAUDE_CODE_OAUTH_TOKEN from env to backend_credentials (one-shot)',
-    );
-  }
   const connectorApps = new ConnectorAppRepo(db);
   const skillRepo = new SkillRepo(db, {
     agentSkillsRoot,
@@ -396,10 +377,13 @@ async function main(): Promise<void> {
       : `agent capabilities enabled: ${enabledCaps.join(', ')}`,
   );
 
-  // GitHub App auth — generates installation tokens and sets env vars (ACME_GH_TOKEN, etc.)
-  // Spec 0044: read from connector_apps + connectors tables.
-  // The instance is mutable across the worker lifetime; lifecycle commands
-  // call the surgical mutations on this same instance.
+  // GitHub App auth — mints + caches installation tokens that the
+  // `mcp__github-app-*` MCP tools consume directly from the cache.
+  // Spec 0044: config + installations live in the connector_apps + connectors
+  // tables. Spec 0051: the legacy `process.env[<ORG>_GH_TOKEN]` write was
+  // removed (no consumers). The instance is mutable across the worker
+  // lifetime; lifecycle commands call surgical mutations on this same
+  // instance.
   const githubAppHolder: { value: GitHubAppAuth | null } = {
     value: await loadGitHubAppFromDb({ connectors, connectorApps: connectorApps }),
   };

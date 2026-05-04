@@ -7,10 +7,19 @@
 # concept (possibly bundled with connectors per the connectors-only-pivot
 # learning), a future spec will reintroduce a different bootstrap.
 #
-# This script now only handles git identity + credential-helper plumbing.
+# Spec 0044: the global GH_TOKEN-based git credential helper that used to
+# live here was removed. GitHub auth is now per-installation via the
+# GitHub App connector — `apps/worker/src/github/app-auth.ts` mints
+# installation tokens and caches them; consumers (the `mcp__github-app-*`
+# MCP tools, the `github-mcp-server` binary) read from that cache, not
+# from `process.env.GH_TOKEN`. Scripts that still need to push/pull via
+# `git` over HTTPS can use `gh auth git-credential`-style configuration
+# scoped per-org instead of a global PAT.
+#
+# This script now only handles git identity from config.yaml.
 set -eu
 
-# Git identity from config.yaml (github_app.git_identity) — profile first, agent fallback
+# Git identity from config.yaml (git_identity:) — profile first, agent fallback
 CONFIG_FILE=""
 for candidate in /app/profile/config.yaml profile/config.yaml /app/agent/config.yaml agent/config.yaml; do
   if [ -f "$candidate" ] && grep -q 'git_identity:' "$candidate" 2>/dev/null; then
@@ -27,11 +36,5 @@ if [ -n "$CONFIG_FILE" ]; then
     git config --global user.email "$GIT_EMAIL"
   fi
 fi
-
-# Credential helper: always read GH_TOKEN from env (supports token rotation,
-# avoids embedding tokens in clone URLs). Works for all github.com repos.
-git config --global credential.https://github.com.helper \
-  '!f() { echo "username=x-access-token"; echo "password=${GH_TOKEN}"; }; f'
-git config --global credential.https://github.com.useHttpPath true
 
 exec "$@"

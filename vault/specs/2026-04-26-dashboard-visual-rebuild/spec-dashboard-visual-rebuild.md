@@ -3,19 +3,17 @@ status: shipped
 feature: dashboard-visual-rebuild
 created: 2026-04-26
 shipped: 2026-04-26
-related:
-  - "[[../../learnings/apps-design-role-and-ui-boundary]]"
 ---
 # Dashboard Visual Rebuild — Spec
 
 **Status:** Shipped
-**Scope:** Rebuild every page in `apps/dashboard` to match `apps/design` visually, using the existing TanStack Query data layer in `apps/dashboard/src/lib/`. Connectors UI is explicitly out of scope (no backend yet). This is "Phase 2" of [[../2026-04-26-ui-primitive-lift/spec|spec 0030]] — the foundation lift is done; now the consumer composites get rebuilt against that foundation.
+**Scope:** Rebuild every page in `apps/dashboard` to match the approved design visually, using the existing TanStack Query data layer in `apps/dashboard/src/lib/`. Connectors UI is explicitly out of scope (no backend yet). This is "Phase 2" of [[../2026-04-26-ui-primitive-lift/spec|spec 0030]] — the foundation lift is done; now the consumer composites get rebuilt against that foundation.
 
 ## Context
 
-`apps/design` is the visual catalog (faithful Paper reproduction with mock fixtures); `apps/dashboard` is the production app (real data via TanStack Query against `apps/api`). After spec 0030 lifted the toast subsystem and Imperial Terminal tokens into `@zeno/ui`, both apps now share a primitive foundation — but `apps/dashboard`'s pages still render with their pre-existing layout/styling, which differs from the design catalog.
+`apps/dashboard` is the production app (real data via TanStack Query against `apps/api`). After spec 0030 lifted the toast subsystem and Imperial Terminal tokens into `@zeno/ui`, the dashboard shares the primitive foundation — but its pages still render with their pre-existing layout/styling, which differs from the approved design.
 
-Spec 0030 explicitly deferred the composite rebuild ("Phase 2") and pre-decided several architectural commitments that this spec inherits without re-litigating: modals use Radix `Dialog` from `@zeno/ui` with controlled `open`/`onOpenChange` (no global `ModalProvider`); skeleton composites live in `apps/dashboard/src/components/skeletons/`; row-types are co-located with their consuming component (no central `data/types.ts`); and the two apps **never import from each other** — they share only through `@zeno/ui`. See `[[../../learnings/apps-design-role-and-ui-boundary]]` for the boundary policy.
+Spec 0030 explicitly deferred the composite rebuild ("Phase 2") and pre-decided several architectural commitments that this spec inherits without re-litigating: modals use Radix `Dialog` from `@zeno/ui` with controlled `open`/`onOpenChange` (no global `ModalProvider`); skeleton composites live in `apps/dashboard/src/components/skeletons/`; row-types are co-located with their consuming component (no central `data/types.ts`); and consumer apps **never import from each other** — they share only through `@zeno/ui`.
 
 `apps/dashboard` currently has ~2634 lines across all routes + components, including:
 - 11 routes (login, `/`, `/crons`, `/crons/new`, `/crons/$id`, `/sessions`, `/sessions/$threadId`, `/logs`, `/settings`, plus `__root.tsx` and `_authed.tsx`)

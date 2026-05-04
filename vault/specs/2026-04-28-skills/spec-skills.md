@@ -4,7 +4,6 @@ feature: skills
 created: 2026-04-28
 shipped: null
 related:
-  - "[[../../learnings/apps-design-role-and-ui-boundary]]"
   - "[[../../learnings/skill-scoped-credentials-pattern]]"
 ---
 # Skills — Spec
@@ -59,7 +58,7 @@ Cinco lacunas concretas:
 
 - **Compile must stay green at every phase commit.** Phase A (DB + storage), Phase B (worker hot-reload + permission gate), Phase C (API + dashboard + Paper telas). Cada commit termina com `pnpm run quality-gate` verde.
 - **Spec 0050 contract preserved + extended.** O único guardrail continua sendo `connector-permission` gate. A modificação que esta spec introduz é uma **consulta nova ao gate**: tools não-MCP, ao invés de denegar fixed, consultam `AgentCapabilityRepo.isEnabled(toolName)`. Se enabled → ALLOW. Se disabled → DENY. Não há novo policy chain, não há owner approval flow, não há união de scopes por skill.
-- **Paper-first workflow.** Todas as telas (Skills list, Skill detail, Install modal, sections em Connector page, Agent capabilities settings section) precisam ser desenhadas no Paper file que o operador especificou e **aprovadas pelo operador** antes da implementação começar. Implementação inicia em `apps/design` (per [[../../learnings/apps-design-role-and-ui-boundary]]) e replica em `apps/dashboard`. Regra de 3-clean-reviews aplica.
+- **Paper-first workflow.** Todas as telas (Skills list, Skill detail, Install modal, sections em Connector page, Agent capabilities settings section) precisam ser desenhadas no Paper file que o operador especificou e **aprovadas pelo operador** antes da implementação começar. Implementação direta em `apps/dashboard`. Regra de 3-clean-reviews aplica.
 - **Auto-discovery via `~/.claude/skills/` — verificação é o primeiro task de Phase B (gate-zero).** Antes de qualquer outro trabalho de runtime, validar empiricamente se o Claude Agent SDK (não só o CLI) auto-descobre `SKILL.md` em `~/.claude/skills/<name>/`. Como verificar: criar um SKILL.md de teste com `description: "test skill, ignore"`, rodar uma query com prompt que NÃO menciona a skill, observar se o agente lista a skill como "tool/skill conhecida" no contexto OU se ela aparece em `tool_search`/listings naturalmente. Decisão:
   - **Auto-discovery confirmada**: skills materializam em `${claudeHome}/skills/<name>/SKILL.md`, não há tool MCP custom. Phase B prossegue normal.
   - **Auto-discovery NÃO funciona**: ativa **plano B** — Zeno expõe duas tools built-in via `agent/mcp.json` com contrato fixo:

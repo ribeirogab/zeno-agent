@@ -3,8 +3,6 @@ tags:
   - learning
   - css
   - tailwind
-related:
-  - "[[apps-design-role-and-ui-boundary]]"
 created: 2026-04-25
 ---
 # Unlayered CSS in Tailwind v4 silently beats utilities — wrap base resets in `@layer base`

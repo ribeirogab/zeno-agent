@@ -30,3 +30,22 @@ vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generi
 vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1236
 vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1459
 vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1694
+
+# Historical commits — same test fixtures at earlier line numbers / paths
+# (context/ → vault/ rename, line shifts after edits).
+125cff758a76dd4a204bccd515710caf4e934b7b:apps/api/tests/routes/crons.test.ts:generic-api-key:7
+1f7e8903661ff65bff66302b39ba206f54b8b59c:context/specs/0012-dashboard-foundation/tasks.md:generic-api-key:1090
+1f7e8903661ff65bff66302b39ba206f54b8b59c:context/specs/0012-dashboard-foundation/tasks.md:generic-api-key:1236
+1f7e8903661ff65bff66302b39ba206f54b8b59c:context/specs/0012-dashboard-foundation/tasks.md:generic-api-key:1459
+1f7e8903661ff65bff66302b39ba206f54b8b59c:context/specs/0012-dashboard-foundation/tasks.md:generic-api-key:1694
+1f7e8903661ff65bff66302b39ba206f54b8b59c:context/specs/0012-dashboard-foundation/tasks.md:generic-api-key:984
+580f03118f91d9d3698c2ebe36265dd161840d53:apps/api/tests/routes/stats.test.ts:generic-api-key:14
+5e7bee8b222ef8c4b19a38b28f810d4ad5f57097:context/specs/0013-dashboard-crud/tasks.md:generic-api-key:1074
+bab115d58e9519570ec8ccbbf58809d77d743e8f:apps/api/tests/routes/activity.test.ts:generic-api-key:7
+a270ddafb2a54afd8f52f1c926862ad11a5f3099:apps/api/tests/routes/channels.test.ts:generic-api-key:29
+fd874364f89aee8c5b6bbc7115929d686ce8e654:apps/api/tests/routes/skills.test.ts:generic-api-key:22
+d1b84d89dd2324644765237519136dbc06348453:apps/api/tests/routes/approval-rules.test.ts:generic-api-key:21
+99963b0e458b0332b9b928f1b60daf9b24d8e9d4:apps/api/tests/routes/connectors-app-lifecycle.test.ts:generic-api-key:30
+9bcfb6b87ab96b74207547cd3f945916bb8cec41:apps/worker/tests/commands/app-handlers.test.ts:private-key:91
+4bc70d72dbe3cfc2a3946f2fd7b343d83456cbed:context/specs/0035-connectors-e2e/tasks.md:generic-api-key:60
+9375c0b8238a66a4302b0d63972f2b68f4f0cbe0:apps/api/tests/routes/auth.test.ts:generic-api-key:6

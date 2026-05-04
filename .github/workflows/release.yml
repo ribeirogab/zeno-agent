@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Tag (e.g. v2026.5.4). Leave empty to auto-derive from today's UTC date."
+        required: false
+        type: string
+        default: ""
+      prerelease:
+        description: "Mark as pre-release"
+        required: false
+        type: boolean
+        default: true
+      title:
+        description: "Release title (defaults to the resolved tag)"
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  release:
+    name: Tag and create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve tag and title
+        id: resolve
+        run: |
+          if [ -z "${{ inputs.version }}" ]; then
+            TAG="v$(date -u +%Y).$(date -u +%-m).$(date -u +%-d)"
+          else
+            TAG="${{ inputs.version }}"
+          fi
+          if [ -z "${{ inputs.title }}" ]; then
+            TITLE="$TAG"
+          else
+            TITLE="${{ inputs.title }}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+
+      - name: Push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.resolve.outputs.tag }}"
+          git push origin "${{ steps.resolve.outputs.tag }}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FLAG=""
+          if [ "${{ inputs.prerelease }}" = "true" ]; then
+            FLAG="--prerelease"
+          fi
+          gh release create "${{ steps.resolve.outputs.tag }}" \
+            $FLAG \
+            --generate-notes \
+            --title "${{ steps.resolve.outputs.title }}"

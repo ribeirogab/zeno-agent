@@ -2,7 +2,11 @@
 
 > Personal agent that operates across the apps you use, by composing the connectors you install. Self-hosted. Single-user.
 
-**Status:** early / experimental — personal project, single-user, no SLA, no support guarantees, breaking changes expected. Use at your own risk.
+[![License: MIT](https://img.shields.io/badge/LICENSE-MIT-brightgreen?style=flat-square)](./LICENSE)
+[![Built By](https://img.shields.io/badge/BUILT%20BY-ribeirogab-blueviolet?style=flat-square)](https://github.com/ribeirogab)
+
+> [!WARNING]
+> **Early / experimental.** Personal project, single-user, no SLA, no support guarantees. Breaking changes expected. Use at your own risk.
 
 ## What it does
 

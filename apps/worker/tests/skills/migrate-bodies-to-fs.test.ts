@@ -207,7 +207,10 @@ describe('preMigrateBodiesToFs (spec 0062)', () => {
     };
     expect(row.source).toBe('dashboard');
     // Body now lives at /workspace/skills/.
-    const content = readFileSync(join(dashboardSkillsRoot, 'widget-code-review', 'SKILL.md'), 'utf8');
+    const content = readFileSync(
+      join(dashboardSkillsRoot, 'widget-code-review', 'SKILL.md'),
+      'utf8',
+    );
     expect(content).toContain('edited body');
   });
 

@@ -86,3 +86,4 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 
 - [[../learnings/spec-review-loop-catches-real-bugs|Spec review loop catches real design bugs]] — the `spec-document-reviewer` subagent finds what I miss; don't skip it.
 - [[../learnings/subagent-driven-implementation-patterns|Subagent-driven implementation patterns]] — briefing templates, review loops, when to go inline instead.
+- [[../learnings/release-policy-and-flow|Release policy: CalVer + pre-release flag + trunk-based + workflow_dispatch]] — anchored decisions: no SemVer, no release branches, no `CHANGELOG.md`, no CI on the release workflow.

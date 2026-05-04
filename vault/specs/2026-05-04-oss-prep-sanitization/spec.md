@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: oss-prep-sanitization
 created: 2026-05-04
-shipped: null
+shipped: 2026-05-04
 ---
 # OSS-Prep — Sanitization Rule + Final Scrub — Spec
 
-**Status:** Draft
+**Status:** Shipped (PR #1, 2026-05-04)
 **Scope:** Establish the constitutional contract that nothing committed to this public repo may contain real private/non-consented identifiers, codify it as a rule, and execute a single full-tree audit + EN migration so the repo enters its public life from a clean baseline.
 
 ## Context

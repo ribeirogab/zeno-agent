@@ -177,11 +177,11 @@ describe('SkillRepo', () => {
 
     it('returns profileSkillsRoot/<name> for profile source', () => {
       const skill = repo.upsertBySource({
-        name: 'fn-code-review',
+        name: 'widget-code-review',
         description: 'd',
         source: 'profile',
       });
-      expect(repo.canonicalPath(skill)).toBe('/test/profile/skills/fn-code-review');
+      expect(repo.canonicalPath(skill)).toBe('/test/profile/skills/widget-code-review');
     });
 
     it('returns dashboardSkillsRoot/<name> for dashboard source', () => {

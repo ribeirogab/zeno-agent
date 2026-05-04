@@ -162,10 +162,10 @@ describe('preMigrateBodiesToFs (spec 0062)', () => {
   });
 
   it('profile row matching FS body: no-op (no flip, no write to dashboard)', () => {
-    seedSkillFile(profileSkillsRoot, 'fn-code-review', 'd', 'matching body');
+    seedSkillFile(profileSkillsRoot, 'widget-code-review', 'd', 'matching body');
     db.prepare(
       `INSERT INTO skills (id, name, description, body, source) VALUES (?, ?, ?, ?, ?)`,
-    ).run('sk-2', 'fn-code-review', 'd', '\nmatching body', 'profile');
+    ).run('sk-2', 'widget-code-review', 'd', '\nmatching body', 'profile');
 
     const report = preMigrateBodiesToFs({
       db,
@@ -182,15 +182,15 @@ describe('preMigrateBodiesToFs (spec 0062)', () => {
     };
     expect(row.source).toBe('profile');
     // No dashboard FS dir created.
-    expect(existsSync(join(dashboardSkillsRoot, 'fn-code-review'))).toBe(false);
+    expect(existsSync(join(dashboardSkillsRoot, 'widget-code-review'))).toBe(false);
   });
 
   it('profile row diverged from FS: flip to dashboard + write body to /workspace/skills/', () => {
-    seedSkillFile(profileSkillsRoot, 'fn-code-review', 'd', 'original body');
+    seedSkillFile(profileSkillsRoot, 'widget-code-review', 'd', 'original body');
     // DB body diverges (operator edited via dashboard PATCH).
     db.prepare(
       `INSERT INTO skills (id, name, description, body, source) VALUES (?, ?, ?, ?, ?)`,
-    ).run('sk-2', 'fn-code-review', 'd', '\nedited body', 'profile');
+    ).run('sk-2', 'widget-code-review', 'd', '\nedited body', 'profile');
 
     const report = preMigrateBodiesToFs({
       db,
@@ -200,14 +200,17 @@ describe('preMigrateBodiesToFs (spec 0062)', () => {
       logger,
     });
 
-    expect(report.profileFlipped).toEqual(['fn-code-review']);
+    expect(report.profileFlipped).toEqual(['widget-code-review']);
     // Source flipped.
     const row = db.prepare('SELECT source FROM skills WHERE id = ?').get('sk-2') as {
       source: string;
     };
     expect(row.source).toBe('dashboard');
     // Body now lives at /workspace/skills/.
-    const content = readFileSync(join(dashboardSkillsRoot, 'fn-code-review', 'SKILL.md'), 'utf8');
+    const content = readFileSync(
+      join(dashboardSkillsRoot, 'widget-code-review', 'SKILL.md'),
+      'utf8',
+    );
     expect(content).toContain('edited body');
   });
 

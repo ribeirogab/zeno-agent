@@ -150,8 +150,8 @@ describe('checkConnectorPermission (spec 0050 + 0052)', () => {
   it('handles slugs with hyphens correctly', () => {
     const { repo, caps, close } = makeRepos();
     repo.create({
-      slug: 'fn-scrum',
-      displayName: 'FN Scrum',
+      slug: 'widget-scrum',
+      displayName: 'Widget Scrum',
       source: 'custom',
       transport: 'stdio',
       tools: [
@@ -159,7 +159,7 @@ describe('checkConnectorPermission (spec 0050 + 0052)', () => {
       ],
       secrets: [],
     });
-    const decision = checkConnectorPermission(repo, caps, 'mcp__fn-scrum__list');
+    const decision = checkConnectorPermission(repo, caps, 'mcp__widget-scrum__list');
     expect(decision.allow).toBe(true);
     expect(decision.policyThatGated).toBe('connector_allow');
     close();

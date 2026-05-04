@@ -70,7 +70,7 @@ export function GitHubAppAddInstallationManualModal({
         <div className="flex flex-col gap-[18px] px-7 py-[22px]">
           <Field
             label="display name"
-            help="Shown in the dashboard. e.g. 'Acme Corp', 'FlaviaNasser'."
+            help="Shown in the dashboard. e.g. 'Acme Corp', 'Widget Co'."
             value={displayName}
             onChange={setDisplayName}
             placeholder="Acme Corp"
@@ -80,7 +80,7 @@ export function GitHubAppAddInstallationManualModal({
             help="Numeric installation id from /settings/installations on GitHub."
             value={installationId}
             onChange={setInstallationId}
-            placeholder="125887887"
+            placeholder="12345678"
             mono
           />
           {error && (

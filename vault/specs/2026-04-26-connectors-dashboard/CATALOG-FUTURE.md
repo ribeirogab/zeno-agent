@@ -1,40 +1,40 @@
-# Catalog — connectors a configurar em specs futuras
+# Catalog — connectors to be configured in future specs
 
-A spec 0034 entregou inicialmente só **Slack**, e numa segunda rodada (mesmo dia, 2026-04-26) o **Sentry** foi adicionado ao catálogo. Os 6 connectors abaixo seguem na fila — cada um vira uma spec curta de catálogo (entry no JSON + SVG real + smoke).
+Spec 0034 initially shipped only **Slack**, and on a second pass (same day, 2026-04-26) **Sentry** was added to the catalog. The 6 connectors below remain in the queue — each becomes a short catalog spec (entry in JSON + real SVG + smoke).
 
-## Prioridade alta (já estavam no `mcp.json` antigo, uso real)
+## High priority (already in the old `mcp.json`, real usage)
 
-| Slug | Transport | Comando / URL | Secrets | Notas |
+| Slug | Transport | Command / URL | Secrets | Notes |
 |---|---|---|---|---|
-| `linear` | remote | `https://mcp.linear.app/sse` | `__MCP_AUTHORIZATION__` (Bearer) | Catálogo declara como remote SSE — o user.md do operador menciona o uso |
-| `notion` | stdio | `npx -y @notionhq/notion-mcp-server` | `NOTION_API_KEY` | Stdio. Integração via página compartilhada |
+| `linear` | remote | `https://mcp.linear.app/sse` | `__MCP_AUTHORIZATION__` (Bearer) | Catalog declares it as remote SSE — the operator's user.md mentions usage |
+| `notion` | stdio | `npx -y @notionhq/notion-mcp-server` | `NOTION_API_KEY` | Stdio. Integration via shared page |
 | `granola` | stdio | `npx -y granola-mcp` | `GRANOLA_API_KEY` | Meeting notes |
 
-## Prioridade média (populares, mas o operador não usa hoje)
+## Medium priority (popular, but the operator does not use them today)
 
-| Slug | Transport | Comando / URL | Secrets | Notas |
+| Slug | Transport | Command / URL | Secrets | Notes |
 |---|---|---|---|---|
-| `github` | stdio | `npx -y @modelcontextprotocol/server-github` | `GITHUB_PERSONAL_ACCESS_TOKEN` | Já existe `GH_TOKEN` no env — talvez reusar. Atenção: complementa as skills `acme`/`dev-workflow`/`code-review` (que usam `gh` CLI), não substitui |
-| `google-drive` | remote | `https://mcp.google.com/drive` (placeholder — confirmar) | OAuth Bearer | Mais complexo, OAuth dance fora de escopo (spec 0029 §Non-Goal 9) |
+| `github` | stdio | `npx -y @modelcontextprotocol/server-github` | `GITHUB_PERSONAL_ACCESS_TOKEN` | `GH_TOKEN` already exists in env — possibly reuse. Note: complements the `acme`/`dev-workflow`/`code-review` skills (which use the `gh` CLI), does not replace them |
+| `google-drive` | remote | `https://mcp.google.com/drive` (placeholder — to confirm) | OAuth Bearer | More complex, OAuth dance out of scope (spec 0029 §Non-Goal 9) |
 | `cloudflare` | remote | `https://mcp.cloudflare.com/sse` | `__MCP_AUTHORIZATION__` (CLOUDFLARE_API_TOKEN) | Workers, KV, DNS |
 
-## Direção arquitetural pendente (decidida em 2026-04-26)
+## Pending architectural direction (decided on 2026-04-26)
 
-**Channels viram Connectors** com uma category extra. Hoje `Slack` aparece duas vezes no projeto: como Channel adapter (input/output, em `apps/worker/src/channels/`) e como Connector (tools, na DB). O operador quer unificar: toda integração externa = um Connector, alguns com category `channel` que indica "também aceita input do usuário". Detalhamento + plano de migração na learning [`channel-vs-connector.md`](../../learnings/channel-vs-connector.md) §Direção futura. Spec proposta: `00XX-channels-as-connectors`.
+**Channels become Connectors** with an extra category. Today `Slack` appears twice in the project: as a Channel adapter (input/output, in `apps/worker/src/channels/`) and as a Connector (tools, in the DB). The operator wants to unify: every external integration = a Connector, some with category `channel` indicating "also accepts user input". Details + migration plan in the learning [`channel-vs-connector.md`](../../learnings/channel-vs-connector.md) §Future direction. Proposed spec: `00XX-channels-as-connectors`.
 
-## Como adicionar (template de spec curta)
+## How to add (short spec template)
 
 1. Branch `feat/catalog-<slug>`.
-2. Editar `agent/connectors-catalog.json` adicionando a entry.
-3. SVG monochromático em `agent/assets/connectors/<slug>.svg` (~ 24×24, currentColor).
-4. Testar localmente: instalar via `/connectors`, rodar uma chamada via Slack, verificar Activity feed.
-5. Commitar como `feat(catalog): add <name> connector`.
+2. Edit `agent/connectors-catalog.json` adding the entry.
+3. Monochrome SVG in `agent/assets/connectors/<slug>.svg` (~ 24×24, currentColor).
+4. Test locally: install via `/connectors`, run a call via Slack, check the Activity feed.
+5. Commit as `feat(catalog): add <name> connector`.
 
-## Sobre os tools / categorias
+## About tools / categories
 
-Cada entry no catálogo declara `tools[]` com `category` (read/write/interactive) e `defaultPermission` (always_allow/ask/never). Para minimizar fricção:
-- **read** → `always_allow` (operador raramente quer interagir com listagem)
-- **write** → `ask` (toda criação/edição passa por aprovação na MVP)
-- **destrutivo conhecido** (delete) → `ask`, nunca `never` (operador decide)
+Each catalog entry declares `tools[]` with `category` (read/write/interactive) and `defaultPermission` (always_allow/ask/never). To minimize friction:
+- **read** → `always_allow` (the operator rarely wants to interact with a listing)
+- **write** → `ask` (every creation/edit goes through approval in the MVP)
+- **known destructive** (delete) → `ask`, never `never` (the operator decides)
 
-A heurística do `mcp-discover.ts` (`classifyToolCategory`) cobre custom MCPs sem catálogo. Catálogo curado serve pra dar defaults melhores em produtos populares.
+The `mcp-discover.ts` heuristic (`classifyToolCategory`) covers custom MCPs without a catalog. The curated catalog serves to provide better defaults for popular products.

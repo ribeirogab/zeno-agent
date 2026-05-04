@@ -31,13 +31,13 @@ describe('CronSkillRepo', () => {
   it('listForCron returns linked skills sorted by name', () => {
     const cron = seedCron('daily-standup');
     const a = skills.create({ name: 'aws-debug', description: 'd', body: 'b' });
-    const f = skills.create({ name: 'fn-code-review', description: 'd', body: 'b' });
+    const f = skills.create({ name: 'widget-code-review', description: 'd', body: 'b' });
     const z = skills.create({ name: 'zeta', description: 'd', body: 'b' });
     links.add(cron.id, z.id);
     links.add(cron.id, a.id);
     links.add(cron.id, f.id);
     const linked = links.listForCron(cron.id);
-    expect(linked.map((x) => x.name)).toEqual(['aws-debug', 'fn-code-review', 'zeta']);
+    expect(linked.map((x) => x.name)).toEqual(['aws-debug', 'widget-code-review', 'zeta']);
   });
 
   it('listForSkill returns crons linked to a skill', () => {

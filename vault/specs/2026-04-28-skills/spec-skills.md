@@ -13,145 +13,145 @@ related:
 
 ## Context
 
-Spec 0049 retired skills as a runtime concept and cravou a tese "tudo é connector". Specs 0050 + 0051 deletaram a infraestrutura antiga (skill-registry, runtime loader, per-skill credentials, approvals chain). A própria spec 0049 deixou aberto: *"skills voltam depois, possivelmente via connector"*.
+Spec 0049 retired skills as a runtime concept and locked in the thesis "everything is a connector". Specs 0050 + 0051 deleted the old infrastructure (skill-registry, runtime loader, per-skill credentials, approvals chain). Spec 0049 itself left an opening: *"skills come back later, possibly via connector"*.
 
-**Nota sobre divergência da constitution:** `context/constitution.md` linha 21 diz "Skills (deferred) — may be bundled with connectors". Esta spec implementa skills como **entidades independentes** com link **opcional** a connectors (M:N), não como sub-objetos de connectors. A intuição da constitution se preserva (skills *podem* ser linkadas a connectors via spec 0052), mas a estrutura é mais flexível (skill `frontend-design` não tem nada a ver com connector específico). Decisão tomada na fase de brainstorm desta spec.
+**Note on divergence from the constitution:** `context/constitution.md` line 21 says "Skills (deferred) — may be bundled with connectors". This spec implements skills as **independent entities** with an **optional** link to connectors (M:N), not as sub-objects of connectors. The constitution's intuition is preserved (skills *can* be linked to connectors via spec 0052), but the structure is more flexible (the `frontend-design` skill has nothing to do with a specific connector). Decision made during the brainstorm phase of this spec.
 
-Esta spec reintroduz skills como **playbooks markdown** que o agente lê quando relevante — não como código executável, não como subagentes, não com chain de aprovação. Um skill é um arquivo `SKILL.md` com frontmatter mínima (`name`, `description`) + corpo markdown explicando *como* fazer alguma coisa (revisar frontend, debugar AWS, triagear Sentry).
+This spec reintroduces skills as **markdown playbooks** the agent reads when relevant — not as executable code, not as subagents, not with an approval chain. A skill is a `SKILL.md` file with minimal frontmatter (`name`, `description`) + a markdown body explaining *how* to do something (review frontend, debug AWS, triage Sentry).
 
-A diferença do regime antigo:
+The difference from the old regime:
 
-- Skills antigas eram **descobertas a partir do filesystem do profile** (`profiles/<name>/skills/`), com bootstrap shell-script no entrypoint.
-- Skills novas são **CRUD'd no dashboard**, gravadas no DB, materializadas em `~/.claude/skills/` no boot/hot-reload, e descobertas pelo Claude Agent SDK nativamente. Sem bootstrap shell.
+- Old skills were **discovered from the profile filesystem** (`profiles/<name>/skills/`), with a shell-script bootstrap at the entrypoint.
+- New skills are **CRUD'd in the dashboard**, stored in the DB, materialized into `~/.claude/skills/` at boot/hot-reload, and discovered natively by the Claude Agent SDK. No shell bootstrap.
 
-A relação com connectors também muda:
+The relationship with connectors also changes:
 
-- Skill antiga *poderia* ter credentials próprias (anti-pattern documentado em [[../../learnings/skill-scoped-credentials-pattern]] — superseded).
-- Skill nova é **content puro** — credenciais ficam nos connectors. A skill descreve *como usar* um connector ou *como executar uma task*, não *como autenticar*. Skills podem opcionalmente ser **linkadas** a connectors: quando o agente chama uma tool desse connector, o body da skill linkada é injetado no contexto antes da tool rodar.
+- Old skills *could* have their own credentials (anti-pattern documented in [[../../learnings/skill-scoped-credentials-pattern]] — superseded).
+- New skills are **pure content** — credentials live on connectors. The skill describes *how to use* a connector or *how to perform a task*, not *how to authenticate*. Skills can optionally be **linked** to connectors: when the agent calls a tool from that connector, the body of the linked skill is injected into the context before the tool runs.
 
-**Capability authorization é global, não por skill.** Spec 0050 hardblocka tools não-MCP (Read/Edit/Write/Bash). Operador habilita explicitamente quais capabilities o agente pode usar via uma seção `Agent capabilities` em `/settings`. Skills usam livremente o que tá habilitado. Habilitar uma capability é decisão do operador uma vez, não algo que cada skill pede separadamente. *Mental model: capabilities são propriedade do agente; skills são content que aproveita o que o agente já pode fazer.*
+**Capability authorization is global, not per-skill.** Spec 0050 hardblocks non-MCP tools (Read/Edit/Write/Bash). The operator explicitly enables which capabilities the agent can use via an `Agent capabilities` section in `/settings`. Skills freely use whatever is enabled. Enabling a capability is a one-time operator decision, not something each skill requests separately. *Mental model: capabilities are a property of the agent; skills are content that takes advantage of what the agent can already do.*
 
 ## Problem Statement
 
-Pós spec 0049-0051, o operador tem connectors (capabilities + credentials) e SOUL.md (instruções gerais). Falta um lugar pra **knowledge contextual** — playbooks que dizem "quando você fizer X, faça assim". Sem skills, esse conhecimento ou cabe inteiro no SOUL.md (incha o context window de todo turno) ou se perde (operador repete as mesmas instruções no Slack).
+Post specs 0049-0051, the operator has connectors (capabilities + credentials) and SOUL.md (general instructions). What is missing is a place for **contextual knowledge** — playbooks that say "when you do X, do it like this". Without skills, that knowledge either fits entirely into SOUL.md (bloating the context window every turn) or is lost (the operator repeats the same instructions on Slack).
 
-Cinco lacunas concretas:
+Five concrete gaps:
 
-1. Não tem como cadastrar um playbook reutilizável sem editar arquivos no profile.
-2. Não tem como dar ao agente Read/Edit/Write/Bash de forma controlada — o gate do spec 0050 hardblocka tudo não-MCP, então skills tipo `frontend-design` (que precisa editar arquivos) hoje seriam impossíveis.
-3. Não tem como o agente "aprender" como o operador específico usa um connector. A skill `sentry-flow` da Acme é diferente da do operador X.
-4. Não tem como exportar/baixar o conjunto de skills do operador (backup, share, migrate).
-5. Não tem reposição funcional pro padrão de "knowledge file" que skills representavam pre-spec-0050.
+1. There is no way to register a reusable playbook without editing files in the profile.
+2. There is no way to give the agent Read/Edit/Write/Bash in a controlled way — the spec 0050 gate hardblocks everything non-MCP, so skills like `frontend-design` (which needs to edit files) would be impossible today.
+3. There is no way for the agent to "learn" how the specific operator uses a connector. The Acme `sentry-flow` skill is different from operator X's.
+4. There is no way to export/download the operator's skill set (backup, share, migrate).
+5. There is no functional replacement for the "knowledge file" pattern that skills represented pre-spec-0050.
 
 ## Non-Goals
 
-- **Out of scope: instalação automática de skills.sh.** v1 só aceita upload de arquivo `SKILL.md` único pelo dashboard. Importação de skills.sh + auto-update fica pra v2 (operador hoje pode baixar manualmente o `.md` da skills.sh e fazer upload).
-- **Out of scope: árvore de arquivos por skill.** Em v1 cada skill é um único `SKILL.md`. Multi-arquivo + assets fica pra v2.
-- **Out of scope: skills "always_loaded".** Tinha como requisito originalmente, foi cortado de v1 — todas skills em v1 são pick-mode (lazy-load). Operador escreve `description` boa e o agente decide quando ler. Reintroduzir como flag de prepend ao system prompt fica pra v2 se houver demanda.
-- **Out of scope: pausar skill (toggle enabled/disabled).** Em v1 lifecycle é install / edit / delete. Pausar sem deletar fica pra v2.
-- **Out of scope: per-skill permission scoping.** Em v1 capabilities são globais — qualquer skill instalada pode usar qualquer capability habilitada nas settings. Sandbox por skill (skill A tem Bash, skill B não tem) fica pra v2 se virar issue de segurança. Threat model é single-operator self-hosted; operador é o gatekeeper.
-- **Out of scope: re-importação de skills antigas do profile `<example>`.** O profile `<example>` tinha skills no FS antes do spec 0050. Não vamos backfillar pro DB automaticamente — operador faz upload manual das que ainda quiser.
-- **Out of scope: skill versioning, share/publish, ratings.** v1 é single-operator self-hosted. Sem feature social.
-- **Out of scope: parsear `allowed-tools` da frontmatter de skills baixadas de skills.sh.** Se o `.md` traz esse campo, a gente IGNORA em runtime (só valida `name` + `description`). Pode opcionalmente exibir como hint informativo na install modal — ver Open Questions. Decisão do operador continua sendo no `/settings/agent-capabilities`, não no install.
+- **Out of scope: automatic installation of skills.sh.** v1 only accepts upload of a single `SKILL.md` file via the dashboard. Importing skills.sh + auto-update is left for v2 (today the operator can manually download the `.md` from skills.sh and upload it).
+- **Out of scope: file tree per skill.** In v1 each skill is a single `SKILL.md`. Multi-file + assets is left for v2.
+- **Out of scope: "always_loaded" skills.** Originally a requirement, cut from v1 — all skills in v1 are pick-mode (lazy-load). The operator writes a good `description` and the agent decides when to read it. Reintroducing it as a flag for prepending to the system prompt is left for v2 if there is demand.
+- **Out of scope: pause skill (toggle enabled/disabled).** In v1 the lifecycle is install / edit / delete. Pausing without deleting is left for v2.
+- **Out of scope: per-skill permission scoping.** In v1 capabilities are global — any installed skill can use any capability enabled in settings. Per-skill sandbox (skill A has Bash, skill B does not) is left for v2 if it becomes a security issue. Threat model is single-operator self-hosted; the operator is the gatekeeper.
+- **Out of scope: re-importing old skills from the `<example>` profile.** The `<example>` profile had skills on the FS before spec 0050. We will not backfill them into the DB automatically — the operator manually uploads any they still want.
+- **Out of scope: skill versioning, share/publish, ratings.** v1 is single-operator self-hosted. No social features.
+- **Out of scope: parsing `allowed-tools` from the frontmatter of skills downloaded from skills.sh.** If the `.md` ships that field, we IGNORE it at runtime (we only validate `name` + `description`). We may optionally display it as an informational hint in the install modal — see Open Questions. The operator's decision still happens in `/settings/agent-capabilities`, not at install time.
 
 ## Constraints
 
-- **Compile must stay green at every phase commit.** Phase A (DB + storage), Phase B (worker hot-reload + permission gate), Phase C (API + dashboard + Paper telas). Cada commit termina com `pnpm run quality-gate` verde.
-- **Spec 0050 contract preserved + extended.** O único guardrail continua sendo `connector-permission` gate. A modificação que esta spec introduz é uma **consulta nova ao gate**: tools não-MCP, ao invés de denegar fixed, consultam `AgentCapabilityRepo.isEnabled(toolName)`. Se enabled → ALLOW. Se disabled → DENY. Não há novo policy chain, não há owner approval flow, não há união de scopes por skill.
-- **Paper-first workflow.** Todas as telas (Skills list, Skill detail, Install modal, sections em Connector page, Agent capabilities settings section) precisam ser desenhadas no Paper file que o operador especificou e **aprovadas pelo operador** antes da implementação começar. Implementação direta em `apps/dashboard`. Regra de 3-clean-reviews aplica.
-- **Auto-discovery via `~/.claude/skills/` — verificação é o primeiro task de Phase B (gate-zero).** Antes de qualquer outro trabalho de runtime, validar empiricamente se o Claude Agent SDK (não só o CLI) auto-descobre `SKILL.md` em `~/.claude/skills/<name>/`. Como verificar: criar um SKILL.md de teste com `description: "test skill, ignore"`, rodar uma query com prompt que NÃO menciona a skill, observar se o agente lista a skill como "tool/skill conhecida" no contexto OU se ela aparece em `tool_search`/listings naturalmente. Decisão:
-  - **Auto-discovery confirmada**: skills materializam em `${claudeHome}/skills/<name>/SKILL.md`, não há tool MCP custom. Phase B prossegue normal.
-  - **Auto-discovery NÃO funciona**: ativa **plano B** — Zeno expõe duas tools built-in via `agent/mcp.json` com contrato fixo:
-    - `mcp__zeno__list_skills() → Array<{name: string, description: string}>` — lista skills disponíveis (lê do DB).
-    - `mcp__zeno__read_skill(name: string) → {body: string}` — retorna body markdown completo da skill.
-  - Decisão é **binária e tomada no primeiro commit de Phase B**, não meio-do-caminho.
-- **Constitution principles:** YAGNI (sem per-skill scoping, sem skills.sh em v1, sem always_loaded), Reversibility (commits independentes por phase), Single source of truth (DB grava; FS é derivado).
+- **Compile must stay green at every phase commit.** Phase A (DB + storage), Phase B (worker hot-reload + permission gate), Phase C (API + dashboard + Paper screens). Each commit ends with `pnpm run quality-gate` green.
+- **Spec 0050 contract preserved + extended.** The only guardrail remains the `connector-permission` gate. The modification this spec introduces is a **new lookup at the gate**: non-MCP tools, instead of denying outright, consult `AgentCapabilityRepo.isEnabled(toolName)`. If enabled → ALLOW. If disabled → DENY. There is no new policy chain, no owner approval flow, no union of scopes per skill.
+- **Paper-first workflow.** All screens (Skills list, Skill detail, Install modal, sections in the Connector page, Agent capabilities settings section) must be designed in the Paper file specified by the operator and **approved by the operator** before implementation begins. Direct implementation in `apps/dashboard`. The 3-clean-reviews rule applies.
+- **Auto-discovery via `~/.claude/skills/` — verification is the first task of Phase B (gate-zero).** Before any other runtime work, empirically validate whether the Claude Agent SDK (not just the CLI) auto-discovers `SKILL.md` in `~/.claude/skills/<name>/`. How to verify: create a test SKILL.md with `description: "test skill, ignore"`, run a query whose prompt does NOT mention the skill, observe whether the agent lists the skill as a "known tool/skill" in context OR whether it appears in `tool_search`/listings naturally. Decision:
+  - **Auto-discovery confirmed**: skills materialize at `${claudeHome}/skills/<name>/SKILL.md`, no custom MCP tool. Phase B proceeds normally.
+  - **Auto-discovery does NOT work**: activate **plan B** — Zeno exposes two built-in tools via `agent/mcp.json` with a fixed contract:
+    - `mcp__zeno__list_skills() → Array<{name: string, description: string}>` — lists available skills (reads from the DB).
+    - `mcp__zeno__read_skill(name: string) → {body: string}` — returns the full markdown body of the skill.
+  - The decision is **binary and made in the first commit of Phase B**, not mid-way through.
+- **Constitution principles:** YAGNI (no per-skill scoping, no skills.sh in v1, no always_loaded), Reversibility (independent commits per phase), Single source of truth (the DB writes; the FS is derived).
 
 ## User Stories / Scenarios
 
-1. **Operador faz upload de uma skill nova.** No dashboard, abre `/skills`, clica `+ Install skill`, sobe o arquivo `frontend-design.md`. Modal parsea o frontmatter (`name` + `description`) e mostra preview: *"Nome: frontend-design — Description: Padrão de UX e revisão de código React/Tailwind."*. Operador clica Install → skill grava no DB, materializa em `~/.claude/skills/frontend-design/SKILL.md`, ProfileWatcher detecta, AgentCore reload, próxima query do agent já enxerga ela.
+1. **The operator uploads a new skill.** In the dashboard, opens `/skills`, clicks `+ Install skill`, uploads the `frontend-design.md` file. The modal parses the frontmatter (`name` + `description`) and shows a preview: *"Name: frontend-design — Description: UX standard and code review for React/Tailwind."*. The operator clicks Install → the skill is written to the DB, materialized at `~/.claude/skills/frontend-design/SKILL.md`, ProfileWatcher detects it, AgentCore reloads, the next agent query already sees it.
 
-2. **Operador habilita capabilities globalmente.** Vai em `/settings`, na seção "Agent capabilities" liga `Read`, `Edit`, `Write`, `Bash`. Save → DB grava, hot-reload do gate, agente passa a ter essas tools disponíveis em qualquer turno (independente de skill). Single decision once.
+2. **The operator enables capabilities globally.** Goes to `/settings`, in the "Agent capabilities" section turns on `Read`, `Edit`, `Write`, `Bash`. Save → the DB is updated, the gate hot-reloads, the agent now has those tools available on any turn (regardless of skill). Single decision once.
 
-3. **Operador linka uma skill a um connector.** Vai em `/connectors/<sentry-id>`, na seção "Linked skills" abre multi-select, marca `sentry-flow`, salva. Próxima vez que o agente chamar qualquer `mcp__sentry__*`, antes da tool rodar o pre-tool-use hook injeta o body de `sentry-flow` como contexto no turno.
+3. **The operator links a skill to a connector.** Goes to `/connectors/<sentry-id>`, in the "Linked skills" section opens a multi-select, marks `sentry-flow`, saves. Next time the agent calls any `mcp__sentry__*`, before the tool runs the pre-tool-use hook injects the body of `sentry-flow` as context for the turn.
 
-4. **Agente decide usar uma skill.** No turno em que o operador pede "revisa esse PR de frontend", o agente vê `frontend-design` na lista de skills disponíveis (auto-discovered via `~/.claude/skills/`), lê o body, segue o playbook, faz `Read` + `Edit` (essas tools tão habilitadas em settings), responde com o review.
+4. **The agent decides to use a skill.** On the turn where the operator asks "review this frontend PR", the agent sees `frontend-design` in the list of available skills (auto-discovered via `~/.claude/skills/`), reads the body, follows the playbook, runs `Read` + `Edit` (those tools are enabled in settings), and replies with the review.
 
-5. **Operador edita o body da skill.** Em `/skills/<id>`, clica `Edit`, ajusta o markdown, salva. Sem ritual de re-approve — body é só content, capabilities continuam no `/settings`. DB grava, FS regenera, hot-reload.
+5. **The operator edits the skill body.** At `/skills/<id>`, clicks `Edit`, adjusts the markdown, saves. No re-approve ritual — the body is just content, capabilities still live in `/settings`. The DB is updated, the FS regenerates, hot-reload.
 
-6. **Operador deleta uma skill.** Na lista, clica delete, confirma com type-to-confirm. Skill some do DB, link `connector_skills` cascade-deleta, FS limpa, hot-reload. Capabilities globais não mexem (são independentes de skills).
+6. **The operator deletes a skill.** In the list, clicks delete, confirms with type-to-confirm. The skill is removed from the DB, the `connector_skills` link cascade-deletes, the FS is cleaned up, hot-reload. Global capabilities are not touched (they are independent of skills).
 
-7. **Operador exporta skills.** Botão `Download all` na lista de skills baixa um zip com `<name>/SKILL.md` pra cada skill. Botão `Download` no detail page da skill baixa o `.md` individual. Frontmatter preservado.
+7. **The operator exports skills.** A `Download all` button on the skills list downloads a zip with `<name>/SKILL.md` for each skill. A `Download` button on the skill detail page downloads the individual `.md`. Frontmatter preserved.
 
-8. **Tool não-MCP é negada porque a capability não tá habilitada.** Agente tenta `Bash("ls")`. `AgentCapabilityRepo.isEnabled('Bash')` retorna `false`. Gate denega. Operador recebe explicação no log: *"tool 'Bash' denied — capability not enabled in /settings/agent-capabilities"*.
+8. **A non-MCP tool is denied because the capability is not enabled.** The agent tries `Bash("ls")`. `AgentCapabilityRepo.isEnabled('Bash')` returns `false`. The gate denies. The operator gets an explanation in the log: *"tool 'Bash' denied — capability not enabled in /settings/agent-capabilities"*.
 
 ## Success Criteria
 
 **Phase A — DB + storage layer:**
-- [ ] Migration adiciona tabelas `skills`, `connector_skills`, `agent_capabilities`.
-  - `skills(id, name UNIQUE, description, body, created_at, updated_at)` — sem `allowed_tools`.
+- [ ] Migration adds tables `skills`, `connector_skills`, `agent_capabilities`.
+  - `skills(id, name UNIQUE, description, body, created_at, updated_at)` — no `allowed_tools`.
   - `connector_skills(connector_id, skill_id, PRIMARY KEY(both), ON DELETE CASCADE)`.
-  - `agent_capabilities(tool_name PRIMARY KEY, enabled BOOLEAN DEFAULT 0, updated_at)` — seedada com row pra cada non-MCP tool conhecida (`Read`, `Edit`, `Write`, `Bash`, `WebFetch`, `Task`, etc.), todas `enabled=0` por default. Lista exata de tools sai durante Phase B gate-zero (verificada contra Claude Agent SDK).
-- [ ] Repos `SkillRepo`, `ConnectorSkillRepo`, `AgentCapabilityRepo` em `@zeno/storage` com CRUD.
-- [ ] Tests unit pra todos os repos.
+  - `agent_capabilities(tool_name PRIMARY KEY, enabled BOOLEAN DEFAULT 0, updated_at)` — seeded with a row for each known non-MCP tool (`Read`, `Edit`, `Write`, `Bash`, `WebFetch`, `Task`, etc.), all `enabled=0` by default. The exact tool list comes out of Phase B gate-zero (verified against the Claude Agent SDK).
+- [ ] Repos `SkillRepo`, `ConnectorSkillRepo`, `AgentCapabilityRepo` in `@zeno/storage` with CRUD.
+- [ ] Unit tests for all repos.
 
 **Phase B — worker runtime:**
-- [ ] No boot do worker, `SkillRepo.list()` materializa cada skill em `${claudeHome}/skills/<name>/SKILL.md` (frontmatter `name`+`description` + body recompostos).
-- [ ] `ProfileWatcher` ganha bucket `'skills'`: edição/criação/delete em `${claudeHome}/skills/**` dispara `onSkillsChanged` → AgentCore reload (mesmo padrão de SOUL.md).
-- [ ] Pre-tool-use hook (`ConnectorGatedBackend`) atualiza:
-  - **Tools não-MCP**: ao invés de denegar fixed, checa `AgentCapabilityRepo.isEnabled(toolName)`. Se enabled → ALLOW. Se disabled → DENY (preserva spec 0050). Não há checagem por skill — capabilities são globais.
-  - **Tools MCP de connector com skills linkadas**: lógica existente do spec 0050 inalterada (per-tool permission). MAIS: o hook retorna um `additionalContext` (ou equivalente — exact field a ser confirmado contra a SDK no momento da implementação) com os bodies das skills linkadas, que a SDK injeta como **mensagem `user` sintética prepended ao próximo turno** antes da tool rodar. Cache: bodies de skills linkadas a um connector são injetados **uma vez por turno por connector**, não por tool call (chave de cache: `turn_id + connector_slug`).
-- [ ] **Phase B gate-zero (primeiro commit): auto-discovery validation.** Ver Constraints. Decisão binária resultando em "Path A: SDK auto-descobre" OU "Path B: tools MCP custom em `agent/mcp.json`". Documentar resultado em commit message + nota inline em `apps/worker/src/agent/mcp-build.ts`. Demais critérios de Phase B presumem o path escolhido.
+- [ ] At worker boot, `SkillRepo.list()` materializes each skill at `${claudeHome}/skills/<name>/SKILL.md` (frontmatter `name`+`description` + body recombined).
+- [ ] `ProfileWatcher` gains a `'skills'` bucket: edits/creations/deletes under `${claudeHome}/skills/**` fire `onSkillsChanged` → AgentCore reload (same pattern as SOUL.md).
+- [ ] Pre-tool-use hook (`ConnectorGatedBackend`) is updated:
+  - **Non-MCP tools**: instead of denying outright, check `AgentCapabilityRepo.isEnabled(toolName)`. If enabled → ALLOW. If disabled → DENY (preserves spec 0050). There is no per-skill check — capabilities are global.
+  - **MCP tools of a connector with linked skills**: existing logic from spec 0050 unchanged (per-tool permission). PLUS: the hook returns an `additionalContext` (or equivalent — exact field to be confirmed against the SDK at implementation time) carrying the bodies of the linked skills, which the SDK injects as a **synthetic `user` message prepended to the next turn** before the tool runs. Cache: bodies of skills linked to a connector are injected **once per turn per connector**, not per tool call (cache key: `turn_id + connector_slug`).
+- [ ] **Phase B gate-zero (first commit): auto-discovery validation.** See Constraints. Binary decision resulting in "Path A: SDK auto-discovers" OR "Path B: custom MCP tools in `agent/mcp.json`". Document the result in the commit message + an inline note in `apps/worker/src/agent/mcp-build.ts`. Subsequent Phase B criteria assume the chosen path.
 - [ ] Tests:
-  - Hot-reload integration test (criar skill no DB → FS materializa → watcher detecta → reload fired).
-  - Permission gate test: capability enabled em settings → tool não-MCP ALLOW; capability disabled → DENY.
-  - Connector-skill injection test: tool `mcp__sentry__list_issues` chamada → body de `sentry-flow` (linkada ao Sentry) é incluído no input do hook.
+  - Hot-reload integration test (create a skill in the DB → FS materializes → watcher detects → reload fired).
+  - Permission gate test: capability enabled in settings → non-MCP tool ALLOW; capability disabled → DENY.
+  - Connector-skill injection test: tool `mcp__sentry__list_issues` called → the body of `sentry-flow` (linked to Sentry) is included in the hook input.
 
 **Phase C — API + dashboard:**
-- [ ] API endpoints (skills): `GET /api/skills`, `GET /api/skills/:id`, `POST /api/skills` (upload), `PATCH /api/skills/:id` (edit body — sem re-approve), `DELETE /api/skills/:id`, `GET /api/skills/:id/download`, `GET /api/skills/download-all`.
-- [ ] API endpoints pra link M:N: `PATCH /api/connectors/:id/skills` (replace whole list), `GET /api/connectors/:id/skills` (read).
-- [ ] API endpoints (capabilities): `GET /api/agent-capabilities` (lista todas com status), `PATCH /api/agent-capabilities` (toggle individual ou batch).
-- [ ] Frontmatter parser: validar `name` (obrigatório, único) + `description` (obrigatório). Rejeita upload com erro claro se inválido. **Não** valida `allowed_tools` (campo ignorado em runtime; pode ser exibido como hint informativo se presente — ver Open Questions).
+- [ ] API endpoints (skills): `GET /api/skills`, `GET /api/skills/:id`, `POST /api/skills` (upload), `PATCH /api/skills/:id` (edit body — no re-approve), `DELETE /api/skills/:id`, `GET /api/skills/:id/download`, `GET /api/skills/download-all`.
+- [ ] API endpoints for the M:N link: `PATCH /api/connectors/:id/skills` (replace whole list), `GET /api/connectors/:id/skills` (read).
+- [ ] API endpoints (capabilities): `GET /api/agent-capabilities` (lists all with status), `PATCH /api/agent-capabilities` (toggle individually or in batch).
+- [ ] Frontmatter parser: validates `name` (required, unique) + `description` (required). Rejects upload with a clear error if invalid. Does **not** validate `allowed_tools` (field ignored at runtime; may be displayed as an informational hint if present — see Open Questions).
 - [ ] Dashboard pages:
-  - `/skills` — lista com colunas SKILL · LINKED · UPDATED (sem ALLOWED TOOLS), botões `+ Install`, `Download all`.
-  - `/skills/:id` — detail com body markdown rendered fullwidth, connectors linkadas (read-only), botões `Edit`, `Download`, `Delete`.
-  - Install modal: file picker → preview frontmatter (`name`, `description`) → confirm. Sem seção "Permission Request" — capabilities são globais.
-  - Edit modal: textarea com body atual (markdown), salvar. Sem re-approve.
-  - Delete modal: type-to-confirm com nome da skill. Cascade preview lista: skill row + FS file + connector_skills links (sem mencionar gate scope, que não muda).
-  - `/connectors/:id` — nova seção "Linked skills" com multi-select.
-  - **`/settings` — seção nova "Agent capabilities".** Lista das tools não-MCP com toggle on/off cada. Default OFF. Mostra warning visual pra tools sensíveis (`Bash`, `Write`).
-- [ ] Paper artboards aprovados pelo operador antes da implementação começar.
-- [ ] `apps/design` implementado primeiro com 3-clean-reviews; `apps/dashboard` espelha.
+  - `/skills` — list with columns SKILL · LINKED · UPDATED (no ALLOWED TOOLS), buttons `+ Install`, `Download all`.
+  - `/skills/:id` — detail with the markdown body rendered fullwidth, linked connectors (read-only), buttons `Edit`, `Download`, `Delete`.
+  - Install modal: file picker → frontmatter preview (`name`, `description`) → confirm. No "Permission Request" section — capabilities are global.
+  - Edit modal: textarea with the current body (markdown), save. No re-approve.
+  - Delete modal: type-to-confirm with the skill name. Cascade preview lists: skill row + FS file + connector_skills links (no mention of gate scope, which does not change).
+  - `/connectors/:id` — new "Linked skills" section with multi-select.
+  - **`/settings` — new "Agent capabilities" section.** Lists non-MCP tools with an on/off toggle each. Default OFF. Shows a visual warning for sensitive tools (`Bash`, `Write`).
+- [ ] Paper artboards approved by the operator before implementation begins.
+- [ ] `apps/design` implemented first with 3-clean-reviews; `apps/dashboard` mirrors.
 
 **Phase D — Quality gate + Docker boot + reviews:**
-- [ ] `pnpm run quality-gate` verde (lint + typecheck + tests em todos workspaces).
-- [ ] Docker boot (`PROFILE=<example> pnpm run docker:up`) clean: log `skills_loaded count=N` aparece, `agent_capabilities_loaded enabled=[...]` aparece, sem erros.
-- [ ] E2E via Slack: operador pede "use skill X pra fazer Y" → agente carrega o body da skill (mecanismo conforme path A/B definido em Phase B gate-zero — auto-discovery nativa OU tool `read_skill` custom), executa task com tools globalmente habilitadas, responde sem erros de permissão.
-- [ ] **3-rounds clean review por phase + final batch review.** Cada phase termina com 3 reviews consecutivos sem findings (qualquer finding reseta o contador). Após Phase D, mais 3 reviews sobre o batch completo. Mesma cadência que foi aplicada em specs 0049-0051 — checa completeness vs spec, dead code, comments stale, scope discipline, bugs de runtime.
+- [ ] `pnpm run quality-gate` green (lint + typecheck + tests across all workspaces).
+- [ ] Docker boot (`PROFILE=<example> pnpm run docker:up`) clean: log `skills_loaded count=N` appears, `agent_capabilities_loaded enabled=[...]` appears, no errors.
+- [ ] E2E via Slack: the operator asks "use skill X to do Y" → the agent loads the skill body (mechanism per the path A/B chosen in Phase B gate-zero — native auto-discovery OR custom `read_skill` tool), executes the task with globally enabled tools, replies without permission errors.
+- [ ] **3-rounds clean review per phase + final batch review.** Each phase ends with 3 consecutive reviews with no findings (any finding resets the counter). After Phase D, 3 more reviews on the complete batch. Same cadence applied in specs 0049-0051 — checks completeness vs spec, dead code, stale comments, scope discipline, runtime bugs.
 
-**Net diff target:** addições puras (nova feature). Estimativa ~1300–2000 linhas novas — estimativa **menor** do que a versão anterior do spec porque o per-skill `allowed_tools` flow saiu (sem union scope, sem re-approve modal, sem allowed_tools schema/validation/JSON column).
+**Net diff target:** pure additions (new feature). Estimate ~1300–2000 new lines — a **smaller** estimate than the previous version of the spec because the per-skill `allowed_tools` flow was dropped (no union scope, no re-approve modal, no allowed_tools schema/validation/JSON column).
 
 ## Risks and Mitigations
 
 | Risk | Mitigation |
 |---|---|
-| Claude Agent SDK não auto-descobre `~/.claude/skills/` quando rodando via SDK (vs CLI). Implementação cai num beco. | Fallback documentado: tools `mcp__zeno__list_skills` + `mcp__zeno__read_skill` em `agent/mcp.json`. Validar **no início** de Phase B antes de comprometer com auto-discovery. |
-| Operador habilita `Bash` globalmente uma vez e esquece — skill maliciosa (futura, via skills.sh) ganha Bash sem aviso recente. | (1) v1 só aceita upload manual (operador escolheu o `.md`). (2) Settings page lista capabilities habilitadas em destaque, e o agent capabilities section pode ter um banner *"Bash is enabled — agent can run shell commands. Disable if you don't trust a recently installed skill."* (3) Threat model é single-operator self-hosted; operador é o gatekeeper. Per-skill sandbox runtime é Non-Goal de v1. |
-| Pre-tool-use hook injetando bodies de skills linkadas quintuplica tokens em turnos com muitas tool calls do mesmo connector. | (1) Inject **uma vez por turno por connector** (cache no contexto do hook), não por tool call. (2) Se skill é grande (>2k tokens), considerar truncar com aviso "skill body truncated, read full via..." — defer pra v2 se virar issue. |
-| Hot-reload com FS materialization pode race-condition: edit no dashboard escreve DB, materializa FS, watcher dispara, mas AgentCore tá no meio de uma query. | Mesmo padrão do SOUL.md hoje. AgentCore reload é graceful — termina query atual antes de pegar nova config. ProfileWatcher já tem debounce de 50ms (per `apps/worker/tests/profile/watcher.test.ts`). |
-| Operador tem 50+ skills instaladas, todos no `~/.claude/skills/`, e o auto-discovery do SDK injeta contexto de todas em todo turno. Token explosion. | Verificar comportamento real do SDK em Phase B gate-zero. Se SDK injeta tudo, ativar Path B (tools custom `list_skills` + `read_skill`) — opera lazy por design. **Não introduzir flag `always_loaded` ou `active` no DB pra contornar isso** — esse caminho é Non-Goal de v1 (decisão da fase de brainstorm). Path B já resolve. |
-| Migration de adicionar `skills` + `connector_skills` + `agent_capabilities` em DB legado precisa ser idempotente. | `CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS` + `INSERT OR IGNORE` pra seed das capability rows. Padrão já em uso em todas migrations do projeto. |
-| Operador tinha skills no profile `<example>/skills/` antigo que foram apagadas em spec 0050. Pode não ter backup. | Spec 0050 não apagou os arquivos físicos do profile dir do operador (eram gitignored). Operador pode re-uploadar manualmente. Se não tiver mais, é trade-off do cleanup arc — re-import flow pode entrar em v2 se for relevante. |
-| Lista de tools não-MCP que `agent_capabilities` vai seedar pode ficar fora de sync com o que o Claude Agent SDK realmente expõe (futuras versões adicionam tools novas). | Lista é finita e estável-suficiente em 2026 (Read/Edit/Write/Bash/WebFetch/Task/Glob/Grep/etc.). Phase B gate-zero confirma a lista exata. Tool nova que aparece depois sem migration: gate denega por default (não está em `agent_capabilities`), comportamento safe-by-default. Operator pode requisitar migration nova pra liberar. |
+| The Claude Agent SDK does not auto-discover `~/.claude/skills/` when running via SDK (vs CLI). The implementation runs into a dead end. | Documented fallback: `mcp__zeno__list_skills` + `mcp__zeno__read_skill` tools in `agent/mcp.json`. Validate **at the start** of Phase B before committing to auto-discovery. |
+| The operator enables `Bash` globally once and forgets — a malicious skill (future, via skills.sh) gains Bash without a recent warning. | (1) v1 only accepts manual upload (the operator chose the `.md`). (2) The settings page lists enabled capabilities prominently, and the agent capabilities section can have a banner *"Bash is enabled — agent can run shell commands. Disable if you don't trust a recently installed skill."* (3) Threat model is single-operator self-hosted; the operator is the gatekeeper. Per-skill sandbox runtime is a Non-Goal of v1. |
+| The pre-tool-use hook injecting bodies of linked skills 5x's tokens in turns with many tool calls of the same connector. | (1) Inject **once per turn per connector** (cache in the hook context), not per tool call. (2) If a skill is large (>2k tokens), consider truncating with a "skill body truncated, read full via..." notice — defer to v2 if it becomes an issue. |
+| Hot-reload with FS materialization can race-condition: an edit in the dashboard writes the DB, materializes the FS, the watcher fires, but AgentCore is mid-query. | Same pattern as SOUL.md today. AgentCore reload is graceful — finishes the current query before picking up the new config. ProfileWatcher already debounces 50ms (per `apps/worker/tests/profile/watcher.test.ts`). |
+| The operator has 50+ installed skills, all in `~/.claude/skills/`, and the SDK auto-discovery injects context for all of them every turn. Token explosion. | Verify the SDK's actual behavior in Phase B gate-zero. If the SDK injects everything, activate Path B (custom `list_skills` + `read_skill` tools) — operates lazily by design. **Do not introduce an `always_loaded` or `active` flag in the DB to work around it** — that path is a Non-Goal of v1 (decision from the brainstorm phase). Path B already solves it. |
+| The migration that adds `skills` + `connector_skills` + `agent_capabilities` to a legacy DB needs to be idempotent. | `CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS` + `INSERT OR IGNORE` for the seed of the capability rows. Pattern already in use across all of the project's migrations. |
+| The operator had skills in the old `<example>/skills/` profile that were removed in spec 0050. May not have a backup. | Spec 0050 did not delete the physical files in the operator's profile directory (they were gitignored). The operator can re-upload manually. If they no longer have them, that is a trade-off of the cleanup arc — a re-import flow may land in v2 if relevant. |
+| The list of non-MCP tools that `agent_capabilities` will seed may go out of sync with what the Claude Agent SDK actually exposes (future versions add new tools). | The list is finite and stable-enough in 2026 (Read/Edit/Write/Bash/WebFetch/Task/Glob/Grep/etc.). Phase B gate-zero confirms the exact list. A new tool that appears later without a migration: the gate denies by default (it is not in `agent_capabilities`), safe-by-default behavior. The operator can request a new migration to enable it. |
 
 ## Open Questions
 
-[NEEDS VERIFICATION DURING IMPLEMENTATION]: Claude Agent SDK auto-descobre `~/.claude/skills/`? Confirmar antes de comprometer com lazy-load via auto-discovery vs tools custom. Plano B (tools custom) está documentado em Phase B.
+[NEEDS VERIFICATION DURING IMPLEMENTATION]: Does the Claude Agent SDK auto-discover `~/.claude/skills/`? Confirm before committing to lazy-load via auto-discovery vs custom tools. Plan B (custom tools) is documented in Phase B.
 
-[NEEDS DESIGN DURING PAPER PHASE]: layout exato das telas `/skills`, `/skills/:id`, e da seção `Agent capabilities` em `/settings`. Spec define o conteúdo (campos, ações), mas o layout visual sai do Paper. Itera com operador.
+[NEEDS DESIGN DURING PAPER PHASE]: exact layout of the `/skills`, `/skills/:id` screens, and the `Agent capabilities` section in `/settings`. The spec defines the content (fields, actions), but the visual layout comes from Paper. Iterate with the operator.
 
-[NEEDS DECISION DURING PAPER REVIEW]: install modal deve mostrar `allowed-tools` da frontmatter da skill (se vier de skills.sh export) como hint informativo? Pros: contextualiza o operador sobre quais capabilities a skill autor sugere ligar globalmente. Contras: pode confundir ("approving" essas tools? não, só info). Decidir junto da modal v2 no Paper.
+[NEEDS DECISION DURING PAPER REVIEW]: should the install modal show the skill's frontmatter `allowed-tools` (if it comes from a skills.sh export) as an informational hint? Pros: contextualizes the operator on which capabilities the skill author suggests turning on globally. Cons: may confuse ("approving" those tools? no, just info). Decide together with the modal v2 in Paper.
 
-**Resolvida (default lock-in):** comportamento de conflito de nome no upload. `POST /api/skills` rejeita com `409 Conflict` quando o frontmatter `name` já existe na tabela `skills`. Dashboard mostra erro: *"Skill `<name>` já existe. Abre o detail page e clica Edit pra atualizar."* Sem flow de "overwrite via upload" em v1 — operador é forçado a usar Edit. Operador pode mudar essa decisão antes do plan se quiser flow alternativo.
+**Resolved (default lock-in):** name conflict behavior on upload. `POST /api/skills` rejects with `409 Conflict` when the frontmatter `name` already exists in the `skills` table. The dashboard shows the error: *"Skill `<name>` already exists. Open the detail page and click Edit to update."* No "overwrite via upload" flow in v1 — the operator is forced to use Edit. The operator can change this decision before the plan if they want an alternative flow.
 
-**Resolvida (durante brainstorm v2):** Per-skill `allowed_tools` na frontmatter foi REMOVIDO do design. Capabilities são globais agora (settings page). Skills podem ter `allowed_tools` no `.md` mas é ignorado em runtime — opcionalmente exibido como hint na install modal. Fica de fora do contrato de v1.
+**Resolved (during brainstorm v2):** Per-skill `allowed_tools` in the frontmatter was REMOVED from the design. Capabilities are now global (settings page). Skills can have `allowed_tools` in the `.md` but it is ignored at runtime — optionally displayed as a hint in the install modal. It is left out of the v1 contract.

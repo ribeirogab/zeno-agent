@@ -1,49 +1,55 @@
 ---
-created: 2026-04-26
+tags:
+  - rule
+  - safety
 severity: critical
+applies-to:
+  - apps/
+  - packages/
+  - profiles/*/.env
+  - agent/connectors-catalog.json
+created: 2026-04-26
 ---
-# Integration tokens vivem na DB, não no `.env`
+# Integration tokens live in the DB, not in `.env`
 
-## Regra
+Tokens for external integrations (Sentry, Linear, Notion, GitHub MCP, Cloudflare, etc.) **must live exclusively** in `connector_secrets` in the DB, managed by the dashboard via the connector. **Never** in `profile/<name>/.env`.
 
-Tokens de integração externa (Sentry, Linear, Notion, GitHub MCP, Cloudflare, etc.) **devem viver exclusivamente** em `connector_secrets` na DB, gerenciados pelo dashboard via connector. **Nunca** em `profile/<name>/.env`.
+## Why
 
-## Por quê
+The agent has access to `Bash` by default (constitution: "Zero custom tools by default. Capabilities come from Claude Code's built-in toolset"). Anything that lands in the worker's `process.env` is visible to the agent via `env | grep` and reachable via `curl`.
 
-O agent tem acesso a `Bash` por padrão (constitution: "Zero custom tools by default. Capabilities come from Claude Code's built-in toolset"). Tudo que entra em `process.env` do worker é visível pelo agent via `env | grep` + chamável via `curl`.
+That means: if you leave an `INTEGRATION_TOKEN` in `.env` while the connector for the same integration is also installed, **the connector's "disable" toggle becomes a lie**. Disable cuts the MCP path, but the agent finds the token in the env, opens Bash, and hits the REST API directly. That is exactly what happened with Sentry in production on 2026-04-26 (logs preserved — the agent ran `curl https://us.sentry.io/api/0/projects/<org>/worker/issues/ -H "Authorization: Bearer $SENTRY_AUTH_TOKEN"` even with the connector OFF).
 
-Isso significa: se você deixou um `INTEGRATION_TOKEN` no `.env` ao mesmo tempo em que tem o connector instalado, **o toggle "disable" do connector vira mentira**. Disable corta a via MCP, mas o agent encontra o token no env, abre Bash, e bate direto na REST API. Foi exatamente o que aconteceu com Sentry em produção em 2026-04-26 (logs preservados — agent rodou `curl https://us.sentry.io/api/0/projects/<org>/worker/issues/ -H "Authorization: Bearer $SENTRY_AUTH_TOKEN"` mesmo com o connector OFF).
+The toggle has to be a **strong promise**: click disable → Zeno loses the credential → Zeno cannot reach the integration. For that promise to hold, the credential **can only exist in a place the toggle controls**: the connector's DB row.
 
-A toggle precisa ser uma **promessa forte**: clicou disable → Zeno perde a credencial → Zeno não consegue acessar a integração. Pra essa promessa segurar, a credencial **só pode existir em um lugar que a toggle controla**: a DB do connector.
+## How to Apply
 
-## O que continua válido em `.env`
+When adding a new integration via a connector:
 
-- ~~**Claude OAuth token** (`CLAUDE_CODE_OAUTH_TOKEN`) — credencial de boot do AgentBackend. Não é tool surface do agent.~~ **Spec 0071** retired this exception — Claude OAuth lives encrypted in `backend_credentials` and the dashboard onboarding flow collects it. The runtime never sets `process.env.CLAUDE_CODE_OAUTH_TOKEN` (the SDK gets the token via per-call `env` opt + `~/.claude/.credentials.json`); a Bash-shell prompt-injection attack can no longer `env | grep CLAUDE`.
-- **Dashboard auth** (`DASHBOARD_PASSWORD`, `DASHBOARD_SESSION_SECRET`) — credenciais da própria dashboard, não do agent.
-- **`ZENO_MASTER_KEY`** (spec 0071) — 32-byte master key for envelope encryption of every DB credential. Itself an env-only secret because it has to bootstrap before any DB read.
+1. The token enters the DB through the dashboard (catalog install flow).
+2. **Do not copy it to `.env`.**
+3. If a skill is associated with the integration: the skill must teach **only the MCP path**, with no documented `curl`/REST shortcut and no references to credential env vars.
+4. If the integration was previously in legacy `.env`, **remove it from `.env`** after the connector is installed.
+
+## What still belongs in `.env`
+
+- ~~**Claude OAuth token** (`CLAUDE_CODE_OAUTH_TOKEN`) — boot credential for the AgentBackend. Not part of the agent's tool surface.~~ **Spec 0071** retired this exception — the Claude OAuth token now lives encrypted in `backend_credentials`, and the dashboard onboarding flow collects it. The runtime never sets `process.env.CLAUDE_CODE_OAUTH_TOKEN` (the SDK gets the token via per-call `env` opt + `~/.claude/.credentials.json`); a Bash-shell prompt-injection attack can no longer `env | grep CLAUDE`.
+- **Dashboard auth** (`DASHBOARD_PASSWORD`, `DASHBOARD_SESSION_SECRET`) — credentials for the dashboard itself, not for the agent.
+- **`ZENO_MASTER_KEY`** (spec 0071) — 32-byte master key for envelope encryption of every DB credential. It must itself be env-only because it has to bootstrap before any DB read.
 - **Runtime config** (`LOG_LEVEL`, `WORKSPACE_DIR`, `PROFILE`).
-- **GitHub PAT pessoal** (`GH_TOKEN`) — usado por `dev-workflow`/`code-review` skills via `gh` CLI. Esses skills NÃO têm connector equivalente hoje. Quando virar connector (`@modelcontextprotocol/server-github`), aplicar a regra.
-- **GitHub App tokens** (per-installation, e.g. `<ORG>_GH_TOKEN`) — gerados em runtime pelo bootstrap do `github_app` (não vêm do `.env`); ficam em `process.env` durante o turn. Idealmente migram pra connector também, mas isso é spec própria.
+- **Personal GitHub PAT** (`GH_TOKEN`) — used by the `dev-workflow` / `code-review` skills via the `gh` CLI. Those skills do NOT have a connector equivalent today. When that becomes a connector (`@modelcontextprotocol/server-github`), the rule applies.
+- **GitHub App tokens** (per-installation, e.g. `<ORG>_GH_TOKEN`) — generated at runtime by the `github_app` bootstrap (they do not come from `.env`); they live in `process.env` only during the active turn. Ideally they migrate to a connector too, but that is a spec of its own.
 
-## O que muda quando essa regra é violada
+## What breaks when this rule is violated
 
-1. Toggle "disable" do connector vira teatro
-2. O operador não tem como remover acesso a uma integração sem editar arquivo + restart
-3. Auditoria fica incompleta — `connector_invocations` registra invocação MCP, mas se o agent foi via Bash+curl, a chamada some do log do connector
+1. The connector's "disable" toggle becomes theatre.
+2. The operator has no way to remove access to an integration without editing a file and restarting.
+3. Auditing is incomplete — `connector_invocations` records the MCP call, but if the agent went via Bash + curl, the call disappears from the connector log.
 
-## Como aplicar
+## References
 
-Quando adicionar nova integração via connector:
-
-1. Token entra na DB via dashboard (catalog install fluxo)
-2. **Não copiar pro `.env`**
-3. Se houver skill associada à integração: skill deve ensinar **só a via MCP**, sem documentar `curl`/REST direto, sem referenciar env vars de credencial
-4. Se a integração já estava no `.env` legado, **remover do `.env`** depois de instalar o connector
-
-## Referências
-
-- [`learnings/channel-vs-connector.md`](../learnings/channel-vs-connector.md) — distinção original entre Channel (transport) e Connector (tool surface). Note: spec 0058 unificou Slack como `kind='channel'` connector na mesma DB; Telegram/WPP futuros seguem o mesmo padrão.
-- [`learnings/channel-as-connector-cutover.md`](../learnings/channel-as-connector-cutover.md) — playbook + observações da migração que removeu a "exceção Slack" desta regra.
-- [`specs/2026-04-29-slack-channel/spec.md`](../specs/2026-04-29-slack-channel/spec.md) — código que viabilizou a migração.
-- [`specs/2026-04-26-connectors-dashboard/spec.md`](../specs/2026-04-26-connectors-dashboard/spec.md) — onde a infraestrutura DB-first do connector secrets vive.
-- Constitution §Architecture principles — "Zero custom tools by default" (justifica por que Bash sempre disponível ao agent).
+- [`learnings/channel-vs-connector.md`](../learnings/channel-vs-connector.md) — original Channel (transport) vs Connector (tool surface) distinction. Note: spec 0058 unified Slack as a `kind='channel'` connector in the same DB; future Telegram/WhatsApp adapters follow the same pattern.
+- [`learnings/channel-as-connector-cutover.md`](../learnings/channel-as-connector-cutover.md) — playbook + observations from the migration that removed the "Slack exception" from this rule.
+- [`specs/2026-04-29-slack-channel/spec-slack-channel.md`](../specs/2026-04-29-slack-channel/spec-slack-channel.md) — the code that made the migration possible.
+- [`specs/2026-04-26-connectors-dashboard/spec-connectors-dashboard.md`](../specs/2026-04-26-connectors-dashboard/spec-connectors-dashboard.md) — where the DB-first connector secrets infrastructure lives.
+- Constitution §Architecture principles — "Zero custom tools by default" (the reason Bash is always available to the agent).

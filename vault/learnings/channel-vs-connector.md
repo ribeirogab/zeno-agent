@@ -12,82 +12,82 @@ related:
 
 > **2026-04-29 update:** spec 0058 unified Slack into the `connectors` table with `kind='channel'`. The "Slack tokens vivem em `.env`" sections below are HISTORICAL — Slack tokens now live in DB `connector_secrets` like every other integration. The Channel/Connector conceptual distinction (transport-the-agent-runs-inside vs tool-the-agent-calls) still holds; only the storage divergence is gone. See [[channel-as-connector-cutover|cutover playbook]] for the migration narrative + observations.
 
-# Channel vs Connector — duas integrações externas, dois papéis
+# Channel vs Connector — two external integrations, two roles
 
 ## The shape
 
-Toda integração externa do Zeno cai em **uma de duas categorias** (ou nas duas, como o Slack):
+Every external Zeno integration falls into **one of two categories** (or both, like Slack):
 
 ### Channel — input/output adapter
 
-Como o usuário fala com o Zeno e como o Zeno responde. Implementa a interface `Channel` em `apps/worker/src/channels/<name>/adapter.ts`. Responsabilidades:
+How the operator talks to Zeno and how Zeno responds. Implements the `Channel` interface in `apps/worker/src/channels/<name>/adapter.ts`. Responsibilities:
 
-- Receber mensagens (mentions, DMs) e entregar pro `AgentCore`
-- Postar respostas
-- Reagir / atualizar mensagens
-- Solicitar aprovações (via reactions, em modos worker)
+- Receive messages (mentions, DMs) and hand them to `AgentCore`
+- Post replies
+- React to / update messages
+- Request approvals (via reactions, in worker modes)
 
-**Slack** é o único Channel hoje. Telegram, WhatsApp, email, Discord — todos viram Channels novos no futuro, sem alterar o core (constitution §Architecture: "Channels and backends are plugs").
+**Slack** is the only Channel today. Telegram, WhatsApp, email, Discord — all become new Channels in the future without changing the core (constitution §Architecture: "Channels and backends are plugs").
 
-Tokens vivem em `profile/<name>/.env`. Configuração de boot, não de runtime.
+Tokens live in `profile/<name>/.env`. Boot configuration, not runtime.
 
 ### Connector — MCP server callable as a tool
 
-Capacidade externa que o **agente** chama em runtime. Implementa o MCP protocol (stdio ou HTTP/SSE). Responsabilidades:
+External capability that the **agent** calls at runtime. Implements the MCP protocol (stdio or HTTP/SSE). Responsibilities:
 
-- Expor tools (`tools/list`)
-- Executar tool calls (`tools/call`)
+- Expose tools (`tools/list`)
+- Execute tool calls (`tools/call`)
 
-Connectors são gerenciados pela dashboard a partir da spec 0034 — DB-first, hot-reload sem restart, com permissões 3-state por tool. Tokens vivem na tabela `connector_secrets`. Configuração de runtime, mutável.
+Connectors are managed by the dashboard starting from spec 0034 — DB-first, hot-reload without restart, with 3-state permissions per tool. Tokens live in the `connector_secrets` table. Runtime configuration, mutable.
 
-## Quando uma plataforma é os dois
+## When a platform is both
 
-**Slack é o caso paradigmático**: mesmo bot, mesmo workspace, mas dois papéis distintos.
+**Slack is the paradigmatic case**: same bot, same workspace, but two distinct roles.
 
-| Aspecto | Slack como Channel | Slack como Connector |
+| Aspect | Slack as Channel | Slack as Connector |
 |---|---|---|
-| Quem aciona | usuário (mentiona @zeno) | agente (decide chamar tool) |
-| Direção | recebe + responde | chama tool, pega resposta |
-| Tokens | `.env` (boot) | `connector_secrets` (DB, gerenciado pela UI) |
-| Reload | restart do worker | próximo agent turn |
-| Pode existir sem o outro? | sim (Channel sem Connector = bot que escuta mas não tem tool surface) | sim (Connector sem Channel = agente posta em outro workspace que não escuta nada) |
+| Who triggers | operator (mentions @zeno) | agent (decides to call tool) |
+| Direction | receives + responds | calls tool, gets response |
+| Tokens | `.env` (boot) | `connector_secrets` (DB, managed by the UI) |
+| Reload | worker restart | next agent turn |
+| Can exist without the other? | yes (Channel without Connector = bot that listens but has no tool surface) | yes (Connector without Channel = agent posts in another workspace that listens to nothing) |
 
-Outros exemplos potenciais (futuro):
+Other potential examples (future):
 
-- **Telegram**: quase certo que vira Channel (input). Connector Telegram só se o agente precisar chamar coisas em outras conversas além de responder no thread.
-- **GitHub**: Channel não faz sentido (Zeno não é um bot do GitHub). Mas Connector sim — Linear/PRs/issues são tool surface.
-- **Email**: pode virar Channel (responde DMs por email), pode virar Connector (agente envia email para terceiros).
+- **Telegram**: almost certainly becomes a Channel (input). A Telegram Connector only if the agent needs to call things in conversations other than replying in the thread.
+- **GitHub**: Channel makes no sense (Zeno isn't a GitHub bot). But Connector yes — Linear/PRs/issues are tool surface.
+- **Email**: can become a Channel (replies to DMs by email), can become a Connector (agent sends email to third parties).
 
-## Princípio
+## Principle
 
-> **Toda integração externa do Zeno se encaixa em Channel, Connector, ou ambos. Pense primeiro em qual papel a integração ocupa antes de implementar.**
+> **Every external Zeno integration fits into Channel, Connector, or both. Think first about which role the integration occupies before implementing.**
 
-Channel = input ↔ output do operador. Connector = tool surface do agente. Confundir os dois leva a APIs estranhas (ex.: tentar postar mensagem como tool quando o Channel já tem `reply()`).
+Channel = operator's input ↔ output. Connector = agent's tool surface. Confusing the two leads to weird APIs (e.g., trying to post a message as a tool when the Channel already has `reply()`).
 
-## O que isso muda na prática
+## What this changes in practice
 
-- **Adicionar uma plataforma de chat nova** (Telegram, etc.): comece pelo Channel. Connector vem se houver razão concreta.
-- **Adicionar uma SaaS de produtividade** (Linear, Notion, Granola): só Connector. Não tem input do usuário ali.
-- **Slack-shaped** plataformas (Discord futuramente): provavelmente vai ser ambos.
+- **Adding a new chat platform** (Telegram, etc.): start with the Channel. Connector comes if there's a concrete reason.
+- **Adding a productivity SaaS** (Linear, Notion, Granola): Connector only. There's no user input there.
+- **Slack-shaped** platforms (Discord eventually): probably will be both.
 
-## Direção futura — unificação (decisão do operador, 2026-04-26)
+## Future direction — unification (operator decision, 2026-04-26)
 
-O operador quer **fundir Channel e Connector** num único conceito. A ideia: toda integração externa é um Connector; alguns Connectors têm uma "category" extra que diz se também aceitam input do usuário (tipo `channel`). Isso permite gerenciar Slack, Telegram, WhatsApp, email — tudo pelo mesmo dashboard, com a mesma UX de install/secrets/tools.
+The operator wants to **merge Channel and Connector** into a single concept. The idea: every external integration is a Connector; some Connectors have an extra "category" that says whether they also accept user input (like `channel`). This allows managing Slack, Telegram, WhatsApp, email — all through the same dashboard, with the same install/secrets/tools UX.
 
-Por que ainda não foi feito:
-- A interface `Channel` hoje é richer que MCP (postar mensagem, reagir, atualizar mensagem, esperar reaction como aprovação). Mapear isso pra MCP tools é viável mas não é trivial — algumas dessas operações precisam acontecer fora de uma turn do agente (ex.: aprovação durante uma turn em andamento).
-- O input loop (Slack Socket Mode → AgentCore) tem uma série de hooks (slack_context preamble, correlation id, thread state) que estão hardcoded ao Channel hoje.
-- Os tokens do Slack hoje carregam dois papéis: app-level (Socket Mode WebSocket) e bot (REST API). Connector só precisa do bot. O dashboard precisaria aceitar os dois.
+Why it hasn't been done yet:
+- The `Channel` interface today is richer than MCP (post message, react, update message, wait for reaction as approval). Mapping that to MCP tools is feasible but not trivial — some of those operations need to happen outside an agent turn (e.g., approval during an in-progress turn).
+- The input loop (Slack Socket Mode → AgentCore) has a series of hooks (slack_context preamble, correlation id, thread state) that are hardcoded to the Channel today.
+- Slack tokens today carry two roles: app-level (Socket Mode WebSocket) and bot (REST API). Connector only needs the bot. The dashboard would have to accept both.
 
-Quando puxar:
-- Spec proposta: `00XX-channels-as-connectors`. Adiciona uma coluna `category: 'channel' | 'tool'` (ou `is_channel: bool`) na tabela `connectors`. UI ganha um filtro/agrupamento "Channels" vs "Tools".
-- Bonus: cada Channel-connector também ganha as tools do MCP server correspondente (Slack post_message etc.) sem ser configurado duas vezes.
-- Pré-requisito: extrair a interface `Channel` pra um shape que possa ser instanciada a partir de um connector row + secrets.
+When to pull this:
+- Proposed spec: `00XX-channels-as-connectors`. Adds a `category: 'channel' | 'tool'` (or `is_channel: bool`) column to the `connectors` table. UI gains a "Channels" vs "Tools" filter/grouping.
+- Bonus: each Channel-connector also gains the tools of the corresponding MCP server (Slack post_message etc.) without being configured twice.
+- Prerequisite: extract the `Channel` interface into a shape that can be instantiated from a connector row + secrets.
 
-Deixar nesta nota: o operador disse "não precisa ser feito agora, deixe anotado em algum lugar pra gente puxar logo em seguida".
+Leaving in this note: the operator said "doesn't need to be done now, just leave it noted somewhere so we can pull it right after."
 
-## Referências
+## References
 
-- Constitution §Why Zeno exists e §Architecture principles.
-- Spec 0032 §Database — `connectors` table é só pro Connector lado; Channel não vive em DB.
+- Constitution §Why Zeno exists and §Architecture principles.
+- Spec 0032 §Database — `connectors` table is only for the Connector side; Channel does not live in DB.
 - `apps/worker/src/channels/` (Channel adapters) vs `packages/mcp-discover/` (Connector helpers).

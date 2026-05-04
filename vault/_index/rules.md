@@ -10,7 +10,8 @@ Rules are added when a project-specific safety or workflow constraint is discove
 
 ## `severity: critical`
 
-- [[../rules/integration-tokens-in-db-only|Integration tokens vivem na DB, não no `.env`]] — credenciais de integração externa (Sentry, Linear, Notion, GitHub MCP, Slack, etc.) só em `connector_secrets`. Garante que a toggle "disable" do connector seja uma promessa forte: sem credencial alcançável pelo agent via Bash. Spec 0058 unificou Slack na mesma regra (`kind='channel'` connector, DB-only).
+- [[../rules/sanitization|Committed content must be fictitious]] — nothing committed may contain real, private, or non-consented identifiers (forbidden list of 11 categories). Canonical placeholder mapping table is the single source of truth. Editorial enforcement, no CI, no hooks.
+- [[../rules/integration-tokens-in-db-only|Integration tokens live in the DB, not in `.env`]] — external integration credentials (Sentry, Linear, Notion, GitHub MCP, Slack, etc.) only in `connector_secrets`. Makes the connector "disable" toggle a strong promise: no credential reachable by the agent via Bash. Spec 0058 unified Slack under the same rule (`kind='channel'` connector, DB-only).
 
 ## `severity: important`
 

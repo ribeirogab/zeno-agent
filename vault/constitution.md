@@ -29,6 +29,16 @@ The goal is that adding a capability is always a matter of installing or buildin
 - **No production deploy concerns.** Zeno runs locally on the user's machine. Cloud migration is possible later (Docker-first design) but not a current goal.
 - Do not add dependencies, tooling, or frameworks without first writing a learning or spec explaining the decision. Premature lock-in is the main risk during early growth.
 
+## Privacy & sanitization
+
+This repository is public. Everything committed is a potential leak.
+
+- **No real identifiers in committed content** — names, emails, employers, clients, private repos, Slack/internal IDs, tokens. Git authorship metadata is out of scope.
+- **Examples are fictitious.** Use the placeholders in `[[rules/sanitization]]`.
+- **Public OSS projects are fair game** as technical context (e.g. Anthropic SDK, vitest).
+- **Editorial enforcement.** No CI, no hooks. Agents must read `[[rules/sanitization]]` and self-audit each diff.
+- **When in doubt, scrub.**
+
 ## Architecture principles
 
 - **Ports & adapters.** Three pluggable abstractions: `Channel` (message sources — Slack today, Discord/Telegram/etc. future), `AgentBackend` (reasoning engines — Claude Code today, Codex/Gemini future), and **Connector** (MCP tool surfaces the agent calls — DB-managed via the dashboard since spec 0032). The Agent Core orchestrator depends only on the first two interfaces; the agent backend itself consumes Connectors via the SDK's `mcpServers` map at query time. Adding a new channel, backend, or connector must be additive — never a modification to the core. Channel ≠ Connector — Slack is both, but they are distinct concepts (input/output adapter vs tool callable by the agent). See `[[learnings/channel-vs-connector]]`.
@@ -70,20 +80,20 @@ Principles that frame all of the above:
 
 Before implementing any user request, assess whether the solution is obvious. If you cannot describe the complete solution in one sentence, use the Spec Kit flow: brainstorm → `spec.md` → `plan.md` → `tasks.md` → implement. If the solution is obvious, go direct. If almost obvious but with 1-2 open decisions, ask the user whether to spec or go direct.
 
-Specs never get deleted. Shipped specs remain in `context/specs/` as historical record.
+Specs never get deleted. Shipped specs remain in `vault/specs/` as historical record.
 
 ## Knowledge layering
 
-- `context/` is **maintainer-facing documentation** — for humans or AI agents WORKING ON Zeno's source code. The Zeno running in production does NOT mount or read this directory; it would be source-code metadata, irrelevant to its runtime job (serving Slack messages).
+- `vault/` is **maintainer-facing documentation** — for humans or AI agents WORKING ON Zeno's source code. The Zeno running in production does NOT mount or read this directory; it would be source-code metadata, irrelevant to its runtime job (serving Slack messages).
 - Runtime context the agent actually needs is narrow: who the user is (`USER.md`, mounted), the system prompt (built at boot), and the MCP tools exposed by the connectors the operator has enabled via the dashboard.
-- Anything Zeno-specific that a future maintainer (or future-you) would want to know — principles, decisions, architecture, surprises, conventions — lives in `context/`.
+- Anything Zeno-specific that a future maintainer (or future-you) would want to know — principles, decisions, architecture, surprises, conventions — lives in `vault/`.
 - Only add notes here for things unique to Zeno. Generic patterns that apply to any project belong in global instructions or the user's global memory.
 - When a decision is made about Zeno's stack or architecture, update this constitution **and** write a matching learning explaining the reasoning.
 
 ## What this constitution is not
 
-- Not an architecture document. See `context/_index/learnings.md` for architecture notes.
-- Not a style guide. See `context/conventions/` for code style conventions.
-- Not a spec for any feature. Specs live in `context/specs/`.
+- Not an architecture document. See `vault/_index/learnings.md` for architecture notes.
+- Not a style guide. See `vault/conventions/` for code style conventions.
+- Not a spec for any feature. Specs live in `vault/specs/`.
 
 This document exists to hold the things that would be catastrophic to forget.

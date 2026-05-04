@@ -13,7 +13,7 @@ import type { BackendListItem, BackendStatus } from '@/lib/use-backends';
 
 export interface BackendCardProps {
   backend: BackendListItem;
-  /** Spec 0071: active profile id (default | fn | ...) — drives the scope meta. */
+  /** Spec 0071: active profile id (default | work | ...) — drives the scope meta. */
   profileId: string;
   onConfigure: () => void;
 }

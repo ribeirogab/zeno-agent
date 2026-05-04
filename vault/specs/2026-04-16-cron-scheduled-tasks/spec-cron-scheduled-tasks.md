@@ -104,7 +104,7 @@ In `AgentCore.bind`, before calling backend, the user message is wrapped:
 [slack_context]
 conversation_id: C12345
 thread_id: 1710000000.000100
-user_id: U0AU1D4FNG0
+user_id: U0EXAMPLE000
 current_time: 2026-04-16T01:30:00Z
 [/slack_context]
 

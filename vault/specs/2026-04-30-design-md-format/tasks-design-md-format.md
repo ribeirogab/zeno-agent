@@ -8,7 +8,7 @@ created: 2026-04-30
 
 **For this plan:** `[[plan-design-md-format]]`
 
-Working directory: `/Users/operator/www/octocat/zeno-agent-spec-0070` (worktree). Branch: `feat/spec-2026-04-30-design-md-format`. Commits use Conventional Commits with `(0070)` scope tag where natural.
+Working directory: `/Users/<you>/zeno-agent-spec-0070` (worktree). Branch: `feat/spec-2026-04-30-design-md-format`. Commits use Conventional Commits with `(0070)` scope tag where natural.
 
 ## Phase 1: Tooling
 
@@ -46,7 +46,7 @@ Working directory: `/Users/operator/www/octocat/zeno-agent-spec-0070` (worktree)
 - [ ] **Step 4: Install**
 
   ```bash
-  cd /Users/operator/www/octocat/zeno-agent-spec-0070
+  cd /Users/<you>/zeno-agent-spec-0070
   pnpm install
   ```
   Expected: lockfile updates; no errors.
@@ -75,7 +75,7 @@ Working directory: `/Users/operator/www/octocat/zeno-agent-spec-0070` (worktree)
 - [ ] **Step 1: Fetch the pinned spec**
 
   ```bash
-  cd /Users/operator/www/octocat/zeno-agent-spec-0070
+  cd /Users/<you>/zeno-agent-spec-0070
   gh api repos/google-labs-code/design.md/contents/docs/spec.md --jq '.content' --header 'Accept: application/vnd.github.v3+json' \
     | base64 -d > /tmp/google-design-md-spec.md
   wc -l /tmp/google-design-md-spec.md
@@ -824,7 +824,7 @@ Tokens are extracted verbatim from these sources of truth (read once before auth
   ```bash
   grep -rn "packages/ui/DESIGN.md" \
     --include="*.md" --include="*.ts" --include="*.tsx" --include="*.json" \
-    /Users/operator/www/octocat/zeno-agent-spec-0070
+    /Users/<you>/zeno-agent-spec-0070
   ```
   Expected: zero matches. (The `ui-in-paper` rule has already been rewritten in Task 2.5.) If anything matches, fix the reference first; do not delete the file with stale links pointing at it.
 
@@ -902,7 +902,7 @@ If any round surfaces a finding, fix it and **reset the counter** before continu
 - [ ] **Step 1: Push branch**
 
   ```bash
-  cd /Users/operator/www/octocat/zeno-agent-spec-0070
+  cd /Users/<you>/zeno-agent-spec-0070
   git push -u origin feat/spec-2026-04-30-design-md-format
   ```
 

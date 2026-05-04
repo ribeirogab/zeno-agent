@@ -10,7 +10,7 @@ created: 2026-04-29
 
 > **For agentic workers:** Run tasks in order. Each task is small (≈ 5–15 min). Commit after every task. Phase G (quality gate) runs ONCE at the end of all UI work — don't run it mid-phase.
 
-> **Worktree path:** `/Users/operator/www/octocat/zeno-agent-worktrees/2026-04-29-channels-ui/`. All paths below are relative to this root unless explicitly absolute. The worktree is on branch `feat/spec-2026-04-29-channels-ui`.
+> **Worktree path:** `/Users/<you>/zeno-agent-worktrees/2026-04-29-channels-ui/`. All paths below are relative to this root unless explicitly absolute. The worktree is on branch `feat/spec-2026-04-29-channels-ui`.
 
 ---
 

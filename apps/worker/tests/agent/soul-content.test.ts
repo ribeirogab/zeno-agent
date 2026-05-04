@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
  * `~/.claude/skills/`, but the SOUL.md was never updated — the resulting
  * contradiction (preset announces skills + SOUL says ignore them) caused
  * the agent to freelance output and ignore SKILL.md templates (e.g.,
- * fn-code-review's Templates A/B/C/D shape contract for PR reviews).
+ * a code-review skill's Templates A/B/C/D shape contract for PR reviews).
  *
  * This test is the regression guard. Any future PR that reverts to the
  * "deferred" framing — or removes the positive Skills section entirely —

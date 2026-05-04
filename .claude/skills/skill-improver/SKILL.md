@@ -27,7 +27,7 @@ The user is NOT asking to:
 Get the absolute path to the skill's `SKILL.md`. Examples:
 
 - `agent/skills/zeno-development/SKILL.md` (zeno_default source — image-baked)
-- `profiles/fn/skills/fn-code-review/SKILL.md` (profile source)
+- `profiles/<example>/skills/code-review/SKILL.md` (profile source)
 - `/workspace/skills/<name>/SKILL.md` (dashboard source — uploaded zip)
 - `.claude/skills/<name>/SKILL.md` (project-local Claude Code skill)
 

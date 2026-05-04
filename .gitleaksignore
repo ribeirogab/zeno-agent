@@ -1,0 +1,32 @@
+# Test fixtures using deterministic hex strings ('0'.repeat(64),
+# 'a'.repeat(64), '0123456789abcdef...') — not real secrets.
+apps/api/tests/routes/activity.test.ts:generic-api-key:15
+apps/api/tests/routes/agent-capabilities.test.ts:generic-api-key:19
+apps/api/tests/routes/auth.test.ts:generic-api-key:14
+apps/api/tests/routes/connector-skills.test.ts:generic-api-key:19
+apps/api/tests/routes/connectors.test.ts:generic-api-key:16
+apps/api/tests/routes/connectors-app-lifecycle.test.ts:generic-api-key:29
+apps/api/tests/routes/connectors-listing-collapsed.test.ts:generic-api-key:24
+apps/api/tests/routes/cron-connectors.test.ts:generic-api-key:21
+apps/api/tests/routes/backends.test.ts:generic-api-key:26
+apps/api/tests/routes/cron-skills.test.ts:generic-api-key:21
+apps/api/tests/routes/crons.test.ts:generic-api-key:15
+apps/api/tests/auth/hmac.test.ts:generic-api-key:4
+apps/api/tests/auth/middleware.test.ts:generic-api-key:6
+apps/api/tests/routes/channels.test.ts:generic-api-key:26
+apps/api/tests/routes/catalog-github-app.test.ts:generic-api-key:26
+apps/api/tests/routes/stats.test.ts:generic-api-key:16
+apps/api/tests/routes/skills.test.ts:generic-api-key:38
+
+# Fake PEM strings used for SHA-256 round-trip tests.
+packages/github-app/tests/jwt.test.ts:private-key:79
+packages/github-app/tests/jwt.test.ts:private-key:101
+
+# Spec/task documentation showing test-fixture session secrets.
+vault/specs/2026-04-26-connectors-e2e/tasks-connectors-e2e.md:generic-api-key:60
+vault/specs/2026-04-16-dashboard-crud/tasks-dashboard-crud.md:generic-api-key:1074
+vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:984
+vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1090
+vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1236
+vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1459
+vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1694

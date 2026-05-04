@@ -22,8 +22,8 @@ If any of those don't hold, prefer single-file with stronger hierarchy (more h2/
 A split is the **wrong** call when ANY of these hold:
 
 1. **Hard-gates depend on inline content.** Examples:
-   - `fn-code-review`'s pre-submit gate requires Templates A/B/C/D in working memory. Moving them to a reference file means the agent emits output before the reference loads, breaking the gate.
-   - `fn-sentry-fix`'s Phase 3 confidence gate references the trigger keywords — if those move to a reference, the gate decision happens with stale or missing context.
+   - `code-review`'s pre-submit gate requires Templates A/B/C/D in working memory. Moving them to a reference file means the agent emits output before the reference loads, breaking the gate.
+   - `sentry-fix`'s Phase 3 confidence gate references the trigger keywords — if those move to a reference, the gate decision happens with stale or missing context.
    - Any "before you emit X, validate against Y" pattern where Y must be in working memory at emit time.
 2. **The workflow is single-procedural and tightly coupled.** A 12-step deployment runbook where step 4 depends on the output of step 3 doesn't benefit from being split into 12 reference files — the agent needs all 12 in working memory to execute the workflow correctly.
 3. **The references would be tiny.** Three 30-line reference files is worse than one 200-line SKILL.md — overhead cost (link resolution, file reads, mental model fragmentation) exceeds the benefit.
@@ -85,13 +85,13 @@ Practical sanity:
 
 **Single-file. Don't split.** Below the cap, single procedural workflow (clone → branch → commit → PR), each step builds on the previous. Splitting would only fragment context.
 
-### Example 2: fn-code-review (319 lines)
+### Example 2: code-review (319 lines)
 
 **Borderline single-file. Strong reasons NOT to split.** Despite being slightly above the comfortable single-file ceiling, the pre-submit gate's Templates A/B/C/D MUST be in working memory at output time. Moving templates to references breaks the gate — explicit anti-pattern.
 
 If a refactor is desired here, the play is to tighten *within* the single file (remove redundancy, reframe MUSTs as why-clauses, consolidate sections) — not split.
 
-### Example 3: fn-sentry-fix (467 lines)
+### Example 3: sentry-fix (467 lines)
 
 **Strong split candidate.** Distinct phases (1: fetch Sentry data, 2: triage, 3: confidence gate, 4: hand-off rubric, 5: zeno-development handoff, 6: PR review, 7: PT-BR root-cause report). Each phase is self-contained. Phases 4-7 only fire after Phase 3's gate passes — the agent doesn't need them in working memory unless the gate passed.
 

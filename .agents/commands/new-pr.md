@@ -36,7 +36,7 @@ The user (or another agent) types `/new-pr` from Claude Code. Optional argument:
 
 5. **Draft the PR title** in Conventional Commits format. Suggest one based on the most recent commits on the branch; let the user edit.
 
-6. **Draft the PR body** matching `.github/PULL_REQUEST_TEMPLATE.md`'s shape:
+6. **Draft the PR body** matching `.github/PULL_REQUEST_TEMPLATE.md`'s shape. Spec and issue references MUST be real markdown links pointing at the branch on origin (`https://github.com/<owner>/<repo>/blob/<branch>/<path>`), not bare backticked paths — outsiders reading the PR cannot click a backticked path:
 
    ```markdown
    ## Summary
@@ -47,10 +47,8 @@ The user (or another agent) types `/new-pr` from Claude Code. Optional argument:
 
    ## Spec / issue
 
-   <link to vault/specs/<slug>/spec.md if applicable, or `Closes #<N>`>
-
-   Spec: `vault/specs/<slug>/spec.md`
-   Closes: #
+   Spec: [<path-or-title>](https://github.com/<owner>/<repo>/blob/<branch>/vault/specs/<slug>/spec.md)
+   Closes: #<N>
 
    ## Test plan
 
@@ -72,11 +70,18 @@ The user (or another agent) types `/new-pr` from Claude Code. Optional argument:
 7. **Open the PR.** Run:
 
    ```bash
-   gh pr create --title "<title>" --body "$(cat <<'EOF'
+   gh pr create \
+     --title "<title>" \
+     --body "$(cat <<'EOF'
    <body from step 6>
    EOF
-   )"
+   )" \
+     --label "<type-label>" \
+     --assignee "@me"
    ```
+
+   - `--label` MUST be set. Pick the type label that matches the PR's primary purpose: `enhancement` (new feature or capability), `bug` (defect fix), `docs` if the change is documentation-only and the repo has a `docs` label, or `roadmap` if the PR closes a roadmap-tagged issue. Multiple labels may be added with comma separation.
+   - `--assignee "@me"` self-assigns the PR to the operator who is opening it. Outsiders need to know who owns the PR's review and merge.
 
 8. **Report the PR URL** to the user.
 
@@ -87,4 +92,6 @@ The user (or another agent) types `/new-pr` from Claude Code. Optional argument:
 - Do not push to `main` directly.
 - Do not open a PR if the quality gate is red.
 - Do not silently include the maintainer's real identifiers in the PR title or body.
+- Do NOT use backticked file paths for the Spec / issue field — always a clickable markdown link to the file on the PR's branch.
+- Do NOT open a PR without `--label` and `--assignee "@me"`. Both are mandatory.
 - The Sanitization heuristic is advisory — the canonical contract lives in `vault/rules/sanitization.md`.

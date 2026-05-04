@@ -30,7 +30,7 @@ Synthesis of 2026-04-15 deep study of OpenClaw and Hermes Agent. Zeno's target p
 
 ## Context
 
-Operator's stated use case: single user, Slack as the primary channel, agent acts on work repos (`acme`) and personal repos (`octocat`), opens PRs, reviews code, integrates with Linear in the future. Core success criterion: **easier to configure than OpenClaw and Hermes**.
+the operator's stated use case: single user, Slack as the primary channel, agent acts on work repos (`acme`) and personal repos (`octocat`), opens PRs, reviews code, integrates with Linear in the future. Core success criterion: **easier to configure than OpenClaw and Hermes**.
 
 ## How to Apply
 

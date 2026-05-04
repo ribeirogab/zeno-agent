@@ -42,13 +42,13 @@ When Zeno's workspace becomes multi-user (or the Slack app is installed somewher
 
 1. **Add an allowlist** — `ALLOWED_SLACK_USER_IDS` env var or a new mount like `ALLOWED_USERS.md`. Keep it simple: comma-separated Slack user IDs, check on every `message_received`.
 2. **Ignore silently** unless user is on the list — `handler_ignored` log event, no Slack reply. Silent because responding "sorry I don't know you" to random probes leaks that a bot is live.
-3. **Pairing is overkill initially** — for Operator's work + personal use case, a simple env-var allowlist is enough. Adopt pairing only if you're distributing Zeno to friends or running it in shared channels.
+3. **Pairing is overkill initially** — for the operator's work + personal use case, a simple env-var allowlist is enough. Adopt pairing only if you're distributing Zeno to friends or running it in shared channels.
 
 **Conclusion for Zeno now:**
 - Current state (no allowlist, workspace is solo) is documented and acceptable.
 - The *moment* any condition below is true, implement at least env-var allowlist:
   - Someone else joins the Slack workspace where Zeno lives.
-  - Zeno's bot user gets invited to any channel with non-Operator members.
+  - Zeno's bot user gets invited to any channel with non-operator members.
   - Zeno is deployed on a machine anyone else can reach.
 - The constitution's "Personal scope" guardrail should state this allowlist-trigger explicitly, so a future-you in a hurry doesn't skip it.
 

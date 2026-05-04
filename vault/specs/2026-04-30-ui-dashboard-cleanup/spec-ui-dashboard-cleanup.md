@@ -60,7 +60,7 @@ Each is small. Together they make Zeno feel unfinished on the very first encount
 
 2. **Operator with two profiles (`default` + `<example>`) boots both dashboards.** Profile `<example>` runs on port 3001, `default` on 3000. Each dashboard sidebar shows its own profile slug + the matching `USER.md` name. No cross-talk; no ambiguity about "which dashboard am I looking at."
 
-3. **Operator who liked the old "alex" placeholder edits USER.md.** They open `profiles/<active>/USER.md`, change `name: Alex` to `name: Operator`. Profile watcher (`apps/worker/src/profile/watcher.ts`) reloads. Next dashboard refresh (or, if we wire it via TanStack invalidation, immediately) shows "Operator" + "GA" initials in the sidebar.
+3. **Operator who liked the old "alex" placeholder edits USER.md.** They open `profiles/<active>/USER.md`, change `name: Alex` to `name: Operator`. Profile watcher (`apps/worker/src/profile/watcher.ts`) reloads. Next dashboard refresh (or, if we wire it via TanStack invalidation, immediately) shows "Operator" + "OP" initials in the sidebar.
 
 4. **Operator clicks a log entry that has a `sessionId`.** They go from `/logs` → `/sessions/$threadId` directly via deep-link. The `/sessions` route still resolves; only the nav item is gone.
 
@@ -72,7 +72,7 @@ Each is small. Together they make Zeno feel unfinished on the very first encount
 
 **Phase A — sidebar identity (item 1):**
 - [ ] `apps/dashboard/src/components/layout/dashboard-sidebar.tsx` no longer contains the literal string `"alex"`, `"AL"`, or `"single-owner · hmac"`.
-- [ ] The user row renders `name` from USER.md (e.g. "Operator"), initials computed as the first two letters of `name` uppercased (e.g. "GA"), and **the active profile slug** as subtitle (e.g. "default" or "<example>") — replacing the auth-noise.
+- [ ] The user row renders `name` from USER.md (e.g. "Operator"), initials computed as the first two letters of `name` uppercased (e.g. "OP"), and **the active profile slug** as subtitle (e.g. "default" or "<example>") — replacing the auth-noise.
 - [ ] `GET /api/settings` response includes a `profile: { name: string, slug: string }` block. Existing fields (`backend`, `profileFiles`) unchanged.
 - [ ] If `USER.md` has no parseable `name:` frontmatter, the dashboard falls back to the profile slug only (e.g. "default · default") — no crash, no placeholder.
 - [ ] At least one frontend test asserts the user row reads from the API response, not a hardcoded constant.
@@ -162,7 +162,7 @@ Dashboard useSettings() exposes `profile`
   ↓
 DashboardSidebar reads `profile.name` + `profile.slug`
   ↓
-User row renders:  [GA]  Operator
+User row renders:  [OP]  Operator
                           <example>
                                   [exit]
 ```
@@ -205,7 +205,7 @@ The seed only inserts the **row in the connectors table**. The catalog JSON (`ag
 **Unit:**
 - `apps/dashboard/tests/components/dashboard-sidebar.test.tsx`:
   - Renders 7 nav items in order; no `sessions` link.
-  - With `useSettings` mock returning `profile: { name: 'Operator', slug: '<example>' }`: renders "Operator" + "GA" initials + "<example>" subtitle.
+  - With `useSettings` mock returning `profile: { name: 'Operator', slug: '<example>' }`: renders "Operator" + "OP" initials + "<example>" subtitle.
   - With `profile: { name: undefined, slug: 'default' }`: renders "default" + "DE" initials.
 - `apps/api/tests/routes/settings.test.ts`:
   - `GET /api/settings` shape includes `profile: { name, slug }` with values from a mocked USER.md frontmatter.
@@ -227,7 +227,7 @@ The seed only inserts the **row in the connectors table**. The catalog JSON (`ag
 - **[NEEDS CLARIFICATION]** *Should Playwright be `enabled=1` or `enabled=0` on first boot?* Owner stance is `enabled=1` (raw list said "default-installed" and Chromium is already in the image). Subagent B's reversibility argument has merit. Easy revert: change one column in the seed migration.
 - **[NEEDS CLARIFICATION]** *Should `/sessions` route survive long-term, or merge into `/logs` and `/crons` as inline expand-rows?* This spec keeps it as deep-link only. Promote to a separate spec if the friction shows up post-ship.
 - **[NEEDS CLARIFICATION]** *Should the dashboard sidebar show the active profile differently — slug as subtitle (this spec) vs as a top-strip badge vs as a small chip on the brand row?* Subtitle is the cheapest landing; Paper-first will validate.
-- **[NEEDS CLARIFICATION]** *Initials algorithm for multi-word names ("Maria José")?* Default: first letter of first word + first letter of last word ("MJ"). For single-word names ("Operator"), first 2 letters ("GA"). Document in the test fixture.
+- **[NEEDS CLARIFICATION]** *Initials algorithm for multi-word names ("Maria José")?* Default: first letter of first word + first letter of last word ("MJ"). For single-word names ("Operator"), first 2 letters ("OP"). Document in the test fixture.
 - **[NEEDS CLARIFICATION]** *Trimmed Playwright tool list — is `browser_snapshot` better than `browser_take_screenshot` for the LLM?* `snapshot` returns accessibility tree (cheaper to reason about), `screenshot` returns image. Spec keeps both for now; tune at first E2E observation.
 
 ## References

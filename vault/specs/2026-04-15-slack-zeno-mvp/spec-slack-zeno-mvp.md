@@ -13,7 +13,7 @@ shipped: 2026-04-15
 
 ## Context
 
-Este repositório (hoje `zeno-agent`, será renomeado pra `zeno-agent` como primeira tarefa da implementação) é o workspace de um agente pessoal do Operator. O objetivo final é ter um agente conversacional acessível via canais de mensagem (Slack pra começar, potencialmente Discord/Telegram/WhatsApp depois) que consiga executar qualquer tarefa técnica que o Operator peça — listar repos, clonar código, editar, abrir PRs, analisar bases, etc.
+Este repositório (hoje `zeno-agent`, será renomeado pra `zeno-agent` como primeira tarefa da implementação) é o workspace de um agente pessoal do operador. O objetivo final é ter um agente conversacional acessível via canais de mensagem (Slack pra começar, potencialmente Discord/Telegram/WhatsApp depois) que consiga executar qualquer tarefa técnica que o operador peça — listar repos, clonar código, editar, abrir PRs, analisar bases, etc.
 
 Este spec cobre **a primeira entrega útil**: a infraestrutura mínima pra provar que o loop Slack ↔ Claude Code ↔ GitHub funciona, usando um único caso concreto como vetor de validação (listar repos de uma org). Toda a arquitetura foi desenhada pra que as iterações seguintes (outras ferramentas, outros canais, outros modelos, sessões persistentes, etc.) sejam aditivas — sem reescrever o core.
 
@@ -29,7 +29,7 @@ Decisões fundantes tomadas no brainstorming (ver histórico da conversa, 2026-0
 
 ## Problem Statement
 
-Hoje, pra consultar informações sobre repos, orgs e código, o Operator precisa alternar entre Slack (onde conversa), terminal (onde roda `gh`), e GitHub UI (onde explora). Pra tarefas de dev, também passa por IDE/Claude Code local.
+Hoje, pra consultar informações sobre repos, orgs e código, o o operador precisa alternar entre Slack (onde conversa), terminal (onde roda `gh`), e GitHub UI (onde explora). Pra tarefas de dev, também passa por IDE/Claude Code local.
 
 O MVP resolve **um pedaço disso**: permitir que perguntas simples sobre repos — ex: "quais repos tem na octocat?" — sejam respondidas sem sair do Slack, em linguagem natural, com contexto correto. É um corte fino da visão maior ("qualquer tarefa técnica via Slack"), escolhido porque:
 
@@ -42,7 +42,7 @@ O MVP resolve **um pedaço disso**: permitir que perguntas simples sobre repos �
 
 Explicitamente **fora do MVP** (não serão implementados nesta entrega):
 
-1. **Allowlist de usuários no Slack.** O workspace do Operator é solo; ninguém mais fala com o bot. Quando o workspace deixar de ser solo, allowlist vira bloqueador e entra imediatamente.
+1. **Allowlist de usuários no Slack.** O workspace do operador é solo; ninguém mais fala com o bot. Quando o workspace deixar de ser solo, allowlist vira bloqueador e entra imediatamente.
 2. **GitHub App.** Fica como **primeira iteração pós-MVP**, conforme confirmado no brainstorm. PAT cobre 100% do MVP.
 3. **Sessões persistentes / thread como contexto.** Cada mensagem é stateless — Zeno não lembra de turnos anteriores. Resposta na thread não continua conversa.
 4. **File tools customizadas** (`read_file`, `write_file`, `edit_file` com diff). Só `Bash` e os outros built-ins do Claude Code são habilitados; file tools viram escopo quando o agente de dev (clonar/editar/PR) for implementado.
@@ -50,9 +50,9 @@ Explicitamente **fora do MVP** (não serão implementados nesta entrega):
 6. **Outros backends** (Codex, Gemini). A interface `AgentBackend` existe, mas só `ClaudeCodeBackend`.
 7. **Aprovação humana de operações destrutivas via Slack.** No MVP o Zeno não faz operações destrutivas; o system prompt orienta pedir confirmação antes de executar comandos arriscados, mas a UX de aprovação via Slack (botões, reactions) fica pra depois.
 8. **Feedback incremental / streaming de progresso no Slack.** Resposta final é uma mensagem só, sem "editando arquivo X..." intermediário.
-9. **Múltiplos Slack workspaces.** Um workspace (o pessoal do Operator). Escalar pra múltiplos é trabalho de adapter, não de core.
+9. **Múltiplos Slack workspaces.** Um workspace (o pessoal do operador). Escalar pra múltiplos é trabalho de adapter, não de core.
 10. **CI/CD, métricas, dashboards, alerts.** Logs JSON em stdout (`docker compose logs`) são suficientes pra MVP.
-11. **Multi-usuário do Claude Code.** Sessão OAuth é do Operator; qualquer mensagem no Slack consome do plano dele.
+11. **Multi-usuário do Claude Code.** Sessão OAuth é do operador; qualquer mensagem no Slack consome do plano dele.
 12. **Testes E2E contra Slack/Claude reais.** Só unit tests pontuais. Validação final é smoke test manual.
 
 ## Constraints
@@ -69,7 +69,7 @@ Explicitamente **fora do MVP** (não serão implementados nesta entrega):
 
 **Organizacionais:**
 
-- Operator confirmou que usar Claude Code pessoal em repos do trabalho é tranquilo (política da empresa permite).
+- O operador confirmou que usar Claude Code pessoal em repos do trabalho é tranquilo (política da empresa permite).
 - Nenhum compromisso de SLA — é ferramenta pessoal, "quebrou? arrumo de noite".
 
 **De arquitetura (para evitar débito técnico imediato):**
@@ -88,7 +88,7 @@ Explicitamente **fora do MVP** (não serão implementados nesta entrega):
 
 **S1 — Caminho feliz (o vetor de validação):**
 
-1. Operator menciona no canal `#agents`: `@zeno-agent quais repos tem na octocat?`
+1. O operador menciona no canal `#agents`: `@zeno-agent quais repos tem na octocat?`
 2. Zeno reage na mensagem original com `:eyes:` dentro de 2s (ack).
 3. Zeno chama Claude Code, que chama `gh repo list octocat --json name,description --limit 100` via Bash.
 4. Zeno posta resposta na mesma thread em PT-BR, listando repos com descrição resumida.
@@ -120,7 +120,7 @@ Mesma coisa que S1, mas a mensagem inicial é uma DM direta pro Zeno (sem `@`). 
 
 **S6 — Boot do container:**
 
-1. Operator configura `.env` (incluindo `CLAUDE_CODE_OAUTH_TOKEN` gerado por `claude setup-token`) e roda `docker compose up -d`.
+1. O operador configura `.env` (incluindo `CLAUDE_CODE_OAUTH_TOKEN` gerado por `claude setup-token`) e roda `docker compose up -d`.
 2. Zeno conecta no Slack via Socket Mode (log `slack_connected`).
 3. Zeno valida `gh auth status` (log `github_auth_ok`).
 4. Zeno confirma `claude --version` (log `claude_cli_ok`) + presença do token (log `claude_oauth_token_present`).
@@ -150,10 +150,10 @@ Esta entrega está **pronta** quando todos os seguintes são observáveis:
 | Meu conhecimento (Claude) é de maio/2025 e estamos em abril/2026 — APIs de Claude Code, Agent SDK e Bolt podem ter mudado de forma relevante. | **Task 0 do plano de implementação é discovery obrigatório** — verificar docs oficiais atuais de cada dependência antes de codar. Se algo mudou materialmente, voltar pra spec e ajustar. Formalizar esse passo como convenção do projeto após o MVP entregar. |
 | ~~Claude Code headless via subprocess pode ter output complexo difícil de parsear~~ | **Resolvido durante Task 0:** usamos `@anthropic-ai/claude-agent-sdk` in-process (`query()` async generator), não subprocess. Ver `context/learnings/claude-agent-sdk-typescript.md`. |
 | Token OAuth do Claude Code expira sem aviso prévio claro. | Detectar erro de auth vindo do SDK no `ClaudeCodeBackend`, classificar como `kind: "auth_expired"`, traduzir em mensagem no Slack com instruções de `setup-token` (S5). |
-| `gh` CLI autenticado por `GH_TOKEN` via env var pode se comportar diferente de `gh auth login` interativo em algumas edge cases (ex: 2FA, SSO orgs). | Documentar no README: PAT precisa ter SSO autorizado pras orgs que Operator quer consultar. Smoke test cobre isso. |
+| `gh` CLI autenticado por `GH_TOKEN` via env var pode se comportar diferente de `gh auth login` interativo em algumas edge cases (ex: 2FA, SSO orgs). | Documentar no README: PAT precisa ter SSO autorizado pras orgs que o operador quer consultar. Smoke test cobre isso. |
 | Primeiro `setup-token` via Docker exige copiar URL do terminal pro browser do host e colar token de volta no `.env` — fluxo chato. | README documenta explicitamente. Aceitar UX pobre aqui; é setup único (e por-renovação). |
 | Socket Mode do Slack Bolt pode ter padrões diferentes em 2026 (retry, reconnect, etc). | Discovery (Task 0). Fallback: usar os defaults do Bolt SDK atual, que são razoáveis. |
-| `bash` como única tool é poderoso demais — usuário mal-intencionado pode fazer estragos. | Hoje mitigado por: (a) workspace solo = só Operator fala com o bot, (b) container = sandbox sem acesso ao host além dos volumes montados, (c) system prompt orienta pedir confirmação antes de comandos destrutivos. Allowlist ativa no momento que workspace deixar de ser solo. |
+| `bash` como única tool é poderoso demais — usuário mal-intencionado pode fazer estragos. | Hoje mitigado por: (a) workspace solo = só o operador fala com o bot, (b) container = sandbox sem acesso ao host além dos volumes montados, (c) system prompt orienta pedir confirmação antes de comandos destrutivos. Allowlist ativa no momento que workspace deixar de ser solo. |
 | Rate limit do plano Claude Code pode bater em uso intenso. | Detectar erro específico, avisar no Slack ("bati limite, tenta depois"). Não é bloqueador de MVP — é feedback claro. |
 | Workspace volume pode crescer sem controle (repos clonados nunca limpos). | Fora do MVP (Non-Goal #3 implica que nada é clonado no MVP, já que não há file tools nem git ops). Voltar quando agente de dev for implementado. |
 

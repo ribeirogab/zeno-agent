@@ -138,7 +138,7 @@ All resolved during drafting.
 
 ## Coverage gaps (acknowledged)
 
-- **Non-owner runtime path** for write tools: `save_*` / `create_*` / `delete_*` route to classifier → approver for non-owners. Not exercised here (Zeno is single-tenant; operator is owner). Same gap as 0036 G10.4.
+- **Non-owner runtime path** for write tools: `save_*` / `create_*` / `delete_*` route to classifier → approver for non-owners. Not exercised here (Zeno is single-tenant; the operator is owner). Same gap as 0036 G10.4.
 - **OAuth flow** unobservable.
 - **Live tool list churn** between spec time and install time. Mitigated by `refresh-tools` post-install.
 

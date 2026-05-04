@@ -90,7 +90,7 @@ Spec 0044 ships the backend foundation: `connector_apps` table, schema migration
 
 This spec consumes that foundation to build the dashboard UI. The visible bugs from spec 0042's shipping (4 rows with 0 tools, missing UI for install/manage) are resolved here.
 
-Specs 0046 (lifecycle modals M7-M11) and 0047 (always_sensitive) ship after this. This spec is the user-visible payoff — once 0045 ships, operator can install github-app fresh, see the App detail page with the 4 installations correctly, and use all 51 GitHub tools per installation.
+Specs 0046 (lifecycle modals M7-M11) and 0047 (always_sensitive) ship after this. This spec is the user-visible payoff — once 0045 ships, the operator can install github-app fresh, see the App detail page with the 4 installations correctly, and use all 51 GitHub tools per installation.
 
 ## Problem Statement
 

@@ -1807,7 +1807,7 @@ git commit -m "docs: README setup guide and SMOKE checklist"
 - [ ] **Step 1: Build fresh from clean state**
 
 ```bash
-docker compose down --volumes  # WARNING: wipes workspace volume; confirm with Operator before running on a live install
+docker compose down --volumes  # WARNING: wipes workspace volume; confirm with the operator before running on a live install
 docker compose build --no-cache
 ```
 

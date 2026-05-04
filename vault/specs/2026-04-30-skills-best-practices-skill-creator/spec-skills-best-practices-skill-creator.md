@@ -131,10 +131,10 @@ The spec does NOT prescribe target structure, line counts, section names, or whe
 - [ ] **E2E in `#C0EXAMPLE000` (per Rule 1):**
   - Send a message that triggers `zeno-development` (e.g., "clone repo X and add Y"). Zeno reads the (now slimmer) SKILL.md and executes. Same workflow, same output.
   - **Send a Sentry URL that triggers `sentry-fix`.** Goal: exercise the full skill end-to-end and confirm output matches the original behavior. **Issue selection** (preference order):
-    1. A SENTRY-ID Operator previously resolved via sentry-fix where confidence-gate-passed AND PR-opened (best — exercises the full Phase 1→7 chain including any references files Phase C may have produced). If known, use it.
+    1. A SENTRY-ID the operator previously resolved via sentry-fix where confidence-gate-passed AND PR-opened (best — exercises the full Phase 1→7 chain including any references files Phase C may have produced). If known, use it.
     2. Any open Sentry issue with an obvious / well-documented stack trace (the agent will likely pass the confidence gate and trigger the PR path).
     3. If neither is available, run the test against the simplest open Sentry issue. If the agent ESCALATES instead of opening a PR, that's still a valid behavior preservation check (ESCALATE was a valid output of the original skill too) — the test passes as long as the ESCALATE shape matches the original Phase 3 output.
-    The implementer asks Operator for a recommended issue if the local repo / shell history yields nothing.
+    The implementer asks the operator for a recommended issue if the local repo / shell history yields nothing.
   - Send a PR URL to trigger `code-review`. Zeno reads the (single-file) SKILL.md and posts the reply in Slack format A/B/C/D as before.
   - Verify: each end-state output matches what the original skill produced. No regression.
 

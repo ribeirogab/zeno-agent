@@ -237,10 +237,10 @@ created: 2026-04-30
 ### Task D.7 — Slack E2E: sentry-fix
 
 - [ ] Issue selection per Phase D 3-tier preference:
-  1. Best: a SENTRY-ID Operator resolved before via sentry-fix. Search shell history / prior session transcripts.
+  1. Best: a SENTRY-ID the operator resolved before via sentry-fix. Search shell history / prior session transcripts.
   2. Backup: any open Sentry issue with an obvious stack trace.
   3. Fallback: simplest open Sentry issue, ESCALATE result is acceptable.
-  - If none findable: ask Operator for a recommendation in a Slack thread (won't happen in autonomous mode — pick option 2 or 3).
+  - If none findable: ask the operator for a recommendation in a Slack thread (won't happen in autonomous mode — pick option 2 or 3).
 - [ ] Send to channel: `<@U0EXAMPLE000> investigar essa issue do sentry: <SENTRY_URL>`
 - [ ] Wait for completion (can take 2-5 minutes for full Phase 1-7).
 - [ ] Compare output against baseline:

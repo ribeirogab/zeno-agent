@@ -86,7 +86,7 @@ created: 2026-04-30
 
 ### Task A4: Frontend test — user row contract
 
-- [ ] Step 1: In `apps/dashboard/tests/components/dashboard-sidebar.test.tsx` — add a test that mocks `useSettings` to return `{ profile: { name: 'Operator', slug: '<example>' }, ... }` and asserts the user row renders `Operator`, `<example> · profile`, `GA`.
+- [ ] Step 1: In `apps/dashboard/tests/components/dashboard-sidebar.test.tsx` — add a test that mocks `useSettings` to return `{ profile: { name: 'Operator', slug: '<example>' }, ... }` and asserts the user row renders `Operator`, `<example> · profile`, `OP`.
 - [ ] Step 2: Add a fallback test for `{ name: null, slug: 'default' }` → renders `default`, `default · profile`, `DE`.
 - [ ] Step 3: Add a multi-word test: `{ name: 'Maria José', slug: '<example>' }` → initials `MJ`.
 - [ ] Step 4: `pnpm --filter dashboard test -- dashboard-sidebar` — green.

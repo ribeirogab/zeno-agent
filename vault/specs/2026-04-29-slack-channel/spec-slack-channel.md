@@ -486,7 +486,7 @@ This spec ships when ALL the following pass on the branch:
 - [ ] API endpoints `GET /api/channels/catalog` + `GET /api/channels` work; install via existing connectors endpoints accepts `kind=channel`.
 - [ ] `config.ts` Zod schema makes `SLACK_*_TOKEN` optional. Worker boots successfully when `.env` lacks them AND a Slack channel is installed in DB.
 
-**Backward compat (the "don't break Operator's Zeno" criterion):**
+**Backward compat (the "don't break the operator's Zeno" criterion):**
 - [ ] `profiles/<example>` is NOT touched — no edits to `profiles/<example>/.env`, no new files in `profiles/<example>/`, no skills materialized for it.
 - [ ] An existing profile with `SLACK_*_TOKEN` set in `.env` and NO Slack DB row boots via the env fallback path. Verified by integration test — NOT by booting `profiles/<example>` (which would conflict with the live container).
 - [ ] No Docker commands run by this PR's tests. No port conflicts with `zeno-agent-1`.

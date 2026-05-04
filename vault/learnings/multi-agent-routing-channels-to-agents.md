@@ -57,9 +57,9 @@ Routing is configuration, not code:
 - Each agent has **isolated** session history — `work-agent` can't accidentally reference personal DMs.
 - Cross-agent escalation via `sessions_send` tool: `work-agent` can message `personal-agent`'s session if needed (rare).
 
-**Mapping to Zeno's actual use case (Operator's description):**
+**Mapping to Zeno's actual use case (the operator's description):**
 
-Operator said:
+The operator said:
 - Work projects at `acme` org + personal repos at `octocat`.
 - Same Zeno, same Slack, operating on both.
 - Future: Linear integration for tasks.

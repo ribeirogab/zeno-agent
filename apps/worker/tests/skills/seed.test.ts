@@ -64,7 +64,7 @@ describe('bootSkillsReconcile (spec 0053 + 0062)', () => {
 
   it('seeds zeno_default UPSERT and profile INSERT OR IGNORE', () => {
     mkSkill(agentRoot, 'zeno-development', 'workflow', '# Workflow');
-    mkSkill(profileRoot, 'fn-code-review', 'review', '# Review');
+    mkSkill(profileRoot, 'widget-code-review', 'review', '# Review');
     const report = bootSkillsReconcile({
       skills,
       agentSkillsRoot: agentRoot,
@@ -82,7 +82,7 @@ describe('bootSkillsReconcile (spec 0053 + 0062)', () => {
     });
     expect(skills.list()).toHaveLength(2);
     const dev = skills.list().find((s) => s.name === 'zeno-development');
-    const cr = skills.list().find((s) => s.name === 'fn-code-review');
+    const cr = skills.list().find((s) => s.name === 'widget-code-review');
     expect(dev?.source).toBe('zeno_default');
     expect(cr?.source).toBe('profile');
   });
@@ -112,7 +112,7 @@ describe('bootSkillsReconcile (spec 0053 + 0062)', () => {
   });
 
   it('profile INSERT OR IGNORE preserves operator dashboard edits across boots', () => {
-    mkSkill(profileRoot, 'fn-x', 'd', 'seeded body');
+    mkSkill(profileRoot, 'widget-x', 'd', 'seeded body');
     bootSkillsReconcile({
       skills,
       agentSkillsRoot: agentRoot,
@@ -120,7 +120,7 @@ describe('bootSkillsReconcile (spec 0053 + 0062)', () => {
       dashboardSkillsRoot: dashboardRoot,
       logger,
     });
-    const seeded = skills.list().find((s) => s.name === 'fn-x');
+    const seeded = skills.list().find((s) => s.name === 'widget-x');
     if (!seeded) throw new Error('not seeded');
     // Simulate a dashboard edit (description only, post-spec-0062).
     skills.update(seeded.id, { description: 'edited-by-user' });
@@ -131,7 +131,7 @@ describe('bootSkillsReconcile (spec 0053 + 0062)', () => {
       dashboardSkillsRoot: dashboardRoot,
       logger,
     });
-    const after = skills.list().find((s) => s.name === 'fn-x');
+    const after = skills.list().find((s) => s.name === 'widget-x');
     expect(after?.description).toBe('edited-by-user');
   });
 
@@ -158,7 +158,7 @@ describe('bootSkillsReconcile (spec 0053 + 0062)', () => {
   });
 
   it('orphan cleanup does NOT delete profile rows when file disappears', () => {
-    mkSkill(profileRoot, 'fn-x', 'd', 'b');
+    mkSkill(profileRoot, 'widget-x', 'd', 'b');
     bootSkillsReconcile({
       skills,
       agentSkillsRoot: agentRoot,
@@ -166,7 +166,7 @@ describe('bootSkillsReconcile (spec 0053 + 0062)', () => {
       dashboardSkillsRoot: dashboardRoot,
       logger,
     });
-    rmSync(join(profileRoot, 'fn-x'), { recursive: true });
+    rmSync(join(profileRoot, 'widget-x'), { recursive: true });
     const report = bootSkillsReconcile({
       skills,
       agentSkillsRoot: agentRoot,
@@ -175,7 +175,7 @@ describe('bootSkillsReconcile (spec 0053 + 0062)', () => {
       logger,
     });
     expect(report.orphansRemoved).toEqual([]);
-    expect(skills.list().map((s) => s.name)).toEqual(['fn-x']);
+    expect(skills.list().map((s) => s.name)).toEqual(['widget-x']);
   });
 
   it('orphan cleanup logs the audit event with names + cascadeAffected', () => {

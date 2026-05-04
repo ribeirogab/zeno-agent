@@ -205,7 +205,7 @@ describe('ConnectorGatedBackend (spec 0050)', () => {
     });
     const skill = seedSkillWithBody({
       name: 'sentry-flow',
-      description: 'How Flávia triages Sentry issues',
+      description: 'How Alice triages Sentry issues',
       body: '# Sentry triage\n\n1. filter by env=prod\n2. group by release',
     });
     skills.add(connector.id, skill.id);
@@ -299,7 +299,7 @@ describe('ConnectorGatedBackend (spec 0054 — cron pre-inject + audit via ALS)'
     });
     const skill = r.seedSkillWithBody({
       name: 'sentry-flow',
-      description: 'How Flávia triages Sentry',
+      description: 'How Alice triages Sentry',
       body: '# Sentry triage',
     });
     r.skills.add(connector.id, skill.id);

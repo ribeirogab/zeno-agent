@@ -20,7 +20,7 @@ The **Active roadmap** section below is the exception — that's the committed s
 | Order | Spec # | Title | Items covered | Size | Dep | Notes |
 |---|---|---|---|---|---|---|
 | 1 | **0057** | Slack channel connector — code | partial #6 | XL | — | ✅ **MERGED PR #22.** New `agent/channels-catalog.json`, Slack listener becomes registrable channel-adapter, worker boot reads Slack creds DB-first with `.env` fallback. |
-| 2 | **0058** | Migrate profiles/fn to channel connector | rest of #6 | M | 0057 | ✅ **MERGED PR #23.** Production cutover live (since 2026-04-29T22:13Z). `.env` fallback removed in Phase H. |
+| 2 | **0058** | Migrate sample profile to channel connector | rest of #6 | M | 0057 | ✅ **MERGED PR #23.** Production cutover live (since 2026-04-29T22:13Z). `.env` fallback removed in Phase H. |
 | 3 | **0059** | Channels UI section in dashboard | UI for #6 | M | 0057 | ✅ **MERGED PR #24.** Adds `/channels` route in dashboard, mirrors `/connectors` pattern (list + install modal). Operator can manage Slack via UI; closes post-0058 cutover gap. |
 | 4 | **0060** | SOUL realign + skill awareness | (bug) | S | — | ✅ **MERGED PR #25.** Wraps `systemPrompt` in `claude_code` preset+append shape so SDK auto-discovers skills + rewrites SOUL.md. Skills back end-to-end. |
 | 5 | **0061** | Skills multi-file — Paper artboards | #4a | S | 0060 | ✅ **MERGED PR #26.** Paper-first redesign of Skill detail (file tree + editor), Install modal (zip + fflate preview), Delete modal (cascade preview). |
@@ -60,7 +60,7 @@ The **Active roadmap** section below is the exception — that's the committed s
 
 ### Architecture decisions baked in
 
-- **0057 split into code + cutover.** Owner uses Zeno daily via Slack; cannot risk breakage during dev. Code lands in worktree (`feat/spec-2026-04-29-slack-channel`), tested in-process, no Docker / no profile touched. Cutover (0058) is a separate spec executed live against `profiles/fn`.
+- **0057 split into code + cutover.** Owner uses Zeno daily via Slack; cannot risk breakage during dev. Code lands in worktree (`feat/spec-2026-04-29-slack-channel`), tested in-process, no Docker / no profile touched. Cutover (0058) is a separate spec executed live against the operator's profile.
 - **Channels and connectors are separate concepts.** New `agent/channels-catalog.json` parallel to existing `agent/connectors-catalog.json`. Channels are *substrate* (where the agent runs); connectors are *callable tools* (what the agent invokes). Storage layer compromise — both reuse the existing `connectors` + `connector_secrets` tables with a `kind` discriminator (avoid duplicating storage tables).
 - **Channel-first.** 0057+0058 land BEFORE files (0061, 0062) and audio (0065, 0066) so those features are channel-agnostic from day one. Adding WPP/Telegram later = new entry in `channels-catalog.json` + new adapter, no rework on file/audio code.
 - **Skills multi-file BEFORE skill-creator.** 0061 needs the multi-file infra (0060) to install Anthropic's skill-creator as a real skill.

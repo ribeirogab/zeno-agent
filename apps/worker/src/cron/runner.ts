@@ -208,12 +208,29 @@ export class CronRunner {
         'cron run completed',
       );
     } catch (error) {
+      // Spec 0071: skip silently when no backend configured. The cron will
+      // re-fire on its normal schedule once the operator configures Claude
+      // via the dashboard. Don't spam Slack with "no backend" messages.
+      const isNoBackend = error instanceof Error && error.name === 'NoBackendConfiguredError';
       const message = error instanceof Error ? error.message : String(error);
-      this.opts.cronRuns.finish(run.id, 'failed', null, message.slice(0, 4000));
-      logger.error(
-        { event: 'cron_run_failed', cronId: cron.id, runId: run.id, err: message },
-        'cron run failed',
-      );
+      if (isNoBackend) {
+        this.opts.cronRuns.finish(
+          run.id,
+          'failed',
+          null,
+          'skipped: no backend configured (spec 0071)',
+        );
+        logger.info(
+          { event: 'cron_skipped_no_backend', cronId: cron.id, runId: run.id },
+          'cron skipped — no backend configured (configure via dashboard)',
+        );
+      } else {
+        this.opts.cronRuns.finish(run.id, 'failed', null, message.slice(0, 4000));
+        logger.error(
+          { event: 'cron_run_failed', cronId: cron.id, runId: run.id, err: message },
+          'cron run failed',
+        );
+      }
     } finally {
       const next = nextRunAfter(cron.schedule, firedAt);
       this.opts.crons.markRun(cron.id, firedAt, next);

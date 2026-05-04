@@ -23,6 +23,12 @@ vi.mock('@/lib/use-settings', () => ({
   useSettings: () => useSettingsMock(),
 }));
 
+// Spec 0071: sidebar reads backend status from useBackends to drive the
+// status dot colour. Mock returns no data → dot falls back to neutral grey.
+vi.mock('@/lib/use-backends', () => ({
+  useBackends: () => ({ data: undefined }),
+}));
+
 import { DashboardSidebar, deriveInitials } from '@/components/layout/dashboard-sidebar';
 
 function settingsResult(profile: { name: string | null; slug: string } | null) {

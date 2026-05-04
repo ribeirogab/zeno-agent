@@ -51,7 +51,10 @@ function makeApp(database: DB) {
     cronRunRepo: new CronRunRepo(database),
     commandRepo: new CommandRepo(database),
     logRepo: new LogRepo(database),
-    connectorRepo: new ConnectorRepo(database),
+    connectorRepo: new ConnectorRepo(database, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    }),
     claudeHome: '/tmp',
     profileDir: '/tmp',
     channelsCatalog: loadChannelsCatalog(),
@@ -100,7 +103,10 @@ describe('GET /api/channels (spec 0057)', () => {
   });
 
   it('returns installed channels filtered by kind=channel', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     repo.create({
       slug: 'slack',
       displayName: 'Slack',
@@ -146,7 +152,10 @@ describe('GET /api/channels (spec 0057)', () => {
 
 describe('GET /api/connectors filters channel rows (spec 0057)', () => {
   it('GET /api/connectors does NOT include channel rows', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     repo.create({
       slug: 'slack',
       displayName: 'Slack',
@@ -281,7 +290,10 @@ describe('GET /api/connectors/catalog/icons/slack.svg (spec 0057)', () => {
 
 describe('GET /api/channels/:id (spec 0059)', () => {
   it('returns channel-shape detail for a kind=channel row', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const channel = repo.create({
       slug: 'slack',
       displayName: 'Slack',
@@ -319,7 +331,10 @@ describe('GET /api/channels/:id (spec 0059)', () => {
   });
 
   it('returns 404 for a kind=mcp row', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const mcp = repo.create({
       slug: 'sentry',
       displayName: 'Sentry',
@@ -352,7 +367,10 @@ describe('GET /api/channels/:id (spec 0059)', () => {
 
 describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
   function seedSlack() {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     return repo.create({
       slug: 'slack',
       displayName: 'Slack',
@@ -383,7 +401,10 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
       }),
     });
     expect(res.status).toBe(204);
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const after = repo.getSecrets(channel.id);
     const byKey = Object.fromEntries(after.map((s) => [s.key, s.value]));
     expect(byKey.SLACK_APP_TOKEN).toBe('xapp-A-AAAA'); // PRESERVED
@@ -402,7 +423,10 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
       }),
     });
     expect(res.status).toBe(204);
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const after = repo.getSecrets(channel.id);
     expect(after.map((s) => s.key)).toEqual(['SLACK_APP_TOKEN']);
   });
@@ -418,13 +442,19 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
       }),
     });
     expect(res.status).toBe(204);
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const after = repo.getSecrets(channel.id);
     expect(after).toHaveLength(2); // both kept due to merge default
   });
 
   it('returns 404 for kind=mcp row', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const mcp = repo.create({
       slug: 'sentry',
       displayName: 'Sentry',
@@ -459,7 +489,10 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
 
 describe('DELETE /api/channels/:id (spec 0059)', () => {
   it('deletes the row + cascades secrets', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const channel = repo.create({
       slug: 'slack',
       displayName: 'Slack',
@@ -484,7 +517,10 @@ describe('DELETE /api/channels/:id (spec 0059)', () => {
   });
 
   it('returns 404 for kind=mcp row', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const mcp = repo.create({
       slug: 'sentry',
       displayName: 'Sentry',

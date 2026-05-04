@@ -6,6 +6,8 @@ import { serve } from '@hono/node-server';
 import { createLogger } from '@zeno/logger';
 import {
   AgentCapabilityRepo,
+  BackendCredentialsRepo,
+  BackendSettingsRepo,
   CommandRepo,
   ConnectorAppRepo,
   ConnectorRepo,
@@ -49,7 +51,10 @@ function main(): void {
   const cronRunRepo = new CronRunRepo(db);
   const commandRepo = new CommandRepo(db);
   const logRepo = new LogRepo(db);
-  const connectorRepo = new ConnectorRepo(db);
+  const connectorRepo = new ConnectorRepo(db, {
+    masterKey: config.masterKey,
+    profileId: config.profileId,
+  });
   const connectorAppRepo = new ConnectorAppRepo(db);
   // Spec 0062: SkillRepo takes per-source roots so canonicalPath(skill) can
   // resolve into a real FS dir. The API uses the in-container paths
@@ -64,6 +69,12 @@ function main(): void {
   const cronSkillRepo = new CronSkillRepo(db);
   const cronConnectorRepo = new CronConnectorRepo(db);
   const agentCapabilityRepo = new AgentCapabilityRepo(db);
+  // Spec 0071: backend auth via dashboard.
+  const backendCredentialsRepo = new BackendCredentialsRepo(db, {
+    masterKey: config.masterKey,
+    profileId: config.profileId,
+  });
+  const backendSettingsRepo = new BackendSettingsRepo(db, config.profileId);
   const logger = createLogger({ service: 'api', dbSink: logRepo });
   const here = dirname(fileURLToPath(import.meta.url));
   // After build: apps/api/dist/index.js → ../.. → apps → /dashboard/dist
@@ -100,6 +111,8 @@ function main(): void {
     cronSkillRepo,
     cronConnectorRepo,
     agentCapabilityRepo,
+    backendCredentialsRepo,
+    backendSettingsRepo,
     claudeHome,
     claudeHomeRoot,
     profileDir,

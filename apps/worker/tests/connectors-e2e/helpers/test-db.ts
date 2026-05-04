@@ -34,7 +34,10 @@ export function makeTestDb(): TestDb {
   db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
   return {
     db,
-    connectorRepo: new ConnectorRepo(db),
+    connectorRepo: new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    }),
     commandRepo: new CommandRepo(db),
     agentCapabilityRepo: new AgentCapabilityRepo(db),
     close: () => closeDatabase(db),

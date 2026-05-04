@@ -34,7 +34,13 @@ function makeRepo(): { repo: ConnectorRepo; close: () => void } {
   // Spec 0066 C: migration 20 seeds Playwright. mcp-build tests want
   // a clean slate so they can assert the built-ins-only path.
   db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
-  return { repo: new ConnectorRepo(db), close: () => closeDatabase(db) };
+  return {
+    repo: new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    }),
+    close: () => closeDatabase(db),
+  };
 }
 
 describe('toStdioConfig', () => {

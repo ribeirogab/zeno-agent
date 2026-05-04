@@ -131,7 +131,10 @@ beforeEach(() => {
   cronSkills = new CronSkillRepo(db);
   cronConnectors = new CronConnectorRepo(db);
   skills = new SkillRepo(db, { agentSkillsRoot, profileSkillsRoot, dashboardSkillsRoot });
-  connectors = new ConnectorRepo(db);
+  connectors = new ConnectorRepo(db, {
+    masterKey: Buffer.from('a'.repeat(64), 'hex'),
+    profileId: 'test',
+  });
   channel = new StubChannel();
 });
 

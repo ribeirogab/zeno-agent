@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import { type DotTone, useToast } from '@zeno/ui';
 import cronstrue from 'cronstrue';
 import type { JSX } from 'react';
@@ -7,9 +7,11 @@ import { NextCronItem } from '@/components/home/next-cron-item';
 import { StatTile } from '@/components/home/stat-tile';
 import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
 import { HomeSkeleton } from '@/components/skeletons/home-skeleton';
+import { ApiError, apiFetch } from '@/lib/api-client';
 import { greetingForHour } from '@/lib/greeting';
 import { homeSubtitle } from '@/lib/home-subtitle';
 import { type Activity, useActivity } from '@/lib/use-activity';
+import type { BackendsResponse } from '@/lib/use-backends';
 import { useHealth } from '@/lib/use-health';
 import { useNextCrons } from '@/lib/use-next-crons';
 import { useSettings } from '@/lib/use-settings';
@@ -17,6 +19,25 @@ import { useSparkline } from '@/lib/use-sparkline';
 import { useStats } from '@/lib/use-stats';
 
 export const Route = createFileRoute('/_authed/')({
+  beforeLoad: async () => {
+    // Spec 0071: when no backend is configured, drop the operator into the
+    // first-run onboarding hero. Auth is already validated by the parent
+    // _authed route's beforeLoad — this only runs after login succeeded.
+    try {
+      const r = await apiFetch<BackendsResponse>('/api/backends');
+      const configured = r.backends.some((b) => b.status !== 'not_configured');
+      if (!configured) {
+        throw redirect({ to: '/onboarding/connect-claude' });
+      }
+    } catch (err) {
+      if ((err as { isRedirect?: boolean })?.isRedirect) throw err;
+      // /api/backends down → render home with the existing degraded state.
+      // The sidebar status dot will turn neutral; operator can still navigate.
+      if (err instanceof ApiError) {
+        // ignore — fall through
+      }
+    }
+  },
   component: HomeScreen,
 });
 

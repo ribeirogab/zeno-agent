@@ -1,6 +1,13 @@
+export { decrypt, type EncryptedBlob, encrypt } from './crypto.js';
 export { closeDatabase, type DB, openDatabase } from './db.js';
-export { runMigrations } from './migrations.js';
+export { migrateConnectorSecretsEncryption, runMigrations } from './migrations.js';
 export { AgentCapabilityRepo } from './repos/agent-capabilities.js';
+export {
+  type BackendCredentialStatus,
+  BackendCredentialsRepo,
+  type BackendStatus,
+} from './repos/backend-credentials.js';
+export { BackendSettingsRepo } from './repos/backend-settings.js';
 export { CommandRepo } from './repos/commands.js';
 export { ConnectorAppRepo } from './repos/connector-apps.js';
 export { ConnectorSkillRepo } from './repos/connector-skills.js';

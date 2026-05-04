@@ -31,13 +31,19 @@ describe('ConnectorRepo — list / get / getBySlug', () => {
   });
 
   it('list returns empty for fresh DB', () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     expect(repo.list()).toEqual([]);
     closeDatabase(db);
   });
 
   it('list filters by status and source', () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     repo.create({ ...baseInput, slug: 'a' });
     repo.create({ ...baseInput, slug: 'b', status: 'disabled' });
     repo.create({ ...baseInput, slug: 'c', source: 'catalog', catalogId: 'c' });
@@ -50,7 +56,10 @@ describe('ConnectorRepo — list / get / getBySlug', () => {
   });
 
   it('get and getBySlug return the same row', () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({ ...baseInput, slug: 'echo' });
     expect(repo.get(created.id)?.slug).toBe('echo');
     expect(repo.getBySlug('echo')?.id).toBe(created.id);
@@ -63,7 +72,10 @@ describe('ConnectorRepo — list / get / getBySlug', () => {
 describe('ConnectorRepo — create', () => {
   it('inserts connector + secrets + tools in a transaction', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       ...baseInput,
       slug: 'echo',
@@ -94,7 +106,10 @@ describe('ConnectorRepo — create', () => {
 
   it('rolls back the transaction when a tool insert fails', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     expect(() =>
       repo.create({
         ...baseInput,
@@ -116,7 +131,10 @@ describe('ConnectorRepo — create', () => {
 
   it('rejects an invalid slug at the writer layer', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     expect(() => repo.create({ ...baseInput, slug: 'Bad' })).toThrow(/invalid slug/);
     expect(() => repo.create({ ...baseInput, slug: 'bad_under' })).toThrow(/invalid slug/);
     expect(() => repo.create({ ...baseInput, slug: '' })).toThrow(/invalid slug/);
@@ -125,7 +143,10 @@ describe('ConnectorRepo — create', () => {
 
   it('enforces UNIQUE on slug at the DB layer', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     repo.create({ ...baseInput, slug: 'echo' });
     expect(() => repo.create({ ...baseInput, slug: 'echo' })).toThrow();
     closeDatabase(db);
@@ -135,7 +156,10 @@ describe('ConnectorRepo — create', () => {
 describe('ConnectorRepo — update', () => {
   it('partial patch updates only the requested fields', async () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({ ...baseInput, slug: 'echo' });
     // Sleep long enough that the strftime('%f','now') millisecond bumps even on
     // very fast machines (better-sqlite3 caches its now() per call so SQLite is
@@ -153,7 +177,10 @@ describe('ConnectorRepo — update', () => {
 
   it('clears nullable fields when set to null', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({ ...baseInput, slug: 'echo' });
     repo.update(created.id, {
       lastError: 'boom',
@@ -168,7 +195,10 @@ describe('ConnectorRepo — update', () => {
 
   it('returns current row when patch is empty', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({ ...baseInput, slug: 'echo' });
     const same = repo.update(created.id, {});
     expect(same.updatedAt).toBe(created.updatedAt);
@@ -179,7 +209,10 @@ describe('ConnectorRepo — update', () => {
 describe('ConnectorRepo — replaceSecrets / replaceTools', () => {
   it('replaceSecrets clears + inserts in one transaction', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       ...baseInput,
       slug: 'echo',
@@ -196,7 +229,10 @@ describe('ConnectorRepo — replaceSecrets / replaceTools', () => {
 
   it('replaceTools wipes overrides and applies new set', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       ...baseInput,
       slug: 'echo',
@@ -215,7 +251,10 @@ describe('ConnectorRepo — replaceSecrets / replaceTools', () => {
 describe('ConnectorRepo — setToolPermission / setBulkPermission', () => {
   it('setToolPermission updates one row', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       ...baseInput,
       slug: 'echo',
@@ -232,14 +271,20 @@ describe('ConnectorRepo — setToolPermission / setBulkPermission', () => {
 
   it('setToolPermission returns false on tool miss', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({ ...baseInput, slug: 'echo' });
     expect(repo.setToolPermission(created.id, 'missing', 'ask')).toBe(false);
   });
 
   it('setBulkPermission updates rows by category', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       ...baseInput,
       slug: 'echo',
@@ -261,7 +306,10 @@ describe('ConnectorRepo — setToolPermission / setBulkPermission', () => {
 describe('ConnectorRepo — delete + cascade', () => {
   it('deletes connector and cascades secrets/tools/invocations', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       ...baseInput,
       slug: 'echo',
@@ -284,7 +332,10 @@ describe('ConnectorRepo — delete + cascade', () => {
 
   it('returns false when deleting an unknown id', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     expect(repo.delete('missing')).toBe(false);
     closeDatabase(db);
   });
@@ -293,7 +344,10 @@ describe('ConnectorRepo — delete + cascade', () => {
 describe('ConnectorRepo — invocations', () => {
   it('records and lists invocations newest-first', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({ ...baseInput, slug: 'echo' });
     repo.recordInvocation({
       connectorId: created.id,
@@ -317,7 +371,10 @@ describe('ConnectorRepo — invocations', () => {
 
   it('respects the limit argument', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({ ...baseInput, slug: 'echo' });
     for (let i = 0; i < 25; i++) {
       repo.recordInvocation({
@@ -334,7 +391,10 @@ describe('ConnectorRepo — invocations', () => {
 
   it('countInvocationsSince counts rows after the timestamp', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({ ...baseInput, slug: 'echo' });
     const before = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     repo.recordInvocation({
@@ -354,7 +414,10 @@ describe('ConnectorRepo — invocations', () => {
 describe('ConnectorRepo — getEnabledWithRelations', () => {
   it('returns enabled connectors with their secrets and tools attached', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     repo.create({
       ...baseInput,
       slug: 'a',
@@ -377,7 +440,10 @@ describe('ConnectorRepo — getEnabledWithRelations', () => {
 describe('ConnectorRepo — kind discriminator (spec 0057)', () => {
   it('rowToConnector maps kind from DB row (defaults to mcp)', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({ ...baseInput, slug: 'sentry' });
     expect(created.kind).toBe('mcp');
     closeDatabase(db);
@@ -385,7 +451,10 @@ describe('ConnectorRepo — kind discriminator (spec 0057)', () => {
 
   it('create() accepts kind=channel and persists it', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       ...baseInput,
       slug: 'slack',
@@ -402,7 +471,10 @@ describe('ConnectorRepo — kind discriminator (spec 0057)', () => {
 
   it('listByKind returns only matching kind', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     repo.create({ ...baseInput, slug: 'sentry' }); // kind=mcp default
     repo.create({
       ...baseInput,
@@ -423,7 +495,10 @@ describe('ConnectorRepo — kind discriminator (spec 0057)', () => {
 
   it('list({ kind: "mcp" }) excludes channel rows', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     repo.create({ ...baseInput, slug: 'sentry' });
     repo.create({
       ...baseInput,
@@ -441,7 +516,10 @@ describe('ConnectorRepo — kind discriminator (spec 0057)', () => {
 
   it('list() without kind filter returns ALL rows (backward compat)', () => {
     const db = freshDb();
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     repo.create({ ...baseInput, slug: 'sentry' });
     repo.create({
       ...baseInput,

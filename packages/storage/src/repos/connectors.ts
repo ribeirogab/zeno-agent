@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { decrypt, encrypt } from '../crypto.js';
 import type { DB } from '../db.js';
 import type {
   Connector,
@@ -43,7 +44,12 @@ interface ConnectorRow {
 interface SecretRow {
   connector_id: string;
   key: string;
-  value: string;
+  /** Spec 0071: nullable after migration 21. Plaintext leftover for unmigrated rows; null otherwise. */
+  value: string | null;
+  /** Spec 0071: AES-256-GCM ciphertext + 16-byte auth tag. Null only for unmigrated rows. */
+  value_encrypted: Buffer | null;
+  /** Spec 0071: 12-byte IV. Null only for unmigrated rows. */
+  iv: Buffer | null;
   is_public: number | null;
 }
 
@@ -98,11 +104,29 @@ function rowToConnector(row: ConnectorRow): Connector {
   };
 }
 
-function rowToSecret(row: SecretRow): ConnectorSecret {
+function rowToSecret(
+  row: SecretRow,
+  cryptoOpts?: { masterKey: Buffer; profileId: string },
+): ConnectorSecret {
+  let value: string;
+  if (row.value_encrypted !== null && row.iv !== null) {
+    if (!cryptoOpts) {
+      throw new Error('ConnectorRepo: encrypted secret found but no cryptoOpts configured');
+    }
+    value = decrypt(cryptoOpts.masterKey, cryptoOpts.profileId, row.iv, row.value_encrypted);
+  } else if (row.value !== null) {
+    // Pre-0071 unmigrated row. Should be rare — boot helper migrates on
+    // every startup. Tolerated as a transitional fallback.
+    value = row.value;
+  } else {
+    throw new Error(
+      `connector_secrets row (${row.connector_id}, ${row.key}) has neither value nor value_encrypted`,
+    );
+  }
   return {
     connectorId: row.connector_id,
     key: row.key,
-    value: row.value,
+    value,
     isPublic: row.is_public === 1,
   };
 }
@@ -138,8 +162,31 @@ export interface ListConnectorsFilter {
   kind?: ConnectorKind;
 }
 
+export interface ConnectorRepoCryptoOpts {
+  masterKey: Buffer;
+  profileId: string;
+}
+
 export class ConnectorRepo {
-  constructor(private readonly db: DB) {}
+  /**
+   * Spec 0071: cryptoOpts is required to read/write `connector_secrets`.
+   * Older callers may pass undefined IF and ONLY IF they never touch the
+   * secrets methods (e.g. a read-only path that only inspects connectors).
+   * The methods that need it throw with a clear error otherwise.
+   */
+  constructor(
+    private readonly db: DB,
+    private readonly cryptoOpts?: ConnectorRepoCryptoOpts,
+  ) {}
+
+  private requireCrypto(): ConnectorRepoCryptoOpts {
+    if (!this.cryptoOpts) {
+      throw new Error(
+        'ConnectorRepo: cryptoOpts not provided — pass { masterKey, profileId } at construction to read/write secrets',
+      );
+    }
+    return this.cryptoOpts;
+  }
 
   list(filter: ListConnectorsFilter = {}): Connector[] {
     const where: string[] = [];
@@ -187,10 +234,11 @@ export class ConnectorRepo {
   }
 
   getSecrets(connectorId: string): ConnectorSecret[] {
+    const opts = this.requireCrypto();
     const rows = this.db
       .prepare('SELECT * FROM connector_secrets WHERE connector_id = ? ORDER BY key ASC')
       .all(connectorId) as SecretRow[];
-    return rows.map(rowToSecret);
+    return rows.map((r) => rowToSecret(r, opts));
   }
 
   getTools(connectorId: string): ConnectorToolPermission[] {
@@ -243,11 +291,13 @@ export class ConnectorRepo {
           input.kind ?? 'mcp',
         );
 
+      const opts = this.requireCrypto();
       const insertSecret = this.db.prepare(
-        'INSERT INTO connector_secrets (connector_id, key, value, is_public) VALUES (?, ?, ?, ?)',
+        'INSERT INTO connector_secrets (connector_id, key, value, value_encrypted, iv, is_public) VALUES (?, ?, NULL, ?, ?, ?)',
       );
       for (const secret of input.secrets) {
-        insertSecret.run(id, secret.key, secret.value, secret.isPublic ? 1 : 0);
+        const { iv, ciphertext } = encrypt(opts.masterKey, opts.profileId, secret.value);
+        insertSecret.run(id, secret.key, ciphertext, iv, secret.isPublic ? 1 : 0);
       }
 
       const insertTool = this.db.prepare(
@@ -324,13 +374,15 @@ export class ConnectorRepo {
     connectorId: string,
     secrets: Array<{ key: string; value: string; isPublic?: boolean }>,
   ): void {
+    const opts = this.requireCrypto();
     const replace = this.db.transaction(() => {
       this.db.prepare('DELETE FROM connector_secrets WHERE connector_id = ?').run(connectorId);
       const insert = this.db.prepare(
-        'INSERT INTO connector_secrets (connector_id, key, value, is_public) VALUES (?, ?, ?, ?)',
+        'INSERT INTO connector_secrets (connector_id, key, value, value_encrypted, iv, is_public) VALUES (?, ?, NULL, ?, ?, ?)',
       );
       for (const secret of secrets) {
-        insert.run(connectorId, secret.key, secret.value, secret.isPublic ? 1 : 0);
+        const { iv, ciphertext } = encrypt(opts.masterKey, opts.profileId, secret.value);
+        insert.run(connectorId, secret.key, ciphertext, iv, secret.isPublic ? 1 : 0);
       }
     });
     replace();

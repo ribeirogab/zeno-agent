@@ -61,7 +61,10 @@ function makeApp() {
     cronRunRepo: new CronRunRepo(db),
     commandRepo: new CommandRepo(db),
     logRepo: new LogRepo(db),
-    connectorRepo: new ConnectorRepo(db),
+    connectorRepo: new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    }),
     connectorAppRepo: new ConnectorAppRepo(db),
     claudeHome: '/tmp',
     profileDir: '/tmp',
@@ -90,7 +93,10 @@ type ListEntry = ConnectorListItem | AppListItem;
 
 describe('GET /api/connectors — discriminated union', () => {
   it('returns standalone connectors with kind="connector"', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     repo.create({
       slug: 'linear',
       displayName: 'Linear',
@@ -119,7 +125,10 @@ describe('GET /api/connectors — discriminated union', () => {
       pem: 'pem',
       pemSha256: 'sha',
     });
-    const connRepo = new ConnectorRepo(db);
+    const connRepo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     connRepo.create({
       slug: 'github-app-acme',
       displayName: 'GitHub App — Acme',
@@ -186,7 +195,10 @@ describe('GET /api/connectors — discriminated union', () => {
       pem: 'pem',
       pemSha256: 'sha',
     });
-    const connRepo = new ConnectorRepo(db);
+    const connRepo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const c1 = connRepo.create({
       slug: 'github-app-acme',
       displayName: 'Acme',
@@ -217,7 +229,10 @@ describe('GET /api/connectors — discriminated union', () => {
       pem: 'pem',
       pemSha256: 'sha',
     });
-    const connRepo = new ConnectorRepo(db);
+    const connRepo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const c1 = connRepo.create({
       slug: 'github-app-acme',
       displayName: 'Acme',
@@ -253,7 +268,10 @@ describe('GET /api/connectors — discriminated union', () => {
       pem: 'pem',
       pemSha256: 'sha',
     });
-    const connRepo = new ConnectorRepo(db);
+    const connRepo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const c1 = connRepo.create({
       slug: 'github-app-acme',
       displayName: 'Acme',
@@ -297,7 +315,10 @@ describe('GET /api/connectors/apps/:appUuid', () => {
       pem: 'pem',
       pemSha256: 'fp-sha-256',
     });
-    const connRepo = new ConnectorRepo(db);
+    const connRepo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     connRepo.create({
       slug: 'github-app-acme',
       displayName: 'GitHub App — Acme',
@@ -351,7 +372,10 @@ describe('GET /api/connectors/apps/:appUuid', () => {
       pem: 'pem',
       pemSha256: 'sha',
     });
-    const connRepo = new ConnectorRepo(db);
+    const connRepo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = connRepo.create({
       slug: 'github-app-acme',
       displayName: 'Acme',

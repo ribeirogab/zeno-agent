@@ -1,0 +1,32 @@
+{
+  "_doc": "Catalog of available agent backends. Each entry describes how to authenticate (auth_schema), how the auto-OAuth flow works (auto_flow), and how to verify a captured token (test). Today only claude-code; future codex-cli, gemini, etc. join here. See spec 0071.",
+  "backends": [
+    {
+      "id": "claude-code",
+      "name": "Claude Code",
+      "description": "Anthropic's Claude via the official Claude Code OAuth subscription. The dashboard wraps `claude setup-token` for the auto-OAuth flow; the captured token is verified with a single Claude API handshake before being stored encrypted.",
+      "logo": "agent/assets/backends/claude-code.png",
+      "auth_schema": [
+        {
+          "field": "oauth_token",
+          "label": "OAuth token",
+          "type": "password",
+          "regex": "^sk-ant-oat\\d{2}-[A-Za-z0-9_-]{50,}$",
+          "regex_hint": "Tokens start with sk-ant-oat<NN>- and are 60+ chars."
+        }
+      ],
+      "auto_flow": {
+        "kind": "spawn-cli",
+        "command": ["claude", "setup-token"],
+        "stdout_url_regex": "(https?://(?:claude\\.com|claude\\.ai)/(?:cai/)?oauth/[A-Za-z0-9._~:/?#@!$&'()*+,;=%\\-]*?state=[A-Za-z0-9_-]{43})",
+        "stdout_token_regex": "(sk-ant-oat\\d{2}-[A-Za-z0-9_-]{50,})",
+        "stdout_awaiting_code_regex": "Paste\\s*code\\s*here"
+      },
+      "test": {
+        "kind": "claude-handshake",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "setup_doc_url": "https://docs.anthropic.com/en/docs/claude-code/getting-started"
+    }
+  ]
+}

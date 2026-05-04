@@ -3,7 +3,7 @@
 # Stage 1: base
 FROM node:24-slim AS base
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git python3 build-essential gh ca-certificates curl unzip \
+    && apt-get install -y --no-install-recommends git python3 build-essential gh ca-certificates curl unzip procps \
     && rm -rf /var/lib/apt/lists/*
 
 # AWS CLI v2 (official installer — Debian package ships an outdated v1).
@@ -110,7 +110,13 @@ ENV HOME=/home/node
 
 # Claude Code via official installer (used for setup-token; runtime uses the SDK).
 # Installed under the node user so the binary lands in /home/node/.local/bin.
-RUN curl -fsSL https://claude.ai/install.sh | bash || true
+# Spec 0071: dropped `|| true` masking — if Anthropic's installer is unreachable
+# the build now fails loud instead of producing a broken image. Verify post-install
+# so a successful curl that didn't actually drop the binary also fails the build.
+RUN set -eux; \
+    curl -fsSL https://claude.ai/install.sh | bash; \
+    test -x /home/node/.local/bin/claude || (echo "claude binary missing after install" >&2; exit 1); \
+    /home/node/.local/bin/claude --version
 ENV PATH="/home/node/.local/bin:${PATH}"
 
 VOLUME ["/workspace"]

@@ -1,5 +1,6 @@
 import { createLogger } from '@zeno/logger';
 import type { SessionRepo } from '@zeno/storage';
+import { NoBackendConfiguredError } from '@/agent/credentials';
 import { type AgentBackend, AgentBackendError, type AgentInput } from '@/agent/types';
 import type { Channel, IncomingMessage, MessageTarget } from '@/channels/types';
 
@@ -12,6 +13,13 @@ interface AgentCoreOptions {
   getSystemPrompt: () => string;
   /** Persistent store mapping Slack thread IDs to SDK session IDs. */
   sessions: SessionRepo;
+  /**
+   * Spec 0071 — fired when the backend returns auth_expired. The worker
+   * uses this to flip `backend_credentials.status='expired'` so the
+   * dashboard sidebar status dot turns red within the next polling tick.
+   * Callback errors are caught + logged; they never block reply delivery.
+   */
+  onAuthExpired?: (backendId: string) => void;
 }
 
 export class AgentCore {
@@ -23,6 +31,23 @@ export class AgentCore {
     correlationId: string,
     error: unknown,
   ): Promise<void> {
+    // Spec 0071: fire onAuthExpired side-effect (status update + future DM)
+    // before the user-facing reply so the sidebar dot is already red by the
+    // time the operator clicks through.
+    if (
+      this.opts.onAuthExpired &&
+      error instanceof AgentBackendError &&
+      error.kind === 'auth_expired'
+    ) {
+      try {
+        this.opts.onAuthExpired('claude-code');
+      } catch (cbErr) {
+        logger.error(
+          { event: 'auth_expired_callback_failed', correlationId, err: String(cbErr) },
+          'onAuthExpired callback threw',
+        );
+      }
+    }
     const reply = translateError(error);
     await channel.send(target, reply);
     await safe(() => channel.unreact(target, 'eyes'));
@@ -188,14 +213,27 @@ async function safe(fn: () => Promise<unknown>): Promise<void> {
 
 function isResumeFailure(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
-  return /resume|session.*(not found|invalid|expired|missing)|no such session/i.test(error.message);
+  // Patterns we've seen in the wild from `@anthropic-ai/claude-agent-sdk`:
+  //   "Claude Code returned an error result: No conversation found with session ID: <uuid>"
+  //   "Session <uuid> not found"
+  //   "no such session: <uuid>"
+  //   "session expired"
+  // Match any of them.
+  return /resume|no conversation found|conversation.*not found|session.*(not found|invalid|expired|missing)|no such session/i.test(
+    error.message,
+  );
 }
 
 function translateError(error: unknown): string {
+  if (error instanceof NoBackendConfiguredError) {
+    // Spec 0071: graceful no-token reply pointing operator at the dashboard.
+    return 'Claude ainda não está configurado. Abre o dashboard em http://localhost:3000 — vai ter um botão "Connect Claude" pra completar o OAuth.';
+  }
   if (error instanceof AgentBackendError) {
     switch (error.kind) {
       case 'auth_expired':
-        return 'meu token Claude expirou. Roda `docker compose run --rm zeno-agent claude setup-token`, cola o token novo em `.env` e `docker compose up -d --force-recreate`.';
+        // Spec 0071: re-auth via dashboard, not .env.
+        return 'meu token Claude expirou. Abre o dashboard em http://localhost:3000/settings/backend e clica "Re-authenticate".';
       case 'rate_limited':
         return 'bati o limite do plano Claude. Tenta daqui a pouco.';
       case 'timeout':

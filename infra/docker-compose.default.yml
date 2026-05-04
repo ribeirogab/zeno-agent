@@ -14,7 +14,10 @@ services:
       - "3000:3000"
     volumes:
       - workspace-default:/workspace
-      - claude_home:/home/node/.claude
+      # Spec 0071: per-profile claude_home prevents cross-profile leakage of
+      # session JSONLs and the SDK credentials cache. Was a single shared
+      # `claude_home` external volume; migrate via infra/migrate-claude-home.sh.
+      - claude_home_default:/home/node/.claude
       - ./agent:/app/agent:ro
       - ./profiles/default:/app/profile:ro
     restart: unless-stopped
@@ -23,5 +26,4 @@ services:
 
 volumes:
   workspace-default:
-  claude_home:
-    external: true
+  claude_home_default:

@@ -1,13 +1,17 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import type { JSX, ReactNode } from 'react';
+import { useState } from 'react';
 import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
 import { AboutRow } from '@/components/settings/about-row';
+import { ActiveBackendSelector } from '@/components/settings/active-backend-selector';
 import { AgentCapabilitiesSection } from '@/components/settings/agent-capabilities-section';
 import { BackendCard } from '@/components/settings/backend-card';
+import { ConfigureModal } from '@/components/settings/configure-modal';
 import { ProfileFileRow } from '@/components/settings/profile-file-row';
 import { TabStrip } from '@/components/settings/tab-strip';
 import { UserMdEditor } from '@/components/settings/user-md-editor';
 import { SettingsSectionSkeleton } from '@/components/skeletons/settings-section-skeleton';
+import { type BackendListItem, useBackends, useSetActiveBackend } from '@/lib/use-backends';
 import { useHealth } from '@/lib/use-health';
 import { type SettingsSnapshot, useSettings } from '@/lib/use-settings';
 
@@ -160,14 +164,66 @@ function Section({
   );
 }
 
-function BackendSection({ backend }: { backend: SettingsSnapshot['backend'] }): JSX.Element {
+function BackendSection(_props: { backend: SettingsSnapshot['backend'] }): JSX.Element {
+  // Spec 0071: backend section now driven by /api/backends (encrypted DB,
+  // multi-backend ready) rather than the old /settings static field. The
+  // legacy `backend` snapshot from useSettings is kept as a parameter for
+  // call-site compatibility but unused here.
+  const q = useBackends();
+  const setActive = useSetActiveBackend();
+  const [configuringId, setConfiguringId] = useState<string | null>(null);
+
+  if (q.isLoading || !q.data) {
+    return (
+      <Section title="backend" meta="loading...">
+        <div className="bg-panel border border-border-subtle rounded-md p-5 h-32 animate-pulse" />
+      </Section>
+    );
+  }
+
+  const configuring: BackendListItem | undefined =
+    configuringId !== null ? q.data.backends.find((b) => b.id === configuringId) : undefined;
+
   return (
-    <Section title="backend" meta={`selected via ${backend.selectedVia}`}>
-      <BackendCard
-        name={backend.name}
-        summary="Claude Agent SDK · OAuth · 300s timeout · gh + claude CLI verified at boot"
-      />
-    </Section>
+    <>
+      <Section
+        title="active backend"
+        meta={`${q.data.backends.length} of ${q.data.backends.length} installed · pluggable surface`}
+      >
+        <ActiveBackendSelector
+          backends={q.data.backends}
+          activeId={q.data.active_backend_id}
+          onChange={(id) => setActive.mutate(id)}
+        />
+      </Section>
+      <Section title="backends" meta="catalog · agent/backends-catalog.json">
+        <div className="flex flex-col gap-3">
+          {q.data.backends.map((b) => (
+            <BackendCard
+              key={b.id}
+              backend={b}
+              profileId={q.data.profile_id}
+              onConfigure={() => setConfiguringId(b.id)}
+            />
+          ))}
+          <div className="flex items-center gap-2.5 px-4 py-3.5 border border-dashed border-border-subtle rounded-md">
+            <span className="w-1.5 h-1.5 rounded-full bg-text-tertiary" />
+            <span className="font-mono text-[11px] tracking-[0.08em] uppercase text-text-tertiary">
+              codex · gemini · future backends — same install + auth surface
+            </span>
+          </div>
+        </div>
+      </Section>
+      {configuring ? (
+        <ConfigureModal
+          backend={configuring}
+          open
+          onOpenChange={(next) => {
+            if (!next) setConfiguringId(null);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 

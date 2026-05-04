@@ -84,7 +84,10 @@ function makeApp() {
     cronRunRepo: new CronRunRepo(db),
     commandRepo: new CommandRepo(db),
     logRepo: new LogRepo(db),
-    connectorRepo: new ConnectorRepo(db),
+    connectorRepo: new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    }),
     connectorAppRepo: new ConnectorAppRepo(db),
     claudeHome: '/tmp',
     profileDir: '/tmp',
@@ -106,7 +109,10 @@ describe('POST /api/connectors/catalog/github-app/uninstall-app cascade', () => 
       pem: newPem(),
       pemSha256: 'sha',
     });
-    const connRepo = new ConnectorRepo(db);
+    const connRepo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     connRepo.create({
       slug: 'github-app-acme',
       displayName: 'Acme',

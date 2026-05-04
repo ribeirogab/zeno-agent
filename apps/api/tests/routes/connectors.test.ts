@@ -40,7 +40,10 @@ function makeApp(database: DB) {
     cronRunRepo: new CronRunRepo(database),
     commandRepo: new CommandRepo(database),
     logRepo: new LogRepo(database),
-    connectorRepo: new ConnectorRepo(database),
+    connectorRepo: new ConnectorRepo(database, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    }),
     claudeHome: '/tmp',
     profileDir: '/tmp',
   });
@@ -63,7 +66,10 @@ describe('GET /api/connectors', () => {
   });
 
   it('returns installed connectors with counts', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     repo.create({
       slug: 'echo',
       displayName: 'Echo',
@@ -94,7 +100,10 @@ describe('GET /api/connectors/:id', () => {
   });
 
   it('masks secrets with last4', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       slug: 'echo',
       displayName: 'Echo',
@@ -133,7 +142,10 @@ describe('GET /api/connectors/catalog', () => {
 
 describe('PATCH /api/connectors/:id/toggle', () => {
   it('flips enabled → disabled and back', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       slug: 'echo',
       displayName: 'Echo',
@@ -158,7 +170,10 @@ describe('PATCH /api/connectors/:id/toggle', () => {
   });
 
   it('rejects toggling a pending connector', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       slug: 'echo',
       displayName: 'Echo',
@@ -179,7 +194,10 @@ describe('PATCH /api/connectors/:id/toggle', () => {
 
 describe('PATCH /api/connectors/:id/tools/:toolName/permission', () => {
   it('updates a single permission', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       slug: 'echo',
       displayName: 'E',
@@ -199,7 +217,10 @@ describe('PATCH /api/connectors/:id/tools/:toolName/permission', () => {
   });
 
   it('returns 404 for unknown tool', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       slug: 'echo',
       displayName: 'E',
@@ -223,7 +244,10 @@ describe('PATCH /api/connectors/:id/tools/:toolName/permission', () => {
 
 describe('PATCH /api/connectors/:id/tools/permissions/bulk', () => {
   it('applies permission to all tools in category', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       slug: 'echo',
       displayName: 'E',
@@ -289,7 +313,10 @@ describe('POST /api/connectors (custom) enqueues a connector_create', () => {
 
 describe('DELETE /api/connectors/:id', () => {
   it('enqueues connector_uninstall', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const commandRepo = new CommandRepo(db);
     const created = repo.create({
       slug: 'echo',
@@ -311,7 +338,10 @@ describe('DELETE /api/connectors/:id', () => {
 
 describe('GET /api/connectors/:id/secrets/:key/reveal', () => {
   it('returns the secret value the first time', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       slug: 'echo',
       displayName: 'E',
@@ -329,7 +359,10 @@ describe('GET /api/connectors/:id/secrets/:key/reveal', () => {
   });
 
   it('returns 429 within the 60s window', async () => {
-    const repo = new ConnectorRepo(db);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const created = repo.create({
       slug: 'echo',
       displayName: 'E',

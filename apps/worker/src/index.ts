@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { createLogger, type Logger } from '@zeno/logger';
 import {
   AgentCapabilityRepo,
+  BackendCredentialsRepo,
   CommandRepo,
   ConnectorAppRepo,
   ConnectorRepo,
@@ -16,6 +17,7 @@ import {
   CronSkillRepo,
   closeDatabase,
   LogRepo,
+  migrateConnectorSecretsEncryption,
   openDatabase,
   runMigrations,
   SessionRepo,
@@ -25,6 +27,9 @@ import { ClaudeCodeBackend, type InvocationEvent } from '@/agent/backends/claude
 import { MockBackend } from '@/agent/backends/mock';
 import { loadMockFixtures } from '@/agent/backends/mock-fixtures';
 import { AgentCore } from '@/agent/core';
+import { CredentialsService } from '@/agent/credentials';
+import { materializeClaudeCredentials } from '@/agent/credentials-materializer';
+import { CredentialsWatcher } from '@/agent/credentials-watcher';
 import type { McpServerConfig } from '@/agent/mcp';
 import { buildMcpServersMap } from '@/agent/mcp-build';
 import { buildSystemPrompt, loadAgentFile, loadProfileFile } from '@/agent/system-prompt';
@@ -73,6 +78,8 @@ interface BackendBuildOptions {
   // biome-ignore lint/suspicious/noExplicitAny: in-process MCP server type is not exported
   inProcessMcpServers?: Record<string, any>;
   onInvocation?: (event: InvocationEvent) => void;
+  /** Spec 0071: per-call env provider — never mutate process.env. */
+  envProvider?: () => Record<string, string | undefined> | undefined;
 }
 
 /**
@@ -84,7 +91,12 @@ function buildBackend(logger: Logger, opts: BackendBuildOptions): AgentBackend {
   switch (choice) {
     case 'claude-code':
       logger.info({ event: 'backend_selected', backend: 'claude-code' }, 'using ClaudeCodeBackend');
-      return new ClaudeCodeBackend(opts);
+      return new ClaudeCodeBackend({
+        getMcpServers: opts.getMcpServers,
+        inProcessMcpServers: opts.inProcessMcpServers,
+        onInvocation: opts.onInvocation,
+        envProvider: opts.envProvider,
+      });
     case 'mock':
       logger.info({ event: 'backend_selected', backend: 'mock' }, 'using MockBackend');
       return new MockBackend(loadMockFixtures());
@@ -120,7 +132,9 @@ async function healthChecks(logger: Logger, config: Config): Promise<void> {
     'github-mcp-server available',
   );
 
-  logger.info({ event: 'claude_oauth_token_present' }, 'Claude OAuth token configured');
+  // Spec 0071: Claude OAuth token is OPTIONAL at boot. The dashboard onboarding
+  // surface will collect it; the worker stays graceful until it's set. The
+  // CredentialsService check happens later in main() after the repo is built.
 }
 
 /**
@@ -208,14 +222,83 @@ async function main(): Promise<void> {
     logger: bootLogger,
   });
 
+  // Spec 0071: pre-migration backup of zeno.db. Idempotent — only writes the
+  // first time. Operator can delete the .pre-0071-backup file after verifying
+  // the new boot succeeds.
+  const backupPath = `${dbPath}.pre-0071-backup`;
+  if (!existsSync(backupPath) && existsSync(dbPath)) {
+    const { copyFileSync } = await import('node:fs');
+    copyFileSync(dbPath, backupPath);
+    bootLogger.info({ event: 'db_backup_written', path: backupPath }, 'pre-0071 db backup written');
+  }
+
   runMigrations(db);
   bootLogger.info({ event: 'migrations_applied' }, 'migrations applied');
+
+  // Spec 0071: encrypt any pre-0071 plaintext rows in connector_secrets that
+  // were carried through migration 21. Idempotent: subsequent boots find no
+  // matching rows and return migrated=0 silently.
+  const profileId = process.env.ZENO_PROFILE ?? 'default';
+  const { migrated: secretsMigrated } = migrateConnectorSecretsEncryption(
+    db,
+    config.masterKey,
+    profileId,
+  );
+  if (secretsMigrated > 0) {
+    bootLogger.info(
+      { event: 'connector_secrets_encrypted', count: secretsMigrated },
+      'encrypted legacy plaintext connector_secrets rows',
+    );
+  }
+
   const sessions = new SessionRepo(db);
   const crons = new CronRepo(db);
   const cronRuns = new CronRunRepo(db);
   const commands = new CommandRepo(db);
   const logs = new LogRepo(db);
-  const connectors = new ConnectorRepo(db);
+  const connectors = new ConnectorRepo(db, {
+    masterKey: config.masterKey,
+    profileId,
+  });
+  const backendCredentials = new BackendCredentialsRepo(db, {
+    masterKey: config.masterKey,
+    profileId,
+  });
+  const credentialsService = new CredentialsService({ repo: backendCredentials });
+
+  /**
+   * Spec 0071: per-call env provider for ClaudeCodeBackend. Reads the
+   * encrypted token from DB on EACH query() call, hydrates the SDK env
+   * exclusively for that call. The parent worker process NEVER sets
+   * `process.env.CLAUDE_CODE_OAUTH_TOKEN` (per
+   * `vault/rules/integration-tokens-in-db-only.md`). Returns undefined when
+   * no token is configured — the SDK then fails with auth error which the
+   * channel adapter classifies into the user-facing "Claude is not
+   * configured" reply.
+   */
+  const claudeEnvProvider = (): Record<string, string | undefined> | undefined => {
+    const token = credentialsService.getActiveBackendToken({ backendId: 'claude-code' });
+    return token ? { CLAUDE_CODE_OAUTH_TOKEN: token } : undefined;
+  };
+
+  // Spec 0071: one-shot legacy import. If CLAUDE_CODE_OAUTH_TOKEN is in env
+  // (from the pre-0071 .env contract) AND no row exists yet, write it to DB
+  // and emit a one-time log. The dashboard surfaces a banner asking the
+  // operator to remove the env var. Subsequent boots see the row and skip.
+  if (
+    config.claude.legacyOauthToken &&
+    backendCredentials.getValue('claude-code', 'oauth_token') === null
+  ) {
+    backendCredentials.upsert({
+      backendId: 'claude-code',
+      fieldName: 'oauth_token',
+      value: config.claude.legacyOauthToken,
+    });
+    bootLogger.info(
+      { event: 'claude_token_imported_from_env_legacy' },
+      'imported CLAUDE_CODE_OAUTH_TOKEN from env to backend_credentials (one-shot)',
+    );
+  }
   const connectorApps = new ConnectorAppRepo(db);
   const skillRepo = new SkillRepo(db, {
     agentSkillsRoot,
@@ -275,6 +358,30 @@ async function main(): Promise<void> {
     { event: 'skills_loaded', count: initialMaterialize.written },
     `loaded ${initialMaterialize.written} skill(s) from DB`,
   );
+
+  // Spec 0071: materialize ~/.claude/.credentials.json from DB at boot if a
+  // token exists. The SDK reads this file at session start. The watcher (later)
+  // keeps it in sync on credential change. If no token is configured, the
+  // worker boots gracefully — turns reply with "Claude is not configured".
+  const initialClaudeToken = credentialsService.getActiveBackendToken({
+    backendId: 'claude-code',
+  });
+  if (initialClaudeToken) {
+    await materializeClaudeCredentials({ claudeHome, oauthToken: initialClaudeToken });
+    logger.info({ event: 'claude_backend_configured' }, 'Claude credential loaded from DB');
+  } else {
+    logger.info(
+      { event: 'claude_backend_unconfigured' },
+      'no Claude credential in DB; configure via dashboard /onboarding/connect-claude',
+    );
+  }
+  const credentialsWatcher = new CredentialsWatcher({
+    repo: backendCredentials,
+    claudeHome,
+    backendId: 'claude-code',
+    logger,
+  });
+  credentialsWatcher.start();
 
   // Spec 0052: log the agent capability state at boot so operators can
   // diagnose tool denials by reading logs.
@@ -448,12 +555,17 @@ async function main(): Promise<void> {
       getMcpServers,
       preToolUseHook: cronLazyHook,
       onInvocation,
+      envProvider: claudeEnvProvider,
     });
     const cronWrapper = new ConnectorGatedBackend(cronGatedInner, gatedDeps);
     cronOuterHook = cronWrapper.buildPreToolUseHook();
     backendForRunner = cronWrapper;
   } else {
-    backendForRunner = buildBackend(logger, { getMcpServers, onInvocation });
+    backendForRunner = buildBackend(logger, {
+      getMcpServers,
+      onInvocation,
+      envProvider: claudeEnvProvider,
+    });
   }
 
   const runner = new CronRunner({
@@ -523,6 +635,7 @@ async function main(): Promise<void> {
       inProcessMcpServers: { zeno: cronMcp },
       preToolUseHook: chatLazyHook,
       onInvocation,
+      envProvider: claudeEnvProvider,
     });
     const chatWrapper = new ConnectorGatedBackend(gatedInner, gatedDeps);
     chatOuterHook = chatWrapper.buildPreToolUseHook();
@@ -536,6 +649,7 @@ async function main(): Promise<void> {
       getMcpServers,
       inProcessMcpServers: { zeno: cronMcp },
       onInvocation,
+      envProvider: claudeEnvProvider,
     });
     logger.warn(
       { event: 'connector_gate_skipped_non_claude_backend' },
@@ -548,6 +662,16 @@ async function main(): Promise<void> {
     workspaceDir: config.workspaceDir,
     getSystemPrompt: () => promptHolder.value,
     sessions,
+    // Spec 0071: flip status='expired' so the dashboard sidebar dot turns
+    // red on the next 30s polling tick. Future spec adds a Slack DM to the
+    // operator (debounced via last_auth_alert_at).
+    onAuthExpired: (backendId) => {
+      backendCredentials.setStatus(backendId, 'expired', null);
+      logger.warn(
+        { event: 'backend_auth_expired_status_set', backendId },
+        'set backend status=expired after auth_expired classification',
+      );
+    },
   });
 
   const watcher = new ProfileWatcher({

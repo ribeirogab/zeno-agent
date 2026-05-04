@@ -1,3 +1,4 @@
+import { encrypt } from './crypto.js';
 import type { DB } from './db.js';
 
 interface Migration {
@@ -605,6 +606,52 @@ WHERE c.slug = 'playwright'
   );
 `,
   },
+  {
+    id: 21,
+    name: "spec 0071 — backend auth via dashboard. Adds backend_credentials (encrypted KV per profile/backend/field) and backend_settings (KV for active_backend_id today; future per-profile backend prefs). Also extends connector_secrets with value_encrypted BLOB + iv BLOB columns and rebuilds the table so value can become NULL — the data migration that encrypts existing plaintext rows runs AFTER this SQL via migrateConnectorSecretsEncryption(db, masterKey, profileId), called from worker boot once the masterKey is available. The 'value' column is intentionally retained (nullable) so this schema migration is decoupled from the crypto data step; a future spec will drop it after every profile has been migrated.",
+    sql: `
+CREATE TABLE IF NOT EXISTS backend_credentials (
+  id                  TEXT PRIMARY KEY,
+  profile_id          TEXT NOT NULL,
+  backend_id          TEXT NOT NULL,
+  field_name          TEXT NOT NULL,
+  value_encrypted     BLOB NOT NULL,
+  iv                  BLOB NOT NULL,
+  status              TEXT NOT NULL DEFAULT 'untested' CHECK (status IN ('untested','active','expired','failed')),
+  last_tested_at      INTEGER,
+  last_auth_alert_at  INTEGER,
+  created_at          INTEGER NOT NULL,
+  updated_at          INTEGER NOT NULL,
+  UNIQUE (profile_id, backend_id, field_name)
+);
+CREATE INDEX IF NOT EXISTS idx_backend_credentials_profile_backend
+  ON backend_credentials(profile_id, backend_id);
+
+CREATE TABLE IF NOT EXISTS backend_settings (
+  profile_id  TEXT NOT NULL,
+  key         TEXT NOT NULL,
+  value       TEXT NOT NULL,
+  updated_at  INTEGER NOT NULL,
+  PRIMARY KEY (profile_id, key)
+);
+
+-- Rebuild connector_secrets to allow value=NULL once the data migration runs.
+-- Adds value_encrypted + iv columns. Carries every existing column forward.
+CREATE TABLE _spec0071_secrets_new (
+  connector_id     TEXT NOT NULL REFERENCES connectors(id) ON DELETE CASCADE,
+  key              TEXT NOT NULL,
+  value            TEXT,
+  is_public        INTEGER NOT NULL DEFAULT 0,
+  value_encrypted  BLOB,
+  iv               BLOB,
+  PRIMARY KEY (connector_id, key)
+);
+INSERT INTO _spec0071_secrets_new (connector_id, key, value, is_public)
+  SELECT connector_id, key, value, is_public FROM connector_secrets;
+DROP TABLE connector_secrets;
+ALTER TABLE _spec0071_secrets_new RENAME TO connector_secrets;
+`,
+  },
 ];
 
 /**
@@ -637,4 +684,44 @@ export function runMigrations(db: DB): { applied: number[]; current: number } {
 
   const current = MIGRATIONS.length > 0 ? (MIGRATIONS[MIGRATIONS.length - 1] as Migration).id : 0;
   return { applied: newlyApplied, current };
+}
+
+/**
+ * Spec 0071 data migration — encrypts every plaintext `connector_secrets.value`
+ * left over from the pre-0071 schema, writes the ciphertext to value_encrypted
+ * + iv, and nulls the legacy `value` column.
+ *
+ * Idempotent — safe to run on every boot. Picks up only rows where
+ * `value IS NOT NULL` (legacy plaintext) AND `value_encrypted IS NULL`. Once a
+ * row is migrated the WHERE no longer matches.
+ *
+ * Wrapped in a transaction. The caller is responsible for backing up the DB
+ * file before the very first invocation (worker boot does this — see
+ * `apps/worker/src/index.ts`).
+ *
+ * Returns the number of rows migrated. Zero is the steady-state.
+ */
+export function migrateConnectorSecretsEncryption(
+  db: DB,
+  masterKey: Buffer,
+  profileId: string,
+): { migrated: number } {
+  const rows = db
+    .prepare(
+      `SELECT connector_id, key, value FROM connector_secrets WHERE value IS NOT NULL AND value_encrypted IS NULL`,
+    )
+    .all() as Array<{ connector_id: string; key: string; value: string }>;
+  if (rows.length === 0) return { migrated: 0 };
+
+  const upd = db.prepare(
+    `UPDATE connector_secrets SET value_encrypted = ?, iv = ?, value = NULL WHERE connector_id = ? AND key = ?`,
+  );
+  const tx = db.transaction((batch: typeof rows) => {
+    for (const row of batch) {
+      const { iv, ciphertext } = encrypt(masterKey, profileId, row.value);
+      upd.run(ciphertext, iv, row.connector_id, row.key);
+    }
+  });
+  tx(rows);
+  return { migrated: rows.length };
 }

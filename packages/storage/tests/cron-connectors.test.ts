@@ -14,7 +14,10 @@ beforeEach(() => {
   db = openDatabase(':memory:');
   runMigrations(db);
   crons = new CronRepo(db);
-  connectors = new ConnectorRepo(db);
+  connectors = new ConnectorRepo(db, {
+    masterKey: Buffer.from('a'.repeat(64), 'hex'),
+    profileId: 'test',
+  });
   links = new CronConnectorRepo(db);
 });
 

@@ -560,8 +560,8 @@ function ToolPermissionsSection({ connector }: { connector: ConnectorDetail }): 
         const tools = groups[category];
         if (tools.length === 0) return null;
         const decisions = new Set(tools.map((t) => t.permission));
-        const bulkValue: ToolPermission | 'mixed' =
-          decisions.size === 1 ? [...decisions][0]! : 'mixed';
+        const [first] = [...decisions];
+        const bulkValue: ToolPermission | 'mixed' = decisions.size === 1 && first ? first : 'mixed';
         return (
           <CategoryPanel
             key={category}

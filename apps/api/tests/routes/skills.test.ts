@@ -88,7 +88,10 @@ function makeApp(database: DB) {
     cronRunRepo: new CronRunRepo(database),
     commandRepo: new CommandRepo(database),
     logRepo: new LogRepo(database),
-    connectorRepo: new ConnectorRepo(database),
+    connectorRepo: new ConnectorRepo(database, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    }),
     skillRepo,
     connectorSkillRepo: new ConnectorSkillRepo(database),
     cronSkillRepo: new CronSkillRepo(database),

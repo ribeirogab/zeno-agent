@@ -35,7 +35,10 @@ let connectors: ConnectorRepo;
 beforeEach(() => {
   db = openDatabase(':memory:');
   runMigrations(db);
-  connectors = new ConnectorRepo(db);
+  connectors = new ConnectorRepo(db, {
+    masterKey: Buffer.from('a'.repeat(64), 'hex'),
+    profileId: 'test',
+  });
 });
 
 afterEach(() => {

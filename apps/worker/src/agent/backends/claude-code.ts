@@ -1,5 +1,6 @@
 import { type HookCallback, query } from '@anthropic-ai/claude-agent-sdk';
 import { createLogger } from '@zeno/logger';
+import { NoBackendConfiguredError } from '@/agent/credentials';
 import type { McpServerConfig } from '@/agent/mcp';
 import {
   type AgentBackend,
@@ -56,6 +57,18 @@ interface ClaudeCodeBackendOptions {
   onInvocation?: (event: InvocationEvent) => void;
   /** Environment variables for the SDK subprocess. Overrides process.env when set. */
   env?: Record<string, string | undefined>;
+  /**
+   * Spec 0071: dynamic env provider, called once per `query()`. Used to read
+   * the encrypted Claude OAuth token from DB on demand (so we never set
+   * `process.env.CLAUDE_CODE_OAUTH_TOKEN` — see
+   * `vault/rules/integration-tokens-in-db-only.md`). Throws
+   * NoBackendConfiguredError when no token is configured; the caller catches
+   * and surfaces the user-facing "Claude is not configured" reply.
+   *
+   * If both `env` and `envProvider` are set, the provider's result is
+   * merged on top of the static env (provider wins on key conflict).
+   */
+  envProvider?: () => Record<string, string | undefined> | undefined;
 }
 
 export class ClaudeCodeBackend implements AgentBackend {
@@ -68,6 +81,7 @@ export class ClaudeCodeBackend implements AgentBackend {
   private readonly preToolUseHook?: HookCallback;
   private readonly onInvocation?: (event: InvocationEvent) => void;
   private readonly env?: Record<string, string | undefined>;
+  private readonly envProvider?: () => Record<string, string | undefined> | undefined;
 
   constructor(opts: ClaudeCodeBackendOptions = {}) {
     this.timeoutMs = opts.timeoutMs ?? 3_600_000;
@@ -78,9 +92,35 @@ export class ClaudeCodeBackend implements AgentBackend {
     this.preToolUseHook = opts.preToolUseHook;
     this.onInvocation = opts.onInvocation;
     this.env = opts.env;
+    this.envProvider = opts.envProvider;
+  }
+
+  /**
+   * Build the per-query env by merging process.env (for PATH, NODE, etc.
+   * needed by the SDK's child process to find binaries) with static + dynamic
+   * overlays. Returns undefined when no overlay is configured so the SDK
+   * inherits process.env directly.
+   *
+   * Spec 0071: the dynamic overlay (envProvider) carries the
+   * `CLAUDE_CODE_OAUTH_TOKEN` for THIS query only. The token enters the
+   * SDK's child-process env, never the parent worker's process.env, so the
+   * parent stays clear of `env | grep CLAUDE` exfiltration.
+   */
+  private buildEnv(): Record<string, string | undefined> | undefined {
+    const dyn = this.envProvider?.();
+    if (!this.env && !dyn) return undefined;
+    return { ...process.env, ...(this.env ?? {}), ...(dyn ?? {}) };
   }
 
   async query(input: AgentInput): Promise<AgentOutput> {
+    // Spec 0071: if an envProvider is configured (production code path), it
+    // returning undefined means "no backend credential" — fail fast with the
+    // typed error the channel adapter knows how to translate into a friendly
+    // reply, rather than letting the SDK hit the network with no token.
+    if (this.envProvider) {
+      const dyn = this.envProvider();
+      if (!dyn) throw new NoBackendConfiguredError('claude-code');
+    }
     logger.info(
       { event: 'backend_started', backend: this.name, correlationId: input.correlationId },
       'starting claude agent SDK query',
@@ -121,7 +161,10 @@ export class ClaudeCodeBackend implements AgentBackend {
           ...(this.preToolUseHook
             ? { hooks: { PreToolUse: [{ hooks: [this.preToolUseHook] }] } }
             : {}),
-          ...(this.env ? { env: this.env } : {}),
+          ...(() => {
+            const env = this.buildEnv();
+            return env ? { env } : {};
+          })(),
           settingSources: ['user'],
           abortController: controller,
           // biome-ignore lint/suspicious/noExplicitAny: SDK mcpServers union is stricter than our shape

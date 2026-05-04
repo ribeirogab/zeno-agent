@@ -49,7 +49,10 @@ function makeApp(database: DB) {
     cronRunRepo: new CronRunRepo(database),
     commandRepo: new CommandRepo(database),
     logRepo: new LogRepo(database),
-    connectorRepo: new ConnectorRepo(database),
+    connectorRepo: new ConnectorRepo(database, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    }),
     skillRepo: new SkillRepo(database),
     connectorSkillRepo: new ConnectorSkillRepo(database),
     cronSkillRepo: new CronSkillRepo(database),
@@ -71,7 +74,10 @@ function seedCron(database: DB, name: string) {
 }
 
 function seedConnector(database: DB, slug: string) {
-  return new ConnectorRepo(database).create({
+  return new ConnectorRepo(database, {
+    masterKey: Buffer.from('a'.repeat(64), 'hex'),
+    profileId: 'test',
+  }).create({
     slug,
     displayName: slug,
     source: 'catalog',

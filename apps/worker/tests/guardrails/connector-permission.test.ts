@@ -15,7 +15,10 @@ function makeRepos() {
   // the 'tool not in connector_repo' (built-in MCP) path which the
   // seed otherwise contaminates.
   db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
-  const repo = new ConnectorRepo(db);
+  const repo = new ConnectorRepo(db, {
+    masterKey: Buffer.from('a'.repeat(64), 'hex'),
+    profileId: 'test',
+  });
   const caps = new AgentCapabilityRepo(db);
   return { repo, caps, close: () => closeDatabase(db) };
 }

@@ -53,30 +53,36 @@ zeno-agent/
    cp USER.example.md USER.md
    cp config.example.yaml config.yaml
    ```
-   Fill `.env` (Slack tokens, GitHub token, Claude OAuth). Fill `USER.md` (name, GitHub username, preferences). `config.yaml` starts empty. MCP connectors are added later through the dashboard at `http://localhost:3000/connectors` (default profile; other profiles map to other host ports — see `infra/docker-compose.<profile>.yml`).
+   Fill `.env` (GitHub PAT + dashboard password). Fill `USER.md` (name, GitHub username, preferences). `config.yaml` starts empty. MCP connectors and channel credentials (Slack et al.) are added later through the dashboard at `http://localhost:3000` (default profile; other profiles map to other host ports — see `infra/docker-compose.<profile>.yml`).
 
-2. **Shared volume** (first time only):
+2. **Generate the encryption key:**
    ```bash
-   docker volume create claude_home
+   echo "ZENO_MASTER_KEY=$(openssl rand -hex 32)" >> profiles/default/.env
    ```
+   This 32-byte key encrypts every credential in the DB (Claude OAuth, Slack tokens, connector secrets). **BACK IT UP OFFLINE** — losing it bricks every encrypted row.
 
 3. **Build:**
    ```bash
    pnpm run docker:build
    ```
 
-4. **Claude OAuth token** (first time + on expiry):
-   ```bash
-   pnpm run docker:setup-token
-   ```
-   Complete OAuth in browser, paste the printed token into `profiles/default/.env` as `CLAUDE_CODE_OAUTH_TOKEN`.
-
-5. **Start:**
+4. **Start + connect Claude:**
    ```bash
    pnpm run docker:up
    pnpm run docker:logs
    ```
-   Watch for: `soul_md_loaded` → `user_md_loaded` → `slack_connected` → `zeno_online`.
+   Watch for: `soul_md_loaded` → `user_md_loaded` → `slack_connected` → `claude_backend_unconfigured` → `zeno_online`.
+
+   Open `http://localhost:3000` → log in with `DASHBOARD_PASSWORD` → the **first-run onboarding hero** appears. Click **"Connect Claude"** → an OAuth tab opens at claude.ai → complete login → done. Token is verified, encrypted, and saved automatically (no terminal copy-paste).
+
+   Need to skip the auto-flow? Click **"paste a token manually instead"** on the same hero, mint a token via `docker compose exec zeno claude setup-token`, and paste it. The fallback exists for CI provisioning, password-manager imports, and CLI-stdout drift.
+
+5. **Test:** mention `@zeno hello` in a Slack channel where the bot is invited.
+
+> **Migrating from a pre-0071 install?** Set `CLAUDE_CODE_OAUTH_TOKEN=<your-old-value>` in `.env` once. The worker imports it to the encrypted DB on first boot, logs `claude_token_imported_from_env_legacy`, and ignores the env on every subsequent boot. Per-profile `claude_home` volumes also need a one-time copy from the old shared volume:
+> ```bash
+> ./infra/migrate-claude-home.sh default
+> ```
 
 ## Usage
 

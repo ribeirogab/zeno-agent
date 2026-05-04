@@ -1,7 +1,7 @@
 ---
 status: living
 created: 2026-04-16
-updated: 2026-05-03
+updated: 2026-05-04
 ---
 # Backlog — ideas, not specs
 
@@ -20,7 +20,7 @@ The **Active roadmap** section below is the exception — that's the committed s
 | Order | Spec # | Title | Items covered | Size | Dep | Notes |
 |---|---|---|---|---|---|---|
 | 1 | **0057** | Slack channel connector — code | partial #6 | XL | — | ✅ **MERGED PR #22.** New `agent/channels-catalog.json`, Slack listener becomes registrable channel-adapter, worker boot reads Slack creds DB-first with `.env` fallback. |
-| 2 | **0058** | Migrate profiles/fn to channel connector | rest of #6 | M | 0057 | ✅ **PR #23 OPEN.** Production cutover live (since 2026-04-29T22:13Z). `.env` fallback removed in Phase H. |
+| 2 | **0058** | Migrate profiles/fn to channel connector | rest of #6 | M | 0057 | ✅ **MERGED PR #23.** Production cutover live (since 2026-04-29T22:13Z). `.env` fallback removed in Phase H. |
 | 3 | **0059** | Channels UI section in dashboard | UI for #6 | M | 0057 | ✅ **MERGED PR #24.** Adds `/channels` route in dashboard, mirrors `/connectors` pattern (list + install modal). Operator can manage Slack via UI; closes post-0058 cutover gap. |
 | 4 | **0060** | SOUL realign + skill awareness | (bug) | S | — | ✅ **MERGED PR #25.** Wraps `systemPrompt` in `claude_code` preset+append shape so SDK auto-discovers skills + rewrites SOUL.md. Skills back end-to-end. |
 | 5 | **0061** | Skills multi-file — Paper artboards | #4a | S | 0060 | ✅ **MERGED PR #26.** Paper-first redesign of Skill detail (file tree + editor), Install modal (zip + fflate preview), Delete modal (cascade preview). |
@@ -32,6 +32,8 @@ The **Active roadmap** section below is the exception — that's the committed s
 | 11 | **0067** | Settings refactor | #5a + #5b + #5c | M | — | ✅ **MERGED PR #30.** Settings tabbed (`profile`/`capabilities`/`backend`/`about`); USER.md inline editor on profile tab; Restart Worker button removed. |
 | 12 | **0068** | Audio in (transcription) | #9 | M | 0064 | Voice notes via Slack → transcribe → text input to agent. |
 | 13 | **0069** | Audio out (TTS) | #10 | M | 0065 | Agent generates audio reply → channel uploads. |
+| 14 | **0071** | Backend auth via dashboard | (post-cutover gap) | XL | — | ✅ **PR pending merge.** All Claude config/login moved from `.env` to dashboard. AES-256-GCM envelope encryption + per-profile HKDF DEK; encrypted `backend_credentials` + plain `backend_settings` tables; PTY-based auto-OAuth flow wrapping `claude setup-token`; Anthropic verification handshake with `anthropic-beta: oauth-2025-04-20`; per-profile `claude_home` volume; worker resume-retry on stale session JSONLs. Foundation for #15. |
+| 15 | **0072** | Multi-backend: toggle + priority + Codex impl | (new) | XL | 0071 | Per-backend on/off toggle, drag-handle priority order, fallback chain on `auth_expired`/`rate_limited`. **Includes real Codex `AgentBackend` impl** (not placeholder) — spawn, OAuth/key flow, env vars, tool-call protocol — so the second card actually serves traffic. See expanded brief below. |
 
 ### Original raw list (10 items, owner-supplied 2026-04-29)
 
@@ -79,86 +81,55 @@ The **Active roadmap** section below is the exception — that's the committed s
 
 ---
 
-## Tier 0 — Pre-release (mandatory before open-source)
+### Spec 0072 — multi-backend toggle + priority + Codex impl (expanded brief)
 
-| # | Feature | Complexity | Notes |
-|---|---|---|---|
-| 1 | **Rebranding** | Medium | Current design is based on Claude Code with zero personality. Needs original identity — colors, typography, logo, dashboard look & feel. Using Claude Design for exploration. |
-| 2 | **Dashboard testing + improvements** | Medium | Dashboard isn't well tested. Increase coverage, make it actually useful day-to-day. Test on top of the new branding. |
-| 3 | **Cron testing** | Small-medium | Crons were implemented but need thorough testing to confirm reliability. |
-| 4 | **Full regression test** | Medium | Test everything end-to-end. Guardrails, file reading, sessions, crons, dashboard, approvals — make sure nothing is broken. |
-| 5 | **Documentation site (`apps/docs`)** | Medium | Create a docs app with how to install, configure, create profiles, write skills, use the dashboard. |
-| 6 | **Onboarding / setup experience** | Small | Interactive `scripts/setup.sh` that guides first-time users through Docker, tokens, profile, Slack manifest. |
-| 7 | **Error resilience** | Medium | What happens when Slack disconnects mid-session? SDK crash? Container restart? Test and ensure graceful recovery. |
-| 8 | **README de qualidade** | Small | GIF/video demo, badges, "why Zeno?", quick-start in 3 steps. Must sell the project. |
-| 9 | **CI on GitHub** | Small | `.github/workflows/quality-gate.yml` running lint + typecheck + test on every PR. |
-| 10 | **Open-source essentials** | Small | LICENSE (MIT), CONTRIBUTING.md, CODE_OF_CONDUCT.md, issue/PR templates, scrub internal references from specs/learnings. |
+**Status:** in active sprint as line 15. Brainstormed 2026-05-04 with owner. Builds on spec 0071 (backend auth dashboard) which shipped the catalog + encryption + OAuth foundation. Owner expanded scope 2026-05-04: Codex must ship as a working backend in this spec, not a UI placeholder.
 
----
+**Problem.** Today `backend_settings.active_backend_id` selects exactly one backend (Claude only). When the active backend's token expires or hits a rate limit, the agent simply fails — even if other configured backends could serve the message. Owner wants:
 
-## Tier 1 — Multichannel + media
+1. Multiple backends configurable at once.
+2. Per-backend on/off toggle independent of credential presence ("token saved but paused").
+3. An explicit priority order (`1. Claude`, `2. Codex`, …) extensible to N backends. The first enabled+configured backend serves; the next one in the list is fallback.
+4. **Codex actually working as the second backend** — not a stub. By the end of the spec, owner can disable Claude and have Codex serve a real Slack message end-to-end.
 
-| # | Feature | Dependency | Complexity | Notes |
-|---|---|---|---|---|
-| 11 | **Telegram channel** | None (ports & adapters ready) | Medium | Bot API is clean; second easiest channel after Slack. Implement the `Channel` interface. |
-| 12 | **WhatsApp channel** | None (but needs a provider: Meta Cloud API, Evolution API, or Twilio) | Medium-high | Webhook-based (needs a public URL or tunnel). Consider Evolution API for self-hosted. |
-| 13 | **Audio reading** (all channels) | File reading (shipped) + speech-to-text (Whisper API or similar) | Medium | Killer feature for mobile. User sends voice note → Zeno transcribes → processes as text. **→ Spec 0065 (active roadmap)**. |
-| 14 | **Audio sending** (all channels) | Text-to-speech (OpenAI TTS, ElevenLabs, etc.) | Medium | Closes the voice loop. Zeno replies with audio when the user sent audio. **→ Spec 0066 (active roadmap)**. |
-| 15 | **Image generation** | Prompt → image API (DALL-E, Flux, etc.) | Small | High visual impact. Could be a built-in skill or MCP server. |
+**Locked design decisions (2026-05-04 brainstorm):**
 
-### Multichannel design notes
+- **Toggle ≠ delete credential.** `(configured, enabled)` are two independent boolean axes. Disabling a backend keeps the encrypted token in `backend_credentials` so the operator can re-enable later without re-doing OAuth.
+- **Fallback fires only on `auth_expired` and `rate_limited`.** Not on `timeout` (don't double the latency), not on `network`/`unknown` (mask bugs noisily). Each new message restarts the chain from priority #1 — no sticky last-used backend.
+- **Codex is a real runtime backend in this spec.** Catalog entry + logo (`agent/assets/backends/codex.svg`, saved 2026-05-04) + dashboard card + working `AgentBackend` impl in the worker. Open questions for brainstorm time: which Codex CLI/SDK (OpenAI Codex CLI vs API key path), auth model (subscription token vs flat API key), and how Codex's tool-call protocol maps to the existing `AgentInput`/`AgentOutput` shape.
+- **Reorder UX = drag handle inline** on each card. Single visual, no separate "edit priority" mode.
+- **Onboarding edge case = banner in `/settings/backend`**, not a forced redirect. If the operator disables the only configured backend, settings shows an inline warning and Slack messages get the existing `NoBackendConfiguredError` reply. `/onboarding/connect-claude` keeps its current "first-time setup" role only.
 
-- Each new channel implements the `Channel` interface (`start`, `send`, `react`, `unreact`, `stop`).
-- Slash commands should work cross-channel. Inspired by Hermes's `COMMAND_REGISTRY` — one source of truth, each channel adapter maps to its native dispatch (Slack `/command`, Telegram `/command`, WhatsApp keyword trigger).
-- File/audio/image handling should be channel-agnostic: each adapter normalizes attachments into a common `Attachment` shape (type, buffer, mime, filename) before passing to the agent core.
+**Paper artboards required (5 states):**
 
----
+1. Both Claude + Codex enabled + active (Claude #1, Codex #2).
+2. Only Claude enabled (Codex disabled or not configured).
+3. Only Codex enabled (Claude disabled).
+4. Both disabled — warning banner: "agente parado, habilita um backend".
+5. Only Codex configured + enabled (Claude not configured at all).
 
-## Tier 2 — Intelligence and memory
+Plus the reorder interaction (drag handle hover state) and the full "Configure Codex" modal flow (auth field schema, auto-flow if applicable, verification handshake).
 
-| # | Feature | Inspiration | Complexity | Notes |
-|---|---|---|---|---|
-| 16 | **Session memory (cross-turn search)** | Hermes (FTS5 + session search) | Medium | "What did I ask Zeno last week about the deploy?" — requires full-text index on session messages. |
-| 17 | **User modeling** | Hermes (Honcho — dialectic model of who the user is) | High | Zeno builds an evolving understanding of the user's preferences, projects, schedule. Goes beyond static `USER.md`. |
-| 18 | **Assisted skill authoring** | Hermes (agent observes → generalizes → proposes skill) | Medium | "Zeno, I keep doing X manually" → Zeno proposes a skill draft. Not auto-creation (anti-goal) — always user-initiated, always proposed for approval. |
-| 19 | **Cron intelligence** | OpenClaw (crons that suggest themselves) | Low-medium | "You ask about PRs every morning at 9. Want me to create a cron for that?" Pattern detection over conversation history. |
+**Schema sketch** (defer to spec time, but gives the shape):
 
----
+- New table `backend_priorities (backend_id PK, priority_idx INTEGER NOT NULL UNIQUE, enabled INTEGER NOT NULL DEFAULT 1)`.
+- Drop `backend_settings.active_backend_id` after migration writes the existing active id at `priority_idx=1, enabled=1`.
+- Worker resolves "active backend chain" at the start of each turn: `SELECT backend_id FROM backend_priorities JOIN backend_credentials USING (backend_id) WHERE enabled=1 AND status='active' ORDER BY priority_idx`.
 
-## Tier 3 — Operations and observability
+**Out of scope (deliberately deferred):**
 
-| # | Feature | Complexity | Notes |
-|---|---|---|---|
-| 20 | **Dashboard: skills viewer** | Small | List installed skills per profile, show descriptions, last-invoked timestamp. |
-| 21 | **Dashboard: profile switcher** | Small | Switch between profile dashboards (different ports today; could be unified). |
-| 22 | **Cost tracking** | Medium | Token usage per session/cron/skill. Inspired by Hermes's iteration budget. Surface in dashboard. |
-| 23 | **Audit log viewer** | Medium | Who asked what, when, which tools ran, what was the outcome. Critical for worker mode (company Slack). |
-| 24 | **Dashboard chat** | Medium-high | Talk to Zeno from the browser, not just Slack. Requires IPC between API and worker + a `WebChannel` adapter. |
+- Per-backend rate-limit / cost tracking surfaced in `/stats`.
+- "Auto-rotate to cheapest backend that can handle this prompt" — clever but not justified yet.
+- Gemini, GPT-4, etc. — same pattern as Codex, ship after this spec proves the multi-backend chain works in production.
+
+**Brainstorm questions to lock before plan:**
+
+- Which Codex distribution to integrate (OpenAI Codex CLI binary vs `@openai/openai` SDK call vs Codex Cloud API). Affects auth (CLI may have its own setup-token flow; SDK uses an API key) and feature parity (CLI gets tool-use natively; SDK requires us to wire the agent loop).
+- Does Codex support the same `AgentInput` shape (system prompt + user message + tool definitions + correlation id) or do we need a translation layer in the worker? Likely a translation layer.
+- Auto-OAuth flow for Codex — is there an equivalent to `claude setup-token` we can spawn under PTY, or do we paste an API key?
+- Drag-handle component: native HTML5 DnD vs `dnd-kit` vs `@formkit/drag-and-drop`. Pick the lightest one that works inside the existing `@zeno/ui` Dialog primitive.
 
 ---
-
-## Future ideas (park here, don't build)
-
-| Idea | Source | Value | When |
-|---|---|---|---|
-| ACP adapter (VS Code / Cursor / JetBrains) | Hermes | Talk to Zeno from the IDE | When "Zeno as dev agent" is the primary use case |
-| Context compression | Hermes | Long sessions get expensive; compress while keeping relevant info | When cost becomes painful |
-| Notification routing | OpenClaw | "Send on Telegram if I don't reply on Slack in 5min" | When tier 1 channels are stable |
-| Scheduled visual reports | — | Crons that generate interactive HTML dashboards (via Playwright) | When Playwright skill is battle-tested |
-| Multi-backend (Codex, Gemini) | Constitution (ports & adapters) | Alternative reasoning engines | When a concrete use case appears (cost, capability, availability) |
-| Plugin system | OpenClaw (ClawHub) | Third-party skill distribution | When the skill ecosystem is mature enough to share |
-
----
-
-## Dashboard polish (carried over, lower priority)
-
-| Idea | Trigger to promote | Notes |
-|---|---|---|
-| Pagination UI for Crons/Sessions list | >50 items OR scroll fatigue | API already accepts `limit`/`offset`. |
-| Session filters (channel, date) | "I can't find the thread from yesterday" | Ordered `last_used_at DESC` today. |
-| Edit cron via UI | Slack-based editing feels slow | Form ~identical to create. |
-| Playwright e2e suite | Regressions between phases | 5 canonical flows. |
-| Mobile / responsive layout | Dashboard used from a phone | Designed at 1440×900; responsive is a real spec. |
 
 ## Tech debt (carried over)
 
@@ -168,47 +139,3 @@ The **Active roadmap** section below is the exception — that's the committed s
 | Worker tsconfig strictness flags disabled | `apps/worker/tsconfig.json` | Same trigger. |
 | Watcher test flaky ~1/5 on macOS | `apps/worker/tests/profile/watcher.test.ts` | If it starts failing CI consistently. |
 | `loadMcpConfig` duplicated between worker and api | `apps/worker/src/agent/mcp.ts` + `apps/api/src/lib/mcp-snapshot.ts` | When a third consumer appears. |
-
----
-
-## Paper file reorganization — route-based containers
-
-**Status:** brainstormed 2026-04-30, not yet a spec. Can be picked up by a parallel agent — does NOT block any product work, only affects the design file `zeno-agent.pen`.
-
-**Problem.** The Paper file currently has 96 top-level artboards spread across one giant page (~22000px tall × ~9000px wide). They're loosely grouped by spec section (`— FOUNDATIONS`, `— PAGES`, `— CONNECTORS UI (spec 0029)`, `— SKILLS UI v2 (spec 0061)`, etc.) using thin "section header" artboards as visual dividers, but the sidebar still shows a flat list of 96 entries. To find the artboard for `/crons` detail you have to either remember its ID or scroll a lot.
-
-**Constraint.** Paper MCP doesn't expose a "section" or "group" primitive. Tools only handle top-level artboards + nested children inside. There's no `create_section` or equivalent. (Re-confirmed by reading `get_guide({ topic: 'paper-mcp-instructions' })` 2026-04-30.)
-
-**Proposed solution — route-based container artboards.** One top-level artboard per route/section, named after the route. Each container holds the existing screens as nested children. The sidebar's natural chevron expand/collapse becomes the grouping affordance.
-
-Sidebar end state:
-
-```
-> design system        (foundations + primitives nested inside)
-> login
-> home
-> crons                (list + detail + empty + M3.1 new + M3.2 delete)
-> sessions
-> logs
-> settings             (default + secret edit + restart confirm)
-> connectors           (C1..C10 + M1..M11 + activity feed)
-> channels             (CH1..CH3 + M-ch-1/2/3)
-> skills               (S3v2 + readonly + install variants + delete variants)
-```
-
-Each container = `1500–2000px wide`, `fit-content` height, vertical flex column. Existing artboards are reparented inside via `move_nodes` (preserves nodeIds, so `context/specs/2026-04-30-skills-multi-file-paper/tasks.md` table of artboard IDs continues to resolve).
-
-**Migration plan (~1h-1h30):**
-1. Create one piloto container artboard (`skills` is the smallest — 6 artboards) and `move_nodes` the existing S3v2 / S3v2-readonly / M-skill-1v2 / M-skill-1c / M-skill-4v2 / M-skill-4v2-profile inside.
-2. Owner validates the sidebar UX in Paper desktop.
-3. If approved, replicate for the other 9 routes (design system, login, home, crons, sessions, logs, settings, connectors, channels).
-4. Delete the obsolete section-header artboards (`D9-0`, `DE-0`, `DJ-0`, `1JZ-0`, `52E-0`, `61M-0`, `6JG-0`) — their job is now done by the container's name.
-
-**Things to figure out during implementation:**
-- Does Paper actually render nested-frame-as-group with the chevron? Tested briefly via `get_basic_info` — current artboards expose `>` chevrons in the sidebar already, but those reveal the artboard's content layers. Whether a top-level artboard containing other artboards-as-children (vs content frames) gets the same affordance needs to be verified by the migrating agent on the piloto step.
-- Variants of different widths inside the same container (e.g. `/skills` has 1440px pages + 800px modals). Vertical stack with align-items: flex-start should work; verify visual fit.
-- Spec docs that reference artboard IDs (`6JK-0`, `6OQ-0`, etc) — IDs survive `move_nodes`, but the docs say "at top:18540 left:0" which won't apply post-migration. Either rewrite the position columns OR drop them since the container is now the spatial anchor.
-
-**Why this isn't a code spec.** No code change. Pure design-file housekeeping. Owner can hand this off to a parallel agent that operates only on Paper MCP + this backlog item; main thread keeps shipping product specs (0063, 0064, etc).
-
-**Promote to a spec when:** the parallel agent starts and needs a concrete task list. Until then, this entry is the brief.

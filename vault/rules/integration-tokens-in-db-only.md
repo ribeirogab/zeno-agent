@@ -18,8 +18,9 @@ A toggle precisa ser uma **promessa forte**: clicou disable → Zeno perde a cre
 
 ## O que continua válido em `.env`
 
-- **Claude OAuth token** (`CLAUDE_CODE_OAUTH_TOKEN`) — credencial de boot do AgentBackend. Não é tool surface do agent.
+- ~~**Claude OAuth token** (`CLAUDE_CODE_OAUTH_TOKEN`) — credencial de boot do AgentBackend. Não é tool surface do agent.~~ **Spec 0071** retired this exception — Claude OAuth lives encrypted in `backend_credentials` and the dashboard onboarding flow collects it. The runtime never sets `process.env.CLAUDE_CODE_OAUTH_TOKEN` (the SDK gets the token via per-call `env` opt + `~/.claude/.credentials.json`); a Bash-shell prompt-injection attack can no longer `env | grep CLAUDE`.
 - **Dashboard auth** (`DASHBOARD_PASSWORD`, `DASHBOARD_SESSION_SECRET`) — credenciais da própria dashboard, não do agent.
+- **`ZENO_MASTER_KEY`** (spec 0071) — 32-byte master key for envelope encryption of every DB credential. Itself an env-only secret because it has to bootstrap before any DB read.
 - **Runtime config** (`LOG_LEVEL`, `WORKSPACE_DIR`, `PROFILE`).
 - **GitHub PAT pessoal** (`GH_TOKEN`) — usado por `dev-workflow`/`code-review` skills via `gh` CLI. Esses skills NÃO têm connector equivalente hoje. Quando virar connector (`@modelcontextprotocol/server-github`), aplicar a regra.
 - **GitHub App tokens** (`ACME_GH_TOKEN`, `QS_GH_TOKEN`, etc.) — gerados em runtime pelo bootstrap do `github_app` (não vêm do `.env`); ficam em `process.env` durante o turn. Idealmente migram pra connector também, mas isso é spec própria.

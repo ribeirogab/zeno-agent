@@ -47,7 +47,10 @@ function makeApp(database: DB) {
     cronRunRepo: new CronRunRepo(database),
     commandRepo: new CommandRepo(database),
     logRepo: new LogRepo(database),
-    connectorRepo: new ConnectorRepo(database),
+    connectorRepo: new ConnectorRepo(database, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    }),
     skillRepo: new SkillRepo(database),
     connectorSkillRepo: new ConnectorSkillRepo(database),
     agentCapabilityRepo: new AgentCapabilityRepo(database),
@@ -65,7 +68,10 @@ describe('GET /api/connectors/:id/skills', () => {
   });
 
   it('returns empty list when no skills are linked', async () => {
-    const c = new ConnectorRepo(db).create({
+    const c = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    }).create({
       slug: 'sentry',
       displayName: 'Sentry',
       source: 'catalog',
@@ -82,7 +88,10 @@ describe('GET /api/connectors/:id/skills', () => {
   });
 
   it('returns linked skills sorted by name', async () => {
-    const connectors = new ConnectorRepo(db);
+    const connectors = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const skills = new SkillRepo(db);
     const links = new ConnectorSkillRepo(db);
     const c = connectors.create({
@@ -110,7 +119,10 @@ describe('GET /api/connectors/:id/skills', () => {
 
 describe('PATCH /api/connectors/:id/skills', () => {
   it('replaces the link list atomically', async () => {
-    const connectors = new ConnectorRepo(db);
+    const connectors = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const skills = new SkillRepo(db);
     const c = connectors.create({
       slug: 'sentry',
@@ -155,7 +167,10 @@ describe('PATCH /api/connectors/:id/skills', () => {
   });
 
   it('clears all links when given an empty array', async () => {
-    const connectors = new ConnectorRepo(db);
+    const connectors = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
     const skills = new SkillRepo(db);
     const links = new ConnectorSkillRepo(db);
     const c = connectors.create({

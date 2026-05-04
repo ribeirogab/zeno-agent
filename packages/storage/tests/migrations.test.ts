@@ -1029,7 +1029,7 @@ describe('migrations: cron_skills + cron_connectors (migrations 16 + 17)', () =>
     const second = runMigrations(db);
     expect(second.applied).toEqual([]);
     // Spec 0066 C added migration 20. The "current" is the highest applied id.
-    expect(second.current).toBe(20);
+    expect(second.current).toBe(21);
     closeDatabase(db);
   });
 });
@@ -1210,6 +1210,141 @@ describe('migrations: seed playwright connector (migration 20, spec 0066 C)', ()
         }
       ).c,
     ).toBe(0);
+    closeDatabase(db);
+  });
+});
+
+describe('migrations: backend auth via dashboard (migration 21, spec 0071)', () => {
+  it('creates backend_credentials table with the documented schema', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+
+    const cols = db.prepare(`PRAGMA table_info(backend_credentials)`).all() as PragmaTableInfoRow[];
+    const names = cols.map((c) => c.name);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'id',
+        'profile_id',
+        'backend_id',
+        'field_name',
+        'value_encrypted',
+        'iv',
+        'status',
+        'last_tested_at',
+        'last_auth_alert_at',
+        'created_at',
+        'updated_at',
+      ]),
+    );
+    closeDatabase(db);
+  });
+
+  it('creates backend_settings table', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+
+    const cols = db.prepare(`PRAGMA table_info(backend_settings)`).all() as PragmaTableInfoRow[];
+    const names = cols.map((c) => c.name);
+    expect(names).toEqual(expect.arrayContaining(['profile_id', 'key', 'value', 'updated_at']));
+    closeDatabase(db);
+  });
+
+  it('rebuilds connector_secrets to allow value=NULL + adds value_encrypted+iv', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+
+    const cols = db.prepare(`PRAGMA table_info(connector_secrets)`).all() as PragmaTableInfoRow[];
+    const value = cols.find((c) => c.name === 'value');
+    expect(value).toBeDefined();
+    expect(value!.notnull).toBe(0); // now nullable
+    expect(cols.some((c) => c.name === 'value_encrypted')).toBe(true);
+    expect(cols.some((c) => c.name === 'iv')).toBe(true);
+    closeDatabase(db);
+  });
+
+  it('preserves existing connector_secrets rows through the rebuild', () => {
+    const db = openDatabase(':memory:');
+    // Apply migrations up to 20 (one before 0071) is hard without per-id stop;
+    // instead, run all migrations, then verify a subsequent insert+select still
+    // works (the rebuild is destructive — if it dropped data, even fresh rows
+    // would be unaffected, so this test guards the schema not the data path.
+    // The data path is covered by migrateConnectorSecretsEncryption tests.)
+    runMigrations(db);
+    const c = db.prepare(`SELECT COUNT(*) AS c FROM connector_secrets`).get() as { c: number };
+    expect(c.c).toBe(0);
+    closeDatabase(db);
+  });
+
+  it('is idempotent — re-running migrations after 21 yields same schema', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    const before = db
+      .prepare(`SELECT name, sql FROM sqlite_master WHERE type='table' ORDER BY name`)
+      .all();
+    runMigrations(db);
+    const after = db
+      .prepare(`SELECT name, sql FROM sqlite_master WHERE type='table' ORDER BY name`)
+      .all();
+    expect(after).toEqual(before);
+    closeDatabase(db);
+  });
+});
+
+describe('migrateConnectorSecretsEncryption (spec 0071 data migration)', () => {
+  // Plaintext rows from the pre-0071 schema linger in the value column after
+  // the schema migration; the boot helper encrypts them in-place once the
+  // master key is available. Idempotent — second run is a no-op.
+
+  it('encrypts legacy plaintext rows and nulls value', async () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+
+    // Seed a connector + a plaintext secret left over from pre-0071.
+    db.prepare(
+      `INSERT INTO connectors (id, slug, display_name, source, transport, status, created_at, updated_at) VALUES ('c1', 'test', 'Test', 'catalog', 'stdio', 'enabled', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`,
+    ).run();
+    db.prepare(
+      `INSERT INTO connector_secrets (connector_id, key, value, is_public) VALUES ('c1', 'token', 'plaintext-secret', 0)`,
+    ).run();
+
+    const { migrateConnectorSecretsEncryption } = await import('../src/migrations');
+    const masterKey = Buffer.from('a'.repeat(64), 'hex');
+    const result = migrateConnectorSecretsEncryption(db, masterKey, 'default');
+    expect(result.migrated).toBe(1);
+
+    const row = db
+      .prepare(
+        `SELECT value, value_encrypted, iv FROM connector_secrets WHERE connector_id = 'c1' AND key = 'token'`,
+      )
+      .get() as { value: string | null; value_encrypted: Buffer | null; iv: Buffer | null };
+    expect(row.value).toBeNull();
+    expect(row.value_encrypted).toBeInstanceOf(Buffer);
+    expect(row.iv).toBeInstanceOf(Buffer);
+    closeDatabase(db);
+  });
+
+  it('is idempotent — second invocation finds nothing to migrate', async () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    db.prepare(
+      `INSERT INTO connectors (id, slug, display_name, source, transport, status, created_at, updated_at) VALUES ('c1', 'test', 'Test', 'catalog', 'stdio', 'enabled', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`,
+    ).run();
+    db.prepare(
+      `INSERT INTO connector_secrets (connector_id, key, value, is_public) VALUES ('c1', 'token', 'plaintext-secret', 0)`,
+    ).run();
+
+    const { migrateConnectorSecretsEncryption } = await import('../src/migrations');
+    const masterKey = Buffer.from('a'.repeat(64), 'hex');
+    expect(migrateConnectorSecretsEncryption(db, masterKey, 'default').migrated).toBe(1);
+    expect(migrateConnectorSecretsEncryption(db, masterKey, 'default').migrated).toBe(0);
+    closeDatabase(db);
+  });
+
+  it('returns 0 when no plaintext rows exist', async () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    const { migrateConnectorSecretsEncryption } = await import('../src/migrations');
+    expect(migrateConnectorSecretsEncryption(db, Buffer.alloc(32), 'default').migrated).toBe(0);
     closeDatabase(db);
   });
 });

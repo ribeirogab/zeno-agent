@@ -35,7 +35,10 @@ function makeRepo() {
   mkdirSync(dashboardSkillsRoot, { recursive: true });
   const db = openDatabase(':memory:');
   runMigrations(db);
-  const repo = new ConnectorRepo(db);
+  const repo = new ConnectorRepo(db, {
+    masterKey: Buffer.from('a'.repeat(64), 'hex'),
+    profileId: 'test',
+  });
   const caps = new AgentCapabilityRepo(db);
   const skillRepo = new SkillRepo(db, {
     agentSkillsRoot,

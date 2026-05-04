@@ -1,6 +1,8 @@
 import { createLogger } from '@zeno/logger';
 import type {
   AgentCapabilityRepo,
+  BackendCredentialsRepo,
+  BackendSettingsRepo,
   CommandRepo,
   ConnectorAppRepo,
   ConnectorRepo,
@@ -21,6 +23,7 @@ import type { ChannelsCatalog } from '@/lib/channels-catalog-loader';
 import { buildActivityRoute } from '@/routes/activity';
 import { buildAgentCapabilitiesRoute } from '@/routes/agent-capabilities';
 import { buildAuthRoutes } from '@/routes/auth';
+import { buildBackendsRoute } from '@/routes/backends';
 import { buildChannelsRoute } from '@/routes/channels';
 import { buildConnectorSkillsRoute } from '@/routes/connector-skills';
 import { buildConnectorsRoute } from '@/routes/connectors';
@@ -73,6 +76,12 @@ export interface AppDeps {
   spaDir?: string;
   /** Spec 0057: parsed channels catalog. Optional — when present, /api/channels/* routes mount; absent in tests that don't exercise channel routes. */
   channelsCatalog?: ChannelsCatalog;
+  /** Spec 0071: encrypted credential storage for the /api/backends/* routes. */
+  backendCredentialsRepo?: BackendCredentialsRepo;
+  backendSettingsRepo?: BackendSettingsRepo;
+  /** Spec 0071: optional fetch override for tests of /api/backends/* routes
+   *  that need to mock the Anthropic verification handshake. */
+  fetchImpl?: typeof fetch;
 }
 
 export function createApp(deps: AppDeps): Hono {
@@ -170,6 +179,21 @@ export function createApp(deps: AppDeps): Hono {
       buildChannelsRoute({
         connectors: deps.connectorRepo,
         channelsCatalog: deps.channelsCatalog,
+      }),
+    );
+  }
+  // Spec 0071: backend auth via dashboard.
+  if (deps.backendCredentialsRepo && deps.backendSettingsRepo) {
+    app.use('/api/backends', requireAuth({ secret: deps.config.sessionSecret, secure }));
+    app.use('/api/backends/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
+    app.route(
+      '/api/backends',
+      buildBackendsRoute({
+        backendCredentialsRepo: deps.backendCredentialsRepo,
+        backendSettingsRepo: deps.backendSettingsRepo,
+        profileId: deps.config.profileId,
+        apiLogger,
+        ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
       }),
     );
   }

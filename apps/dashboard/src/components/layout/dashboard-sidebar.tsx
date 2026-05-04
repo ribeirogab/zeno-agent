@@ -1,6 +1,7 @@
 import { Link, useLocation } from '@tanstack/react-router';
 import { Crest } from '@zeno/ui';
 import type { JSX, ReactNode } from 'react';
+import { useBackends } from '@/lib/use-backends';
 import { type ServiceStatus, useHealth } from '@/lib/use-health';
 import { useSettings } from '@/lib/use-settings';
 
@@ -57,6 +58,19 @@ function navIdForPath(path: string): NavId {
 }
 
 function Brand(): JSX.Element {
+  // Spec 0071: 8px status dot beside the version. Green when the active
+  // backend is `active`; red when it's `expired` or `failed`. The polling
+  // 30s refetch in useBackends drives the colour without an SSE.
+  const backends = useBackends();
+  const active = backends.data?.backends.find((b) => b.id === backends.data?.active_backend_id);
+  const dotClass = (() => {
+    if (!active) return 'bg-text-tertiary';
+    if (active.status === 'active') return 'bg-status-active';
+    if (active.status === 'expired' || active.status === 'failed') return 'bg-status-failed';
+    return 'bg-gold';
+  })();
+  const tooltip = active ? `Claude · ${active.status}` : 'Claude · loading';
+
   return (
     <div className="relative flex items-center gap-[10px] px-2 pt-1.5 pb-4 border-b border-border-subtle">
       <span className="text-gold">
@@ -65,9 +79,14 @@ function Brand(): JSX.Element {
       <span className="font-mono text-[15px] font-medium tracking-[0.08em] text-text-primary">
         zeno
       </span>
-      <span className="ml-auto font-mono text-[9px] tracking-[0.15em] text-text-tertiary">
-        v0.3.1
-      </span>
+      <Link
+        to="/settings"
+        search={{ tab: 'backend' }}
+        className={`w-2 h-2 rounded-full ml-auto ${dotClass}`}
+        title={tooltip}
+        aria-label={tooltip}
+      />
+      <span className="font-mono text-[9px] tracking-[0.15em] text-text-tertiary">v0.3.1</span>
       <div className="absolute -bottom-px left-2 w-7 h-px bg-gold" />
     </div>
   );

@@ -1,5 +1,8 @@
 name: Release
 
+run-name: >
+  Release ${{ inputs.version != '' && inputs.version || 'auto-derived' }} (${{ inputs.prerelease && 'pre-release' || 'stable' }}) by @${{ github.actor }}
+
 on:
   workflow_dispatch:
     inputs:

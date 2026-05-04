@@ -1,6 +1,9 @@
 import { existsSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Hono } from 'hono';
+import { parseUserMdName } from '../lib/parse-user-md';
+
+export { parseUserMdName };
 
 const TRACKED_FILES = ['SOUL.md', 'USER.md', 'crons.yaml'] as const;
 
@@ -33,30 +36,9 @@ function readProfileFiles(profileDir: string): ProfileFile[] {
 }
 
 /**
- * Spec 0066 A: parse the operator name from USER.md.
- *
- * Two acceptable formats — operators write USER.md in either style:
- *
- * 1. **YAML frontmatter** (e.g. profiles/default/USER.example.md):
- *    ```
- *    ---
- *    name: Operator
- *    ---
- *    ```
- *
- * 2. **Markdown body** (e.g. profiles/fn/USER.md, more common in
- *    practice): a list item or paragraph like `**Name:** Operator`
- *    or plain `Name: Operator`. Spec 0066 A's first pass only
- *    handled #1 and the operator hit the slug-fallback path on the
- *    fn profile that uses #2 — see PR #31 for the cosmetic followup
- *    plus this parser fix.
- *
- * Returns null when USER.md is missing or neither format matches —
- * the dashboard renders the profile slug in that case.
- *
- * Intentionally narrow: still no YAML parser dep. If USER.md gains
- * more structured fields, the worker already reads it raw
- * (apps/worker/src/agent/system-prompt.ts).
+ * Read profile metadata from USER.md. Returns the parsed operator
+ * name (or null if USER.md is missing/unparseable) and the profile
+ * slug from the ZENO_PROFILE env.
  */
 function readProfileInfo(profileDir: string): ProfileInfo {
   const slug = process.env.ZENO_PROFILE ?? 'default';
@@ -66,31 +48,6 @@ function readProfileInfo(profileDir: string): ProfileInfo {
   return { name: parseUserMdName(content), slug };
 }
 
-export function parseUserMdName(content: string): string | null {
-  // Format #1: YAML frontmatter `---\nname: X\n---`.
-  const fm = content.match(/^---\n([\s\S]*?)\n---/);
-  const frontmatterBody = fm?.[1];
-  if (frontmatterBody) {
-    const nameMatch = frontmatterBody.match(/^name:\s*(.+?)\s*$/m);
-    const fmName = nameMatch?.[1]?.trim();
-    if (fmName) return fmName;
-  }
-
-  // Format #2: markdown body. Anywhere in the file, line that starts
-  // with optional list/markdown decoration and reads `Name: X` or
-  // `**Name:** X`. Case-insensitive on the key. Trailing/leading
-  // markdown emphasis chars (* _ `) on the captured value are
-  // stripped in JS to avoid combinatorial regex pain.
-  const bodyMatch = content.match(/^[\s>\-*]*\**\s*name\s*\**\s*:\s*(.+?)\s*$/im);
-  const bodyName = bodyMatch?.[1]
-    ?.trim()
-    ?.replace(/^[*_`\s]+|[*_`\s]+$/g, '')
-    ?.trim();
-  if (bodyName) return bodyName;
-
-  return null;
-}
-
 // Spec 0067 B: hardcoded allowlist of profile files writable via the
 // API. Only USER.md flips writable in this spec — SOUL.md is committed
 // identity, crons.yaml is legacy (manage via /crons), mcp.json is gone
@@ -98,7 +55,7 @@ export function parseUserMdName(content: string): string | null {
 const WRITABLE_FILES = new Set(['USER.md']);
 
 // Spec 0067 B: hard cap on PUT body. USER.md is structural metadata,
-// not free-form content — 32 kB is generous (current FN is ~1.5 kB).
+// not free-form content — 32 kB is generous (typical USER.md is 1–2 kB).
 const MAX_PROFILE_FILE_BYTES = 32_768;
 
 export function buildSettingsRoute(deps: SettingsRouteDeps): Hono {

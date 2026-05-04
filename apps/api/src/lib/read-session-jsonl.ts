@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { parseUserMdName } from './parse-user-md';
 
 const contentBlock = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), text: z.string() }),
@@ -50,13 +51,26 @@ function extractToolCalls(
     .map((block) => ({ tool: block.name, input: block.input }));
 }
 
-function authorFor(role: 'user' | 'assistant' | 'system'): string {
-  if (role === 'user') return 'Operator';
+function authorFor(role: 'user' | 'assistant' | 'system', operatorName: string): string {
+  if (role === 'user') return operatorName;
   if (role === 'assistant') return 'Zeno';
   return '(system)';
 }
 
-export function readSessionMessages(claudeHome: string, sessionId: string): SessionMessage[] {
+function readOperatorName(profileDir: string | undefined): string {
+  if (!profileDir) return 'user';
+  const userMdPath = join(profileDir, 'USER.md');
+  if (!existsSync(userMdPath)) return 'user';
+  const content = readFileSync(userMdPath, 'utf8');
+  return parseUserMdName(content) ?? 'user';
+}
+
+export function readSessionMessages(
+  claudeHome: string,
+  sessionId: string,
+  profileDir?: string,
+): SessionMessage[] {
+  const operatorName = readOperatorName(profileDir);
   const path = join(claudeHome, `${sessionId}.jsonl`);
   if (!existsSync(path)) return [];
   const text = readFileSync(path, 'utf8');
@@ -92,7 +106,7 @@ export function readSessionMessages(claudeHome: string, sessionId: string): Sess
       return {
         id: entry.uuid ?? `idx-${index}`,
         role: entry.type,
-        author: authorFor(entry.type),
+        author: authorFor(entry.type, operatorName),
         timestamp: entry.timestamp ?? new Date(0).toISOString(),
         text: extractText(entry.message.content),
         toolCalls: extractToolCalls(entry.message.content),

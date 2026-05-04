@@ -7,6 +7,7 @@ import { readSessionMessages } from '@/lib/read-session-jsonl';
 export interface SessionsRouteDeps {
   sessions: SessionRepo;
   claudeHome: string;
+  profileDir: string;
 }
 
 const listQuery = z.object({
@@ -28,7 +29,7 @@ export function buildSessionsRoute(deps: SessionsRouteDeps): Hono {
     const all = deps.sessions.list();
     const session = all.find((s) => s.threadId === threadId);
     if (!session) return c.json({ error: 'not_found' }, 404);
-    const messages = readSessionMessages(deps.claudeHome, session.sessionId);
+    const messages = readSessionMessages(deps.claudeHome, session.sessionId, deps.profileDir);
     return c.json({ session, messages });
   });
 

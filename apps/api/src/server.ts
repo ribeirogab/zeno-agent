@@ -143,6 +143,7 @@ export function createApp(deps: AppDeps): Hono {
     buildSessionsRoute({
       sessions: new SessionRepo(deps.db),
       claudeHome: deps.claudeHome,
+      profileDir: deps.profileDir,
     }),
   );
   app.use('/api/settings', requireAuth({ secret: deps.config.sessionSecret, secure }));

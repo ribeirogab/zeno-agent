@@ -81,11 +81,11 @@ Before every commit, the author (human or agent) self-audits the diff:
 
 | # | Category | Example of what NOT to commit |
 |---|---|---|
-| 1 | Maintainer's name in prose | `Gabriel decided…` → `the maintainer decided…` |
+| 1 | Maintainer's name in prose | a real first name in narrative voice → `the maintainer …` |
 | 2 | Current/past employer | company names or slugs |
 | 3 | Client / customer | any paying counterparty |
-| 4 | Private or personal repos | `ribeirogab/<x>`, `<company>/<x>` |
-| 5 | Real emails | including `gblosr@gmail.com` in prose |
+| 4 | Private or personal repos | `<owner-handle>/<x>`, `<company>/<x>` |
+| 5 | Real emails | including the maintainer's personal address in prose |
 | 6 | Slack workspace/channel/user IDs | `T0…`, `C0…`, `U0…` |
 | 7 | Real GitHub numeric IDs | `installation_id`, `app_id`, `org_id` |
 | 8 | Tokens / secrets / OAuth client IDs | any credential |
@@ -108,11 +108,13 @@ Before every commit, the author (human or agent) self-audits the diff:
 | Slack channel | `C00000000` |
 | Slack user | `U00000000` |
 | Token / OAuth | `xoxb-EXAMPLE-TOKEN`, `EXAMPLE-OAUTH-CLIENT-ID` |
+| GitHub numeric ID | `12345678` or `EXAMPLE-INSTALLATION-ID` |
 
 ## Out of scope
 
-- **Git authorship metadata.** `Author: ribeirogab <…>` on a commit is necessary attribution and out of this rule's scope.
-- **Famous public OSS projects** as technical context (`@anthropic-ai/sdk`, `vitest`, `pnpm`, etc.).
+- **Git authorship metadata.** The author name and email on a commit are necessary attribution and out of this rule's scope. The repo's canonical remote URL (e.g. mentioned in onboarding prose) is treated the same way: it is the public address of the project, not a leaked identifier.
+- **Famous public OSS projects** as technical context (`@anthropic-ai/sdk`, `vitest`, `pnpm`, etc.) and **public SaaS vendor names** when used as integration targets (Sentry, Linear, Klaviyo, Notion, Slack, GitHub, etc.).
+- **Meta-references inside this rule and its spec.** This file's example column and the spec at `vault/specs/2026-05-04-oss-prep-sanitization/` document the rule by quoting categories abstractly. They do not need to be re-scrubbed against themselves.
 
 ## References
 
@@ -404,7 +406,7 @@ If clean, no commit.
 - Modify: every `vault/**/*.md` flagged in Section B.
 
 - [ ] Step 1: For each Section B entry whose path starts with `vault/`, apply the substitution: replace the violating string at `path:line` with the chosen placeholder from the mapping table.
-- [ ] Step 2: After all vault substitutions are applied, re-grep for the original violating strings to confirm none remain. Use a per-category grep — for instance, owner-name leaks: `grep -rni 'gabriel\|ribeirogab\|gblosr' vault/` — and expect zero matches except in this rule file's example column or in commit-author metadata that lives outside the working tree.
+- [ ] Step 2: After all vault substitutions are applied, re-grep for the original violating strings to confirm none remain. Use a per-category grep, applying the executor's knowledge of the maintainer's real identifiers (sourced from the operator's local `USER.md` or provided to the subagent at dispatch time as `<owner-name>`, `<owner-handle>`, `<owner-email>` — not committed into this file). Expect zero matches except in commit-author metadata that lives outside the working tree.
 - [ ] Step 3: Commit:
 
 ```bash
@@ -441,7 +443,7 @@ git commit -m "chore: apply sanitization audit substitutions across working tree
 - [ ] Step 1: Dispatch a fresh `general-purpose` subagent with the forbidden list (1–11) and mapping table inline, plus instructions:
   - Walk the entire committed tree (everything tracked by git in this branch).
   - Search for each category 1–11 using category-specific patterns.
-  - Specifically grep for the maintainer's known real identifiers (`gabriel`, `ribeirogab`, `gblosr`) excluding any expected hits in commit-author metadata, the rule's own example column, and `vault/` files where a literal mention is part of an example placeholder demonstration.
+  - Specifically grep for the maintainer's known real identifiers — passed to this subagent at dispatch time as `<owner-name>`, `<owner-handle>`, `<owner-email>` so the literal values do not enter committed prose. Exclude any expected hits in commit-author metadata, the canonical remote URL (out of scope per the rule), and `vault/` files where a literal mention is part of an example placeholder demonstration.
   - Report findings as a list of `path:line: category #N: <string>`.
 - [ ] Step 2: If the reviewer finds any genuine violation, return to Phase 4 to fix it and re-dispatch this task.
 - [ ] Step 3: If the reviewer finds zero genuine violations, document the result in `tmp/sanitization-audit.md` (append `## Final review: clean — <date>`).

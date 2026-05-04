@@ -159,7 +159,7 @@ created: 2026-04-30
   - All other cases unchanged (SOUL.md → 'prompt', config.yaml → 'crons', etc.)
 - [ ] Add the 4 unit-test cases from the spec:
   - `classify('agent', 'skills/zeno-development/SKILL.md')` → `'skills'`
-  - `classify('profile', 'skills/fn-code-review/references/foo.md')` → `'skills'`
+  - `classify('profile', 'skills/code-review/references/foo.md')` → `'skills'`
   - `classify('agent', 'SOUL.md')` → `'prompt'`
   - `classify('profile', 'config.yaml')` → `'crons'`
 - [ ] **macOS watcher fallback**: in the `fs.watch` event handler, if `filename` is null or absolute, resolve against the matching watched root to derive `(source, relativePath)` then call `classify`. Add a comment with the same example signatures so future readers see why.
@@ -413,8 +413,8 @@ created: 2026-04-30
 ### Task E.2 — Docker rebuild
 
 - [ ] `pnpm run docker:build` (default profile). Verify image builds clean.
-- [ ] `PROFILE=fn pnpm run docker:up -d` against the existing zeno-fn container. Or restart the running container if already up: `PROFILE=fn pnpm run docker:down && PROFILE=fn pnpm run docker:up -d`.
-- [ ] Tail logs: `PROFILE=fn pnpm run docker:logs` for ~30 seconds. Verify boot sequence completes without error: cleanup → preMigrate → runMigrations → reconcile → materialize → ProfileWatcher.start.
+- [ ] `PROFILE=<example> pnpm run docker:up -d` against the existing zeno-agent container. Or restart the running container if already up: `PROFILE=<example> pnpm run docker:down && PROFILE=<example> pnpm run docker:up -d`.
+- [ ] Tail logs: `PROFILE=<example> pnpm run docker:logs` for ~30 seconds. Verify boot sequence completes without error: cleanup → preMigrate → runMigrations → reconcile → materialize → ProfileWatcher.start.
 
 ### Task E.3 — Build the test zip
 
@@ -441,7 +441,7 @@ created: 2026-04-30
 ### Task E.6 — Inline edit smoke
 
 - [ ] Dashboard: navigate to `/skills/spec-0062-smoke`. Click `references/foo.md` in the tree. Edit content. Save.
-- [ ] Verify: PUT 204 in network; file content updated on disk (`docker exec zeno-fn cat /workspace/skills/spec-0062-smoke/references/foo.md`); watcher fired (`event: 'skills_reloaded'` in logs).
+- [ ] Verify: PUT 204 in network; file content updated on disk (`docker exec zeno-agent cat /workspace/skills/spec-0062-smoke/references/foo.md`); watcher fired (`event: 'skills_reloaded'` in logs).
 
 ### Task E.7 — Download zip round-trip
 
@@ -452,7 +452,7 @@ created: 2026-04-30
 
 - [ ] Dashboard: kebab → Delete. Modal renders artboard `71K-0` (cascade preview with file count from /files; connector + cron rows = 0 since smoke skill is unlinked).
 - [ ] Type `spec-0062-smoke` in confirm input; click Delete.
-- [ ] Verify: row gone, FS gone (`docker exec zeno-fn ls /workspace/skills/` → no `spec-0062-smoke` dir), symlink gone (`docker exec zeno-fn ls ~/.claude/skills/`).
+- [ ] Verify: row gone, FS gone (`docker exec zeno-agent ls /workspace/skills/` → no `spec-0062-smoke` dir), symlink gone (`docker exec zeno-agent ls ~/.claude/skills/`).
 
 ### Task E.9 — Regression smoke for existing skills
 
@@ -461,15 +461,15 @@ created: 2026-04-30
 
 ### Task E.10 — Profile reseed delete smoke
 
-- [ ] Dashboard: navigate to a profile-source skill (e.g., `fn-code-review`). Open Delete from kebab. Modal renders artboard `72Y-0` (yellow reseed callout above cascade card, profile bullet copy).
-- [ ] Type `fn-code-review`; click Delete. Row deleted from DB. Symlink removed.
-- [ ] Restart container (`PROFILE=fn pnpm run docker:down && PROFILE=fn pnpm run docker:up -d`). Verify row re-INSERTed by reconciler (proving the reseed warning is correct).
+- [ ] Dashboard: navigate to a profile-source skill (e.g., `code-review`). Open Delete from kebab. Modal renders artboard `72Y-0` (yellow reseed callout above cascade card, profile bullet copy).
+- [ ] Type `code-review`; click Delete. Row deleted from DB. Symlink removed.
+- [ ] Restart container (`PROFILE=<example> pnpm run docker:down && PROFILE=<example> pnpm run docker:up -d`). Verify row re-INSERTed by reconciler (proving the reseed warning is correct).
 
 ## Final review (Rule 2 from cleanup contract)
 
 - [ ] **R-final-1**: re-read every changed file vs the spec. Note any drift. If found: fix and reset counter.
 - [ ] **R-final-2**: run `pnpm run quality-gate` and `git diff main...HEAD` end-to-end review for compile-only warnings, missed `body` references, etc. Reset on findings.
-- [ ] **R-final-3**: deploy-target sanity — verify the running zeno-fn container after `docker:up` boots cleanly with the new image (cleanup → preMigrate → migrations → reconcile → materialize → watcher all in logs, no errors). Reset on findings.
+- [ ] **R-final-3**: deploy-target sanity — verify the running zeno-agent container after `docker:up` boots cleanly with the new image (cleanup → preMigrate → migrations → reconcile → materialize → watcher all in logs, no errors). Reset on findings.
 
 ## PR
 

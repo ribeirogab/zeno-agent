@@ -72,7 +72,7 @@ This document is the at-a-glance map of how specs 0043-0048 fit together to deli
 ```
 connectors                        connector_secrets
 ├─ id                             ├─ key
-├─ slug: "github-app-fnlivros"    ├─ value
+├─ slug: "github-app-acmebooks"   ├─ value
 ├─ ... 4 rows, one per inst       ├─ __GITHUB_APP_ID__   ┐
                                   ├─ __GITHUB_APP_PEM__  │ duplicated
                                   ├─ __GITHUB_INSTALL... │ across 4 rows!
@@ -84,7 +84,7 @@ connectors                        connector_secrets
 ```
 connector_apps                    connectors                   connector_secrets
 ├─ id (UUID)                      ├─ id                        ├─ key
-├─ catalog_id: "github-app"       ├─ slug: "github-app-fnliv"  ├─ value
+├─ catalog_id: "github-app"       ├─ slug: "github-app-acmebk" ├─ value
 ├─ app_id: "12345"              ├─ app_id (FK) ──→  ↑        ├─ __GITHUB_INSTALL_ID__   ┐
 ├─ app_slug: "acme-bot"     ├─ ... 4 rows                ├─ __GITHUB_INSTALL_NAME__│ only 3 keys
 ├─ app_name: "Acme Bot"     │                            └─ __GITHUB_ENV_VAR__     ┘ per install
@@ -128,7 +128,7 @@ Need to rotate PEM (security best practice):
 
 A skill needs a different env var name:
   → /connectors/github-app → kebab on installation row → "Edit env var" → M11
-  → See current ACME_GH_TOKEN, type new FNLIVROS_GH_TOKEN → SAVE
+  → See current ACME_GH_TOKEN, type new ACMEBOOKS_GH_TOKEN → SAVE
   → Applies in ~2s. Skills using old name see warning beforehand.
 
 Org no longer needed:
@@ -178,18 +178,18 @@ APP DETAIL (C8)
 │                                              [+ ADD INSTALL]   │
 ├───────────────────────────────────────────────────────────────┤
 │ INSTALLATION    ENV VAR         TOOLS  STATUS    LAST VERIFIED │
-│ │ AcmeBooks      ACME_GH_TOKEN     51   ● ACTIVE    1m ago    ⋯ │
-│ │ AcmeShop  QS_GH_TOKEN     51   ● ACTIVE    1m ago    ⋯ │
-│ │ Flavia-...    OMS_GH_TOKEN    51   ● ACTIVE    1m ago    ⋯ │
-│ │ chatdesk-...  CHATDESK_GH_T...51   ● ACTIVE    2m ago    ⋯ │
+│ │ AcmeBooks     ACMEBOOKS_GH_T..51   ● ACTIVE    1m ago    ⋯ │
+│ │ AcmeShop      ACMESHOP_GH_T...51   ● ACTIVE    1m ago    ⋯ │
+│ │ Acme-OMS      ACME_OMS_GH_T...51   ● ACTIVE    1m ago    ⋯ │
+│ │ acme-supp...  ACME_SUPPORT_T..51   ● ACTIVE    2m ago    ⋯ │
 │ ⓘ tool permissions per installation · click row to manage     │
 └───────────────────────────────────────────────────────────────┘
                             ↓ click row
 PER-INSTALLATION DETAIL (C10)
 ┌───────────────────────────────────────────────────────────────┐
-│ zeno / connectors / github-app / AcmeBooks                     │
+│ zeno / connectors / github-app / AcmeBooks                    │
 │ ┌──┐                                          ENABLED 🟡 ⋯    │
-│ │FN│  AcmeBooks                                                 │
+│ │AB│  AcmeBooks                                                │
 │ └──┘  STDIO ● ACTIVE · 51 tools · 1m ago · github-app inst    │
 │                                                                │
 │ installation config                       TEST INSTALLATION    │
@@ -200,9 +200,9 @@ PER-INSTALLATION DETAIL (C10)
 │ │ └──┘ token re-minted every turn                            │││
 │ └────────────────────────────────────────────────────────────┘│
 │ INSTALLATION ID public  ENV VAR          used by skills · gh   │
-│ │ 125887887     COPY  │ │ ACME_GH_TOKEN              EDIT │     │
+│ │ 125887887     COPY  │ │ ACMEBOOKS_GH_TOKEN       EDIT │     │
 │                                                                │
-│ tool permissions  51 tools · 3 categories · scoped to AcmeBooks │
+│ tool permissions  51 tools · 3 categories · scoped to AcmeBooks│
 │ READ-ONLY     8 tools                                          │
 │ │ list_issues   ALWAYS_ALLOW   ASK   NEVER                    │
 │ │ get_issue     ALWAYS_ALLOW   ASK   NEVER                    │
@@ -233,7 +233,7 @@ M6 (first install)               M9 (rotate PEM — destructive)
 │ ✓ creds valid  │                │ ✓ valid · matches    │
 │   4 inst found │                │   app id 12345     │
 │                │                │                      │
-│ AcmeBooks · ... │                │ TYPE 12345 TO CONFIRM│
+│ AcmeBooks ·... │                │ TYPE 12345 TO CONFIRM│
 │                │                │ │ 12345        │   │
 │ CANCEL  TEST   │                │                      │
 │         INSTALL│                │ CANCEL    ROTATE KEY │
@@ -242,21 +242,21 @@ M6 (first install)               M9 (rotate PEM — destructive)
 M7 (add installation — auto-discover)        M10 (remove installation)
 ┌──────────────────────────┐                  ┌──────────────────────┐
 │ Pick an installation     │                  │ DESTRUCTIVE          │
-├──────────────────────────┤                  │ Remove AcmeBooks      │
+├──────────────────────────┤                  │ Remove AcmeBooks     │
 │ discovered via /api/...  │                  ├──────────────────────┤
 │ ✓ DesignKitchen 7 repos  │                  │ WHAT HAPPENS         │
-│ ☐ AcmeBooks              │                  │ │BREAK│ ACME_GH_TOKEN  │
-│   already wired ●WIRED   │                  │       unset          │
-│ ☐ AcmeShop          │                  │ │BREAK│ mcp__github- │
-│   already wired ●WIRED   │                  │       app-fnlivros__*│
-│ ☐ Flavia-Nasser-OMS    │                  │       removed        │
+│ ☐ AcmeBooks             │                  │ │BREAK│ ACMEBOOKS_GH_│
+│   already wired ●WIRED   │                  │       TOKEN unset    │
+│ ☐ AcmeShop              │                  │ │BREAK│ mcp__github- │
+│   already wired ●WIRED   │                  │       app-acmebks__* │
+│ ☐ Acme-OMS              │                  │       removed        │
 │   already wired ●WIRED   │                  │ │KEEP │ App creds    │
-│ ☐ chatdesk-brasil       │                  │       3 other inst   │
+│ ☐ acme-support           │                  │       3 other inst   │
 │   already wired ●WIRED   │                  │       unaffected     │
 │                          │                  │                      │
-│ WILL CREATE              │                  │ TYPE AcmeBooks TO     │
+│ WILL CREATE              │                  │ TYPE AcmeBooks TO    │
 │ slug    github-app-...   │                  │ CONFIRM              │
-│ env_var DESIGNKITCHEN... │                  │ │ AcmeBooks       │   │
+│ env_var DESIGNKITCHEN... │                  │ │ AcmeBooks      │   │
 │                          │                  │                      │
 │ ✓ reachable · 51 tools   │                  │ CANCEL  REMOVE       │
 │                          │                  │         INSTALLATION │

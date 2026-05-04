@@ -106,7 +106,7 @@ created: 2026-04-26
 ### Task 5.1: Deploy
 
 - [ ] `pnpm run docker:build` (incremental — catalog change picks up via the agent/ bind mount, but container restart picks up the new icon SVG too)
-- [ ] `PROFILE=fn pnpm run docker:up` (recreate)
+- [ ] `PROFILE=acme pnpm run docker:up` (recreate)
 - [ ] Wait for API health: poll `/api/auth/me` until 401.
 
 ### Task 5.2: API smoke
@@ -125,7 +125,7 @@ created: 2026-04-26
 
 ### Task 5.4: Runtime smoke (Slack)
 
-- [ ] Send DM to `D0EXAMPLE000`: `[smoke linear] me lista 3 issues abertas no meu time da Flávia Nasser`.
+- [ ] Send DM to `D0EXAMPLE000`: `[smoke linear] me lista 3 issues abertas no meu time`.
 - [ ] Wait up to 90s for agent reply.
 - [ ] Verify reply contains 3+ Linear issue references with structured data (titles, status, etc.).
 - [ ] Verify DB: `connector_invocations` has at least one row with `tool_name='list_issues'` (or similar) and `result='ok'`.

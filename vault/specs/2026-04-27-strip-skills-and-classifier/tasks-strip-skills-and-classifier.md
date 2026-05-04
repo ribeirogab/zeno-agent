@@ -14,8 +14,8 @@ Each phase ends with a green typecheck (`pnpm run typecheck`) and a separate com
 
 ### Task 1.1: Delete skill directories
 - [ ] `rm -rf agent/skills/`
-- [ ] `rm -rf profiles/fn/skills/`
-- [ ] Verify backup at `tmp/profile-fn-backup-2026-04-27/skills/` still exists (recovery path).
+- [ ] `rm -rf profiles/<your-profile>/skills/`
+- [ ] Verify backup at `tmp/profile-backup-2026-04-27/skills/` still exists (recovery path).
 - [ ] Commit: `chore: remove agent/skills and profiles/*/skills (spec 0050)`
 
 ## Phase 2: Storage layer
@@ -200,7 +200,7 @@ Each phase ends with a green typecheck (`pnpm run typecheck`) and a separate com
 ## Phase 16: Profile + agent yaml files
 
 ### Task 16.1: Delete `approvals:` blocks
-- [ ] Open `profiles/fn/config.yaml`. Delete the entire `approvals:` block.
+- [ ] Open `profiles/<your-profile>/config.yaml`. Delete the entire `approvals:` block.
 - [ ] Open `agent/config.example.yaml` (if present). Delete its `approvals:` block.
 
 ## Phase 17: Specs frontmatter
@@ -227,10 +227,10 @@ For each of `context/specs/2026-04-21-guardrails-approval/spec.md`, `context/spe
 ## Phase 19: Docker boot test
 
 ### Task 19.1: Rebuild + boot + verify
-- [ ] `PROFILE=fn pnpm run docker:down`
+- [ ] `PROFILE=<your-profile> pnpm run docker:down`
 - [ ] `pnpm run docker:build`
-- [ ] `PROFILE=fn pnpm run docker:up`
-- [ ] `docker logs zeno-fn-agent-1 | head -100` — verify:
+- [ ] `PROFILE=<your-profile> pnpm run docker:up`
+- [ ] `docker logs zeno-<your-profile>-agent-1 | head -100` — verify:
   - `migrations_applied` event present (migration 10 ran).
   - `github_app_metadata_backfilled` + 4 `github_app_token_initialized` events present.
   - `mcp_loaded` lists 5 (sentry, linear, klaviyo, swarmia, playwright) + 4 github-app installations = 9 servers.
@@ -240,8 +240,8 @@ For each of `context/specs/2026-04-21-guardrails-approval/spec.md`, `context/spe
 ## Phase 20: E2E via Slack (Rule 1 of cleanup contract)
 
 ### Task 20.1: Real interaction with running Zeno
-- [ ] Send `@zeno-agent` a normal request from the FN Slack workspace ("which orgs do you have access to?"). Verify the agent answers correctly based on RUNTIME tools, not skill content (skills are gone).
-- [ ] Send a request that requires a specific MCP tool ("list the most recent Sentry issues for FN"). Verify the agent calls `mcp__sentry__*` and reports results.
+- [ ] Send `@zeno-agent` a normal request from your Slack workspace ("which orgs do you have access to?"). Verify the agent answers correctly based on RUNTIME tools, not skill content (skills are gone).
+- [ ] Send a request that requires a specific MCP tool ("list the most recent Sentry issues for the org"). Verify the agent calls `mcp__sentry__*` and reports results.
 - [ ] Send a request beyond connector capability ("delete the production database"). Verify the agent refuses honestly (per the new SOUL.md "honesty over plausibility" rule).
 - [ ] Verify the agent does NOT receive a Slack DM asking the operator to approve any tool call (no approval flow remains).
 - [ ] Verify worker logs show ZERO classifier or approver invocations during the conversation.

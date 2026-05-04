@@ -407,12 +407,12 @@ created: 2026-04-28
 
     it('seeds zeno_default UPSERT and profile INSERT OR IGNORE', () => {
       mkSkill(agentRoot, 'zeno-development', 'workflow', '# Workflow');
-      mkSkill(profileRoot, 'fn-code-review', 'review', '# Review');
+      mkSkill(profileRoot, 'code-review', 'review', '# Review');
       const report = bootSkillsReconcile({ skills, agentSkillsRoot: agentRoot, profileSkillsRoot: profileRoot, logger });
       expect(report).toEqual({ zenoDefault: 1, profile: 1, orphansRemoved: [], cascadeAffected: 0 });
       expect(skills.list()).toHaveLength(2);
       const dev = skills.list().find((s) => s.name === 'zeno-development');
-      const cr = skills.list().find((s) => s.name === 'fn-code-review');
+      const cr = skills.list().find((s) => s.name === 'code-review');
       expect(dev?.source).toBe('zeno_default');
       expect(cr?.source).toBe('profile');
     });
@@ -427,14 +427,14 @@ created: 2026-04-28
     });
 
     it('profile INSERT OR IGNORE preserves user edits across boots', () => {
-      mkSkill(profileRoot, 'fn-x', 'd', 'seeded');
+      mkSkill(profileRoot, 'example-x', 'd', 'seeded');
       bootSkillsReconcile({ skills, agentSkillsRoot: agentRoot, profileSkillsRoot: profileRoot, logger });
-      const seeded = skills.list().find((s) => s.name === 'fn-x');
+      const seeded = skills.list().find((s) => s.name === 'example-x');
       if (!seeded) throw new Error('not seeded');
       // Simulate a dashboard edit that bumps the body.
       skills.update(seeded.id, { body: 'edited-by-user' });
       bootSkillsReconcile({ skills, agentSkillsRoot: agentRoot, profileSkillsRoot: profileRoot, logger });
-      const after = skills.list().find((s) => s.name === 'fn-x');
+      const after = skills.list().find((s) => s.name === 'example-x');
       expect(after?.body).toBe('edited-by-user');
     });
 
@@ -449,12 +449,12 @@ created: 2026-04-28
     });
 
     it('orphan cleanup does NOT delete profile rows when file disappears', () => {
-      mkSkill(profileRoot, 'fn-x', 'd', 'b');
+      mkSkill(profileRoot, 'example-x', 'd', 'b');
       bootSkillsReconcile({ skills, agentSkillsRoot: agentRoot, profileSkillsRoot: profileRoot, logger });
-      rmSync(join(profileRoot, 'fn-x'), { recursive: true });
+      rmSync(join(profileRoot, 'example-x'), { recursive: true });
       const report = bootSkillsReconcile({ skills, agentSkillsRoot: agentRoot, profileSkillsRoot: profileRoot, logger });
       expect(report.orphansRemoved).toEqual([]);
-      expect(skills.list().map((s) => s.name)).toEqual(['fn-x']);
+      expect(skills.list().map((s) => s.name)).toEqual(['example-x']);
     });
 
     it('orphan cleanup logs the audit event with names + cascadeAffected', () => {
@@ -538,8 +538,8 @@ created: 2026-04-28
 
 ### Task D.1 — Author the default skill
 
-- [ ] **D.1.1** Create `agent/skills/zeno-development/SKILL.md`. Use `tmp/profile-fn-backup-2026-04-27/skills/dev-workflow/SKILL.md` as the basis but:
-  - Generalize: remove FN-specific content (no FN orgs, no `ACME_GH_TOKEN`, no `acme` refs). The default skill must work in any profile. Profile-specific GitHub auth lives in profile skills (e.g. `fn-code-review` is the place for FN tokens).
+- [ ] **D.1.1** Create `agent/skills/zeno-development/SKILL.md`. Use `tmp/profile-backup/skills/dev-workflow/SKILL.md` as the basis but:
+  - Generalize: remove profile-specific content (no operator orgs, no `OPERATOR_GH_TOKEN`, no `acme` refs). The default skill must work in any profile. Profile-specific GitHub auth lives in profile skills (e.g. `code-review` is the place for operator tokens).
   - Set `name: zeno-development`.
   - Tune the description so SDK auto-discovery fires on dev intents:
     > "Clone repos using bare clones + git worktrees, develop changes, deliver via Pull Requests. Use this skill whenever the user asks you to clone, code, fix, edit, refactor, implement, or open a PR on any repository."
@@ -561,13 +561,13 @@ created: 2026-04-28
 
 ---
 
-## Phase E — `fn-code-review` profile skill content
+## Phase E — `code-review` profile skill content
 
 ### Task E.1 — Author the profile skill
 
-- [ ] **E.1.1** Create `profiles/fn/skills/fn-code-review/SKILL.md`. Copy content from `tmp/profile-fn-backup-2026-04-27/skills/code-review/SKILL.md` essentially as-is — that's already FN-specific (matches `profile` source semantics).
+- [ ] **E.1.1** Create `profiles/<example>/skills/code-review/SKILL.md`. Copy content from `tmp/profile-backup/skills/code-review/SKILL.md` essentially as-is — that's already profile-specific (matches `profile` source semantics).
 
-- [ ] **E.1.2** Verify name is `fn-code-review` and description is tuned for PR review intent. The original description already mentions "Review pull requests on GitHub following FN's git workflow" — keep that.
+- [ ] **E.1.2** Verify name is `code-review` and description is tuned for PR review intent. The original description already mentions "Review pull requests on GitHub following the operator's git workflow" — keep that.
 
 - [ ] **E.1.3** Adjust the description if needed to also cover the `@-mention with PR URLs` channel pattern from the screenshot in the user's request.
 
@@ -575,8 +575,8 @@ created: 2026-04-28
 
 - [ ] **E.2.1** Commit:
   ```
-  git add profiles/fn/skills/
-  git commit -m "feat(profile/fn): fn-code-review skill (spec 0053 phase E)"
+  git add profiles/<example>/skills/
+  git commit -m "feat(profile): code-review skill (spec 0053 phase E)"
   ```
 
 ---
@@ -694,19 +694,19 @@ created: 2026-04-28
 
 ### Task I.2 — Docker boot
 
-- [ ] **I.2.1** `PROFILE=fn pnpm -w run docker:build`. Expect clean.
+- [ ] **I.2.1** `PROFILE=<example> pnpm -w run docker:build`. Expect clean.
 
-- [ ] **I.2.2** `PROFILE=fn pnpm -w run docker:up`. Wait for health.
+- [ ] **I.2.2** `PROFILE=<example> pnpm -w run docker:up`. Wait for health.
 
-- [ ] **I.2.3** `docker logs zeno-fn-agent-1 | grep -E "skills_seeded|agent_capabilities_loaded|skills_orphan_cleanup_complete|migrations_applied"`. Expect:
+- [ ] **I.2.3** `docker logs zeno-agent-1 | grep -E "skills_seeded|agent_capabilities_loaded|skills_orphan_cleanup_complete|migrations_applied"`. Expect:
   - `migrations_applied`
-  - `skills_seeded { zenoDefault: 1, profile: 1, ... }` (1 from `zeno-development`, 1 from `fn-code-review`)
+  - `skills_seeded { zenoDefault: 1, profile: 1, ... }` (1 from `zeno-development`, 1 from `code-review`)
   - `agent_capabilities_loaded enabled=[Bash,Edit,Glob,Grep,Read,ToolSearch,Write]`
   - No errors.
 
-- [ ] **I.2.4** `docker exec zeno-fn-agent-1 ls /home/node/.claude/skills/`. Expect `zeno-development/` and `fn-code-review/` materialized.
+- [ ] **I.2.4** `docker exec zeno-agent-1 ls /home/node/.claude/skills/`. Expect `zeno-development/` and `code-review/` materialized.
 
-- [ ] **I.2.5** Hit the dashboard at `http://localhost:3001/skills`. Expect both skills in the list with the right badges. Click `zeno-development` → URL changes AND detail renders, no edit/delete buttons. Click `fn-code-review` → URL changes AND detail renders, edit/delete buttons present.
+- [ ] **I.2.5** Hit the dashboard at `http://localhost:3001/skills`. Expect both skills in the list with the right badges. Click `zeno-development` → URL changes AND detail renders, no edit/delete buttons. Click `code-review` → URL changes AND detail renders, edit/delete buttons present.
 
 - [ ] **I.2.6** Hit `http://localhost:3001/settings`. Expect Bash/Edit/Glob/Grep/Read/ToolSearch/Write toggled ON, Task/WebFetch/WebSearch toggled OFF.
 
@@ -718,7 +718,7 @@ created: 2026-04-28
 
 ### Task J.1 — Setup
 
-- [ ] **J.1.1** Confirm a `github-app-*` connector is installed in the fn profile pointing at `AcmeBooks/ecommerce-frontend` (the user installed installations earlier). Expect `installations:[...]` non-empty in worker logs.
+- [ ] **J.1.1** Confirm a `github-app-*` connector is installed in the operator profile pointing at `AcmeBooks/ecommerce-frontend` (the user installed installations earlier). Expect `installations:[...]` non-empty in worker logs.
 
 - [ ] **J.1.2** Create the test results doc skeleton at `tmp/spec-0053-test-results.md`:
   ```markdown
@@ -745,7 +745,7 @@ The subagent fills the row in `tmp/spec-0053-test-results.md` and reports the ou
 
 | # | Trigger | Implementation | Expected outcome |
 |---|---|---|---|
-| 1 | "@zeno usa fn-code-review e revisa <pr>" (explicit) | clean PR from J.2.1 | approve |
+| 1 | "@zeno usa code-review e revisa <pr>" (explicit) | clean PR from J.2.1 | approve |
 | 2 | "@zeno revisa <pr>" (implicit auto-discovery) | clean PR from J.2.3 | approve |
 | 3 | "@zeno revisa <pr>" | PR with logic bug + console.log left in | request-changes |
 | 4 | "@zeno revisa <pr>" | clean PR with minor style nit | approve with nitpick |

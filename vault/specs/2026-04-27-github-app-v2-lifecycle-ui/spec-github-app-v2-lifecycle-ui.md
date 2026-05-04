@@ -203,7 +203,7 @@ All endpoints exist (or are spec'd) in 0044. Confirming they're consumed correct
 | LF4 | M9 rotate PEM happy path | User clicks ROTATE in C8 → M9 opens. Drags new .pem file onto dropzone → fingerprint computed inline ✓ valid PEM. Types "12345" (the App ID) to confirm → ROTATE KEY enabled → click → backend validates new PEM (sign JWT, call /app, mint test tokens for all installations) → success → atomic UPDATE → invalidate caches → return 200 → modal closes → C8 shows updated `pemSha256` + `pemRotatedAt` instantly (optimistic). |
 | LF5 | M9 rotate PEM with mid-flight skill | User clicks ROTATE while a skill is mid-execution using the old token. Old token (cached, ~50min remaining TTL) continues to work for that skill until next refresh. New skills started after rotation use new tokens. No user-visible failure. |
 | LF6 | M10 remove installation | User clicks installation row's kebab in C8 → "Remove" → M10 opens with consequences list (BREAK: env var unset, mcp tools removed; KEEP: app credentials, other installations). Types installation name → REMOVE INSTALLATION → DELETE → optimistic update → row gone from C8. |
-| LF7 | M11 rename env_var | User clicks installation row's kebab in C8 → "Edit env var" → M11 opens with current `ACME_GH_TOKEN` (struck through) and new `FNLIVROS_GH_TOKEN` (gold border). Warning shows "2 skills currently reference ACME_GH_TOKEN". Click SAVE → PATCH → response 200 → modal closes (~2s for command tick to apply) → C8 row shows new env var. |
+| LF7 | M11 rename env_var | User clicks installation row's kebab in C8 → "Edit env var" → M11 opens with current `ACME_GH_TOKEN` (struck through) and new `ACMEBOOKS_GH_TOKEN` (gold border). Warning shows "2 skills currently reference ACME_GH_TOKEN". Click SAVE → PATCH → response 200 → modal closes (~2s for command tick to apply) → C8 row shows new env var. |
 | LF8 | M12 uninstall App | User clicks App-level kebab in C8 → "Uninstall App" → M12 opens with red destructive border, full consequences. Types "Acme Bot" (App name) → UNINSTALL APP → backend CASCADE deletes 4 installations + connector_apps row → worker `app_uninstall` command tears down `GitHubAppAuth` → optimistic update removes App from listing → navigate to `/connectors` → only Personal github connector remains visible. |
 
 ## Patches to spec 0044
@@ -237,7 +237,7 @@ The actual M12 artboard creation in Paper happens during 0046 implementation pha
 - Uninstall App: CASCADE works (FK constraints + worker tear-down + navigate away).
 - 3 clean reviews.
 - Quality gate green.
-- Smoke green: each lifecycle flow tested manually on `fn` profile.
+- Smoke green: each lifecycle flow tested manually on the operator's profile.
 
 ## Risks and Mitigations
 
@@ -269,14 +269,14 @@ All resolved by AI per user delegation.
 1. **Phase 0**: Spec docs + 3 reviews (this).
 2. **Phase 1**: Patch spec 0043 (1-line revisions to M7/M11 descriptions; M12 added to artboard table). Open Paper, design M12 (clone M10 + relabel), re-export M12 PNG.
 3. **Phase 2**: Shared components — `pem-dropzone.tsx`, `type-to-confirm.tsx`. Tests for each.
-4. **Phase 3**: Refactor M6 (from 0045) to use the new `pem-dropzone` shared component. M6 was just shipped in 0045 — this is a **breaking refactor of a recently-shipped component**. Acceptance criteria for this phase: (a) the existing M6 install flow tests pass unchanged; (b) screen-reader keyboard-only flow still works; (c) manual smoke against `fn` profile install completes successfully. If any regression detected, abort the refactor and ship M6 + M9 with separate PEM-input components (acceptable code duplication for safety). On abort, skip Phase 3's `pem-dropzone` consolidation and proceed directly to Phase 4 — Phases 4-11 are unaffected.
+4. **Phase 3**: Refactor M6 (from 0045) to use the new `pem-dropzone` shared component. M6 was just shipped in 0045 — this is a **breaking refactor of a recently-shipped component**. Acceptance criteria for this phase: (a) the existing M6 install flow tests pass unchanged; (b) screen-reader keyboard-only flow still works; (c) manual smoke against the operator's profile install completes successfully. If any regression detected, abort the refactor and ship M6 + M9 with separate PEM-input components (acceptable code duplication for safety). On abort, skip Phase 3's `pem-dropzone` consolidation and proceed directly to Phase 4 — Phases 4-11 are unaffected.
 5. **Phase 4**: TanStack Query hooks (use-discover-installations, use-add-installation with optimistic, etc.). Hook tests.
 6. **Phase 5**: M7 + M8 implementation. Modal tests.
 7. **Phase 6**: M9 implementation. Modal tests.
 8. **Phase 7**: M10 + M11 implementation. Modal tests.
 9. **Phase 8**: M12 implementation + uninstall-app endpoint backend test.
 10. **Phase 9**: Wire kebab menus + CTAs in C8/C10/C9 to the modals.
-11. **Phase 10**: Quality gate green. Manual smoke on `fn` profile (each LF user story).
+11. **Phase 10**: Quality gate green. Manual smoke on the operator's profile (each LF user story).
 12. **Phase 11**: `status: shipped`, commit, PR.
 
 ## Definition of Done
@@ -286,5 +286,5 @@ All resolved by AI per user delegation.
 - Optimistic updates working end-to-end.
 - 3 clean reviews.
 - Quality gate green.
-- Smoke green: 8 LF user stories all pass on `fn` profile.
+- Smoke green: 8 LF user stories all pass on the operator's profile.
 - OSS readiness verified: no hardcoded org names, install IDs, or operator-specific values in any UI string. Test fixtures use `Acme Corp`/`12345`.

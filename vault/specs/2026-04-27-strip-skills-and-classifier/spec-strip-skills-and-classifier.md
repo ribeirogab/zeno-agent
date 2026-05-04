@@ -36,14 +36,14 @@ The worker, API, dashboard, storage package, and profile config files contain ~1
 
 - **Compile must stay green at every commit.** The phased order is bottom-up: delete leaf modules first, then the glue that imports them, then the boot wire-up. This way TypeScript points at exactly the next thing to fix at each step.
 - **Quality gate (lint + typecheck + ~700 tests) must pass before the PR is opened.** Tests for deleted modules go too; tests for kept modules (connector-permission) may need rewrite to drop assumptions about the wrapper's prior shape.
-- **Docker boot (fn profile) must produce a clean log to `zeno_online` after the changes are applied.** No `always_active_skill_loaded`, `mcp_loaded` (with skill-related entries), `guardrails_enabled`, classifier or approver events. The four github-app installations still acquire tokens.
+- **Docker boot (operator profile) must produce a clean log to `zeno_online` after the changes are applied.** No `always_active_skill_loaded`, `mcp_loaded` (with skill-related entries), `guardrails_enabled`, classifier or approver events. The four github-app installations still acquire tokens.
 - **The yaml `approvals:` block hard-fails at boot** if present, with a clear error message ("`approvals:` block was removed in spec 0050; delete it from your profile's `config.yaml`"). This matches the spec 0048 Q5 precedent for `always_sensitive`.
 - **Constitution principle "Reversibility first":** revert of this PR must restore the prior code AND the prior frontmatter status of specs 0023/0028/0047 atomically.
 - **Constitution principle "One decision at a time":** this spec is the implementation only; the architectural decision was 0049.
 
 ## User Stories / Scenarios
 
-1. **A maintainer rebuilds Docker after this PR lands.** `pnpm run docker:build && PROFILE=fn pnpm run docker:up` succeeds. Logs show `migrations_applied`, `github_app_metadata_backfilled`, all four installations get tokens, `slack_connected`, `zeno_online`. No log line mentions `skill`, `classifier`, `approval`, or `sensitive`.
+1. **A maintainer rebuilds Docker after this PR lands.** `pnpm run docker:build && PROFILE=<your-profile> pnpm run docker:up` succeeds. Logs show `migrations_applied`, `github_app_metadata_backfilled`, all four installations get tokens, `slack_connected`, `zeno_online`. No log line mentions `skill`, `classifier`, `approval`, or `sensitive`.
 
 2. **The agent receives a Slack mention asking for something the connectors expose.** It responds composing connector tools (e.g. `mcp__sentry__list_issues` then `mcp__github-app-acme__create_pull_request`). It does NOT receive a Slack DM asking the operator for approval. It does NOT shell out via `Bash`.
 
@@ -59,7 +59,7 @@ The worker, API, dashboard, storage package, and profile config files contain ~1
 
 - [ ] **Worker — skills runtime fully removed:**
   - `agent/skills/` deleted (along with `dev-workflow/SKILL.md` content).
-  - `profiles/fn/skills/` deleted (backed up at `tmp/profile-fn-backup-2026-04-27/skills/` already; no production loss).
+  - `profiles/<your-profile>/skills/` deleted (backed up at `tmp/profile-backup-2026-04-27/skills/` already; no production loss).
   - `apps/worker/src/agent/system-prompt.ts` `loadAlwaysActiveSkills()` function removed; `buildSystemPrompt()` signature drops the `alwaysActiveSkillContents` parameter; the "Active skills" block is gone.
   - `apps/worker/src/config/always-active-skills.ts` deleted.
   - `apps/worker/src/guardrails/skill-registry.ts` deleted.
@@ -109,7 +109,7 @@ The worker, API, dashboard, storage package, and profile config files contain ~1
   - `apps/worker/src/commands/handlers/app-uninstall.ts` drops the analogous cascade added by R1 F1 in batch-2.
   - `apps/worker/src/commands/handlers/index.ts` `HandlerDeps` drops `approvalRules`.
 - [ ] **Profile config:**
-  - `profiles/fn/config.yaml` `approvals:` block deleted entirely.
+  - `profiles/<your-profile>/config.yaml` `approvals:` block deleted entirely.
   - `agent/config.example.yaml` (if present) `approvals:` block deleted.
   - The yaml schema (zod) defined for the `config.yaml` parser **rejects** the `approvals` field if present, with a fatal validation error pointing at spec 0050.
 - [ ] **Tests — removed for deleted modules; rewritten for kept modules:**
@@ -127,7 +127,7 @@ The worker, API, dashboard, storage package, and profile config files contain ~1
   - `context/learnings/connectors-only-pivot.md` references stay accurate (the file mentions specifics that are deleted; if any reference rots, fix in this PR).
   - `context/_index/specs.md` and `context/_index/learnings.md` updated only if they listed superseded specs as canonical.
 - [ ] **Quality gate green:** `pnpm run quality-gate` passes (30/30 tasks). Total test count drops by approximately 80-120 tests (removed ones); remaining tests pass.
-- [ ] **Docker boot clean:** `pnpm run docker:build && PROFILE=fn pnpm run docker:up`. Logs to `zeno_online` show no skill/classifier/approval mentions; all 4 github-app installations get tokens; settings page renders without the sensitive-tools section.
+- [ ] **Docker boot clean:** `pnpm run docker:build && PROFILE=<your-profile> pnpm run docker:up`. Logs to `zeno_online` show no skill/classifier/approval mentions; all 4 github-app installations get tokens; settings page renders without the sensitive-tools section.
 - [ ] **E2E via Slack (Rule 1):** mention `@zeno-agent` from the Slack workspace; verify (a) it answers via connector tools only (no Bash invocation in logs), (b) for a request beyond connector capability it answers honestly (no fabrication), (c) for a tool call that would have been "sensitive" before, it executes directly without DM-approval roundtrip.
 
 ## Risks and Mitigations
@@ -135,10 +135,10 @@ The worker, API, dashboard, storage package, and profile config files contain ~1
 | Risk | Mitigation |
 |---|---|
 | The bottom-up phased order causes a long stretch where typecheck fails, slowing iteration. | Each phase is a separate commit. The compiler points at the next surgery. The phased order is documented in plan.md so a reviewer can replay the path mentally. |
-| Removing `__GITHUB_ENV_VAR__` reserved key references breaks the env-var injection that the worker still does on each refresh tick (the operator-picked env var). | Out of scope here — that's spec 0051. In this PR, the reserved key remains and the env var injection still happens. The worker's `process.env[envVar]` write stays; the *consumers* (skill files referencing `$ACME_GH_TOKEN`) are gone. The dead-but-harmless write goes in 0051. |
+| Removing `__GITHUB_ENV_VAR__` reserved key references breaks the env-var injection that the worker still does on each refresh tick (the operator-picked env var). | Out of scope here — that's spec 0051. In this PR, the reserved key remains and the env var injection still happens. The worker's `process.env[envVar]` write stays; the *consumers* (skill files referencing the env var) are gone. The dead-but-harmless write goes in 0051. |
 | The `approvals_log` table stores classifier decisions historically; dropping it removes audit trail. | Acceptable: no readers exist after this cleanup, so the data is unreachable. If anyone wants the historical decisions, they pre-cleanup. The migration uses `IF EXISTS` so re-runs and missing-table cases are graceful. |
-| The yaml schema rejecting `approvals:` breaks any operator who pulls this PR with the legacy block still in their `config.yaml`. | This is the intended hard-fail (spec 0048 Q5 precedent). The error message tells the operator exactly what to do. The fn profile's `config.yaml` is updated in this PR; operators on other profiles are explicitly responsible for editing their yaml on upgrade. |
-| The `tmp/profile-fn-backup-2026-04-27/` backup of the fn profile (from the spec 0049 workflow) should be preserved as recovery, but it's gitignored. | No mitigation needed: the backup is local-only, on the operator's machine. If they want a committed backup, they create it explicitly before merging. |
+| The yaml schema rejecting `approvals:` breaks any operator who pulls this PR with the legacy block still in their `config.yaml`. | This is the intended hard-fail (spec 0048 Q5 precedent). The error message tells the operator exactly what to do. The operator's profile `config.yaml` is updated in this PR; operators on other profiles are explicitly responsible for editing their yaml on upgrade. |
+| The `tmp/profile-backup-2026-04-27/` backup of the operator's profile (from the spec 0049 workflow) should be preserved as recovery, but it's gitignored. | No mitigation needed: the backup is local-only, on the operator's machine. If they want a committed backup, they create it explicitly before merging. |
 | Renaming `guarded-backend.ts` → `connector-gated-backend.ts` may create rebase friction with PR 1 if PR 1 needs late changes. | PR 1 (#10) is docs-only, didn't touch this file. The rename is local to PR 2; PR 3 will branch off PR 2 cleanly. |
 | The constitution.md `Sandboxed execution` principle says "the agent runs inside a Docker container with no shell or filesystem access of its own". After this PR, the agent's runtime still has Claude Code SDK's built-in `Bash`/`Read`/`Write`/`Edit` tools registered (the SDK adds them automatically). The connector-permission policy now actively denies all non-`mcp__` tools, but the tools are still IN THE TOOLS LIST that the agent sees. The constitution claim becomes operationally true (denies enforce the rule) but the agent gets a denial each time it tries a built-in. | Document this as a known seam: spec 0050 enforces "connector tools only" via runtime-deny (the tightened connector-permission policy denies any tool not matching `mcp__<slug>__<bareTool>`). A future spec can disable Bash/Read/Write/Edit at the SDK level via `disallowedTools` for cleaner UX (the agent stops seeing them in its tools list, never tries them). Recorded as a potential follow-up. |
 

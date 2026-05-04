@@ -163,14 +163,14 @@ Rationale: source tracking is the foundation for sane cascade behavior + future 
 
 ## Context
 
-`makeAlwaysSensitivePolicy` reads patterns from `profiles/<name>/config.yaml`'s `approvals.always_sensitive` array at boot. Today's `fn` profile has 5 entries (after spec 0042's migration added per-installation github-app entries):
+`makeAlwaysSensitivePolicy` reads patterns from `profiles/<name>/config.yaml`'s `approvals.always_sensitive` array at boot. Today's operator profile has 5 entries (after spec 0042's migration added per-installation github-app entries):
 ```yaml
 always_sensitive:
   - mcp__github__merge_pull_request
-  - mcp__github-app-fnlivros__merge_pull_request
-  - mcp__github-app-quickshoperp__merge_pull_request
-  - mcp__github-app-flavia-nasser-oms__merge_pull_request
-  - mcp__github-app-chatdesk-brasil__merge_pull_request
+  - mcp__github-app-acmebooks__merge_pull_request
+  - mcp__github-app-acme-shop__merge_pull_request
+  - mcp__github-app-acme-oms__merge_pull_request
+  - mcp__github-app-acme-support__merge_pull_request
 ```
 
 For OSS users, this requires editing yaml manually after installing every github-app installation (and remembering to remove entries when uninstalling). Bad UX. This spec moves to DB-managed rules with auto-creation tied to installation lifecycle.
@@ -182,7 +182,7 @@ The pattern matcher gains glob support (`*` at any position) so a single rule li
 Three distinct issues, all resolved here:
 
 1. **Yaml editing is mandatory for sensitivity rules** — bad OSS UX.
-2. **Pattern matcher doesn't support mid-wildcards** — operators must list one rule per installation manually (5 entries in `fn` profile today instead of 1 generic rule).
+2. **Pattern matcher doesn't support mid-wildcards** — operators must list one rule per installation manually (5 entries in the operator profile today instead of 1 generic rule).
 3. **No cascade on installation removal** — yaml entries become stale after uninstall; operator must remember to clean up manually.
 
 ## Non-Goals
@@ -195,11 +195,11 @@ Three distinct issues, all resolved here:
 
 ## Constraints
 
-- **OSS readiness**: zero hardcoded operator-specific patterns. The 5 yaml entries in `fn` profile are migrated by data; the auto-rule template (`merge_pull_request`) is universal.
+- **OSS readiness**: zero hardcoded operator-specific patterns. The 5 yaml entries in the operator profile are migrated by data; the auto-rule template (`merge_pull_request`) is universal.
 - **Schema additive**: new table only; no changes to `connector_tool_permissions` or `approvals_log`.
 - **Glob matcher backwards compat**: existing literal/suffix-wildcard patterns continue to match identically.
 - **Worker hot-reload**: when `approval_rules` is mutated via dashboard, worker re-reads on next agent turn (or via a new command type if turn-latency is too slow). For v1, refresh on next turn is acceptable (latency < 1s for most flows).
-- **Test fixtures**: use generic patterns (`mcp__example__delete_*`), not `fn`-profile-specific.
+- **Test fixtures**: use generic patterns (`mcp__example__delete_*`), not operator-profile-specific.
 
 ## Schema Changes
 
@@ -287,19 +287,19 @@ All under `/api/approval-rules`:
 
 | ID | Surface | Description |
 |---|---|---|
-| AS1 | Migration | Worker boots. Migration runner creates `approval_rules` table. `migrationYamlToDb()` reads `fn/config.yaml`'s 5 entries → INSERTs 5 rows with `source='yaml-migrated'`. Yaml stays intact (fallback). |
+| AS1 | Migration | Worker boots. Migration runner creates `approval_rules` table. `migrationYamlToDb()` reads the operator profile's `config.yaml` entries → INSERTs rows with `source='yaml-migrated'`. Yaml stays intact (fallback). |
 | AS2 | Boot | Worker reads rules via `loadAlwaysSensitiveRules(connectorRepo)`. `makeAlwaysSensitivePolicy({getRules})` uses DB-sourced rules on every invocation. |
-| AS3 | Dashboard list | Operator opens `/settings`. Sensitive tools section shows 5 rows — the 5 distinct patterns from the migrated yaml (`mcp__github__merge_pull_request`, `mcp__github-app-fnlivros__merge_pull_request`, `mcp__github-app-quickshoperp__merge_pull_request`, `mcp__github-app-flavia-nasser-oms__merge_pull_request`, `mcp__github-app-chatdesk-brasil__merge_pull_request`) — each with the 📋 migrated icon. Trash button enabled (yaml-migrated rules can be manually deleted). |
+| AS3 | Dashboard list | Operator opens `/settings`. Sensitive tools section shows 5 rows — the 5 distinct patterns from the migrated yaml (`mcp__github__merge_pull_request`, `mcp__github-app-acmebooks__merge_pull_request`, `mcp__github-app-acme-shop__merge_pull_request`, `mcp__github-app-acme-oms__merge_pull_request`, `mcp__github-app-acme-support__merge_pull_request`) — each with the 📋 migrated icon. Trash button enabled (yaml-migrated rules can be manually deleted). |
 | AS4 | Add rule | Operator clicks "+ ADD RULE" → types `mcp__github-app-*__merge_pull_request`. Live preview shows "matches 4 tools" (the 4 installations). Click SAVE → rule added with source `manual`. Dashboard list refetches. |
 | AS5 | Delete rule | Operator clicks trash on a yaml-migrated rule. Confirmation modal: "Delete rule? This will allow `mcp__github__merge_pull_request` to bypass the gate." Click DELETE → row removed. |
 | AS6 | Auto-cascade on install | Operator adds new installation `DesignKitchen` via spec 0046's M7. `connector_create` handler INSERTs auto rule `mcp__github-app-designkitchen__merge_pull_request`, source=`auto`. Settings list shows new row with 🤖 auto icon. Trash disabled (managed). |
-| AS7 | Auto-cascade on uninstall | Operator removes installation `AcmeBooks` via spec 0046's M10. `connector_uninstall` handler runs, DELETEs auto rules where pattern matches `mcp__github-app-fnlivros__*`. Settings list updates. Manual rules referencing AcmeBooks (if any) survive but get an "orphan" warning (deferred to 0048). |
+| AS7 | Auto-cascade on uninstall | Operator removes installation `AcmeBooks` via spec 0046's M10. `connector_uninstall` handler runs, DELETEs auto rules where pattern matches `mcp__github-app-acmebooks__*`. Settings list updates. Manual rules referencing AcmeBooks (if any) survive but get an "orphan" warning (deferred to 0048). |
 | AS8 | Glob matcher | Tool call with name `mcp__github-app-fnlivros__merge_pull_request` → policy iterates rules → glob matches `mcp__github-app-*__merge_pull_request` → `policyThatGated: 'always_sensitive'` → approval requested. |
 
 ## Success Criteria
 
 - All 7 brainstormed decisions implemented.
-- The rules-table migration + yaml-to-DB migration runs cleanly on `fn` profile (5 entries migrated).
+- The rules-table migration + yaml-to-DB migration runs cleanly on the operator's profile (5 entries migrated).
 - Glob matcher unit tests cover literal, suffix, prefix, mid, multi-* cases.
 - `/settings` page renders Sensitive tools section with 5 migrated entries.
 - Add rule with `mcp__github-app-*__merge_pull_request` → preview shows 4 matches → save → applied to next agent turn.

@@ -15,7 +15,7 @@ This spec is the first of 6 follow-up specs (0043-0048) addressing the productio
 
 ### Q1 — How to represent github_app in the listing `/connectors`?
 
-The 4 installations today (`github-app-fnlivros`, `github-app-quickshoperp`, `github-app-flavia-nasser-oms`, `github-app-chatdesk-brasil`) appear as 4 separate rows in the listing. Visually they don't communicate that they share one App credential, and there's no anchor for App-level actions (rotate PEM, test all, see app_id).
+When the operator has multiple installations of the GitHub App (e.g., `github-app-org-a`, `github-app-org-b`, `github-app-org-c`, `github-app-org-d`), they appear as separate rows in the listing. Visually they don't communicate that they share one App credential, and there's no anchor for App-level actions (rotate PEM, test all, see app_id).
 
 **Decision: Option C — single row "GitHub App", rich detail page.** The listing collapses to one row "GitHub App · 4 installations". Clicking opens a detail page with two parts: (1) app-level config (`app_id`, PEM rotation, test all), (2) installations table with status + per-row actions. This mirrors the GitHub model (App → Installations) and keeps the listing scannable as more connectors install.
 
@@ -37,7 +37,7 @@ The 4 installations today (`github-app-fnlivros`, `github-app-quickshoperp`, `gi
 
 ### Q4 — Tool permissions: per-installation or app-level defaults+overrides?
 
-**Decision: Option B — per-installation only.** Each installation has its own complete set of permissions (51 tools). No app-level defaults to inherit. Different orgs can have different rules (`merge_pull_request: ask` for AcmeBooks, `: never` for chatdesk-brasil).
+**Decision: Option B — per-installation only.** Each installation has its own complete set of permissions (51 tools). No app-level defaults to inherit. Different orgs can have different rules (`merge_pull_request: ask` for one org, `: never` for another).
 
 **Reasons:** simpler data model (no `connector_app_tool_defaults` + `connector_tool_permission_overrides` split). Schema stays as today (`connector_tool_permissions` keyed per-installation). UI is consistent with how Linear/Sentry/etc. have their permissions.
 
@@ -114,13 +114,13 @@ Two rows of new artboards on the Paper canvas.
 
 | ID | Name | Position | Resolves |
 |---|---|---|---|
-| `4F0-0` | C10 · `/connectors/github-app-fnlivros` (per-installation detail) | left: 0 | Brechas 4 (LAST VERIFIED present), 7 (TEST INSTALLATION button works), 17 (per-row test). Breadcrumb shows `connectors / github-app / AcmeBooks` (App ancestor). Inherited app callout in gold ("app credentials inherited from github-app · view app ↗") + per-installation fields (installation_id + env_var with edit) + tool permissions section (51 tools · 3 categories · scoped to AcmeBooks). |
+| `4F0-0` | C10 · `/connectors/github-app-acmebooks` (per-installation detail) | left: 0 | Brechas 4 (LAST VERIFIED present), 7 (TEST INSTALLATION button works), 17 (per-row test). Breadcrumb shows `connectors / github-app / AcmeBooks` (App ancestor). Inherited app callout in gold ("app credentials inherited from github-app · view app ↗") + per-installation fields (installation_id + env_var with edit) + tool permissions section (51 tools · 3 categories · scoped to AcmeBooks). |
 | `4MB-0` | C9 · `/connectors/_app/github-app` (App detail · empty state) | left: 1520 | Brecha 2 (UX para adicionar primeira installation). **C9 is the empty-state variant of C8** (same page, different state — positioned in Row 2 for visual grouping with lifecycle modals). Status pill amber "no installs yet". Empty state: 3 placeholder org icons with `?`, hero text "No installations yet", 2-step instructions (`1. install on a GitHub org · 2. come back to wire`), gold CTA "+ ADD YOUR FIRST INSTALLATION". |
 | `4TT-0` | M7 · Add installation (auto-discover) | left: 3040 | Brechas 2 (UX add), 16 (auto-discover via /app/installations). Discovery list with 5 orgs (1 selectable + 4 already-wired with green WIRED indicator). Selected row highlighted gold. Selection preview panel: derived slug + suggested env_var (editable). Manual fallback link. Test result strip. Footer with CANCEL / TEST SELECTION / ADD INSTALLATION. |
 | `4X2-0` | M8 · Add installation (manual fallback) | left: 3920 | Brecha 16 alt path. Display name + installation_id + auto-suggested env_var. "back to auto-discover" link. Test result strip. CANCEL · TEST · ADD INSTALLATION. |
 | `4YH-0` | M9 · Rotate PEM (destructive) | left: 4800 | Brecha 10 (PEM rotation). Red border modal, DESTRUCTIVE pill, warning callout listing exact consequences (all 4 installations affected, env vars refresh, no undo). Current PEM masked with "WILL BE REPLACED" red label. New PEM upload + sha256 + "matches app id 12345" verification. Type-app-id-to-confirm field. Red ROTATE KEY button. |
 | `503-0` | M10 · Remove installation confirm | left: 5680 | Brecha 9 (remove UX). Red border, destructive pill. "What happens" list with 2 BREAK items (env var unset, mcp tools removed) + 1 KEEP item (app credentials stay, 3 other installations unaffected). Type-installation-name-to-confirm. Red REMOVE INSTALLATION. |
-| `51A-0` | M11 · Edit installation (env_var rename) | left: 6560 | Brecha 12 (rename env var without remove+re-add). Diff layout: current `ACME_GH_TOKEN` (struck through) vs new `FNLIVROS_GH_TOKEN` (gold border). Amber warning callout listing 2 skills currently referencing the old name. Footer: "applies on next worker tick (~30s)" + CANCEL / SAVE (gold). |
+| `51A-0` | M11 · Edit installation (env_var rename) | left: 6560 | Brecha 12 (rename env var without remove+re-add). Diff layout: current `ACME_GH_TOKEN` (struck through) vs new `ACMEBOOKS_GH_TOKEN` (gold border). Amber warning callout listing 2 skills currently referencing the old name. Footer: "applies on next worker tick (~30s)" + CANCEL / SAVE (gold). |
 
 ## Gap-to-artboard map (full traceability)
 

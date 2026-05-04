@@ -115,7 +115,7 @@ Run these before relying on guardrails for a real "worker mode" scenario
 ## What was already covered (do NOT re-test manually)
 
 - ✅ Migration applies cleanly on top of an existing 1-3 DB
-  (verified against a snapshot of `zeno-fn_workspace-fn`).
+  (verified against a snapshot of an existing profile workspace volume).
 - ✅ Disabled-mode boot (no `approvals:` section) → `guardrails_disabled`
   warning, container otherwise boots normally.
 - ✅ Enabled-mode boot wires `GuardedBackend` + `HaikuClassifier` +

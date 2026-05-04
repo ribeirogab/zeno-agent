@@ -1304,7 +1304,7 @@ Wait for the `[api]` log to show `listening on :3000`.
 - [ ] **Step 3: Click "install slack" — modal opens**
 - [ ] **Step 4: Verify Setup helper panel renders with manifest content + copy button**
 - [ ] **Step 5: Click copy — verify clipboard contains the manifest JSON**
-- [ ] **Step 6: Paste real fnlivros tokens (operator provides) — click Install**
+- [ ] **Step 6: Paste real Slack tokens (operator provides) — click Install**
 - [ ] **Step 7: Verify polling completes and Slack card appears in list**
 - [ ] **Step 8: Click "manage" — detail page opens**
 - [ ] **Step 9: Verify secrets section shows masked tokens with last4**

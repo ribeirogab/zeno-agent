@@ -3,7 +3,7 @@
 **Spec:** [`context/specs/2026-04-26-connectors-100-validation/`](../../context/specs/2026-04-26-connectors-100-validation/spec.md)
 **Branch:** `feat/connectors`
 **Run completed:** 2026-04-26
-**Profile:** `fn` · single connector under test: Sentry (catalog · stdio · `@sentry/mcp-server`)
+**Profile:** `acme` · single connector under test: Sentry (catalog · stdio · `@sentry/mcp-server`)
 
 ## TL;DR
 
@@ -145,9 +145,9 @@ Average agent reply latency: ~22s (range 12–64s; G10.3 longer due to multi-ste
 
 Per spec §Coverage gaps, these were out of scope and remain so:
 
-1. **Non-owner `ask` flow** — would require a profile where the requesting user is not the owner. `fn` profile only has operator.
+1. **Non-owner `ask` flow** — would require a profile where the requesting user is not the owner. The test profile only has the operator.
 2. **Custom (non-catalog) connector creation** — `POST /` with `source: 'custom'` exercised partially via G1.4b (transient test) but no full lifecycle validated.
-3. **Remote (HTTP/SSE) transport** — no remote connector installed in `fn`.
+3. **Remote (HTTP/SSE) transport** — no remote connector installed in the test profile.
 4. **Multi-connector interactions** — Sentry only.
 5. **Reveal-secret audit trail is ephemeral** — `process.stdout.write` direct; no `logs` table row.
 6. **UI-only scenarios** (`[manual-screenshot]`) — render of API state, not separately validated via Chrome MCP this run. Underlying API+DB+runtime behavior verified across 3 rounds. Operator inspection at the dashboard URL `http://localhost:3001/connectors/<id>` confirms the rendered output.
@@ -173,7 +173,7 @@ Per spec §Success Criteria:
 - [x] This `final-report.md` produced.
 - [x] Spec passed 3 review rounds without findings (cycle 7 R1+R2+R3 all clean).
 
-## Final state of the live `fn` profile
+## Final state of the live test profile
 
 - Sentry connector reinstalled (id `39f5d1dd-dde2-4a43-9dae-24973353aed4`, status `enabled`, 8 tools per catalog seed — first refresh-tools will reconcile to 22).
 - Sentry issue **WORKER-F** is `resolved` (G10.3 destructive scenario; please unresolve in Sentry UI if you want it visible again).

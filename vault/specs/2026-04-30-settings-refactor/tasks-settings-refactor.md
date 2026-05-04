@@ -136,9 +136,9 @@ created: 2026-04-30
 
 - [ ] Step 1: `pnpm run quality-gate` — all turbo tasks green.
 
-### Task D2: Live E2E in Docker against the `fn` profile (Rule 1)
+### Task D2: Live E2E in Docker against the `<example>` profile (Rule 1)
 
-- [ ] Step 1: Build + boot the fn profile container: `PROFILE=fn pnpm run docker:build && PROFILE=fn pnpm run docker:up`.
+- [ ] Step 1: Build + boot the operator profile container: `PROFILE=<example> pnpm run docker:build && PROFILE=<example> pnpm run docker:up`.
 - [ ] Step 2: Open `http://localhost:3001/settings`. Verify:
   - Default tab is `profile`.
   - Click each tab → URL updates with `?tab=` and content swaps.

@@ -54,7 +54,7 @@ This is Phase 0 of the spec 0062 implementation. Six artboards in `zeno-agent` P
 - [ ] Sidebar + topstrip clones (same as 0.2).
 - [ ] **Two header rows stacked vertically** inside the page area, separated by an annotation tag:
   - First header row: skill `zeno-development`, source pill `zeno_default` (gold). Edit description button HIDDEN. Annotation tag above: `── zeno_default source ──`.
-  - Second header row: skill `fn-code-review`, source pill `profile` (dim cyan). Edit description button HIDDEN. Annotation tag above: `── profile source ──`.
+  - Second header row: skill `code-review`, source pill `profile` (dim cyan). Edit description button HIDDEN. Annotation tag above: `── profile source ──`.
 - [ ] One body grid below both headers (file tree + editor). Editor's Save button is **disabled** (gray) with a tooltip overlay: "read-only — edit on the host".
 - [ ] `get_screenshot`, `finish_working_on_nodes`.
 
@@ -98,7 +98,7 @@ This is Phase 0 of the spec 0062 implementation. Six artboards in `zeno-agent` P
 ### Task 0.7 — M-skill-4v2-profile · Delete cascade (profile reseed warning)
 
 - [ ] `create_artboard` named `M-skill-4v2-profile · Delete cascade (profile reseed)`, 520×fit-content, positioned at `top: 18540px, left: 5360px` (next to 0.6).
-- [ ] Same modal shell as 0.6 but for skill `fn-code-review` (profile source).
+- [ ] Same modal shell as 0.6 but for skill `code-review` (profile source).
 - [ ] **Above the cascade preview card**, insert a yellow callout banner: "This profile skill will be reseeded on next worker restart unless removed from `profiles/<n>/skills/`. To delete permanently, remove the host directory."
 - [ ] Cascade preview card otherwise same.
 - [ ] `get_screenshot`, `finish_working_on_nodes`.

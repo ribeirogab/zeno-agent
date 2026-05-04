@@ -31,11 +31,11 @@ The agent/profile split shipped in spec 0021 already separates "what Zeno is" (`
 
 ## Constraints
 
-- **Only `default` profile is committed.** It ships with `.example` files (USER, config, mcp, .env) and a `skills/.gitkeep`. Actual user files inside `default/` are gitignored. All other profiles (`fn`, future ones) are fully gitignored.
+- **Only `default` profile is committed.** It ships with `.example` files (USER, config, mcp, .env) and a `skills/.gitkeep`. Actual user files inside `default/` are gitignored. All other profiles (`acme`, future ones) are fully gitignored.
 - **`claude_home` volume is shared.** The `/home/node/.claude` volume holds the Claude OAuth token and ephemeral session data. Sharing avoids running `setup-token` per profile. Sessions are ephemeral and contain no sensitive cross-profile data.
-- **Workspace volumes are isolated per profile.** `/workspace` is where repos are cloned. Each profile gets a named volume (`workspace-default`, `workspace-fn`, etc.) so cloned repos don't leak across contexts.
-- **Container names and ports must not collide.** `zeno-default` on port 3000, `zeno-fn` on port 3001, etc.
-- **Profile-specific scripts are NOT committed.** `package.json` has generic `docker:*` scripts that accept a profile name argument via a wrapper script. No `docker:up:fn` — the user runs `pnpm run docker:up -- fn`.
+- **Workspace volumes are isolated per profile.** `/workspace` is where repos are cloned. Each profile gets a named volume (`workspace-default`, `workspace-acme`, etc.) so cloned repos don't leak across contexts.
+- **Container names and ports must not collide.** `zeno-default` on port 3000, `zeno-acme` on port 3001, etc.
+- **Profile-specific scripts are NOT committed.** `package.json` has generic `docker:*` scripts that accept a profile name argument via a wrapper script. No `docker:up:acme` — the user runs `pnpm run docker:up -- acme`.
 
 ## Target Layout
 
@@ -53,7 +53,7 @@ profiles/
 │   └── skills/
 │       └── .gitkeep                # committed
 │
-├── fn/                             # fully gitignored
+├── acme/                           # fully gitignored
 │   ├── .env
 │   ├── USER.md
 │   ├── config.yaml
@@ -71,7 +71,7 @@ agent/                              # shared, committed (unchanged)
 
 infra/
 ├── docker-compose.default.yml
-├── docker-compose.fn.yml           # gitignored (user-created)
+├── docker-compose.acme.yml         # gitignored (user-created)
 ├── docker.sh                       # wrapper script
 ├── Dockerfile
 └── entrypoint.sh
@@ -115,7 +115,7 @@ The `claude_home` volume is `external: true` — created once with `docker volum
 
 **Path resolution:** all compose files are invoked with `--project-directory .` (repo root). This means `env_file`, `volumes` bind-mount paths, and `build.context` are all relative to the **repo root**, not to the compose file's location inside `infra/`. Implementers must not write paths relative to `infra/`.
 
-Only `docker-compose.default.yml` is committed. Other compose files (e.g., `docker-compose.fn.yml`) are created by the user and gitignored.
+Only `docker-compose.default.yml` is committed. Other compose files (e.g., `docker-compose.acme.yml`) are created by the user and gitignored.
 
 ## Wrapper Script
 
@@ -183,13 +183,13 @@ infra/docker-compose.*.yml
 
 ## Migration Steps
 
-Current state: `profile/` contains FN-specific content (acme skill, FN GitHub App config, FN MCP servers) PLUS the `.example` template files. The root `.env` has the owner's current Slack/GitHub/Claude tokens (used for FN today). There are no personal-specific files yet — the `default` profile starts empty.
+Current state: `profile/` contains operator-specific content (custom skill, GitHub App config, custom MCP servers) PLUS the `.example` template files. The root `.env` has the owner's current Slack/GitHub/Claude tokens (used by the operator today). There are no personal-specific files yet — the `default` profile starts empty.
 
 1. **Create `profiles/default/`**: move `.example` files from `profile/` → `profiles/default/` (USER.example.md, config.example.yaml, mcp.example.json). Create `profiles/default/skills/.gitkeep`. Create `profiles/default/.env.example` from the current root `.env.example`.
-2. **Create `profiles/fn/`**: move remaining `profile/` contents (USER.md, config.yaml, mcp.json, `skills/acme/`) → `profiles/fn/`. Move root `.env` → `profiles/fn/.env`.
+2. **Create `profiles/acme/`**: move remaining `profile/` contents (USER.md, config.yaml, mcp.json, `skills/acme/`) → `profiles/acme/`. Move root `.env` → `profiles/acme/.env`.
 3. **Delete old `profile/` directory** and root `.env.example`.
 4. **Create `infra/docker-compose.default.yml`** (port 3000, `profiles/default/`, `workspace-default` volume).
-5. **Create `infra/docker-compose.fn.yml`** (port 3001, `profiles/fn/`, `workspace-fn` volume). This file is gitignored.
+5. **Create `infra/docker-compose.acme.yml`** (port 3001, `profiles/acme/`, `workspace-acme` volume). This file is gitignored.
 6. **Create `infra/docker.sh`** wrapper script.
 7. **Delete old `infra/docker-compose.yml`**.
 8. **Update `package.json`** scripts to use `docker.sh`.
@@ -209,11 +209,11 @@ Note: since the owner is the only user, this is a one-shot move on their machine
 ## Success Criteria
 
 1. `profiles/default/` exists with committed `.example` files and `skills/.gitkeep`.
-2. `profiles/fn/` exists locally (gitignored) with all current FN config + acme skill.
+2. `profiles/acme/` exists locally (gitignored) with all current operator config + custom skill.
 3. `pnpm run docker:up` boots `zeno-default` on port 3000 using `profiles/default/`.
-4. `pnpm run docker:up -- fn` boots `zeno-fn` on port 3001 using `profiles/fn/`.
+4. `pnpm run docker:up -- acme` boots `zeno-acme` on port 3001 using `profiles/acme/`.
 5. Both containers can run concurrently without port or volume conflicts.
-6. `docker exec zeno-fn ls /app/profile/skills/` shows `acme/` but NOT personal skills.
+6. `docker exec zeno-acme ls /app/profile/skills/` shows the operator's custom skill but NOT personal skills.
 7. `docker exec zeno-default ls /app/profile/skills/` shows nothing (or only personal skills if any were added).
 8. Root `.env` no longer exists (moved into profile dirs).
 9. `pnpm run quality-gate` passes.

@@ -7,7 +7,7 @@ created: 2026-04-28
 
 **For this spec:** `[[spec-cron-skills-and-connectors]]`
 
-> **⚠️ Phase B mechanism revised post-R2 review.** The gate's anti-double-inject + audit-log mechanism shipped as **AsyncLocalStorage-based per-call state** with a single `runInCronContext(opts, fn)` method on `ConnectorGatedBackend`, NOT the instance-field `preInjectCronSkills`/`pendingCronSkillIds` design described below. The original design had two production bugs caught by the second 3-clean-rounds review of phase B:
+> **⚠️ Phase B mechanism revised post-R2 review.** The gate's anti-double-inject + audit-log mechanism shipped as **AsyncLocalStorage-based per-call state** with a single `runInCronContext(opts, callback)` method on `ConnectorGatedBackend`, NOT the instance-field `preInjectCronSkills`/`pendingCronSkillIds` design described below. The original design had two production bugs caught by the second 3-clean-rounds review of phase B:
 > - F1: Throwaway-wrapper pattern in `apps/worker/src/index.ts` bound the SDK hook to a discarded instance, so `preInjectCron*` calls on the OUTER wrapper never reached the hook.
 > - F2: `cron_run_now` chat tool fires `void runner.runOnce(...)` (fire-and-forget). Concurrent cron firings on the same backend instance would race the `pendingCron*` instance fields.
 >
@@ -163,7 +163,7 @@ D. Dashboard (hooks + components + cron-detail wiring)
    ↓
 E. Quality gate + Docker boot test
    ↓
-F. E2E via Slack on fn profile
+F. E2E via Slack on the operator's profile
    ↓
 G. Final 3-round review on whole branch
    ↓

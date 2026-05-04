@@ -519,9 +519,9 @@ created: 2026-04-28
 
 ### Task D.2: Docker boot test
 
-- [ ] `PROFILE=fn pnpm run docker:down && pnpm run docker:build && PROFILE=fn pnpm run docker:up`.
+- [ ] `PROFILE=<example> pnpm run docker:down && pnpm run docker:build && PROFILE=<example> pnpm run docker:up`.
 - [ ] Wait ~10s for boot.
-- [ ] `docker logs zeno-fn-agent-1 --tail 100` — expect:
+- [ ] `docker logs zeno-agent-1 --tail 100` — expect:
   - `migrations_applied` (migration 11 runs).
   - `skills_materialized written=N deleted=0`.
   - `agent_capabilities_loaded enabled=[Read,Edit,...]` (or empty if none enabled — that's fine).
@@ -556,7 +556,7 @@ Reintroduces skills to Zeno's runtime per spec 0052. Markdown playbooks the agen
 ## Verification
 
 - [x] \`pnpm run quality-gate\` — all turbo tasks green.
-- [x] Docker boot (PROFILE=fn) clean.
+- [x] Docker boot (PROFILE=<example>) clean.
 - [x] Phase B gate-zero: SDK auto-discovery confirmed [Path A | Path B].
 - [x] 3-round review per phase + final batch (3 consecutive clean).
 - [x] E2E via Slack: agent reads skill, executes task with enabled capabilities, no permission errors.

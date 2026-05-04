@@ -14,7 +14,7 @@ shipped: null
 Spec 0052 shipped skills as a DB-managed concept: operator uploads `SKILL.md` via dashboard → row in `skills` table → worker materializes to `~/.claude/skills/<name>/SKILL.md` → SDK auto-discovers based on description match. After live verification two gaps surfaced:
 
 1. **Zeno is mute by default.** A fresh install has zero skills and all non-MCP capabilities (`Bash`, `Edit`, `Write`, etc.) disabled. The operator can't ask Zeno to clone a repo or review a PR until they manually upload skills + flip toggles in `/settings`. The connector-only safe default from spec 0052 over-corrected.
-2. **There's no path to ship skills with Zeno.** A maintainer can't bake `zeno-development` into the agent's image and have every install benefit from it. Same problem for profile-specific skills (e.g. `fn-code-review`) — they only exist as DB rows on the operator's machine, no provenance, no upgrade path.
+2. **There's no path to ship skills with Zeno.** A maintainer can't bake `zeno-development` into the agent's image and have every install benefit from it. Same problem for profile-specific skills (e.g. `code-review`) — they only exist as DB rows on the operator's machine, no provenance, no upgrade path.
 
 Plus one bug noticed in QA: clicking a skill row on `/skills` updates the URL to `/skills/:id` but does not render the detail screen. Stays on the listing.
 
@@ -46,7 +46,7 @@ Plus the QA bug:
 
 - **Skills as files OR as DB rows, never both.** The seed mechanism populates the DB at boot; after that the materializer (already shipped) writes the DB to `~/.claude/skills/<name>/SKILL.md`. The `agent/skills/` and `profiles/<name>/skills/` trees are SOURCE OF SEED, not parallel deployment paths.
 - **Default capabilities must be safer than blanket-on.** Even though `Bash` ships enabled, the connector-permission gate still consults `agent_capabilities.enabled` per call. Operator can disable Bash in `/settings` and it takes effect immediately (already verified live in spec 0052 testing).
-- **Migration 12 already applied in production fn profile.** Cannot modify it. New behavior goes in migration 13+.
+- **Migration 12 already applied in production the operator profile.** Cannot modify it. New behavior goes in migration 13+.
 - **`source` column has to be addable to existing `skills` table without losing data.** Default for existing rows: `'dashboard'`.
 - **Stay stacked on `feat/skills`.** PR base is `feat/skills`, not `main`. Merge order: PR #14 first, then this PR.
 
@@ -64,7 +64,7 @@ Plus the QA bug:
 | Capability defaults (migration 13) | `Bash`, `Read`, `Edit`, `Write`, `Glob`, `Grep` flipped to `enabled=1`. `Task`, `WebFetch`, `WebSearch` stay `0`. `ToolSearch` already 1 from migration 12. | Aligns with the `zeno-development` workflow; sensitive tools stay opt-in. |
 | Playwright in catalog | New entry in `agent/connectors-catalog.json`, slug `playwright`, source `catalog`, transport `stdio`, command `npx -y @playwright/mcp@latest`, default tool surface = the standard `@playwright/mcp` tools (categorized by category) | Promotes from `builtin_mcp_allow` slot to first-class connector with permission model. |
 | Chrome in Docker | `RUN npx -y playwright install chrome` in `infra/Dockerfile` (runtime stage) | Avoids "Chrome not installed" at first use; baked once per image. |
-| PR review trigger | Description-only auto-discovery — `fn-code-review` skill description mentions PR URL + @-mention pattern; SDK matches user intent | Zero changes to Slack listener; ports cleanly to other channels. |
+| PR review trigger | Description-only auto-discovery — `code-review` skill description mentions PR URL + @-mention pattern; SDK matches user intent | Zero changes to Slack listener; ports cleanly to other channels. |
 | Bug fix scope | Investigate `route-tree.gen.ts` regeneration AND component runtime failure on `/skills/:id` | One of those two is the cause; cheap to verify both. |
 
 ## User Stories / Scenarios
@@ -78,12 +78,12 @@ Plus the QA bug:
 5. Operator opens `/settings` → 6 dev capabilities already enabled (Bash, Read, Edit, Write, Glob, Grep), `ToolSearch` enabled, 3 sensitive ones (Task/WebFetch/WebSearch) disabled.
 6. Operator DMs Zeno on Slack: "clone https://github.com/me/repo and add a README" — agent uses `Bash`/`Edit`/`Write` (allowed) + auto-discovers `zeno-development` (description match) and follows the workflow.
 
-### S2 — Profile customization (fn profile with fn-code-review)
+### S2 — Profile customization (the operator profile with code-review)
 
-1. Operator pulls the `feat/skills-defaults-and-prreview` branch, switches to `PROFILE=fn`.
-2. Worker boots → boot seeder reads `agent/skills/` (zeno-development) AND `profiles/fn/skills/` (fn-code-review) → seeds both.
-3. Operator opens `/skills` → sees `zeno-development` (`default · zeno`, locked) AND `fn-code-review` (`profile · fn`, editable).
-4. Operator edits `fn-code-review` body via dashboard → DB updated → materializer writes new content to `~/.claude/skills/fn-code-review/SKILL.md` → next agent query uses updated body.
+1. Operator pulls the `feat/skills-defaults-and-prreview` branch, switches to `PROFILE=<example>`.
+2. Worker boots → boot seeder reads `agent/skills/` (zeno-development) AND `profiles/<example>/skills/` (code-review) → seeds both.
+3. Operator opens `/skills` → sees `zeno-development` (`default · zeno`, locked) AND `code-review` (`profile · <example>`, editable).
+4. Operator edits `code-review` body via dashboard → DB updated → materializer writes new content to `~/.claude/skills/code-review/SKILL.md` → next agent query uses updated body.
 5. Worker reboot → INSERT OR IGNORE — operator's edit is preserved.
 
 ### S3 — Zeno upgrade with new default skill
@@ -105,8 +105,8 @@ Plus the QA bug:
 
 1. Operator posts in `#pr-reviews`: 3 PR URLs + @-mention zeno-agent.
 2. Slack listener (already existing, no changes) gets `app_mention` event → builds `userMessage` with full text → invokes the agent.
-3. Agent's SDK scans `~/.claude/skills/`, matches the `fn-code-review` description against intent, loads the skill body into context.
-4. Skill body (in EN; review/Slack output in PT-BR per skill content) instructs: "for each PR URL, use `mcp__github-app-*` tools (`view`, `diff`, `comments`); apply FN review criteria; submit via `gh pr review`; reply in thread with one line `<@user> <outcome> <review-url>`."
+3. Agent's SDK scans `~/.claude/skills/`, matches the `code-review` description against intent, loads the skill body into context.
+4. Skill body (in EN; review/Slack output in PT-BR per skill content) instructs: "for each PR URL, use `mcp__github-app-*` tools (`view`, `diff`, `comments`); apply project review criteria; submit via `gh pr review`; reply in thread with one line `<@user> <outcome> <review-url>`."
 5. Agent runs the workflow for all 3 PRs (parallel or sequential) and posts a single consolidated thread reply such as "@ribeiro 3 aprovados ✅ — pr1 · pr2 · pr3".
 
 ### S6 — Capability lockdown by operator
@@ -135,16 +135,16 @@ Plus the QA bug:
 - [ ] **API response shape** — `GET /api/skills` (list) and `GET /api/skills/:id` (detail) include `source: 'zeno_default' | 'profile' | 'dashboard'`. The `Skill` type in `@zeno/storage` gains the field. Dashboard hooks are typed to match.
 - [ ] **Orphan cleanup audit log** — boot seeder emits `skills_orphan_cleanup_complete {removed: [<names>], cascadeAffected: <count>}` when it deletes `zeno_default` rows whose file disappeared. Verifiable in seeder test.
 - [ ] **Dashboard** shows a badge `default · zeno` (lock icon, no edit/delete buttons) or `profile · <name>` in both the list and detail; `dashboard`-source skills show no badge.
-- [ ] **`agent/skills/zeno-development/SKILL.md`** committed, based on `tmp/profile-fn-backup-2026-04-27/skills/dev-workflow/SKILL.md` adapted for the Zeno context (no FN-specific references).
-- [ ] **`profiles/fn/skills/fn-code-review/SKILL.md`** committed, based on `tmp/profile-fn-backup-2026-04-27/skills/code-review/SKILL.md`.
+- [ ] **`agent/skills/zeno-development/SKILL.md`** committed, based on `tmp/profile-backup/skills/dev-workflow/SKILL.md` adapted for the Zeno context (no profile-specific references).
+- [ ] **`profiles/<example>/skills/code-review/SKILL.md`** committed, based on `tmp/profile-backup/skills/code-review/SKILL.md`.
 - [ ] **Playwright** entry in `agent/connectors-catalog.json` with the full tool surface.
 - [ ] **Dockerfile** installs Chrome via `npx -y playwright install chrome` in the runtime stage.
 - [ ] **Skill detail navigation bug** fixed — clicking a row in `/skills` renders the detail screen.
 - [ ] **Quality gate** passes 30/30 (no regression in existing tests; new tests cover migrations 13/14, boot seeder, API immutable lock, badge UI).
-- [ ] **Docker boot** is clean: log shows `skills_seeded`, `agent_capabilities_loaded enabled=[Bash,Edit,Glob,Grep,Read,ToolSearch,Write]`, materializer runs, SDK auto-discovery sees `zeno-development` + (when running with `PROFILE=fn`) `fn-code-review`.
+- [ ] **Docker boot** is clean: log shows `skills_seeded`, `agent_capabilities_loaded enabled=[Bash,Edit,Glob,Grep,Read,ToolSearch,Write]`, materializer runs, SDK auto-discovery sees `zeno-development` + (when running with `PROFILE=<example>`) `code-review`.
 - [ ] **E2E via Slack — 10+ runs** against `AcmeBooks/ecommerce-frontend`:
   - PRs opened as **draft** with `[zeno-test]` prefix in the title.
-  - Mix of explicit ("use fn-code-review") vs implicit (no skill mention).
+  - Mix of explicit ("use code-review") vs implicit (no skill mention).
   - Scenarios: clean/approve, broken/reject, nitpicks, suggestions, UI without screenshot, unnecessary dep, missing tests for a new feature, multi-feature PR, convention violation (Biome), bad commit message, PR with no description.
   - Clean PRs generated by Zeno itself via `zeno-development`; broken PRs hand-crafted with the targeted defect.
   - Cleanup: close PR + delete branch after each test.
@@ -162,8 +162,8 @@ Plus the QA bug:
 | Chrome install in the Dockerfile grows the image by ~300MB | Acceptable (one-time cost). If it becomes a problem a future spec can move it to lazy install on first use. |
 | `zeno-development` description does not match user intent expressed in PT-BR (the skill content is in EN) | Description tuned manually AND verified in E2E (mix of explicit/implicit triggers); iterate until auto-discovery is reliable. |
 | Slack listener already accepts @-mentions OK, but thread context (parent message) may not always include PR URLs | E2E tests both single-shot messages and threaded ones; tune the skill description to cover both. |
-| Migration 13 flips pre-existing rows that the operator may have disabled on purpose (downgrade scenario) | Rare in production (single fn profile, new install); accept and document. Operator re-disables via `/settings`. |
-| Skill `fn-code-review` needs org-specific GitHub App tokens (`ACME_GH_TOKEN`, `QS_GH_TOKEN`, etc.) — these only exist when the corresponding github-app connector is installed | Skill body checks available tokens at execution time; if missing, instructs the operator to install the github-app connector first. |
+| Migration 13 flips pre-existing rows that the operator may have disabled on purpose (downgrade scenario) | Rare in production (single the operator profile, new install); accept and document. Operator re-disables via `/settings`. |
+| Skill `code-review` needs org-specific GitHub App tokens (`OPERATOR_GH_TOKEN`, `EXAMPLE_GH_TOKEN`, etc.) — these only exist when the corresponding github-app connector is installed | Skill body checks available tokens at execution time; if missing, instructs the operator to install the github-app connector first. |
 | Orphan cleanup may delete `connector_skills` rows via FK CASCADE — user loses manual links | Accept (the link was to a skill that no longer exists). Log the deleted names for audit. |
 | Detail-nav bug fix may turn out to be a missing `route-tree.gen.ts` (gitignored) | Investigate first; if gitignored, commit it. If a runtime error, fix the component. |
 

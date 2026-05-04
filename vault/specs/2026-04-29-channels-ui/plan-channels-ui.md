@@ -153,7 +153,7 @@ H. End-to-end smoke test
    ├─ H.1 docker:up profiles/default
    ├─ H.2 navigate to http://localhost:3000/channels — verify empty state
    ├─ H.3 click "install slack" → verify modal renders Setup helper + manifest
-   ├─ H.4 paste real fnlivros tokens → verify install → row appears
+   ├─ H.4 paste real workspace tokens → verify install → row appears
    ├─ H.5 click manage → verify detail page renders correctly
    ├─ H.6 edit secrets (rotate botToken only) → verify merge persists
    ├─ H.7 uninstall → verify row deleted + redirect to empty state
@@ -177,7 +177,7 @@ A → B → C → D → E → F is strictly serial. G requires all of A-F. H req
 - **TanStack Router file-based naming.** New routes are `channels.index.tsx` and `channels.$id.tsx` — match the existing `connectors.index.tsx` / `connectors.$id.tsx` pattern. The `_authed` parent layout handles auth automatically.
 - **Sidebar icon stroke pattern.** The existing nav icons (crons, sessions, connectors, skills) all use `fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round'` with a 24×24 viewBox. The channels icon (chat bubble) MUST follow this exactly to read as one consistent set. Spec line ~160 has the exact prop spec; copy that into the new icon entry.
 - **`displayName` non-nullability.** `Connector.displayName` is `string` (no `| null`) per `packages/storage/src/types.ts`. Implementer should NOT add a defensive `?? 'unknown'` guard in the uninstall dialog title — the type guarantees a value.
-- **No Docker during testing.** Vitest tests use in-memory SQLite + Hono in-process bootstrap. Phase H's smoke test is the ONLY place that runs `docker:up`, and it's against `profiles/default` (not the operator's `profiles/fn` which is uninstalled per spec 0058 cutover — though the operator may be using a different profile currently; verify with `docker:logs` before H.1).
+- **No Docker during testing.** Vitest tests use in-memory SQLite + Hono in-process bootstrap. Phase H's smoke test is the ONLY place that runs `docker:up`, and it's against `profiles/default` (not the operator's `profiles/<example>` which is uninstalled per spec 0058 cutover — though the operator may be using a different profile currently; verify with `docker:logs` before H.1).
 
 ## Self-Review
 

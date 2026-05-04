@@ -13,7 +13,7 @@ shipped: 2026-05-03
 
 The dashboard chrome and connector catalog drifted from the project's reality:
 
-1. **Identity is a lie.** `apps/dashboard/src/components/layout/dashboard-sidebar.tsx:295-315` hardcodes `"AL"` avatar, `"alex"` name, and `"single-owner · hmac"` subtitle. Zeno is single-user — the operator IS the user described in `profiles/<active>/USER.md`. The Paper file already shows `"operator"` in the user row (the design intent), but the code never caught up. In a multi-profile setup (e.g. the live `fn` instance plus a `default` instance), there is also no way to tell at a glance which profile this dashboard is bound to.
+1. **Identity is a lie.** `apps/dashboard/src/components/layout/dashboard-sidebar.tsx:295-315` hardcodes `"AL"` avatar, `"alex"` name, and `"single-owner · hmac"` subtitle. Zeno is single-user — the operator IS the user described in `profiles/<active>/USER.md`. The Paper file already shows `"acme"` in the user row (the design intent), but the code never caught up. In a multi-profile setup (e.g. the live `<example>` instance plus a `default` instance), there is also no way to tell at a glance which profile this dashboard is bound to.
 
 2. **`/sessions` is dead weight in the primary nav.** Sessions are debugging surface — every Slack thread + every cron run lands a session, but operators don't navigate to `/sessions` to *do* anything. They land there from a log entry or a cron run when something goes wrong. Putting it as a top-level nav item next to `home` and `connectors` overstates its importance and crowds the sidebar (8 items today: home, crons, sessions, channels, connectors, skills, logs, settings).
 
@@ -58,7 +58,7 @@ Each is small. Together they make Zeno feel unfinished on the very first encount
 
 1. **Fresh-clone operator boots Zeno for the first time.** They open `http://localhost:3000`, hit the login flow, land on `/` (home). The sidebar bottom-left shows their name (parsed from `profiles/default/USER.md` `name:` frontmatter) + initials avatar + the active profile slug `default`. The `/connectors` page lists Playwright under "installed" with the official multicolor logo and a one-line description. Clicking through to `/connectors/playwright` shows a trimmed surface of 5 essential tools (`browser_navigate`, `browser_snapshot`, `browser_take_screenshot`, `browser_click`, `browser_type`). The agent can immediately handle a "@zeno open this URL and take a screenshot" Slack request without setup.
 
-2. **Operator with two profiles (`default` + `fn`) boots both dashboards.** Profile `fn` runs on port 3001, `default` on 3000. Each dashboard sidebar shows its own profile slug + the matching `USER.md` name. No cross-talk; no ambiguity about "which dashboard am I looking at."
+2. **Operator with two profiles (`default` + `<example>`) boots both dashboards.** Profile `<example>` runs on port 3001, `default` on 3000. Each dashboard sidebar shows its own profile slug + the matching `USER.md` name. No cross-talk; no ambiguity about "which dashboard am I looking at."
 
 3. **Operator who liked the old "alex" placeholder edits USER.md.** They open `profiles/<active>/USER.md`, change `name: Alex` to `name: Operator`. Profile watcher (`apps/worker/src/profile/watcher.ts`) reloads. Next dashboard refresh (or, if we wire it via TanStack invalidation, immediately) shows "Operator" + "GA" initials in the sidebar.
 
@@ -72,7 +72,7 @@ Each is small. Together they make Zeno feel unfinished on the very first encount
 
 **Phase A — sidebar identity (item 1):**
 - [ ] `apps/dashboard/src/components/layout/dashboard-sidebar.tsx` no longer contains the literal string `"alex"`, `"AL"`, or `"single-owner · hmac"`.
-- [ ] The user row renders `name` from USER.md (e.g. "Operator"), initials computed as the first two letters of `name` uppercased (e.g. "GA"), and **the active profile slug** as subtitle (e.g. "default" or "fn") — replacing the auth-noise.
+- [ ] The user row renders `name` from USER.md (e.g. "Operator"), initials computed as the first two letters of `name` uppercased (e.g. "GA"), and **the active profile slug** as subtitle (e.g. "default" or "<example>") — replacing the auth-noise.
 - [ ] `GET /api/settings` response includes a `profile: { name: string, slug: string }` block. Existing fields (`backend`, `profileFiles`) unchanged.
 - [ ] If `USER.md` has no parseable `name:` frontmatter, the dashboard falls back to the profile slug only (e.g. "default · default") — no crash, no placeholder.
 - [ ] At least one frontend test asserts the user row reads from the API response, not a hardcoded constant.
@@ -108,8 +108,8 @@ Each is small. Together they make Zeno feel unfinished on the very first encount
 
 **E2E acceptance (Rule 1 — operator-as-user simulation):**
 - [ ] Wipe `~/.claude` Docker volume (or run against a fresh `claude_home`) → `pnpm run docker:up` → open `http://localhost:3000`. Sidebar shows correct `USER.md` name + profile slug; `/connectors` shows Playwright installed.
-- [ ] In the live `fn` profile (port 3001), Slack message `@zeno-agent take a screenshot of https://example.com and post it back`. Agent calls `browser_navigate` + `browser_take_screenshot` + a connector-bound file upload tool (post-0064 if available; otherwise replies with the screenshot data) — no operator setup required.
-- [ ] Sidebar in the `fn` dashboard shows `operator · fn`, not `alex · single-owner · hmac`.
+- [ ] In the live `<example>` profile (port 3001), Slack message `@zeno-agent take a screenshot of https://example.com and post it back`. Agent calls `browser_navigate` + `browser_take_screenshot` + a connector-bound file upload tool (post-0064 if available; otherwise replies with the screenshot data) — no operator setup required.
+- [ ] Sidebar in the `<example>` dashboard shows `acme · <example>`, not `alex · single-owner · hmac`.
 
 ## Architecture
 
@@ -153,7 +153,7 @@ DB / config snapshot has the parsed value (already exists for system prompt)
   ↓
 GET /api/settings returns:
   {
-    profile: { name: 'Operator', slug: 'fn' },     # NEW
+    profile: { name: 'Operator', slug: '<example>' },     # NEW
     backend: { ... },                              # unchanged
     profileFiles: [ ... ]                          # unchanged
   }
@@ -163,11 +163,11 @@ Dashboard useSettings() exposes `profile`
 DashboardSidebar reads `profile.name` + `profile.slug`
   ↓
 User row renders:  [GA]  Operator
-                          fn
+                          <example>
                                   [exit]
 ```
 
-If `name` is missing/unparseable: fall back to `profile.slug` for both the name and the avatar initials (first 2 chars of the slug uppercased, e.g. `FN`).
+If `name` is missing/unparseable: fall back to `profile.slug` for both the name and the avatar initials (first 2 chars of the slug uppercased, e.g. `EX`).
 
 ### Data flow — Playwright seed (Phase C)
 
@@ -205,7 +205,7 @@ The seed only inserts the **row in the connectors table**. The catalog JSON (`ag
 **Unit:**
 - `apps/dashboard/tests/components/dashboard-sidebar.test.tsx`:
   - Renders 7 nav items in order; no `sessions` link.
-  - With `useSettings` mock returning `profile: { name: 'Operator', slug: 'fn' }`: renders "Operator" + "GA" initials + "fn" subtitle.
+  - With `useSettings` mock returning `profile: { name: 'Operator', slug: '<example>' }`: renders "Operator" + "GA" initials + "<example>" subtitle.
   - With `profile: { name: undefined, slug: 'default' }`: renders "default" + "DE" initials.
 - `apps/api/tests/routes/settings.test.ts`:
   - `GET /api/settings` shape includes `profile: { name, slug }` with values from a mocked USER.md frontmatter.
@@ -219,7 +219,7 @@ The seed only inserts the **row in the connectors table**. The catalog JSON (`ag
 
 **E2E (Rule 1):**
 - Fresh boot scenario above (User Story 1).
-- Multi-profile scenario (User Story 2): boot `default` and `fn`, screenshot both sidebars side-by-side.
+- Multi-profile scenario (User Story 2): boot `default` and `<example>`, screenshot both sidebars side-by-side.
 - Playwright actually works: Slack `@zeno-agent` request that requires `browser_navigate` + screenshot. Worker logs show `mcp__playwright__browser_navigate` invocation, response includes a screenshot.
 
 ## Open Questions

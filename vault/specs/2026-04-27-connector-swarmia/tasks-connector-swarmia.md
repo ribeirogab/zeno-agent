@@ -43,7 +43,7 @@ created: 2026-04-27
 ## Phase 3 — Tool list regeneration
 
 > **Execution context**: Phase 3 runs **on the host**, not inside the container. Reasons:
-> - `agent/connectors-catalog.json` is bind-mounted into the container as **read-only** (`infra/docker-compose.fn.yml` line 16: `./agent:/app/agent:ro`).
+> - `agent/connectors-catalog.json` is bind-mounted into the container as **read-only** (`infra/docker-compose.<profile>.yml` line 16: `./agent:/app/agent:ro`).
 > - The `apps/` directory is NOT bind-mounted, so the script's path inside the container would point at the baked image copy, not the host source tree.
 >
 > Therefore the host needs `uv` installed locally (separate from the Dockerfile change in spec 0040). Task 3.0 covers this.
@@ -86,7 +86,7 @@ created: 2026-04-27
 ### Task 6.1: Deploy
 
 - [ ] `pnpm run docker:build`.
-- [ ] `PROFILE=fn pnpm run docker:up`.
+- [ ] `PROFILE=<your-profile> pnpm run docker:up`.
 - [ ] Wait for API up.
 
 ### Task 6.2: API smoke
@@ -97,7 +97,7 @@ created: 2026-04-27
 
 ### Task 6.3: UI smoke
 
-- [ ] `http://localhost:3001/connectors` → Swarmia card with brand icon. (Port 3001 is correct for the `fn` profile per `infra/docker-compose.fn.yml` mapping `3001:3000`. CLAUDE.md's `localhost:3000` reference is for the `default` profile.)
+- [ ] `http://localhost:3001/connectors` → Swarmia card with brand icon. (Port 3001 is the example mapping in `infra/docker-compose.<profile>.yml` for non-default profiles; the `default` profile uses 3000.)
 - [ ] Click → modal → paste real token → Test → ✓ → Add.
 - [ ] Click the Swarmia card in the installed section → detail page lists tools (read/write/interactive panels) with default permissions.
 

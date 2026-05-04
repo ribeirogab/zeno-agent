@@ -53,7 +53,7 @@ GitHub App:
 │ Worker boot:                                                    │
 │   loadGitHubAppConfig() now reads from DB                       │
 │   Mints installation tokens for each row                        │
-│   Sets env vars (ACME_GH_TOKEN, etc.) for `gh` CLI                │
+│   Sets env vars (ACME_GH_TOKEN, etc.) for `gh` CLI              │
 │   At MCP spawn time, freshes the installation token             │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -78,10 +78,10 @@ Files **modified**:
 - `apps/worker/src/agent/mcp-build.ts` — intercept `github-app-*` connectors BEFORE `toStdioConfig`; read cached installation token (sync, via new `GitHubAppAuth.getCachedToken`); synthesize a PAT-shaped secret. Stays synchronous (does NOT change the `() => Record<...>` getter contract used by `ClaudeCodeBackend`). Ensures the five `__GITHUB_*__` raw secrets (`__GITHUB_APP_ID__`, `__GITHUB_APP_PEM__`, `__GITHUB_INSTALLATION_ID__`, `__GITHUB_INSTALLATION_NAME__`, `__GITHUB_ENV_VAR__`) are never forwarded to the github-mcp-server subprocess.
 - `apps/worker/src/index.ts` — pass `connectorRepo` to `loadGitHubAppConfig`; cache the resulting `GitHubAppAuth` instance for reuse by `mcp-build.ts`.
 - `apps/worker/src/github/git-identity.ts` — `parseGitIdentityFromConfig` reads top-level `git_identity` first (with `github_app.git_identity` fallback for back-compat).
-- `profiles/fn/config.yaml` — remove the `github_app:` block; expand `approvals.always_sensitive` list with per-installation merge entries.
+- `profiles/<your-profile>/config.yaml` — remove the `github_app:` block; expand `approvals.always_sensitive` list with per-installation merge entries.
 - `agent/config.yaml` — remove `github_app.app_id` and `github_app.private_key_file`; move `github_app.git_identity` to a top-level `git_identity:` key.
-- (move) `profiles/fn/skills/acme/github-app.pem` → `tmp/legacy-github-app/`.
-- (move) `profiles/fn/skills/acme/github.md` → `tmp/legacy-github-app/`.
+- (move) `profiles/<your-profile>/skills/<owner>/github-app.pem` → `tmp/legacy-github-app/`.
+- (move) `profiles/<your-profile>/skills/<owner>/github.md` → `tmp/legacy-github-app/`.
 
 Files **NOT modified**:
 
@@ -180,24 +180,24 @@ The worker changes that consume DB-sourced app config land inside Phase 5:
   - JWT signing + interval refresh + cache code unchanged.
 - `apps/worker/src/agent/mcp-build.ts`: in `buildMcpServersMap`, when `connector.slug.startsWith('github-app-')`, intercept BEFORE `toStdioConfig`. Mint a fresh installation token via the shared `GitHubAppAuth` instance, then synthesize a single `{key:'GITHUB_PERSONAL_ACCESS_TOKEN', value:<minted ghs_*>}` secret to pass to `toStdioConfig`. The four `__GITHUB_APP_*__` raw secrets are NEVER forwarded to the github-mcp-server subprocess.
 - `apps/worker/src/index.ts`: pass `connectors` (the `ConnectorRepo`) to `loadGitHubAppConfig`. Cache the `GitHubAppAuth` instance for reuse by `mcp-build.ts`.
-- For each `github-app-*` connector, also set the `env_var` (e.g., `ACME_GH_TOKEN`) at boot — same as today. This keeps `gh` CLI working.
+- For each `github-app-*` connector, also set the `env_var` (e.g., `<ORG>_GH_TOKEN`) at boot — same as today. This keeps `gh` CLI working.
 
 ### Phase 7 — Migration
 
 - After Phase 5 work AND smoke verifies the App flow:
   1. `mkdir -p tmp/legacy-github-app/`
-  2. Move `profiles/fn/skills/acme/github-app.pem` → `tmp/legacy-github-app/github-app.pem`
-  3. Move `profiles/fn/skills/acme/github.md` → `tmp/legacy-github-app/github.md` (informational; the active SKILL.md stays in place).
-  4. Edit `profiles/fn/config.yaml`: remove the entire `github_app:` block (lines 11-26 today).
+  2. Move `profiles/<your-profile>/skills/<owner>/github-app.pem` → `tmp/legacy-github-app/github-app.pem`
+  3. Move `profiles/<your-profile>/skills/<owner>/github.md` → `tmp/legacy-github-app/github.md` (informational; the active SKILL.md stays in place).
+  4. Edit `profiles/<your-profile>/config.yaml`: remove the entire `github_app:` block (lines 11-26 today).
   5. Edit `agent/config.yaml`: remove `github_app.app_id` and `github_app.private_key_file`. Move `github_app.git_identity` to a top-level `git_identity:` key (cleaner separation), and update `parseGitIdentityFromConfig` in `apps/worker/src/github/git-identity.ts` to read top-level first, falling back to `github_app.git_identity` for back-compat.
-  6. Update `profile/fn/config.yaml`'s `approvals.always_sensitive` list to add per-installation merge entries (the policy supports only suffix wildcards; explicit list required).
+  6. Update `profile/<your-profile>/config.yaml`'s `approvals.always_sensitive` list to add per-installation merge entries (the policy supports only suffix wildcards; explicit list required).
   7. Add `tmp/legacy-github-app/README.md` documenting origin of each file + spec ID + date moved.
-- Restart worker; verify `gh` CLI still works (env vars `ACME_GH_TOKEN`/`QS_GH_TOKEN`/`OMS_GH_TOKEN`/`CHATDESK_GH_TOKEN` set from DB-sourced config).
+- Restart worker; verify `gh` CLI still works (env vars like `<ORG_A>_GH_TOKEN`, `<ORG_B>_GH_TOKEN`, etc. set from DB-sourced config).
 
 ### Phase 8 — `merge_pull_request` sensitive verification
 
-- Smoke: with App flow installed, send "[smoke github-app] merge o PR #X em AcmeBooks/ecomm" via Slack DM.
-- Expected: agent asks for approval (always_sensitive policy fires) before calling `mcp__github-app-fnlivros__merge_pull_request`.
+- Smoke: with App flow installed, send "[smoke github-app] merge PR #X in <org>/<repo>" via Slack DM.
+- Expected: agent asks for approval (always_sensitive policy fires) before calling `mcp__github-app-<org-slug>__merge_pull_request`.
 - DB: `approvals_log` row with the approval request.
 
 ### Phase 9 — Quality gate, commit

@@ -44,7 +44,7 @@ Five concrete UX/maintenance gaps remain after PR 2:
 
 - **Compile must stay green at every phase commit.** Phase ordering (Q5 decision): #5+#6 together → #7 → #1+#2. Each commit ends in green typecheck.
 - **Quality gate must pass.** `pnpm run quality-gate` (lint + typecheck + tests across 8 workspaces) green by end of the PR. Tests for deleted modules are deleted; tests for kept modules with reduced surface area get adjusted.
-- **Docker boot must remain clean.** `pnpm run docker:build && PROFILE=fn pnpm run docker:up` produces the same `connector_gate_enabled` + `mcp_loaded` + `zeno_online` log sequence after the changes.
+- **Docker boot must remain clean.** `pnpm run docker:build && PROFILE=<your-profile> pnpm run docker:up` produces the same `connector_gate_enabled` + `mcp_loaded` + `zeno_online` log sequence after the changes.
 - **Spec 0050 contract preserved.** The single connector-permission gate stays the only guardrail; nothing in this spec re-introduces a policy chain.
 - **Modal pattern: ONE generic `ConfirmModal` component** parameterized by a `requireTypeToConfirm` prop. Uninstall uses it WITH type-to-confirm (irreversible action — the connector's secrets, tool permissions, and DB row vanish on confirm). Reset tool permissions uses it WITHOUT type-to-confirm (reversible — defaults can be re-applied via refresh-tools or by editing the toggle individually).
 - **Constitution principles:** Reversibility first (each commit revertible), One decision at a time (this is the implementation only — the architecture is in 0049), YAGNI (no premature abstractions or speculative state).
@@ -119,7 +119,7 @@ Five concrete UX/maintenance gaps remain after PR 2:
       - If `connector.slug.startsWith('github-app-')` (or equivalently, `connector.appId != null`) → `navigate({ to: '/connectors/github-app' })`.
       - Otherwise → `navigate({ to: '/connectors' })`.
 - [ ] **Quality gate green** across all 8 workspaces.
-- [ ] **Docker boot** (fn profile) clean — `connector_gate_enabled`, `mcp_loaded` count=4 (chatdesk-brasil installation), no errors.
+- [ ] **Docker boot** (operator's profile) clean — `connector_gate_enabled`, `mcp_loaded` count=4 (sample installation), no errors.
 - [ ] **Net diff** is reduction-heavy: ~600+ lines removed across worker (~150), dashboard (~250), api (~150), tests (~100). Net additions limited to the new `confirm-modal.tsx` (~80 lines) and the spec/plan/tasks docs.
 
 ## Risks and Mitigations

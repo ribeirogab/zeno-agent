@@ -17,7 +17,7 @@ Eight phases. Each ends with a green `pnpm run quality-gate`.
 ### Task 1.1: Author the catalog JSON
 
 - [ ] Step 1: Create `agent/connectors-catalog.json` with the eight entries listed in spec 0029 §Initial catalog (linear, notion, granola, sentry, github, slack, google-drive, cloudflare). Use the shape in spec 0034 §Catalog file.
-- [ ] Step 2: For each entry, populate: `id`, `name`, `description`, `icon` (filename), `docsUrl`, `transport`, `transportConfig` (`url` for remote / `command`+`args` for stdio), `secrets[]`, `tools[]`, `tags[]`. Reasonable defaults from spec 0029 §Catalog and from existing `profile/fn/mcp.json` references.
+- [ ] Step 2: For each entry, populate: `id`, `name`, `description`, `icon` (filename), `docsUrl`, `transport`, `transportConfig` (`url` for remote / `command`+`args` for stdio), `secrets[]`, `tools[]`, `tags[]`. Reasonable defaults from spec 0029 §Catalog and from existing `profiles/<example>/mcp.json` references.
 - [ ] Step 3: Manual sanity check: `cat agent/connectors-catalog.json | jq . > /dev/null` — JSON parses cleanly.
 - [ ] Step 4: Commit: `feat(catalog): initial connectors-catalog.json with 8 entries`.
 
@@ -269,7 +269,7 @@ Eight phases. Each ends with a green `pnpm run quality-gate`.
 - [ ] Step 3: ConnectionSection: render URL or command/args based on transport. Iterate masked secrets; render eye icon hooked to `useRevealSecret`. Edit affordance opens an inline edit form (re-uses the secret-edit modal from `apps/design` via a route or inline overlay; pick the simpler option).
 - [ ] Step 4: ToolPermissionsSection: groups by category, decisionToggle per tool wired to `useSetToolPermission`, bulk dropdown wired to `useSetBulkPermission`. Compute "mixed" when individual decisions disagree.
 - [ ] Step 5: ActivitySection: feed prop sourced from `useConnectorActivity`.
-- [ ] Step 6: Visual diff against `apps/design/.../connectors/{linear,notion,fn-scrum}`. The three states are now driven by data — `enabled+lastError=null` looks like Linear, `enabled+lastError=non-null` looks like Notion, `pending` looks like fn-scrum.
+- [ ] Step 6: Visual diff against `apps/design/.../connectors/{linear,notion,acme-scrum}`. The three states are now driven by data — `enabled+lastError=null` looks like Linear, `enabled+lastError=non-null` looks like Notion, `pending` looks like acme-scrum.
 - [ ] Step 7: Commit: `feat(dashboard): /connectors/:id detail screen wired to live data`.
 
 ### Task 7.6: Modals

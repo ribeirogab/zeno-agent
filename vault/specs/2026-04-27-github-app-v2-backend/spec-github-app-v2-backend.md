@@ -31,9 +31,9 @@ Rationale:
 **Decision: Option A — 1-shot SQL migration no boot.**
 
 Rationale:
-- Single user (operator) com 4 linhas conhecidas. Migration roda 1× no boot do worker, never again.
+- Single user with 4 known rows. Migration roda 1× no boot do worker, never again.
 - Idempotente: checa se a linha em `connector_apps` já existe antes de inserir.
-- Risco real (migration tem bug) é mitigado pelo backup do `.db` em volume Docker (`workspace-fn`).
+- Risco real (migration tem bug) é mitigado pelo backup do `.db` em volume Docker (`workspace-<your-profile>`).
 - Lazy migration (Option B) duplicaria code paths permanentemente sem ganho real.
 - Re-install manual (Option C) é fricção operacional gratuita.
 
@@ -78,7 +78,7 @@ Rationale:
 
 ## Context
 
-After spec 0042 shipped (commit `dcfcd2a`), 4 `github-app-*` connectors live on the `fn` profile DB with all 5 reserved-key secrets duplicated per row. The dashboard has no UI for managing them; spec 0043 defined that visual design across 10 artboards. This spec implements the **backend foundation** that 0045/0046 will drive from the UI.
+After spec 0042 shipped (commit `dcfcd2a`), 4 `github-app-*` connectors live on the the operator's profile DB with all 5 reserved-key secrets duplicated per row. The dashboard has no UI for managing them; spec 0043 defined that visual design across 10 artboards. This spec implements the **backend foundation** that 0045/0046 will drive from the UI.
 
 Beyond schema cleanup and hot-reload, this spec also extracts JWT signing into a shared package — both the worker (token cache) and the API (install/test/discover endpoints) need the same primitives. Current state: `apps/worker/src/github/app-auth.ts` owns everything; API has no access.
 
@@ -107,7 +107,7 @@ This spec resolves all of the above before any UI work begins.
 
 ## Constraints
 
-- **Backward compatibility window: zero.** Migration is 1-shot at boot. The yaml fallback in `loadGitHubAppFromYaml` is removed (the `fn` profile yaml was already moved to `tmp/legacy-github-app/` in spec 0042; no other profile uses it).
+- **Backward compatibility window: zero.** Migration is 1-shot at boot. The yaml fallback in `loadGitHubAppFromYaml` is removed (the the operator's profile yaml was already moved to `tmp/legacy-github-app/` in spec 0042; no other profile uses it).
 - **Sequential dependency on spec 0043.** Visual SOT for artboards exists before this spec ships.
 - **No breaking changes to existing `connector_*` shape.** New columns are additive: `connectors.app_id` is added as nullable FK. Standard catalog connectors leave it null.
 - **Single transaction** for all multi-write operations: install (creates `connector_apps` row + N connector rows + N×3 secret rows in one BEGIN…COMMIT), uninstall (cascade via FK).
@@ -259,14 +259,14 @@ Existing endpoints (`POST /test`, `POST /:id/test`, install) remain unchanged.
 - Migration is idempotent (running twice doesn't fail or duplicate data).
 - yaml fallback removed; `loadGitHubAppFromYaml` deleted.
 - `github-mcp-server --version` health check at boot.
-- All 8 user stories pass smoke (`fn` profile, redeploy after migration ships).
+- All 8 user stories pass smoke (the operator's profile, redeploy after migration ships).
 - Spec passes 3 review rounds.
 
 ## Risks and Mitigations
 
 | Risk | Mitigation |
 |---|---|
-| Migration fails mid-flight, DB ends up in mixed state | Wrap in `BEGIN EXCLUSIVE; … COMMIT;`. `.db` backup in volume `workspace-fn` allows rollback. Migration test catches before ship. |
+| Migration fails mid-flight, DB ends up in mixed state | Wrap in `BEGIN EXCLUSIVE; … COMMIT;`. `.db` backup in the workspace volume allows rollback. Migration test catches before ship. |
 | `packages/github-app/` adds tooling overhead | Pattern already established (`mcp-discover`, `storage`, `logger`). Marginal cost. |
 | Live GitHub API tests flaky in CI | Tag `@live` and skip in default CI; run manually in pre-release. Document in package README. |
 | Hot-reload races: handler runs before `GitHubAppAuth` exists (first install) | Bootstrap on first install: `app_install` command handler creates and stores the instance in worker-singleton. Subsequent commands find it via the singleton. |
@@ -300,7 +300,7 @@ All resolved during brainstorming.
 
 1. **Phase 0**: Spec docs + 3 reviews (this).
 2. **Phase 1**: Create `packages/github-app/` package — JWT signing + GitHub API client + types + unit tests.
-3. **Phase 2**: Schema migration — write migration SQL + migration test (using a fixture DB matching the current `fn` shape).
+3. **Phase 2**: Schema migration — write migration SQL + migration test (using a fixture DB matching the current operator profile shape).
 4. **Phase 3**: Refactor `apps/worker/src/github/app-auth.ts`:
    - Use `packages/github-app` for JWT/API.
    - Add 5 surgical mutation methods.
@@ -312,12 +312,12 @@ All resolved during brainstorming.
 7. **Phase 6**: New API routes under `/catalog/github-app/*` — test, install, discover, installations, rotate-pem, uninstall-app. Integration tests (mock fetch).
 8. **Phase 7**: Health check at boot — `github-mcp-server --version` runs in the existing `healthChecks` flow; fail-fast if missing.
 9. **Phase 8**: `@live` e2e tests — 1-2 tests using `tmp/legacy-github-app/github-app.pem` against real GitHub API.
-10. **Phase 9**: Quality gate green. Smoke against `fn` profile (migration runs, refresh-tools works, install endpoint validates, rotate updates atomically).
+10. **Phase 9**: Quality gate green. Smoke against the operator's profile (migration runs, refresh-tools works, install endpoint validates, rotate updates atomically).
 11. **Phase 10**: `status: shipped`, commit on feature branch, PR.
 
 ## Definition of Done
 
-- All schema changes shipped; migration green on `fn` profile DB.
+- All schema changes shipped; migration green on the operator's profile DB.
 - `packages/github-app/` published as workspace package.
 - 5 surgical mutations + intercept + 6 endpoints implemented + tested.
 - 3 clean reviews.

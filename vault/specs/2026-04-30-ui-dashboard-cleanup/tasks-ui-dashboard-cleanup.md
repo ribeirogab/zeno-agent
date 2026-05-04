@@ -81,14 +81,14 @@ created: 2026-04-30
 - [ ] Step 2: In `apps/dashboard/src/components/layout/dashboard-sidebar.tsx:295-315` — replace the hardcoded `User()` body. Pull `useSettings()`, derive: `displayName = profile.name ?? profile.slug`, `subtitle = profile.slug + ' · profile'`, `initials = (profile.name ?? profile.slug).slice(0, 2).toUpperCase()`. For multi-word `name` (contains space), initials = `firstWord[0] + lastWord[0]`.
 - [ ] Step 3: Drop the strings `"alex"`, `"AL"`, `"single-owner · hmac"` entirely.
 - [ ] Step 4: While settings is loading, render a skeleton placeholder (use existing `<Skeleton />` from `@zeno/ui` if present).
-- [ ] Step 5: Test the rendered output side-by-side with the Paper artboard `0066 · /connectors (with Playwright)` (sidebar bottom-left should show `operator` + `fn · profile` when running against the fn profile).
+- [ ] Step 5: Test the rendered output side-by-side with the Paper artboard `0066 · /connectors (with Playwright)` (sidebar bottom-left should show `acme` + `<example> · profile` when running against the operator profile).
 - [ ] Step 6: Commit — `feat(dashboard): user row reads name+slug from USER.md (spec 0066 A)`.
 
 ### Task A4: Frontend test — user row contract
 
-- [ ] Step 1: In `apps/dashboard/tests/components/dashboard-sidebar.test.tsx` — add a test that mocks `useSettings` to return `{ profile: { name: 'Operator', slug: 'fn' }, ... }` and asserts the user row renders `Operator`, `fn · profile`, `GA`.
+- [ ] Step 1: In `apps/dashboard/tests/components/dashboard-sidebar.test.tsx` — add a test that mocks `useSettings` to return `{ profile: { name: 'Operator', slug: '<example>' }, ... }` and asserts the user row renders `Operator`, `<example> · profile`, `GA`.
 - [ ] Step 2: Add a fallback test for `{ name: null, slug: 'default' }` → renders `default`, `default · profile`, `DE`.
-- [ ] Step 3: Add a multi-word test: `{ name: 'Maria José', slug: 'fn' }` → initials `MJ`.
+- [ ] Step 3: Add a multi-word test: `{ name: 'Maria José', slug: '<example>' }` → initials `MJ`.
 - [ ] Step 4: `pnpm --filter dashboard test -- dashboard-sidebar` — green.
 - [ ] Step 5: Commit — `test(dashboard): cover user row name+slug+initials (spec 0066 A)`.
 
@@ -149,7 +149,7 @@ created: 2026-04-30
 - [ ] Step 1: Wipe local Docker volume: `docker volume rm zeno-default_workspace-default` (or use a fresh profile dir).
 - [ ] Step 2: `pnpm run docker:build && pnpm run docker:up`.
 - [ ] Step 3: Open `http://localhost:3000`. Verify:
-  - Sidebar bottom shows `operator` (or whatever the active USER.md says) + `default · profile` + initials.
+  - Sidebar bottom shows `acme` (or whatever the active USER.md says) + `default · profile` + initials.
   - Sidebar nav has 7 items, no `sessions`.
   - `/connectors` page shows Playwright as first row in installed (`5 tools · default`, ACTIVE), and as first card in catalog with the official multicolor logo + "DEFAULT" gold pill.
 - [ ] Step 4: In Slack `#zeno`-equivalent channel — `@zeno-agent take a screenshot of https://example.com`. Verify worker logs show `mcp__playwright__browser_navigate` + `browser_take_screenshot` invocations and the agent replies with the screenshot data (or a confirmation message).

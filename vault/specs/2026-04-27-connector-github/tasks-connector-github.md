@@ -102,11 +102,11 @@ created: 2026-04-27
 
 ### Task 2.5: Manual smoke (Personal)
 
-- [ ] `pnpm run docker:build` + `PROFILE=fn pnpm run docker:up`.
+- [ ] `pnpm run docker:build` + `PROFILE=<your-profile> pnpm run docker:up`.
 - [ ] API bad token: `POST /api/connectors/catalog/github/test` with `Bearer ghp_INVALID` → `{ok: false, errorKind: 'auth'}`.
 - [ ] API real token → `{ok: true, tools: [<30+>]}`.
-- [ ] UI install at `http://localhost:3001/connectors` (port 3001 is the `fn` profile's mapping per `infra/docker-compose.fn.yml`).
-- [ ] Send DM to `D0EXAMPLE000`: `[smoke gh-personal] me lista 5 issues abertas em octocat/zeno-agent`.
+- [ ] UI install at `http://localhost:3001/connectors` (port 3001 is the example mapping in `infra/docker-compose.<profile>.yml` for non-default profiles).
+- [ ] Send DM to the operator's Slack DM channel: `[smoke gh-personal] list 5 open issues in your-github-username/zeno-agent`.
 - [ ] Wait ≤90s. Verify reply contains structured issue data.
 - [ ] DB: `connector_invocations` row with `tool_name='mcp__github__list_issues'` (or similar) and `result='ok'`.
 
@@ -178,17 +178,17 @@ created: 2026-04-27
 - [ ] Decide: extend existing `POST /api/connectors` with a new `source: 'github-app'` discriminator OR add a dedicated `POST /api/connectors/install/github-app`.
 - [ ] Implementation: accepts `{appId, pem, installations: [{name, id, envVar}]}`, validates each installation by minting a test token, then in one transaction creates N connector rows with reserved-key secrets (`__GITHUB_APP_ID__`, `__GITHUB_APP_PEM__`, `__GITHUB_INSTALLATION_ID__`, `__GITHUB_INSTALLATION_NAME__`, `__GITHUB_ENV_VAR__`).
 - [ ] **Slug derivation rule (must lowercase)**: the connector slug for each installation is `github-app-` + the installation name lowercased + non-alphanumeric/hyphen chars replaced with `-` (collapse adjacent hyphens, trim leading/trailing). Examples:
-  - `AcmeBooks` → `github-app-fnlivros`
-  - `AcmeShop` → `github-app-quickshoperp`
-  - `Flavia-Nasser-OMS` → `github-app-flavia-nasser-oms`
-  - `chatdesk-brasil` → `github-app-chatdesk-brasil`
+  - `AcmeBooks` → `github-app-acmebooks`
+  - `AcmeShop` → `github-app-acmeshop`
+  - `Acme-OMS` → `github-app-acme-oms`
+  - `acme-support` → `github-app-acme-support`
 - [ ] Why lowercase: the slug becomes the connector's `id`-equivalent visible in tool names (`mcp__<slug>__<tool>`); the `catalogEntrySchema.id` regex `/^[a-z0-9][a-z0-9-]*$/` (`apps/api/src/lib/catalog-loader.ts:32`) is lowercase-only. Tool names also need to be lowercase for consistent always_sensitive matching (Task 7.4).
 
 ### Task 5.4: Worker `app-auth.ts` reads from DB
 
 - [ ] Refactor `loadGitHubAppConfig(connectorRepo)`: query connectors where `slug LIKE 'github-app-%'`, group by appId (read from `__GITHUB_APP_ID__` secret), build a `GitHubAppAuth` instance per app.
 - [ ] The PEM content lives in the `__GITHUB_APP_PEM__` secret (not a file path anymore). Refactor `GitHubAppAuth` constructor to accept `privateKey: string` directly instead of `privateKeyPath: string` (currently it reads the file via `readFileSync`). Backward compat: keep `privateKeyPath` optional and fall back to file read if `privateKey` not provided.
-- [ ] Each connector still produces a `ACME_GH_TOKEN`-style env var at bootstrap time, sourced from the `__GITHUB_INSTALLATION_NAME__`/`__GITHUB_INSTALLATION_ID__` secrets and the connector's mapping to its env var name. The env var name comes from a fifth reserved key `__GITHUB_ENV_VAR__` (e.g., `ACME_GH_TOKEN`) — add this to the reserved-keys list of secrets stored per github-app connector.
+- [ ] Each connector still produces a `<ORG>_GH_TOKEN`-style env var at bootstrap time, sourced from the `__GITHUB_INSTALLATION_NAME__`/`__GITHUB_INSTALLATION_ID__` secrets and the connector's mapping to its env var name. The env var name comes from a fifth reserved key `__GITHUB_ENV_VAR__` (e.g., `ACME_GH_TOKEN`) — add this to the reserved-keys list of secrets stored per github-app connector.
 
 ### Task 5.4b: `mcp-build.ts` intercepts `github-app-*` connectors before `toStdioConfig`
 
@@ -213,25 +213,25 @@ created: 2026-04-27
 ### Task 5.6: Smoke per-installation
 
 - [ ] `pnpm run docker:build` + redeploy.
-- [ ] UI install at `http://localhost:3001/connectors`: open the GitHub App card, paste `app_id`, upload `.pem`, add 4 installations (AcmeBooks, AcmeShop, Flavia-Nasser-OMS, chatdesk-brasil) with their respective installation IDs and env var names from the existing yaml. Click Test → expect 4 successful probes (one per installation).
-- [ ] Click Add → 4 connector rows appear in the installed section, slugs `github-app-fnlivros`, `github-app-quickshoperp`, `github-app-flavia-nasser-oms`, `github-app-chatdesk-brasil`.
+- [ ] UI install at `http://localhost:3001/connectors`: open the GitHub App card, paste `app_id`, upload `.pem`, add 4 installations (e.g., AcmeBooks, AcmeShop, Acme-OMS, acme-support) with their respective installation IDs and env var names from the existing yaml. Click Test → expect 4 successful probes (one per installation).
+- [ ] Click Add → 4 connector rows appear in the installed section, slugs `github-app-acmebooks`, `github-app-acmeshop`, `github-app-acme-oms`, `github-app-acme-support`.
 - [ ] DB: `SELECT slug, status FROM connectors WHERE slug LIKE 'github-app-%'` returns 4 rows. `SELECT key FROM connector_secrets WHERE connector_id IN (SELECT id FROM connectors WHERE slug LIKE 'github-app-%') GROUP BY key` returns the 5 reserved keys (`__GITHUB_APP_ID__`, `__GITHUB_APP_PEM__`, `__GITHUB_INSTALLATION_ID__`, `__GITHUB_INSTALLATION_NAME__`, `__GITHUB_ENV_VAR__`).
 - [ ] Each connector's tools[] populated by refresh-tools.
-- [ ] Send DM to `D0EXAMPLE000`: `[smoke github-app] me lista 3 PRs abertos em AcmeBooks/ecomm`.
-- [ ] Wait ≤90s. Verify reply contains structured PR data and `connector_invocations` has a row with `tool_name='mcp__github-app-fnlivros__list_pull_requests'` (or whatever name regen produced) and `result='ok'`.
+- [ ] Send DM to the operator's Slack DM channel: `[smoke github-app] list 3 open PRs in AcmeBooks/ecomm`.
+- [ ] Wait ≤90s. Verify reply contains structured PR data and `connector_invocations` has a row with `tool_name='mcp__github-app-acmebooks__list_pull_requests'` (or whatever name regen produced) and `result='ok'`.
 
 ## Phase 7 — Migration of yaml + .pem
 
 ### Task 7.1: Move legacy files
 
 - [ ] `mkdir -p tmp/legacy-github-app`.
-- [ ] `mv profiles/fn/skills/acme/github-app.pem tmp/legacy-github-app/github-app.pem`.
-- [ ] `mv profiles/fn/skills/acme/github.md tmp/legacy-github-app/github.md` (informational doc; the active SKILL.md remains in place).
+- [ ] `mv profiles/<your-profile>/skills/<owner>/github-app.pem tmp/legacy-github-app/github-app.pem`.
+- [ ] `mv profiles/<your-profile>/skills/<owner>/github.md tmp/legacy-github-app/github.md` (informational doc; the active SKILL.md remains in place).
 - [ ] Add `tmp/legacy-github-app/README.md` with origin info: where each file came from, the date moved, the spec ID (0042), and a note that the same data now lives in the DB via dashboard.
 
 ### Task 7.2: Remove yaml blocks
 
-- [ ] Edit `profiles/fn/config.yaml`: remove the entire `github_app:` block (lines 11-26 today, including `private_key_file` and `installations`). Note: `private_key_file` only exists in the profile layer — the agent layer doesn't have it, so the agent edit below is `app_id`-only.
+- [ ] Edit `profiles/<your-profile>/config.yaml`: remove the entire `github_app:` block (lines 11-26 today, including `private_key_file` and `installations`). Note: `private_key_file` only exists in the profile layer — the agent layer doesn't have it, so the agent edit below is `app_id`-only.
 - [ ] Edit `agent/config.yaml`: remove `github_app.app_id`. Keep `github_app.git_identity` for now (Task 7.3 moves it elsewhere).
 
 ### Task 7.3: Preserve `git_identity` (independent of github_app config)
@@ -246,29 +246,29 @@ created: 2026-04-27
 
 ### Task 7.4: Update `always_sensitive` for App per-installation tools
 
-- [ ] Edit `profiles/fn/config.yaml` `approvals.always_sensitive` list. The current entry `mcp__github__merge_pull_request` only catches the Personal connector. Add per-installation entries for the App connectors:
+- [ ] Edit `profiles/<your-profile>/config.yaml` `approvals.always_sensitive` list. The current entry `mcp__github__merge_pull_request` only catches the Personal connector. Add per-installation entries for the App connectors:
   ```yaml
   always_sensitive:
     - mcp__github__merge_pull_request
-    - mcp__github-app-fnlivros__merge_pull_request
-    - mcp__github-app-quickshoperp__merge_pull_request
-    - mcp__github-app-flavia-nasser-oms__merge_pull_request
-    - mcp__github-app-chatdesk-brasil__merge_pull_request
+    - mcp__github-app-acmebooks__merge_pull_request
+    - mcp__github-app-acmeshop__merge_pull_request
+    - mcp__github-app-acme-oms__merge_pull_request
+    - mcp__github-app-acme-support__merge_pull_request
   ```
 - [ ] Why explicit (not wildcard): `makeAlwaysSensitivePolicy` (`apps/worker/src/guardrails/policies/always-sensitive.ts:17`) supports `prefix*` (suffix wildcards only via `endsWith('*')` + `startsWith`). A pattern like `mcp__github-app-*__merge_pull_request` does NOT match — middle wildcards aren't supported. Listing each installation explicitly is the working path.
 
 ### Task 7.5: Verify migration
 
-- [ ] Restart worker. `gh` CLI still works (env vars `ACME_GH_TOKEN`, `QS_GH_TOKEN`, `OMS_GH_TOKEN`, `CHATDESK_GH_TOKEN` still set from DB-sourced config).
-- [ ] Send DM to `D0EXAMPLE000`: a `gh`-CLI-using question (e.g., "use a code-review skill to look at the latest commit on main"). Verify the agent uses `gh` CLI and returns expected data — confirming env vars are still being set by the worker boot from DB sourcing.
+- [ ] Restart worker. `gh` CLI still works (env vars like `<ORG_A>_GH_TOKEN`, `<ORG_B>_GH_TOKEN`, etc. still set from DB-sourced config).
+- [ ] Send DM to the operator's Slack DM channel: a `gh`-CLI-using question (e.g., "use a code-review skill to look at the latest commit on main"). Verify the agent uses `gh` CLI and returns expected data — confirming env vars are still being set by the worker boot from DB sourcing.
 
 ## Phase 8 — `merge_pull_request` sensitive verification
 
 ### Task 8.1: Smoke
 
-- [ ] Send DM to `D0EXAMPLE000`: `[smoke gh-app sensitive] please merge PR #<low-impact PR number> in AcmeBooks/ecomm` (pick a real PR you control and can re-create if accidentally merged).
+- [ ] Send DM to the operator's Slack DM channel: `[smoke gh-app sensitive] please merge PR #<low-impact PR number> in <org>/<repo>` (pick a real PR you control and can re-create if accidentally merged).
 - [ ] Expected: agent does NOT auto-merge; classifier_gate routes to approver (or the policy chain blocks at `always_sensitive`). Slack message from approver flow appears.
-- [ ] DB: `approvals_log` row with `tool_name='mcp__github-app-fnlivros__merge_pull_request'` and `policy_that_gated='always_sensitive'`.
+- [ ] DB: `approvals_log` row with `tool_name='mcp__github-app-<org-slug>__merge_pull_request'` and `policy_that_gated='always_sensitive'`.
 - [ ] If the agent did auto-merge: STOP. Add the missing per-installation explicit entry to `profile/config.yaml`'s `approvals.always_sensitive` list. Do NOT use `mcp__github-app-*__merge_pull_request` — the policy at `apps/worker/src/guardrails/policies/always-sensitive.ts:17` only supports SUFFIX wildcards (`pattern.endsWith('*')` + `startsWith` match), so a middle-wildcard pattern would not match. Document the fix as a learning + revert the merge.
 
 ## Phase 9 — Close

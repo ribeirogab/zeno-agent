@@ -12,7 +12,7 @@ created: 2026-04-28
 >
 > Per Rule 2 of the cleanup contract: after thinking a subtask is done, review 3× and reset the counter on any finding. Per Rule 4: implement without asking permission for trivia; only stop for `git push` / `gh pr create`.
 
-> **⚠️ Phase B Task B.2 + B.4 + B.5 superseded post-R2 review.** The shipped gate API is `runInCronContext(opts, fn)` driven by AsyncLocalStorage, NOT the `preInjectCronSkills` / `pendingCronSkillIds` instance-field pattern described in the original code blocks below. See `spec.md` lines 48 + 61 + 95 + 100 + 148 for the canonical mechanism, and `apps/worker/src/guardrails/connector-gated-backend.ts` + `apps/worker/src/cron/runner.ts` for the implementation. R2 caught two bugs in the original design (throwaway wrapper + cron_run_now race) that ALS + lazy hook ref fix together. Phases A, C, D, E, F, G, H below are unchanged.
+> **⚠️ Phase B Task B.2 + B.4 + B.5 superseded post-R2 review.** The shipped gate API is `runInCronContext(opts, callback)` driven by AsyncLocalStorage, NOT the `preInjectCronSkills` / `pendingCronSkillIds` instance-field pattern described in the original code blocks below. See `spec.md` lines 48 + 61 + 95 + 100 + 148 for the canonical mechanism, and `apps/worker/src/guardrails/connector-gated-backend.ts` + `apps/worker/src/cron/runner.ts` for the implementation. R2 caught two bugs in the original design (throwaway wrapper + cron_run_now race) that ALS + lazy hook ref fix together. Phases A, C, D, E, F, G, H below are unchanged.
 
 ---
 
@@ -349,13 +349,13 @@ created: 2026-04-28
     it('listForCron returns linked skills sorted by name', () => {
       const cron = seedCron('daily-standup');
       const a = skills.create({ name: 'aws-debug', description: 'd', body: 'b' });
-      const f = skills.create({ name: 'fn-code-review', description: 'd', body: 'b' });
+      const f = skills.create({ name: 'code-review', description: 'd', body: 'b' });
       const z = skills.create({ name: 'zeta', description: 'd', body: 'b' });
       links.add(cron.id, z.id);
       links.add(cron.id, a.id);
       links.add(cron.id, f.id);
       const linked = links.listForCron(cron.id);
-      expect(linked.map((x) => x.name)).toEqual(['aws-debug', 'fn-code-review', 'zeta']);
+      expect(linked.map((x) => x.name)).toEqual(['aws-debug', 'code-review', 'zeta']);
     });
 
     it('listForSkill returns crons linked to a skill', () => {
@@ -1255,12 +1255,12 @@ created: 2026-04-28
       const captures: { userMessage?: string; preInject?: { skills?: string[] } } = {};
       const runner = makeRunner(repos, captures);
       const cron = repos.crons.create({ name: 'c', prompt: 'do it', schedule: '* * * * *', source: 'chat' });
-      const skill = repos.skills.create({ name: 'fn-flow', description: 'd', body: 'BODY' });
+      const skill = repos.skills.create({ name: 'example-flow', description: 'd', body: 'BODY' });
       repos.cronSkills.add(cron.id, skill.id);
       await runner.runOnce(cron);
       expect(captures.userMessage).toContain('[zeno_context]');
       expect(captures.userMessage).toContain('linked_skills:');
-      expect(captures.userMessage).toContain('## fn-flow');
+      expect(captures.userMessage).toContain('## example-flow');
       expect(captures.userMessage).toContain('BODY');
       expect(captures.userMessage).toMatch(/\[\/zeno_context\]\n\ndo it$/);
       expect(captures.preInject?.skills).toEqual([skill.id]);
@@ -1653,9 +1653,9 @@ created: 2026-04-28
 
 ### Task E.2 — Docker boot
 
-- [ ] **E.2.1** `PROFILE=fn pnpm -w run docker:build`. Expect: clean build.
+- [ ] **E.2.1** `PROFILE=<your-profile> pnpm -w run docker:build`. Expect: clean build.
 
-- [ ] **E.2.2** `PROFILE=fn pnpm -w run docker:up`. Wait ~30s for health.
+- [ ] **E.2.2** `PROFILE=<your-profile> pnpm -w run docker:up`. Wait ~30s for health.
 
 - [ ] **E.2.3** `pnpm -w run docker:logs | head -200`. Look for:
   - `migrations_applied { applied: [16, 17] }` (or similar — the runMigrations log shape)
@@ -1676,11 +1676,11 @@ created: 2026-04-28
 
 ---
 
-## Phase F — E2E via Slack (fn profile)
+## Phase F — E2E via Slack (operator's profile)
 
 ### Task F.1 — Setup
 
-- [ ] **F.1.1** Confirm fn profile has the working `github-app-fnlivros` connector + the `fn-code-review` skill installed. (Both from spec 0053 — should already be there.)
+- [ ] **F.1.1** Confirm the operator's profile has the working `github-app-acmebooks` connector + the `code-review` skill installed. (Both from spec 0053 — should already be there.)
 
 - [ ] **F.1.2** Create `tmp/spec-0054-test-results.md` skeleton:
   ```markdown
@@ -1690,7 +1690,7 @@ created: 2026-04-28
   |---|---|---|---|---|---|
   ```
 
-- [ ] **F.1.3** `PROFILE=fn pnpm -w run docker:up`. Verify Slack listener is connected (`slack_realtime_connected` log).
+- [ ] **F.1.3** `PROFILE=<your-profile> pnpm -w run docker:up`. Verify Slack listener is connected (`slack_realtime_connected` log).
 
 ### Task F.2 — Run E2E scenarios
 
@@ -1699,10 +1699,10 @@ For each scenario below, dispatch a `general-purpose` subagent to (a) create the
 | # | Scenario | Setup | Expected outcome |
 |---|---|---|---|
 | 1 | Cron with no links runs as before | new cron `e2e-1`, prompt "post oi", no links | `cron_run_success`, no `[zeno_context]` block in trace, Slack message "oi" |
-| 2 | Cron with 1 linked skill | `e2e-2`, prompt "review the most recent PR on AcmeBooks/ecommerce-frontend", link `fn-code-review` skill | Agent follows the fn-code-review playbook (formatting matches), `cron_skill_injected` log fires |
-| 3 | Cron with 1 linked connector | `e2e-3`, prompt "list 3 PRs", link `github-app-fnlivros` | Agent uses GitHub connector, no `cron_used_unlinked_connector` log |
+| 2 | Cron with 1 linked skill | `e2e-2`, prompt "review the most recent PR on AcmeBooks/ecommerce-frontend", link `code-review` skill | Agent follows the code-review playbook (formatting matches), `cron_skill_injected` log fires |
+| 3 | Cron with 1 linked connector | `e2e-3`, prompt "list 3 PRs", link `github-app-acmebooks` | Agent uses GitHub connector, no `cron_used_unlinked_connector` log |
 | 4 | Cron with linked connector but uses unlinked one | `e2e-4`, prompt "list issues on Linear AND PRs on GitHub", link only `linear` | Agent uses both, `cron_used_unlinked_connector` log fires once for github (per (runId, slug, toolName)) |
-| 5 | Cron with linked skill + connector both | `e2e-5`, prompt review-style, link `fn-code-review` + `github-app-fnlivros` | Both surface in `[zeno_context]`, anti-double-inject (skill body appears once, not twice) |
+| 5 | Cron with linked skill + connector both | `e2e-5`, prompt review-style, link `code-review` + `github-app-acmebooks` | Both surface in `[zeno_context]`, anti-double-inject (skill body appears once, not twice) |
 | 6 | Cron force-inject persists across no-tool-call runs | `e2e-6`, prompt "what is your purpose? answer in one sentence" with linked skill | Skill body present in agent reasoning even though no tool fires |
 | 7 | Truncation kicks in at 20 KB | `e2e-7`, link 4 large skills (mock big skills if needed) | `cron_skill_truncated` log fires with `droppedSkills` non-empty |
 | 8 | Skill deletion cascades the link | `e2e-8`, link a skill, delete the skill via dashboard | next cron tick has no link, runs as before |
@@ -1715,7 +1715,7 @@ For each scenario below, dispatch a `general-purpose` subagent to (a) create the
 
 ### Task F.3 — Tear down
 
-- [ ] **F.3.1** Delete the e2e crons via the dashboard so the fn profile stays clean.
+- [ ] **F.3.1** Delete the e2e crons via the dashboard so the operator's profile stays clean.
 
 - [ ] **F.3.2** `pnpm -w run docker:down`.
 

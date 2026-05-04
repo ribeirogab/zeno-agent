@@ -48,7 +48,7 @@ The feature must:
 - **Textual approval parsing.** Only emoji reactions. If the user types "aprova" the bot keeps waiting.
 - **Approval revision.** Once a reaction is received, the decision is firm. Users cannot remove the reaction and replace it.
 - **Classifier caching.** Each sensitive call hits the classifier fresh. Haiku is cheap enough for MVP.
-- **Automated classifier quality evals.** Unit tests with fixed inputs cover correctness; FP/FN rate evaluation is a future spec if it becomes a real problem.
+- **Automated classifier quality evals.** Unit tests with fixed inputs cover correctness; false-positive / false-negative rate evaluation is a future spec if it becomes a real problem.
 - **Non-Slack channels.** The `Channel` interface is extended with `waitForReaction`, but only the Slack adapter implements it in this spec. Telegram / WhatsApp will implement it when those channels ship.
 
 ## Constraints

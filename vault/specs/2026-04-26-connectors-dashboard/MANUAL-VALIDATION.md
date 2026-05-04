@@ -13,8 +13,8 @@ A spec 0035 (suite e2e automatizada com 22 cenários + regra das 4 runs limpas) 
 ## 1. Boot smoke
 
 ```bash
-PROFILE=fn pnpm run docker:up
-PROFILE=fn pnpm run docker:logs | grep -E "mcp_json_ignored|mcp_loaded|zeno_online|guardrails_enabled" | head -10
+PROFILE=acme pnpm run docker:up
+PROFILE=acme pnpm run docker:logs | grep -E "mcp_json_ignored|mcp_loaded|zeno_online|guardrails_enabled" | head -10
 ```
 
 Esperado nos logs:

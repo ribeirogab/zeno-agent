@@ -105,7 +105,7 @@ run() {
   expect_eq "$count" "0" || return 1
 
   # No curl in worker log since the message ts
-  curl_hits=$(docker logs --since "${START_EPOCH}" zeno-fn-agent-1 2>&1 | grep -ci 'curl.*sentry.io')
+  curl_hits=$(docker logs --since "${START_EPOCH}" zeno-acme-agent-1 2>&1 | grep -ci 'curl.*sentry.io')
   expect_eq "$curl_hits" "0" || return 1
 }
 ```
@@ -204,12 +204,12 @@ This phase produces all ~50 scenario files.
 
 ## Risks / Open Decisions
 
-- **Driver-as-runner vs human-as-runner.** The matrix mostly automates, but G1.6 (modal copy when secret edited) and G7.4 (10s auto-hide in browser) require a real browser. **Decision:** the driver issues the API call equivalents and a parallel screenshot is captured manually by the operator (operator) for those two scenarios. Marked `[manual-screenshot]` in tasks.md.
+- **Driver-as-runner vs human-as-runner.** The matrix mostly automates, but G1.6 (modal copy when secret edited) and G7.4 (10s auto-hide in browser) require a real browser. **Decision:** the driver issues the API call equivalents and a parallel screenshot is captured manually by the operator for those two scenarios. Marked `[manual-screenshot]` in tasks.md.
 - **Sentry hosted MCP latency.** `npx -y @sentry/mcp-server` first-boot is slow (~10–30s). Each toggle-enable cycle re-spawns the MCP. To keep round runtime bounded, scenarios that only toggle but don't trigger a tool call rely on cached spawn (the worker keeps the MCP alive while enabled). **Mitigation:** the runner uses 90s waits for first-Slack-DM-after-enable and 60s thereafter.
 - **DB queries vs API queries.** Where possible, assert via the API (decoupled from schema). For cascade-on-delete (G6.3) we must query DB directly because there's no API surfacing of removed-row counts.
-- **Reveal rate-limiter reset.** The `fn` profile compose has a single service named `agent` (worker + API in one container). Restarting it flushes the in-memory `SecretRateLimiter` map. **Decision:** between rounds, run `docker compose -f infra/docker-compose.fn.yml restart agent`. Within a round, scenarios that re-reveal wait the documented 60s.
+- **Reveal rate-limiter reset.** The test profile compose has a single service named `agent` (worker + API in one container). Restarting it flushes the in-memory `SecretRateLimiter` map. **Decision:** between rounds, run `docker compose -f infra/docker-compose.acme.yml restart agent`. Within a round, scenarios that re-reveal wait the documented 60s.
 - **Coverage limitation: `ask` for non-owner.** Out of scope here. Tracked in §Coverage gaps and planned to be subsumed by spec `0035`.
 - **Snapshot of `last4`.** The round-reset block (spec §Round reset, step 9) extracts the `SENTRY_ACCESS_TOKEN` last4 from `00-baseline.json` and exports it as `$BASELINE_LAST4`, also persisted to `00-baseline-last4.txt`. Every scenario that mutates or polls the secret last4 (G4.2/G4.3, G5.3 setup+cleanup, G12.1/G12.2) references this single variable. There is no separate `secrets.json` file — `00-baseline.json` is the only baseline artefact.
-- **Host tooling assumption.** The runner uses `python3` (for the round-reset script) and `jq` (for inline JSON parsing inside `lib.sh`). Both must be on the PATH where `run.sh` executes. The fn host has them today; the runner's first action is a `command -v python3 jq` check that fails fast with a clear message if either is missing.
+- **Host tooling assumption.** The runner uses `python3` (for the round-reset script) and `jq` (for inline JSON parsing inside `lib.sh`). Both must be on the PATH where `run.sh` executes. The operator host has them today; the runner's first action is a `command -v python3 jq` check that fails fast with a clear message if either is missing.
 - **Operator ergonomics during destructive R3 group.** Uninstall + reinstall in R3 requires the real `SENTRY_ACCESS_TOKEN`. The runner pauses with a clear prompt: `paste SENTRY_ACCESS_TOKEN to stdin then press Enter` — token is consumed and never persisted to disk.
 - **Failure recovery without losing in-flight artifacts.** Fail-fast halts on first ✗. Artifacts up to that point are kept. The next attempt creates a fresh `run-<n>` directory (does not overwrite the failed one); the runner inspects `runs.json` to detect resumption vs fresh start. Failed runs are kept for forensic value.

@@ -41,7 +41,7 @@ Rationale: entity logic lives with the data layer; 1 fetch for the full listing;
 
 **Decision: Option B — `/connectors/github-app`. Revise spec 0043 accordingly.**
 
-The leading `_app` segment from spec 0043's C8 artboard text was illustrative. Catalog ids are unique (zod regex `^[a-z0-9][a-z0-9-]*$` + unique catalog file constraint), so collision with installed connector slugs isn't possible: `github-app` itself isn't an installed slug (Personal is `github`; installations are `github-app-fnlivros` etc.).
+The leading `_app` segment from spec 0043's C8 artboard text was illustrative. Catalog ids are unique (zod regex `^[a-z0-9][a-z0-9-]*$` + unique catalog file constraint), so collision with installed connector slugs isn't possible: `github-app` itself isn't an installed slug (Personal is `github`; installations are `github-app-acmebooks` etc.).
 
 URL stays clean. Spec 0043's C8 artboard text needs a 1-line update; PNG snapshot may be re-exported (visual content of the artboard doesn't change).
 
@@ -195,7 +195,7 @@ None. Spec 0044 already shipped the schema. This spec only adds:
     "statusAggregate": "active",
     "lastVerifiedAt": "2026-04-27T13:00:00Z",
     "installations": [
-      { "slug": "github-app-fnlivros", "displayName": "AcmeBooks", "status": "enabled", "lastVerifiedAt": "..." },
+      { "slug": "github-app-acmebooks", "displayName": "AcmeBooks", "status": "enabled", "lastVerifiedAt": "..." },
       ...
     ]
   },
@@ -226,10 +226,10 @@ Returns:
   "installations": [
     {
       "connectorId": "...",
-      "slug": "github-app-fnlivros",
+      "slug": "github-app-acmebooks",
       "displayName": "AcmeBooks",
       "installationId": "125887887",
-      "envVar": "ACME_GH_TOKEN",
+      "envVar": "ACMEBOOKS_GH_TOKEN",
       "status": "enabled",
       "lastVerifiedAt": "2026-04-27T13:00:00Z",
       "toolCount": 51
@@ -274,7 +274,7 @@ The race window for `installationsAvailable` listing fetches (M7's auto-discover
 |---|---|---|
 | UI1 | Dashboard | Open `/connectors`. Listing shows 1 row "GitHub App · 4 installations" with `4/4 ACTIVE` aggregate pill instead of 4 separate rows. Icon has gold "4" badge overlay (per C7 design). |
 | UI2 | Dashboard | Click the github-app row → navigate to `/connectors/github-app`. App detail page (C8) renders: header with title, app config block (`app_id` plain + PEM masked + REVEAL/ROTATE), installations table with 4 rows, footnote about per-installation tool permissions. |
-| UI3 | Dashboard | Click any installation row in the table → navigate to `/connectors/github-app-fnlivros` (existing connector detail route). C10 layout: breadcrumb shows `connectors / github-app / AcmeBooks`, inherited app callout in gold, per-installation fields (installation_id + env_var), tool permissions section with all 51 tools at default permissions. |
+| UI3 | Dashboard | Click any installation row in the table → navigate to `/connectors/github-app-acmebooks` (existing connector detail route). C10 layout: breadcrumb shows `connectors / github-app / AcmeBooks`, inherited app callout in gold, per-installation fields (installation_id + env_var), tool permissions section with all 51 tools at default permissions. |
 | UI4 | Dashboard | Open `/connectors`, click "GitHub App" in catalog → M6 modal opens (custom component routed via registry). Enter `app_id`, paste/upload PEM. Click TEST CONNECTION → backend signs JWT, returns "credentials valid · 4 installations available · AcmeBooks · ..." green strip. Click INSTALL APP → POST → row created in `connector_apps` → modal closes → navigate to `/connectors/github-app` (which shows C9 empty state per spec 0046). |
 | UI5 | Migration | Migration id 7 runs at next worker boot → backfills `connector_tool_permissions` for existing 4 rows → dashboard now shows "51 tools" per installation row in C8 + C10 instead of 0. |
 | UI6 | Re-install guard | If user opens M6 while `connector_apps` already has a github-app row → backend returns 409 → UI surfaces error inline with link "Already installed; view details ↗" routing to `/connectors/github-app`. |
@@ -332,7 +332,7 @@ All resolved during brainstorming.
 9. **Phase 8**: C8 App detail page (route + page + sections). UI test.
 10. **Phase 9**: C10 inherited-app-callout component injected into the existing connector detail page. UI test.
 11. **Phase 10**: Patch spec 0043 (1-line URL update from `/connectors/_app/github-app` to `/connectors/github-app`).
-12. **Phase 11**: Quality gate green. Smoke against `fn` profile (re-deploy, verify 0-tools fix, verify M6 install, verify navigation).
+12. **Phase 11**: Quality gate green. Smoke against the operator's profile (re-deploy, verify 0-tools fix, verify M6 install, verify navigation).
 13. **Phase 12**: `status: shipped`, commit on feature branch, PR.
 
 ## Definition of Done

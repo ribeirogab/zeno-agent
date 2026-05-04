@@ -53,7 +53,7 @@ created: 2026-04-27
 ## Phase 3 — Tool list regeneration
 
 > **Execution context**: Phase 3 runs **on the host**, not inside the container. Reasons:
-> - `agent/connectors-catalog.json` is bind-mounted into the container as **read-only** (`infra/docker-compose.fn.yml` line 16: `./agent:/app/agent:ro`), so the script can't write the catalog from inside.
+> - `agent/connectors-catalog.json` is bind-mounted into the container as **read-only** (`infra/docker-compose.<profile>.yml` line 16: `./agent:/app/agent:ro`), so the script can't write the catalog from inside.
 > - The `apps/` directory is NOT bind-mounted, so the script's host-source-tree path isn't reachable from inside.
 >
 > The host therefore needs `uv` installed locally (separate from the Dockerfile change in Phase 1, which only puts `uv` in the image). Task 3.0 covers this.
@@ -91,7 +91,7 @@ created: 2026-04-27
 ### Task 6.1: Deploy
 
 - [ ] `pnpm run docker:build` (already done in Phase 1.2; re-runs if catalog changes need pickup).
-- [ ] `PROFILE=fn pnpm run docker:up`.
+- [ ] `PROFILE=<your-profile> pnpm run docker:up`.
 - [ ] Wait for API up.
 
 ### Task 6.2: API smoke

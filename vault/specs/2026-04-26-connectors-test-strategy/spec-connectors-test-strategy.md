@@ -83,7 +83,7 @@ Not deleted, marked as **superseded by 0037** with a header note. Its design is 
 
 ## Context
 
-After shipping connectors (specs 0029, 0032, 0033, 0034), spec 0036 manually validated the full feature against the live `fn` profile (104/0/1 across 3 rounds). That validation surfaced three project bugs (catalog mismatch, test connection doesn't validate token, deny writes invocation row) — see `context/learnings/connectors-validation-findings.md`.
+After shipping connectors (specs 0029, 0032, 0033, 0034), spec 0036 manually validated the full feature against the live operator profile (104/0/1 across 3 rounds). That validation surfaced three project bugs (catalog mismatch, test connection doesn't validate token, deny writes invocation row) — see `context/learnings/connectors-validation-findings.md`.
 
 Spec 0035 was designed earlier as the automated equivalent of 0036 but was deferred because the scope was unscalable: 4× consecutive clean × ~40 scenarios × Playwright on every PR = ~40 min wall clock, multiplied per feature. This spec replaces 0035 with a phased approach.
 

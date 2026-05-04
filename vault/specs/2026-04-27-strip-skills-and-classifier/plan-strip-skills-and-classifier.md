@@ -11,7 +11,7 @@ created: 2026-04-27
 
 **Bottom-up phased deletion.** Delete leaf modules first (specific policies, approver, classifier, repo, dashboard components, skill content); the TypeScript compiler then points at every orphan import in the call sites; fix those; repeat until the tree is green. Each phase ends in a green typecheck and a separate commit. The phased sequence is:
 
-1. **Skill content removal** (no compile impact) — delete `agent/skills/`, `profiles/fn/skills/`, `agent/skills/dev-workflow/SKILL.md`. Trivial.
+1. **Skill content removal** (no compile impact) — delete `agent/skills/`, `profiles/<your-profile>/skills/`, `agent/skills/dev-workflow/SKILL.md`. Trivial.
 2. **Storage layer** — delete `packages/storage/src/repos/approval-rules.ts` and its tests; drop the `ApprovalRule` type; add migration 10 (`DROP TABLE IF EXISTS approval_rules; DROP TABLE IF EXISTS approvals_log;` plus matching `DROP INDEX`). The storage package compiles green; nothing else has imported it yet.
 3. **API layer** — delete `apps/api/src/routes/approval-rules.ts` + tests; drop the route registration in `apps/api/src/server.ts`; drop `approvalRules` from API deps. API compiles green.
 4. **Dashboard layer** — delete the sensitive-tools section + add-rule modal + 2 hooks + 2 tests; drop the section from the Settings page render. Dashboard compiles green.
@@ -26,10 +26,10 @@ created: 2026-04-27
 13. **Worker — config schema rejects `approvals:`** — the yaml parser at `apps/worker/src/config.ts` (or wherever the zod schema lives) is updated so `approvals` is a forbidden key (not a deprecated optional one); the validation error explicitly tells the operator to remove it.
 14. **Worker — cron loader** — `apps/worker/src/cron/static-loader.ts` `KNOWN_SECTIONS` set drops `'always_active_skills'`.
 15. **Worker — profile watcher** — `apps/worker/src/profile/watcher.ts` `skills/` ignore branch removed.
-16. **Profile config files** — `profiles/fn/config.yaml` and `agent/config.example.yaml` (if present) have their `approvals:` block deleted.
+16. **Profile config files** — `profiles/<your-profile>/config.yaml` and `agent/config.example.yaml` (if present) have their `approvals:` block deleted.
 17. **Specs frontmatter** — `2026-04-21-guardrails-approval`, `2026-04-24-skill-final-reaction`, `2026-04-27-always-sensitive-db-ui` get `status: superseded` + `superseded_by: 0050` + a one-paragraph banner under their frontmatter; bodies untouched.
 18. **Quality gate** — `pnpm run quality-gate`. Fix any holdouts (likely a few stragglers in dashboard tests or worker boot tests).
-19. **Docker boot test** — `pnpm run docker:build && PROFILE=fn pnpm run docker:up` against the fn profile. Watch logs for `zeno_online` with no skill/classifier/approval mentions; all 4 github-app installations get tokens.
+19. **Docker boot test** — `pnpm run docker:build && PROFILE=<your-profile> pnpm run docker:up` against the operator's profile. Watch logs for `zeno_online` with no skill/classifier/approval mentions; all 4 github-app installations get tokens.
 20. **E2E via Slack** — actual interaction with the running Zeno via the Slack workspace: a normal request, an out-of-capability request, and (if there's a connector tool with `permission='ask'`) confirm direct execution without DM-approval.
 21. **3-round review on the doc set + code diff.** Counter resets on any finding. Three consecutive clean.
 
@@ -95,7 +95,7 @@ created: 2026-04-27
 ## File Structure
 
 **Deleted (production):**
-- Directories: `agent/skills/`, `profiles/fn/skills/`, `apps/worker/src/guardrails/approver/`, `apps/worker/src/guardrails/classifier/`.
+- Directories: `agent/skills/`, `profiles/<your-profile>/skills/`, `apps/worker/src/guardrails/approver/`, `apps/worker/src/guardrails/classifier/`.
 - Files in `apps/worker/src/guardrails/`: `pipeline.ts`, `slack-context.ts`, `async-context.ts`, `config.ts`, `skill-registry.ts`, `types.ts` (shrunk or removed).
 - Files in `apps/worker/src/guardrails/policies/`: `always-allowed.ts`, `always-sensitive.ts`, `classifier-gate.ts`, `audit.ts`, `read-only-skill.ts`.
 - `apps/worker/src/agent/system-prompt.ts` `loadAlwaysActiveSkills()` (function deletion).
@@ -131,7 +131,7 @@ created: 2026-04-27
 - `packages/storage/src/migrations.ts` — append migration 10.
 - `packages/storage/tests/migrations.test.ts` — update expected migration count.
 - `apps/dashboard/src/routes/_authed/settings.tsx` (or equivalent) — drop the sensitive-tools section render.
-- `profiles/fn/config.yaml` — delete `approvals:` block.
+- `profiles/<your-profile>/config.yaml` — delete `approvals:` block.
 - `agent/config.example.yaml` — delete `approvals:` block (if present).
 - `context/specs/2026-04-21-guardrails-approval/spec.md` — frontmatter + banner.
 - `context/specs/2026-04-24-skill-final-reaction/spec.md` — frontmatter + banner.

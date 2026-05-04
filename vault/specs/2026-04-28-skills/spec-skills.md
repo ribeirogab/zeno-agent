@@ -39,7 +39,7 @@ Cinco lacunas concretas:
 
 1. Não tem como cadastrar um playbook reutilizável sem editar arquivos no profile.
 2. Não tem como dar ao agente Read/Edit/Write/Bash de forma controlada — o gate do spec 0050 hardblocka tudo não-MCP, então skills tipo `frontend-design` (que precisa editar arquivos) hoje seriam impossíveis.
-3. Não tem como o agente "aprender" como o operador específico usa um connector. A skill `sentry-flow` da Flávia é diferente da do operador X.
+3. Não tem como o agente "aprender" como o operador específico usa um connector. A skill `sentry-flow` da Acme é diferente da do operador X.
 4. Não tem como exportar/baixar o conjunto de skills do operador (backup, share, migrate).
 5. Não tem reposição funcional pro padrão de "knowledge file" que skills representavam pre-spec-0050.
 
@@ -50,7 +50,7 @@ Cinco lacunas concretas:
 - **Out of scope: skills "always_loaded".** Tinha como requisito originalmente, foi cortado de v1 — todas skills em v1 são pick-mode (lazy-load). Operador escreve `description` boa e o agente decide quando ler. Reintroduzir como flag de prepend ao system prompt fica pra v2 se houver demanda.
 - **Out of scope: pausar skill (toggle enabled/disabled).** Em v1 lifecycle é install / edit / delete. Pausar sem deletar fica pra v2.
 - **Out of scope: per-skill permission scoping.** Em v1 capabilities são globais — qualquer skill instalada pode usar qualquer capability habilitada nas settings. Sandbox por skill (skill A tem Bash, skill B não tem) fica pra v2 se virar issue de segurança. Threat model é single-operator self-hosted; operador é o gatekeeper.
-- **Out of scope: re-importação de skills antigas do profile `fn`.** O profile `fn` tinha skills no FS antes do spec 0050. Não vamos backfillar pro DB automaticamente — operador faz upload manual das que ainda quiser.
+- **Out of scope: re-importação de skills antigas do profile `<example>`.** O profile `<example>` tinha skills no FS antes do spec 0050. Não vamos backfillar pro DB automaticamente — operador faz upload manual das que ainda quiser.
 - **Out of scope: skill versioning, share/publish, ratings.** v1 é single-operator self-hosted. Sem feature social.
 - **Out of scope: parsear `allowed-tools` da frontmatter de skills baixadas de skills.sh.** Se o `.md` traz esse campo, a gente IGNORA em runtime (só valida `name` + `description`). Pode opcionalmente exibir como hint informativo na install modal — ver Open Questions. Decisão do operador continua sendo no `/settings/agent-capabilities`, não no install.
 
@@ -125,7 +125,7 @@ Cinco lacunas concretas:
 
 **Phase D — Quality gate + Docker boot + reviews:**
 - [ ] `pnpm run quality-gate` verde (lint + typecheck + tests em todos workspaces).
-- [ ] Docker boot (`PROFILE=fn pnpm run docker:up`) clean: log `skills_loaded count=N` aparece, `agent_capabilities_loaded enabled=[...]` aparece, sem erros.
+- [ ] Docker boot (`PROFILE=<example> pnpm run docker:up`) clean: log `skills_loaded count=N` aparece, `agent_capabilities_loaded enabled=[...]` aparece, sem erros.
 - [ ] E2E via Slack: operador pede "use skill X pra fazer Y" → agente carrega o body da skill (mecanismo conforme path A/B definido em Phase B gate-zero — auto-discovery nativa OU tool `read_skill` custom), executa task com tools globalmente habilitadas, responde sem erros de permissão.
 - [ ] **3-rounds clean review por phase + final batch review.** Cada phase termina com 3 reviews consecutivos sem findings (qualquer finding reseta o contador). Após Phase D, mais 3 reviews sobre o batch completo. Mesma cadência que foi aplicada em specs 0049-0051 — checa completeness vs spec, dead code, comments stale, scope discipline, bugs de runtime.
 
@@ -141,7 +141,7 @@ Cinco lacunas concretas:
 | Hot-reload com FS materialization pode race-condition: edit no dashboard escreve DB, materializa FS, watcher dispara, mas AgentCore tá no meio de uma query. | Mesmo padrão do SOUL.md hoje. AgentCore reload é graceful — termina query atual antes de pegar nova config. ProfileWatcher já tem debounce de 50ms (per `apps/worker/tests/profile/watcher.test.ts`). |
 | Operador tem 50+ skills instaladas, todos no `~/.claude/skills/`, e o auto-discovery do SDK injeta contexto de todas em todo turno. Token explosion. | Verificar comportamento real do SDK em Phase B gate-zero. Se SDK injeta tudo, ativar Path B (tools custom `list_skills` + `read_skill`) — opera lazy por design. **Não introduzir flag `always_loaded` ou `active` no DB pra contornar isso** — esse caminho é Non-Goal de v1 (decisão da fase de brainstorm). Path B já resolve. |
 | Migration de adicionar `skills` + `connector_skills` + `agent_capabilities` em DB legado precisa ser idempotente. | `CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS` + `INSERT OR IGNORE` pra seed das capability rows. Padrão já em uso em todas migrations do projeto. |
-| Operador tinha skills no profile `fn/skills/` antigo que foram apagadas em spec 0050. Pode não ter backup. | Spec 0050 não apagou os arquivos físicos do profile dir do operador (eram gitignored). Operador pode re-uploadar manualmente. Se não tiver mais, é trade-off do cleanup arc — re-import flow pode entrar em v2 se for relevante. |
+| Operador tinha skills no profile `<example>/skills/` antigo que foram apagadas em spec 0050. Pode não ter backup. | Spec 0050 não apagou os arquivos físicos do profile dir do operador (eram gitignored). Operador pode re-uploadar manualmente. Se não tiver mais, é trade-off do cleanup arc — re-import flow pode entrar em v2 se for relevante. |
 | Lista de tools não-MCP que `agent_capabilities` vai seedar pode ficar fora de sync com o que o Claude Agent SDK realmente expõe (futuras versões adicionam tools novas). | Lista é finita e estável-suficiente em 2026 (Read/Edit/Write/Bash/WebFetch/Task/Glob/Grep/etc.). Phase B gate-zero confirma a lista exata. Tool nova que aparece depois sem migration: gate denega por default (não está em `agent_capabilities`), comportamento safe-by-default. Operator pode requisitar migration nova pra liberar. |
 
 ## Open Questions

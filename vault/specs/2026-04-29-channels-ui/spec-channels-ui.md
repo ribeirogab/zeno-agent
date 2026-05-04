@@ -14,7 +14,7 @@ shipped: 2026-04-30
 
 ## Context
 
-Specs 0057 + 0058 shipped Slack as a `kind='channel'` connector and migrated `profiles/fn` from `.env`-based credentials to DB-stored connector secrets. The supporting API surface (`GET /api/channels/catalog`, `GET /api/channels`, `POST /api/connectors` with `kind: 'channel'`) all works. The `connectors` table cleanly hosts both kinds.
+Specs 0057 + 0058 shipped Slack as a `kind='channel'` connector and migrated `profiles/<example>` from `.env`-based credentials to DB-stored connector secrets. The supporting API surface (`GET /api/channels/catalog`, `GET /api/channels`, `POST /api/connectors` with `kind: 'channel'`) all works. The `connectors` table cleanly hosts both kinds.
 
 **What's still missing:** any UI for it. The dashboard's `/connectors` page filters `kind='mcp'` (so channel rows don't pollute the MCP list), and there's no `/channels` route. Operator's only management path today is direct curl with cookie auth — exactly the kind of friction the project's "everything via dashboard" rule (`context/_index/rules.md`, `tmp/zeno-cleanup-contract.md`) exists to prevent. Specs 0057/0058 explicitly deferred the UI to a "future polish spec" — this is that spec.
 
@@ -28,7 +28,7 @@ Three problems the UI gap creates:
 
 2. **No discoverability for future channels.** When Telegram/WhatsApp specs ship (already in roadmap as 0066+), there's no place to put them. Dashboard has nav entries for `connectors`, `crons`, `sessions`, `skills` — no `channels`. Adding the UI now establishes the pattern; future channels just become a new entry in `agent/channels-catalog.json`.
 
-3. **Channel state is invisible.** If a Slack token gets revoked, or a `connections:write` scope is missing, or the channel adapter logged an error during socket-mode reconnect — the operator only sees this in `docker logs zeno-fn-agent-1`. A channels detail page surfaces `lastError`, `lastErrorAt`, `lastVerifiedAt` (fields already on the row, never displayed).
+3. **Channel state is invisible.** If a Slack token gets revoked, or a `connections:write` scope is missing, or the channel adapter logged an error during socket-mode reconnect — the operator only sees this in `docker logs zeno-agent-1`. A channels detail page surfaces `lastError`, `lastErrorAt`, `lastVerifiedAt` (fields already on the row, never displayed).
 
 ## Non-Goals
 
@@ -336,7 +336,7 @@ This spec ships when ALL the following pass on the branch:
 - [ ] Active state correctly highlights when on `/channels` or `/channels/:id`.
 
 **E2E (cleanup contract Rule 1):**
-- [ ] Live dashboard at `http://localhost:3000/channels` renders correctly against the running `profiles/fn` (which has Slack already installed since spec 0058 cutover).
+- [ ] Live dashboard at `http://localhost:3000/channels` renders correctly against the running `profiles/<example>` (which has Slack already installed since spec 0058 cutover).
 - [ ] Detail page at `http://localhost:3000/channels/<slack-id>` shows the actual installed Slack with masked tokens.
 - [ ] Edit secrets modal can rotate tokens (and the cutover validation works again — operator rotates, restart container, Slack reconnects with new tokens).
 - [ ] Uninstall flow tested in a sandbox if possible; in production, defer to a future genuine token rotation event.

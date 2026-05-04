@@ -13,7 +13,7 @@ shipped: 2026-04-27
 
 ### Why Klaviyo, why now?
 
-Flávia Nasser uses Klaviyo for email campaigns + transactional sends. The marketing operator doesn't have direct access to Zeno today. Adding Klaviyo as a connector means future skills can answer "how did the last campaign perform?" and "who's on the abandoned-cart segment right now?" without leaving Slack.
+The operator uses Klaviyo for email campaigns + transactional sends. The marketing teammate doesn't have direct access to Zeno today. Adding Klaviyo as a connector means future skills can answer "how did the last campaign perform?" and "who's on the abandoned-cart segment right now?" without leaving Slack.
 
 ### Local stdio vs HTTP remote — which?
 
@@ -35,7 +35,7 @@ Klaviyo's local stdio MCP reads `PRIVATE_API_KEY` from env. Operator pastes thei
 
 ### Auth check tool
 
-Klaviyo MCP exposes ~60 tools (per Klaviyo's docs). The cheapest no-args read tool is `get_account` (returns the operator's Klaviyo account info). Tested with the live API key during the credential probe (`pk_02dea0…` → account "Flavia Nasser" S7vmE2 BRL). `authCheckTool: 'get_account'` makes the dashboard's "Test connection" deterministic.
+Klaviyo MCP exposes ~60 tools (per Klaviyo's docs). The cheapest no-args read tool is `get_account` (returns the operator's Klaviyo account info). Verified during the credential probe (account info returned successfully). `authCheckTool: 'get_account'` makes the dashboard's "Test connection" deterministic.
 
 ### Read-only mode
 
@@ -115,7 +115,7 @@ Add Klaviyo as a catalog connector. Operator pastes API key, dashboard tests, in
 
 ## Coverage gaps (acknowledged)
 
-- Same as Linear: non-owner runtime path for write tools unobservable in single-tenant `fn`.
+- Same as Linear: non-owner runtime path for write tools unobservable in a single-tenant profile.
 - OAuth flow path unobservable.
 
 ## Findings during implementation

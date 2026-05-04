@@ -13,7 +13,7 @@ Refactor in-place across 8 files (3 storage, 2 worker, 3 API) plus 4 new files (
 
 The work is sequenced strictly bottom-up: **storage → worker → API**. Storage migration + types + repo land first because nothing else compiles without them. Worker changes (resolver + mcp-build guard + handler kind-forward) come second because they're the consumers. API changes come last because they're the user-facing surface and depend on both.
 
-TDD throughout — vitest tests written before each change, run to fail, then implementation. No Docker anywhere (the operator's `profiles/fn` container is running; running our own would conflict). Tests use in-memory SQLite for storage and a mocked Slack `App` for adapter integration.
+TDD throughout — vitest tests written before each change, run to fail, then implementation. No Docker anywhere (the operator's `profiles/<example>` container is running; running our own would conflict). Tests use in-memory SQLite for storage and a mocked Slack `App` for adapter integration.
 
 ## Architecture
 
@@ -33,7 +33,7 @@ apps/worker/src/
 ├── config.ts                                            # SLACK_*_TOKEN optional; Config.slack fields → string|undefined
 ├── channels/slack/
 │   ├── adapter.ts                                       # +_appOverride? for testability
-│   ├── resolve-credentials.ts                           # NEW: sync resolver fn
+│   ├── resolve-credentials.ts                           # NEW: sync resolver function
 │   └── resolve-credentials.test.ts                      # NEW: 6 resolution-table cases
 ├── agent/mcp-build.ts                                   # +guard: if (connector.kind !== 'mcp') continue
 ├── commands/handlers/connector-create.ts                # +kind field in catalogSchema/customSchema, forward to repo
@@ -101,7 +101,7 @@ B. Catalog assets
    ↓
 C. Worker — resolver + adapter test hook
    ├─ C.1 apps/worker/src/channels/slack/adapter.ts (+_appOverride)
-   ├─ C.2 apps/worker/src/channels/slack/resolve-credentials.ts (sync fn) + 6 tests
+   ├─ C.2 apps/worker/src/channels/slack/resolve-credentials.ts (sync function) + 6 tests
    ├─ C.3 apps/worker/src/config.ts (SLACK_*_TOKEN optional)
    └─ C.4 apps/worker/src/index.ts:362 (call resolver)
    ↓
@@ -131,8 +131,8 @@ A → B → C → D → E is strictly serial. F requires all of A-E. G requires 
 - **Migration id collision risk.** Spec asserts last migration is id=17; new migration must be id=18. If another spec (or a concurrent branch) lands a migration first, our id=18 conflicts. Mitigation: re-verify `wc -l packages/storage/src/migrations.ts` and `grep -c '  id: ' packages/storage/src/migrations.ts` immediately before writing the migration; pick next free id at write time.
 - **TypeScript edge case in `Config.slack`**. Making `appToken: string | undefined` propagates to one consumer (`index.ts:362`). The fix is documented in spec, but the implementer must replace the entire spread `...config.slack` with the resolver call — leaving the spread alongside the resolver is a TS error and a logic duplication.
 - **Worker handler `connector-create.ts` payload schemas**. Both `catalogSchema` and `customSchema` get the same optional `kind` field. The implementer must update BOTH to keep symmetry with the API route schema. Missing one means the API accepts the field but the handler rejects it.
-- **Channel install via curl during testing**. The spec doesn't add a dashboard UI, so testing the install end-to-end requires `curl -X POST /api/connectors`. Sandbox SQLite + an integration test against the in-process Hono server is enough for spec 0057. Real curl against `profiles/fn` is spec 0058's job.
-- **Tests must NOT use docker:up / docker:down**. Anywhere a test wants a "running worker" or "running API", use vitest's in-process bootstrap. Adding a `docker compose` invocation in this PR's tests would race the running `profiles/fn` container.
+- **Channel install via curl during testing**. The spec doesn't add a dashboard UI, so testing the install end-to-end requires `curl -X POST /api/connectors`. Sandbox SQLite + an integration test against the in-process Hono server is enough for spec 0057. Real curl against `profiles/<example>` is spec 0058's job.
+- **Tests must NOT use docker:up / docker:down**. Anywhere a test wants a "running worker" or "running API", use vitest's in-process bootstrap. Adding a `docker compose` invocation in this PR's tests would race the running `profiles/<example>` container.
 - **Worker `resolver` testing pattern**. Spec says use real ConnectorRepo against in-memory SQLite (no `vi.fn()` stubs). Implementer must construct `new Database(':memory:')`, run migrations, then exercise the resolver with real DB inserts. Pattern matches existing repo tests.
 - **`buildMcpServersMap` test fixture**. The MCP-vs-channel guard test inserts a channel row with `transport='remote'` and asserts the loop body skips it. Implementer must arrange a real connectors row + real `getEnabledWithRelations()` call (not mock-only) — otherwise the guard placement isn't actually verified.
 
@@ -146,5 +146,5 @@ After authoring plan.md + tasks.md, verify:
 - [ ] No `docker compose`, `docker run`, or any container-touching command anywhere.
 - [ ] Resolver tests cover all 6 rows of the resolution table from spec.
 - [ ] MCP-vs-channel guard has a dedicated test that exercises real DB insert.
-- [ ] All file paths in tasks.md are absolute under `/Users/operator/www/octocat/zeno-agent-worktrees/2026-04-29-slack-channel/` OR clearly relative to the worktree root with explicit `cd`.
+- [ ] All file paths in tasks.md are absolute under `/Users/<you>/www/your-github-username/zeno-agent-worktrees/2026-04-29-slack-channel/` OR clearly relative to the worktree root with explicit `cd`.
 - [ ] Each commit message clearly identifies which Phase + Task.

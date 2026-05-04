@@ -115,7 +115,7 @@ The settings page should be a place where the right thing is easy and the wrong 
 - [ ] Test count delta: at least +4 (tabs default + tabs deep-link + USER.md save + dirty guard) and -1 (RestartWorkerModal test gone).
 
 **E2E acceptance (Rule 1):**
-- [ ] Live `fn` profile dashboard (port 3001): edit `USER.md` via the editor (e.g. add a sentence to the description). Save. Send a Slack message that should reflect the change (e.g. "what's my name?" — agent should pull from updated USER.md within 1-2 turns).
+- [ ] Live `<example>` profile dashboard (port 3001): edit `USER.md` via the editor (e.g. add a sentence to the description). Save. Send a Slack message that should reflect the change (e.g. "what's my name?" — agent should pull from updated USER.md within 1-2 turns).
 - [ ] Worker logs for the post-edit turn show `profile_reload` event after the dashboard save.
 - [ ] Tab navigation: open `/settings`, click each tab, verify URL reflects, browser back works.
 - [ ] Restart button absent everywhere (header, modal trigger, command palette if applicable).
@@ -235,7 +235,7 @@ If tab param is unknown or absent, default to `profile`.
 - `pnpm run quality-gate`: lint + typecheck + test all green.
 
 **E2E (Rule 1):**
-- Live `fn` profile dashboard at port 3001:
+- Live `<example>` profile dashboard at port 3001:
   - Open `/settings`, default tab = profile, USER.md editor visible.
   - Edit a sentence in USER.md, press Cmd+S. Worker logs show profile reload.
   - Slack message that should reflect the change ("what's my preferred working language?" or similar): agent picks up updated content within next turn.
@@ -245,7 +245,7 @@ If tab param is unknown or absent, default to `profile`.
 ## Open Questions
 
 - **[NEEDS CLARIFICATION]** *Should `Cmd+S` save apply globally on the settings route, or only when the editor textarea is focused?* This spec scopes it to the editor focus to avoid accidental triggers from elsewhere. Tested via "click outside textarea, press ⌘S, no save fires."
-- **[NEEDS CLARIFICATION]** *Maximum USER.md size?* Hard cap at 32 kB feels generous (current FN USER.md is ~1.5 kB). If someone wants a larger file, ship a follow-up — don't pre-engineer.
+- **[NEEDS CLARIFICATION]** *Maximum USER.md size?* Hard cap at 32 kB feels generous (current operator USER.md is ~1.5 kB). If someone wants a larger file, ship a follow-up — don't pre-engineer.
 - **[NEEDS CLARIFICATION]** *Should crons.yaml become editable in a follow-up spec with a YAML-aware editor (Monaco / CodeMirror with syntax)?* Counterpoint 0067-A suggested yes. Captured as a candidate spec.
 - **[NEEDS CLARIFICATION]** *Should profile-tab "read-only" rows for SOUL.md show file body, or just metadata?* Spec defaults to metadata-only (size + mtime + read-only badge). If the operator wants to read SOUL.md from the dashboard, follow-up adds a "view" affordance.
 - **[NEEDS CLARIFICATION]** *Tabs as nested routes vs `?tab=` search param?* This spec uses search param to avoid TanStack route file proliferation. Nested routes (`settings.profile.tsx`, `settings.capabilities.tsx`) would deep-link more idiomatically. Captured for follow-up if the routing pattern bothers anyone.

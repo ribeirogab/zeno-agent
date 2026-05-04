@@ -88,7 +88,7 @@ Considered adding a new column like `policy_denied BOOLEAN` to `connector_invoca
 
 ## Context
 
-Spec [0036](../2026-04-26-connectors-100-validation/spec.md) shipped a 3-round manual validation pass against the live `fn` profile and surfaced these three findings. They were documented in `context/learnings/connectors-validation-findings.md` with fix paths but no implementation. None are security-critical; all are user-facing or cosmetic. Without fixes:
+Spec [0036](../2026-04-26-connectors-100-validation/spec.md) shipped a 3-round manual validation pass against the live operator profile and surfaced these three findings. They were documented in `context/learnings/connectors-validation-findings.md` with fix paths but no implementation. None are security-critical; all are user-facing or cosmetic. Without fixes:
 
 - Operators see misleading tool counts (8 → 22) right after install.
 - The "Test connection" button accepts invalid tokens silently.
@@ -110,7 +110,7 @@ This spec answers: what changes, where, with what tests, and how the fix is vali
 
 1. **Refactoring the catalog format.** No new schema fields beyond `authCheckTool`.
 2. **Adding a new column to `connector_invocations`** for deny rows. Use existing `error_message`.
-3. **Migrating the existing live `fn` Sentry connector** to use the new catalog directly. The existing DB row keeps its 22 already-discovered tools (post-G6 reinstall in 0036 R3 reset to 8 catalog seeds; manual `refresh-tools` will re-reconcile). The catalog regeneration in this spec means **future installs** get 22 from the start.
+3. **Migrating the existing live operator Sentry connector** to use the new catalog directly. The existing DB row keeps its 22 already-discovered tools (post-G6 reinstall in 0036 R3 reset to 8 catalog seeds; manual `refresh-tools` will re-reconcile). The catalog regeneration in this spec means **future installs** get 22 from the start.
 4. **Building Phase B / Phase C of the test strategy.** Out of scope; lives in 0037 (deferred).
 5. **Fixing other findings or bugs not surfaced by 0036.** This spec is bounded.
 6. **Changing the catalog test endpoint behavior beyond the auth check.** No new endpoints, no shape changes.
@@ -175,7 +175,7 @@ This spec answers: what changes, where, with what tests, and how the fix is vali
 | `whoami` not present in some MCPs (e.g., a future fixture) | `authCheckTool` is optional. Connectors without it skip the auth check (back to current behavior). The fixture echo MCP can have `read_echo` registered as its `authCheckTool` in the test catalog. |
 | Auth-check tool itself returns unexpected error shape | `classifyError` already buckets via regex; if `whoami` returns `Unauthorized` or `403` or similar, we get `auth`. If it returns a network error, we get `network`. Worst case: classified as `unknown`. The test `errorKind` enumeration is finite and covered by 0037 P1 scenarios. |
 | `claude-code.ts` `onInvocation` doesn't have direct access to `permissionDecisionReason` | Need to verify during implementation. If the SDK doesn't surface it on the tool_result, the alternative is to write a fixed string `policy_denied: deny` and rely on `approvals_log` for the precise reason. Documented as a fallback in the implementation note. |
-| Existing live `fn` Sentry connector has 22 tools already (post-0036 G6.4); regenerated catalog has 22 tools too — but the **names** in the live DB row differ from what the catalog seeded after G6.4 reinstall (the reinstall seeded the OLD 8-tool catalog; live MCP reconciled to 22 via `refresh-tools`) | The regenerated catalog now has the same 22 names as the live MCP. After this PR is deployed, a fresh install would seed the 22 directly. The existing connector keeps its 22 (no reseed needed). No migration needed. |
+| Existing live operator Sentry connector has 22 tools already (post-0036 G6.4); regenerated catalog has 22 tools too — but the **names** in the live DB row differ from what the catalog seeded after G6.4 reinstall (the reinstall seeded the OLD 8-tool catalog; live MCP reconciled to 22 via `refresh-tools`) | The regenerated catalog now has the same 22 names as the live MCP. After this PR is deployed, a fresh install would seed the 22 directly. The existing connector keeps its 22 (no reseed needed). No migration needed. |
 | Quality gate runs the new tests but a real Sentry MCP isn't available in CI | The new tests use the fixture echo MCP (spec 0037 Phase A), not real Sentry. CI is fine. |
 
 ## Open Questions

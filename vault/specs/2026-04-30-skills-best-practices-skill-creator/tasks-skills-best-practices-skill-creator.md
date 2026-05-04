@@ -14,7 +14,7 @@ created: 2026-04-30
 
 ### Task A.1 — Confirm upstream SHA
 
-- [ ] `cd /Users/operator/www/octocat/zeno-agent/tmp/anthropic-skills && git rev-parse HEAD` → captures the upstream commit SHA. Already known: `5128e1865d670f5d6c9cef000e6dfc4e951fb5b9` (per recon).
+- [ ] `cd /Users/<you>/www/your-github-username/zeno-agent/tmp/anthropic-skills && git rev-parse HEAD` → captures the upstream commit SHA. Already known: `5128e1865d670f5d6c9cef000e6dfc4e951fb5b9` (per recon).
 - [ ] If the local clone has drifted (`git pull` shows updates), use `git pull --ff-only` then re-capture HEAD. The version pin always reflects the *current* state of the local clone, not whatever GitHub has now.
 
 ### Task A.2 — Write `version.txt`
@@ -51,7 +51,7 @@ created: 2026-04-30
 
 - [ ] Read `.claude/skills/skill-creator/SKILL.md` end-to-end. Note key sections: "Capture Intent", "Interview and Research", "Write the SKILL.md", "Skill Writing Guide", "Test Cases".
 - [ ] Read `.claude/skills/skill-creator/references/schemas.md` to understand the eval/grading data shapes (helpful context but not needed for skill-improver).
-- [ ] Re-read project's three Zeno skills (`agent/skills/zeno-development/SKILL.md`, `profiles/fn/skills/fn-code-review/SKILL.md`, `profiles/fn/skills/fn-sentry-fix/SKILL.md`) to understand the variety of shapes skill-improver must handle.
+- [ ] Re-read project's three Zeno skills (`agent/skills/zeno-development/SKILL.md`, `profiles/<example>/skills/code-review/SKILL.md`, `profiles/<example>/skills/sentry-fix/SKILL.md`) to understand the variety of shapes skill-improver must handle.
 
 ### Task B.2 — Draft `skill-improver/SKILL.md`
 
@@ -77,7 +77,7 @@ created: 2026-04-30
 
 - [ ] Create `.claude/skills/skill-improver/references/multi-file-split-pattern.md`. Cover:
   - When to split: body > ~300 lines AND distinct phases / sections / variants that can be loaded on demand.
-  - When NOT to split: hard-gate dependencies on inline content (e.g., fn-code-review's pre-submit gate). The constraint is "what does the agent need in working memory at execution time?" — anything that does, stays inline.
+  - When NOT to split: hard-gate dependencies on inline content (e.g., code-review's pre-submit gate). The constraint is "what does the agent need in working memory at execution time?" — anything that does, stays inline.
   - How to split: `SKILL.md` keeps overview + workflow + trigger + invariant content; `references/<phase-or-topic>.md` for on-demand depth.
   - How to reference: inline pointer in SKILL.md like `> See [references/<file>](references/<file>.md) for detailed steps.`
   - Caps from spec 0062: 1 MB per file, 5 MB total per skill, ≤ 500 files per skill.
@@ -158,20 +158,20 @@ created: 2026-04-30
   Snapshot: tmp/skill-snapshots/zeno-development-pre/
   ```
 
-### Task C2.1 — Refactor fn-code-review
+### Task C2.1 — Refactor code-review
 
-- [ ] Same flow as C1.1, target: `profiles/fn/skills/fn-code-review/SKILL.md`
+- [ ] Same flow as C1.1, target: `profiles/<example>/skills/code-review/SKILL.md`
 - [ ] **Specific attention:** the pre-submit gate's working-memory dependency on Templates A/B/C/D is an invariant. skill-improver MUST capture this in `hard_gates` or `output_templates` and verify the post-refactor structure preserves working-memory access.
-- [ ] Commit `refactor(skills): fn-code-review per best-practices (spec 0063 Phase C2)`
+- [ ] Commit `refactor(skills): code-review per best-practices (spec 0063 Phase C2)`
 
-### Task C3.1 — Refactor fn-sentry-fix
+### Task C3.1 — Refactor sentry-fix
 
-- [ ] Same flow, target: `profiles/fn/skills/fn-sentry-fix/SKILL.md`
+- [ ] Same flow, target: `profiles/<example>/skills/sentry-fix/SKILL.md`
 - [ ] **Specific attention:** at 467 lines this is the strongest multi-file split candidate. If skill-improver decides to split:
-  - Files land at `profiles/fn/skills/fn-sentry-fix/SKILL.md` + `profiles/fn/skills/fn-sentry-fix/references/*.md`
+  - Files land at `profiles/<example>/skills/sentry-fix/SKILL.md` + `profiles/<example>/skills/sentry-fix/references/*.md`
   - Caps respected: 1 MB/file, 5 MB total, ≤ 500 files (well within all three for any sensible split)
   - This is the **first profile-source multi-file skill in production**. Phase D's classify smoke test gates this.
-- [ ] Commit `refactor(skills): fn-sentry-fix per best-practices (spec 0063 Phase C3)`
+- [ ] Commit `refactor(skills): sentry-fix per best-practices (spec 0063 Phase C3)`
 
 ## Phase D — Quality gate + Docker rebuild + classify smoke + Slack E2E
 
@@ -182,21 +182,21 @@ created: 2026-04-30
 
 ### Task D.2 — Docker rebuild
 
-- [ ] `PROFILE=fn pnpm run docker:build`
+- [ ] `PROFILE=<example> pnpm run docker:build`
 - [ ] Expect: image `zeno-agent:dev` rebuilt cleanly.
 
 ### Task D.3 — Container restart
 
-- [ ] `PROFILE=fn pnpm run docker:down`
-- [ ] `PROFILE=fn pnpm run docker:up`
-- [ ] Confirm container name: `docker ps --format '{{.Names}}' | grep zeno-fn` → typically `zeno-fn-agent-1`.
+- [ ] `PROFILE=<example> pnpm run docker:down`
+- [ ] `PROFILE=<example> pnpm run docker:up`
+- [ ] Confirm container name: `docker ps --format '{{.Names}}' | grep zeno-agent` → typically `zeno-agent-1`.
 
 ### Task D.4 — Boot log check
 
 - [ ] Tail boot logs: `docker logs <container> 2>&1 | grep -E "skills_seeded|skills_materialized|profile_watcher_started|zeno_online|skills_dashboard_orphan_cleanup_skipped|skill_path_invalid"`
 - [ ] Expected on warm boot (current production DB):
   - `skills_seeded zenoDefault: 1, profile: 0, dashboard: 0` — `profile: 0` because INSERT-OR-IGNORE no-ops both rows.
-  - `skills_materialized written: 3, deleted: 0` — symlinks for 3 skills (zeno-development + fn-code-review + fn-sentry-fix).
+  - `skills_materialized written: 3, deleted: 0` — symlinks for 3 skills (zeno-development + code-review + sentry-fix).
   - 3× `profile_watcher_started` (agent / profile / skills sources).
   - `zeno_online`.
   - **NO** `skills_dashboard_orphan_cleanup_skipped` WARNs.
@@ -206,8 +206,8 @@ created: 2026-04-30
 ### Task D.5 — Profile-source classify smoke test (FIRST PROD EXERCISE)
 
 - [ ] Choose a target file inside the running container's profile skills:
-  - If C3 produced a multi-file fn-sentry-fix: target `/app/profile/skills/fn-sentry-fix/references/<some-reference>.md`.
-  - Otherwise: target `/app/profile/skills/fn-sentry-fix/SKILL.md`.
+  - If C3 produced a multi-file sentry-fix: target `/app/profile/skills/sentry-fix/references/<some-reference>.md`.
+  - Otherwise: target `/app/profile/skills/sentry-fix/SKILL.md`.
 - [ ] Append a marker:
   ```
   docker exec <container> sh -c 'echo "<!-- e2e marker $(date -u +%s) -->" >> /app/profile/skills/<chosen-file>'
@@ -224,7 +224,7 @@ created: 2026-04-30
 
 - [ ] In `#C0EXAMPLE000` (`https://acme.slack.com/archives/C0EXAMPLE000`), send (mentioning the bot via `<@U0EXAMPLE000>`):
   ```
-  <@U0EXAMPLE000> clone repo X (use a real repo, e.g. octocat/zeno-agent) and add a no-op comment to README.md, open a draft PR
+  <@U0EXAMPLE000> clone repo X (use a real repo, e.g. your-github-username/zeno-agent) and add a no-op comment to README.md, open a draft PR
   ```
 - [ ] Wait for response (typically 30-60s).
 - [ ] Compare output against baseline behavior of zeno-development pre-refactor:
@@ -234,10 +234,10 @@ created: 2026-04-30
   - Opened the PR with proper title/body format ✓
 - [ ] Pass criterion: same workflow steps, same output structure. Cosmetic differences in wording = OK. Different workflow = FAIL.
 
-### Task D.7 — Slack E2E: fn-sentry-fix
+### Task D.7 — Slack E2E: sentry-fix
 
 - [ ] Issue selection per Phase D 3-tier preference:
-  1. Best: a SENTRY-ID Operator resolved before via fn-sentry-fix. Search shell history / prior session transcripts.
+  1. Best: a SENTRY-ID Operator resolved before via sentry-fix. Search shell history / prior session transcripts.
   2. Backup: any open Sentry issue with an obvious stack trace.
   3. Fallback: simplest open Sentry issue, ESCALATE result is acceptable.
   - If none findable: ask Operator for a recommendation in a Slack thread (won't happen in autonomous mode — pick option 2 or 3).
@@ -247,10 +247,10 @@ created: 2026-04-30
   - Phase 1: Sentry data fetched (issue title, breadcrumbs, traces) ✓
   - Phase 3: confidence gate decision logged ✓
   - If passed: Phase 5 hands off to zeno-development; Phase 7 produces PT-BR root-cause report
-  - If escalated: Phase 3 escalation message in `#C0EXAMPLE001` (or wherever fn-sentry-fix routes escalations)
+  - If escalated: Phase 3 escalation message in `#C0EXAMPLE001` (or wherever sentry-fix routes escalations)
 - [ ] Pass criterion: behavior matches one of the original Phase outcomes (PR or ESCALATE). Output format intact.
 
-### Task D.8 — Slack E2E: fn-code-review
+### Task D.8 — Slack E2E: code-review
 
 - [ ] Pick any small PR URL (a Zeno test PR works fine — the bot can review its own repo's PRs).
 - [ ] Send: `<@U0EXAMPLE000> revisa essa PR: <PR_URL>`

@@ -267,5 +267,5 @@ created: 2026-04-26
 
 - [ ] Phase 0: 3 consecutive clean reviews → spec status `approved`.
 - [ ] Phase 1+2: scaffolding + scenarios committed.
-- [ ] Phase 3+4+5: 3 consecutive clean rounds against the live `fn` profile.
+- [ ] Phase 3+4+5: 3 consecutive clean rounds against the live test profile.
 - [ ] Phase 6: report at `tmp/0036-validation/final-report.md` and spec status `shipped`.

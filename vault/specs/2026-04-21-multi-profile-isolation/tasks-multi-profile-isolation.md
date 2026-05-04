@@ -9,13 +9,13 @@ created: 2026-04-21
 **For this plan:** `[[plan-multi-profile-isolation]]`
 
 - [ ] **Phase 1 — File move + gitignore.**
-  - `mkdir -p profiles/default/skills profiles/fn/skills`
+  - `mkdir -p profiles/default/skills profiles/acme/skills`
   - Move example files to default: `mv profile/USER.example.md profile/config.example.yaml profile/mcp.example.json profiles/default/`
   - Create `profiles/default/.env.example` from `.env.example` (root): `cp .env.example profiles/default/.env.example`
   - `mv profile/skills/.gitkeep profiles/default/skills/.gitkeep`
-  - Move FN content: `mv profile/USER.md profile/config.yaml profile/mcp.json profiles/fn/`
-  - `mv profile/skills/acme profiles/fn/skills/acme`
-  - Move root env: `mv .env profiles/fn/.env`
+  - Move operator content: `mv profile/USER.md profile/config.yaml profile/mcp.json profiles/acme/`
+  - `mv profile/skills/acme profiles/acme/skills/acme`
+  - Move root env: `mv .env profiles/acme/.env`
   - Remove old dirs: `rm -rf profile/ .env.example`
   - Rewrite `.gitignore` — replace the old `profile/*` section + root `.env` rules with:
     ```
@@ -39,9 +39,9 @@ created: 2026-04-21
     .env
     .env.*
     ```
-  - Verify: `git status` shows the moves. `git check-ignore profiles/fn/skills/acme` confirms fn is ignored. `git check-ignore profiles/default/USER.example.md` returns nothing (not ignored).
+  - Verify: `git status` shows the moves. `git check-ignore profiles/acme/skills/acme` confirms acme is ignored. `git check-ignore profiles/default/USER.example.md` returns nothing (not ignored).
   - `pnpm run quality-gate` (passes — no code changed).
-  - Commit `chore(layout): split profile/ into profiles/default/ + profiles/fn/`.
+  - Commit `chore(layout): split profile/ into profiles/default/ + profiles/acme/`.
 
 - [ ] **Phase 2 — Infra: compose files + wrapper + scripts.**
   - Create `infra/docker-compose.default.yml`:
@@ -73,7 +73,7 @@ created: 2026-04-21
       claude_home:
         external: true
     ```
-  - Create `infra/docker-compose.fn.yml` (same shape, `name: zeno-fn`, `container_name: zeno-fn`, `env_file: profiles/fn/.env`, port `3001:3000`, `workspace-fn`, `./profiles/fn:/app/profile:ro`).
+  - Create `infra/docker-compose.acme.yml` (same shape, `name: zeno-acme`, `container_name: zeno-acme`, `env_file: profiles/acme/.env`, port `3001:3000`, `workspace-acme`, `./profiles/acme:/app/profile:ro`).
   - Create `infra/docker.sh`:
     ```sh
     #!/bin/sh
@@ -106,11 +106,11 @@ created: 2026-04-21
   - Create shared external volume: `docker volume create claude_home`
   - Copy data from old volume: `docker run --rm -v zeno-agent_claude_home:/src -v claude_home:/dst alpine cp -a /src/. /dst/`
   - Verify: `docker run --rm -v claude_home:/data alpine ls /data` — should show `sessions/`, `downloads/`, etc.
-  - Boot FN profile: `PROFILE=fn pnpm run docker:up`
-  - Wait for `zeno_online` in `PROFILE=fn pnpm run docker:logs`.
-  - Verify skills: `docker exec zeno-fn ls /home/node/.claude/skills/` — shows `dev-workflow`, `cron-management`, `playwright`, `acme`.
-  - Verify isolation: `docker exec zeno-fn ls /app/profile/skills/` — shows only `acme/`.
-  - `PROFILE=fn pnpm run docker:down`.
+  - Boot the operator profile: `PROFILE=acme pnpm run docker:up`
+  - Wait for `zeno_online` in `PROFILE=acme pnpm run docker:logs`.
+  - Verify skills: `docker exec zeno-acme ls /home/node/.claude/skills/` — shows the built-in skills plus the operator's custom skill.
+  - Verify isolation: `docker exec zeno-acme ls /app/profile/skills/` — shows only the operator's custom skill.
+  - `PROFILE=acme pnpm run docker:down`.
   - Commit residuals (if any).
 
 - [ ] **Phase 4 — Docs.**

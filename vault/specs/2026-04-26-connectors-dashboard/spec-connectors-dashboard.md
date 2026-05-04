@@ -342,7 +342,7 @@ Each handler matches the spec 0013 contract: parse payload (Zod), do work, call 
 ```
 apps/dashboard/src/routes/_authed/
 ├── connectors.tsx                                  (list screen — index.tsx logic from apps/design)
-├── connectors.$id.tsx                              (detail — linear/notion/fn-scrum logic merged into one parameterized screen)
+├── connectors.$id.tsx                              (detail — linear/notion/acme-scrum logic merged into one parameterized screen)
 ├── connectors.add-catalog.$catalogId.tsx           (modal route)
 ├── connectors.add-local.tsx                        (modal route)
 ├── connectors.add-remote.tsx                       (modal route)

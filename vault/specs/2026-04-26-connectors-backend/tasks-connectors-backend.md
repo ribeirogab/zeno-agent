@@ -19,7 +19,7 @@ Six phases. Each phase ends with a green `pnpm run quality-gate`. Tasks are TDD-
 - [ ] Step 1: In `packages/storage/src/migrations.ts`, append the migration entry with `id: 5, name: 'connectors'` and the SQL from spec §Database. The slug CHECK uses SQLite GLOB (no quantifiers) split into three clauses: `CHECK (slug GLOB '[a-z0-9]*' AND slug NOT GLOB '*[^a-z0-9-]*' AND length(slug) >= 1)`. Verify behavior in Step 4.
 - [ ] Step 2: Open `packages/storage/tests/migrations.test.ts` (or the equivalent existing test file). Add a case: applying migrations against an empty DB results in `current=5` and the four new tables exist with the expected columns. Use `PRAGMA table_info('connectors')` etc.
 - [ ] Step 3: Add a case: re-applying after migration 5 is a no-op (idempotency).
-- [ ] Step 4: Add a case: inserting a connector with an invalid slug is rejected by the GLOB constraint. Test all three forbidden-character shapes: uppercase (`Linear`), underscore (`linear_one`), trailing/internal disallowed chars (`linear@`, `lin ear`). Empty string is rejected by the `length(slug) >= 1` clause. Valid slugs `linear`, `fn-scrum`, `google-drive`, single-char `a` succeed.
+- [ ] Step 4: Add a case: inserting a connector with an invalid slug is rejected by the GLOB constraint. Test all three forbidden-character shapes: uppercase (`Linear`), underscore (`linear_one`), trailing/internal disallowed chars (`linear@`, `lin ear`). Empty string is rejected by the `length(slug) >= 1` clause. Valid slugs `linear`, `acme-scrum`, `google-drive`, single-char `a` succeed.
 - [ ] Step 5: `pnpm --filter @zeno/storage test` green.
 - [ ] Step 6: Commit: `feat(storage): migration 5 — connectors tables`.
 

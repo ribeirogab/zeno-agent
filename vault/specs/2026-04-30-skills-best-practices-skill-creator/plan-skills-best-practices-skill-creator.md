@@ -13,9 +13,9 @@ The skills authoring problem splits cleanly between **infrastructure** (already 
 
 The mechanical workflow doesn't yet exist. It's the deliverable of this spec: a new project-local Claude Code skill called `skill-improver` (in `.claude/skills/skill-improver/`) that captures the audit-then-refactor playbook. Its three references files contain (a) a best-practices checklist sourced from skill-creator's SKILL.md, (b) the multi-file-split decision rules (when, how — citing spec 0062's caps + conventions), and (c) the invariants-preservation playbook (what to snapshot before, what to verify after).
 
-Phase C then applies skill-improver to Zeno's three production skills (`zeno-development`, `fn-code-review`, `fn-sentry-fix`), one commit per skill, lowest-stakes first (zeno-development = smoke test for skill-improver itself). The spec **does not prescribe** target shape per skill — skill-improver decides. The spec only enforces invariants (Constraints section): trigger compatibility, output format preservation, multi-file caps from spec 0062, reversibility per commit. If skill-improver's audit produces a zero-diff outcome (already best-practices-compliant), that's a valid commit too.
+Phase C then applies skill-improver to Zeno's three production skills (`zeno-development`, `code-review`, `sentry-fix`), one commit per skill, lowest-stakes first (zeno-development = smoke test for skill-improver itself). The spec **does not prescribe** target shape per skill — skill-improver decides. The spec only enforces invariants (Constraints section): trigger compatibility, output format preservation, multi-file caps from spec 0062, reversibility per commit. If skill-improver's audit produces a zero-diff outcome (already best-practices-compliant), that's a valid commit too.
 
-Phase D validates the result at three levels: package-level (`pnpm run quality-gate` 30/30 green — no production code touched), reconciler-level (boot logs cold + warm + classify smoke for profile-source watcher hot-reload — first production exercise of spec 0062's `classify` profile-prefix branch), and behavior-level (Slack E2E in `#C0EXAMPLE000` against real triggers — clone-repo for zeno-development, Sentry URL for fn-sentry-fix, PR URL for fn-code-review — with output baseline comparison).
+Phase D validates the result at three levels: package-level (`pnpm run quality-gate` 30/30 green — no production code touched), reconciler-level (boot logs cold + warm + classify smoke for profile-source watcher hot-reload — first production exercise of spec 0062's `classify` profile-prefix branch), and behavior-level (Slack E2E in `#C0EXAMPLE000` against real triggers — clone-repo for zeno-development, Sentry URL for sentry-fix, PR URL for code-review — with output baseline comparison).
 
 The whole spec is content-only. Zero production code changes. The risk surface is entirely about not silently breaking a skill's behavior — addressed by the invariants playbook, the per-skill smoke ordering (zeno-development first), the classify smoke gate before the Slack E2E, and Rule 1 (E2E via Slack as the final gate).
 
@@ -39,10 +39,10 @@ The whole spec is content-only. Zero production code changes. The risk surface i
 agent/skills/zeno-development/                        # existing — Phase C refactor commit 1
 └── SKILL.md                                          # may stay single-file, may consolidate, may zero-diff
 
-profiles/fn/skills/fn-code-review/                    # existing — Phase C refactor commit 2
+profiles/<example>/skills/code-review/                    # existing — Phase C refactor commit 2
 └── SKILL.md                                          # constraint: pre-submit gate working-memory dep
 
-profiles/fn/skills/fn-sentry-fix/                     # existing — Phase C refactor commit 3
+profiles/<example>/skills/sentry-fix/                     # existing — Phase C refactor commit 3
 └── SKILL.md                                          # may split into multi-file (skill-improver's call)
    [+ references/]                                    # if multi-file path is taken
 
@@ -63,11 +63,11 @@ context/specs/2026-04-30-skills-best-practices-skill-creator/
 | **A** Pin skill-creator | `version.txt` + LICENSE patch | none | 1 commit |
 | **B** Author skill-improver | `.claude/skills/skill-improver/{SKILL.md, references/*.md}` | A done; uses skill-creator workflow | 1 commit |
 | **C1** Refactor zeno-development | snapshot + invariants + propose + apply + post-check | B done; uses skill-improver | 1 commit (smoke test for skill-improver) |
-| **C2** Refactor fn-code-review | same gates | C1 clean | 1 commit |
-| **C3** Refactor fn-sentry-fix | same gates | C2 clean | 1 commit |
+| **C2** Refactor code-review | same gates | C1 clean | 1 commit |
+| **C3** Refactor sentry-fix | same gates | C2 clean | 1 commit |
 | **D** Quality + Docker + smoke + E2E | turbo green + boot logs + classify smoke + Slack E2E | C3 clean | verification only |
 
-Each phase ends with a hard gate. C1 → C2 only if zeno-development's invariants check passes. C2 → C3 only if fn-code-review's invariants check passes. D fires only if C3 lands.
+Each phase ends with a hard gate. C1 → C2 only if zeno-development's invariants check passes. C2 → C3 only if code-review's invariants check passes. D fires only if C3 lands.
 
 ### Data flow at refactor (one skill)
 

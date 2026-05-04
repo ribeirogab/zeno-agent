@@ -19,7 +19,7 @@ related:
 
 Zeno's `AgentCore` currently ends every successful execution by clearing the 👀 reaction and adding ✅ unconditionally (see `apps/worker/src/agent/core.ts:81-82`). That works for generic "command done" feedback but breaks any skill that wants a different signal for a different outcome.
 
-The `code-review` skill in the `fn` profile needs exactly this: it should react ✅ on approve, 💬 on "changes requested", and another sensible default on "commented only". Today it attempts to do so via inline `curl` calls from inside the Claude Agent SDK subprocess, but fails because:
+The `code-review` skill in the operator's profile needs exactly this: it should react ✅ on approve, 💬 on "changes requested", and another sensible default on "commented only". Today it attempts to do so via inline `curl` calls from inside the Claude Agent SDK subprocess, but fails because:
 
 1. `$SLACK_BOT_TOKEN` is not reaching the SDK subprocess. `ClaudeCodeBackend` already accepts an `env` option (`apps/worker/src/agent/backends/claude-code.ts:33` — wired to the SDK at line 78), but the chat-backend instantiation sites in `apps/worker/src/index.ts` (lines 280, 285, 301) pass no `env`, so the token never propagates.
 2. The triggering message's Slack timestamp (the "message ref" the Slack reactions API needs) is not reachable from inside a skill. `core.ts:wrapWithSlackContext` emits only `conversation_id`, `thread_id`, `user_id`, `current_time`. The proposed design makes this moot (see §2 below) — the skill never needs the timestamp directly.
@@ -106,7 +106,7 @@ Rationale: passing the token unblocks two things in one step — (a) the in-proc
 
 ### 4. `code-review` skill rewrite
 
-Replace the `curl` block in `profiles/fn/skills/code-review/SKILL.md` with calls to the new MCP tools:
+Replace the `curl` block in `profiles/<example>/skills/code-review/SKILL.md` with calls to the new MCP tools:
 
 ```
 # Skill pseudo-pattern

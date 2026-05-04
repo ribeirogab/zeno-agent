@@ -150,8 +150,8 @@ created: 2026-04-27
 - [ ] `pnpm run quality-gate` — 30/30 turbo tasks green.
 
 ## Phase E: Docker boot test
-- [ ] `PROFILE=fn pnpm run docker:down && pnpm run docker:build && PROFILE=fn pnpm run docker:up`
-- [ ] `docker logs zeno-fn-agent-1` shows `migrations_applied`, `github_app_token_initialized`, `mcp_loaded` count=4, `connector_gate_enabled`, no errors.
+- [ ] `PROFILE=<your-profile> pnpm run docker:down && pnpm run docker:build && PROFILE=<your-profile> pnpm run docker:up`
+- [ ] `docker logs zeno-<your-profile>-agent-1` shows `migrations_applied`, `github_app_token_initialized`, `mcp_loaded` count=4, `connector_gate_enabled`, no errors.
 - [ ] Dashboard renders at http://localhost:3001 — settings page no longer has sensitive-tools section, App detail page no longer has rotate button or env var column.
 
 ## Phase F: Three-round review

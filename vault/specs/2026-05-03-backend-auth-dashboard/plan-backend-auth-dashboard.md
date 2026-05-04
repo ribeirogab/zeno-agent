@@ -78,7 +78,7 @@ apps/dashboard/src/
 
 infra/
   ├─ docker-compose.default.yml         # MODIFIED: claude_home → claude_home_default
-  ├─ docker-compose.fn.yml              # MODIFIED: claude_home → claude_home_fn
+  ├─ docker-compose.<example>.yml              # MODIFIED: claude_home → claude_home_<example>
   ├─ migrate-claude-home.sh             # NEW: one-shot copy from shared volume to per-profile
   └─ Dockerfile                         # MODIFIED if needed (pin claude CLI version)
 
@@ -221,7 +221,7 @@ On success: status='active', last_auth_alert_at=null, materializer re-writes fil
 | `apps/dashboard/tests/components/backend/configure-modal.test.tsx` | **NEW** |
 | `apps/dashboard/tests/hooks/use-oauth-session.test.ts` | **NEW** |
 | `infra/docker-compose.default.yml` | MODIFIED — `claude_home` → `claude_home_default` (rename volume + remove `external: true`) |
-| `infra/docker-compose.fn.yml` | MODIFIED — same rename for `fn` profile |
+| `infra/docker-compose.<example>.yml` | MODIFIED — same rename for `<example>` profile |
 | `infra/migrate-claude-home.sh` | **NEW** — one-shot copy from old shared volume to per-profile |
 | `infra/Dockerfile` | + pin `@anthropic-ai/claude-code` CLI version |
 | `profiles/default/.env.example` | MODIFIED — remove `CLAUDE_CODE_OAUTH_TOKEN`, add `ZENO_MASTER_KEY` |

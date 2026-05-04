@@ -136,7 +136,7 @@ Sub-tasks:
 
 ### Phase 5 — Manual smoke (live profile)
 
-- 5.1: `docker compose -f infra/docker-compose.fn.yml restart agent` to pick up the new code.
+- 5.1: `docker compose -f infra/docker-compose.acme.yml restart agent` to pick up the new code.
 - 5.2: Re-run subset of `tmp/0036-validation/` runbook: G1.4, G1.5, G4.2, G4.3, G8.2 (the affected scenarios).
 - 5.3: Verify expected new behavior:
   - G1.4 with `sk-ant-INVALID` now returns `errorKind: 'auth'` (was `ok: true`).

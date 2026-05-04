@@ -120,8 +120,8 @@ Rationale:
 ```
 [token_refreshed] AcmeBooks
 [token_refreshed] AcmeShop
-[token_refreshed] Flavia-Nasser-OMS
-[token_refreshed] chatdesk-brasil
+[token_refreshed] Acme-OMS
+[token_refreshed] acme-support
 ```
 Every 55min × 4 installations = 96 entries/day. Noisy.
 
@@ -132,7 +132,7 @@ Every 55min × 4 installations = 96 entries/day. Noisy.
 - Log on first-time success on boot: `github_app_token_initialized` (per installation).
 - One summary log per cycle: `github_app_refresh_cycle_complete` (level: info, count of installations refreshed, count succeeded vs failed).
 
-**Effect:** steady state = 1 log/cycle (24/day for `fn` profile). Failures + recoveries surface clearly.
+**Effect:** steady state = 1 log/cycle (24/day for the operator's profile). Failures + recoveries surface clearly.
 
 Rationale: matches the project's "say nothing if nothing surprising" rule (CLAUDE.md). Operators can debug failures via the failure logs without noise drowning them.
 
@@ -142,7 +142,7 @@ Rationale: matches the project's "say nothing if nothing surprising" rule (CLAUD
 
 **Changes:**
 1. `apps/worker/src/guardrails/config.ts`: remove `always_sensitive` from the zod schema. Boot fails with a helpful error if the field is still present in yaml: "Field `approvals.always_sensitive` is no longer supported in yaml. Migrate to DB-managed rules in `/settings`. See spec 0047."
-2. `profiles/fn/config.yaml`: remove the field (the data was already migrated by 0047's boot migration).
+2. `profiles/<your-profile>/config.yaml`: remove the field (the data was already migrated by 0047's boot migration).
 3. Documentation: add a migration note to README.
 
 Rationale:
@@ -255,7 +255,7 @@ ID: next available at ship time. Today the live array ends at id 5; specs 0044, 
 - (Q3) `apps/worker/src/github/app-auth.ts` — `getCachedToken` returns stale-but-valid; `refreshAll` adds exponential backoff retry per installation.
 - (Q4) `apps/worker/src/github/app-auth.ts` — log refactor (skip routine success, log on failure/recovery/init, aggregate cycle log).
 - (Q5) `apps/worker/src/guardrails/config.ts` — remove `always_sensitive` from `ApprovalsSchema`. Add a **pre-parse rejection check** in the `loadApprovalsConfig` boot path: before parsing, if the raw yaml object has a key `always_sensitive`, throw `Error('Field approvals.always_sensitive is no longer supported in yaml. Migrate to DB-managed rules in /settings. See spec 0047.')`. Pre-parse check (rather than `.strict()`) targets only this specific deprecated key without rejecting unrelated future additions to the approvals block.
-- (Q5) `profiles/fn/config.yaml` — remove `approvals.always_sensitive` field (data already in DB via spec 0047).
+- (Q5) `profiles/<your-profile>/config.yaml` — remove `approvals.always_sensitive` field (data already in DB via spec 0047).
 - (Q5) `README.md` — add a "Migration from yaml" note linking to spec 0047.
 - (Q6) `apps/api/src/routes/approval-rules.ts` — two changes: (a) `GET /` accepts `?include=match-status` query param; returns `Rule & { matchStatus: { matchCount, isOrphan } }[]`; (b) new `POST /remove-orphans` endpoint mass-deletes orphan rules (body `{confirm: true}`, returns `{deletedCount}`).
 - (Q6) `apps/dashboard/src/components/settings/sensitive-tools-section.tsx` — render ⚠ inline + aggregate count.
@@ -309,7 +309,7 @@ Mass-deletes all orphan rules (matchStatus.isOrphan && source !== 'auto'). Body:
 - Klaviyo re-categorization confirmed by inspecting `agent/connectors-catalog.json` after regen (read/write/interactive split is correct).
 - DEGRADED pill renders correctly on App row + detail header during simulated outage.
 - Stale-but-valid cache logic unit-tested with adversarial timing.
-- Log volume reduced (verified by counting log lines in 24h fn profile run).
+- Log volume reduced (verified by counting log lines in a 24h profile run).
 - Yaml `always_sensitive` removal causes hard-fail until profile is updated.
 - Orphan warnings + bulk-remove flow work end-to-end.
 - Glob leading-`*` patterns parse and match correctly.
@@ -353,7 +353,7 @@ All resolved by AI per delegation.
 6. **Phase 5** (Q5): yaml schema removal + helpful error + profile config edit.
 7. **Phase 6** (Q6): match-status endpoint + orphan UI + bulk-remove.
 8. **Phase 7** (Q7): glob regex relaxation + tests.
-9. **Phase 8**: Quality gate green. Smoke against `fn` profile.
+9. **Phase 8**: Quality gate green. Smoke against the operator's profile.
 10. **Phase 9**: `status: shipped`, commit, PR.
 
 ## Definition of Done
@@ -362,4 +362,4 @@ All resolved by AI per delegation.
 - 3 clean reviews.
 - Quality gate green.
 - OSS readiness: no operator-specific values; tests use generic fixtures.
-- Smoke green on `fn` profile (each item exercised manually).
+- Smoke green on the operator's profile (each item exercised manually).

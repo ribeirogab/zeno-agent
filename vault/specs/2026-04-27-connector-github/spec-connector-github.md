@@ -35,22 +35,22 @@ The existing `apps/worker/src/github/app-auth.ts` already does this exact JWT→
 
 ### Multi-installation: one connector per installation?
 
-Yes. Each installation (AcmeBooks, AcmeShop, OMS, chatdesk-brasil) is a separate scoped token. To query each via MCP, each gets its own connector instance pointing at github-mcp-server with a different runtime token.
+Yes. Each installation (one per org) is a separate scoped token. To query each via MCP, each gets its own connector instance pointing at github-mcp-server with a different runtime token.
 
-Implementation shape: the catalog entry "GitHub App" is a **config holder** — the user installs it once, the dashboard custom UI captures app_id + PEM + the list of installations, and the install action **spawns one connector per installation** (slugs like `github-app-fnlivros`, `github-app-quickshoperp`, etc). The user gets N-deep tool surface in `/connectors`, one per installation.
+Implementation shape: the catalog entry "GitHub App" is a **config holder** — the user installs it once, the dashboard custom UI captures app_id + PEM + the list of installations, and the install action **spawns one connector per installation** (slugs like `github-app-acmebooks`, `github-app-acme-shop`, etc). The user gets N-deep tool surface in `/connectors`, one per installation.
 
 Alternative: one connector instance with a "current installation" runtime selector. Rejected — more complex routing in the worker, less visibility in the dashboard.
 
 ### Migrating the existing setup
 
-Today: `profiles/fn/config.yaml` has the `github_app:` block; `profiles/fn/skills/acme/github-app.pem` is the key file; `apps/worker/src/github/app-auth.ts` reads both at boot.
+Today: `profiles/<your-profile>/config.yaml` has the `github_app:` block; `profiles/<your-profile>/skills/<owner>/github-app.pem` is the key file; `apps/worker/src/github/app-auth.ts` reads both at boot.
 
 After this spec:
 
 1. The GitHub App connector entry is installed via dashboard with the PEM uploaded + installations list entered.
 2. The DB has the data; `app-auth.ts` is updated to read from DB instead of config.yaml.
 3. The yaml `github_app:` block + the `.pem` file move to `tmp/legacy-github-app/` for safekeeping (per user instruction).
-4. The skill files referencing `ACME_GH_TOKEN` etc keep working because the worker's `app-auth.ts` still mints those env vars at boot — just now sourced from DB.
+4. The skill files referencing the per-org GH tokens keep working because the worker's `app-auth.ts` still mints those env vars at boot — just now sourced from DB.
 
 ### Custom UI per connector — how
 
@@ -72,7 +72,7 @@ Two approaches considered:
 
 ### What about the rest of `gh` CLI usage?
 
-`gh` is still in the container. The github_app bootstrap continues to mint `ACME_GH_TOKEN` etc env vars (sourced from DB after migration) so `gh` CLI works as before. The GitHub MCP and `gh` CLI coexist — both are valid paths for the agent. The agent will pick MCP when available (more structured), `gh` for things the MCP doesn't expose (some org-admin endpoints, custom queries).
+`gh` is still in the container. The github_app bootstrap continues to mint `<ORG>_GH_TOKEN` env vars (sourced from DB after migration) so `gh` CLI works as before. The GitHub MCP and `gh` CLI coexist — both are valid paths for the agent. The agent will pick MCP when available (more structured), `gh` for things the MCP doesn't expose (some org-admin endpoints, custom queries).
 
 ### Auth check tools
 
@@ -106,7 +106,7 @@ Provide two catalog-installable GitHub connectors. The Personal flow is a one-ti
 - **Two catalog entries**: `github` (Personal) and `github-app` (App).
 - **Custom UI** for `github-app` install modal (PEM upload + installations editor). Personal uses the standard modal.
 - **DB migration**: store app config (app_id, pem, installations) in `connector_secrets` of the app catalog entry — using JSON-string secrets for the composite installations field. New schema columns NOT required.
-- **One connector instance per installation** — slug pattern `github-app-<installation-name-slug>` (e.g., `github-app-fnlivros`).
+- **One connector instance per installation** — slug pattern `github-app-<installation-name-slug>` (e.g., `github-app-acmebooks`).
 - **Reuse `app-auth.ts`** with minor changes: source from DB instead of yaml.
 - **Go binary**: `go install github.com/github/github-mcp-server/cmd/github-mcp-server@v0.5.0` in a multi-stage Dockerfile build.
 - **`authCheckTool: 'get_me'`** for both entries.
@@ -126,7 +126,7 @@ Provide two catalog-installable GitHub connectors. The Personal flow is a one-ti
 | GP3 | API | `POST /catalog/github/test` bad token → `{ok: false, errorKind: 'auth'}` |
 | GP4 | API | Real token → `{ok: true, tools: [<30+>]}` |
 | GP5 | UI | Install completes; connector enabled |
-| GP6 | RT | Slack DM: "[smoke github-personal] me lista issues abertas no repo octocat/zeno-agent" → agent uses MCP |
+| GP6 | RT | Slack DM: "[smoke github-personal] list open issues in repo your-github-username/zeno-agent" → agent uses MCP |
 
 ### GitHub App flow
 
@@ -136,10 +136,10 @@ Provide two catalog-installable GitHub connectors. The Personal flow is a one-ti
 | GA2 | UI | **Custom install modal**: text field for `app_id`, file upload for PEM, dynamic editor for installations (add row → name + id + env_var name) |
 | GA3 | UI | Test → spawns one ephemeral test against installation #1, verifies the JWT signing + installation token mint flow + auth-check tool |
 | GA4 | API | `POST /catalog/github-app/install` (new endpoint OR reuse `POST /` with extended payload) → creates **N connector rows** (one per installation), each with its own slug, secrets, and tools |
-| GA5 | UI | After install, `/connectors` shows N entries (`github-app-fnlivros`, `github-app-quickshoperp`, etc.) |
+| GA5 | UI | After install, `/connectors` shows N entries (`github-app-acmebooks`, `github-app-acme-shop`, etc.) |
 | GA6 | RT | Each per-installation connector spawns github-mcp-server with the minted ghs_* token. Token refresh happens automatically before each spawn (per spec 0033's per-turn MCP rebuild). |
-| GA7 | Migration | After GA5 verified, the yaml `github_app:` block + `.pem` file move to `tmp/legacy-github-app/`. Worker boot's `app-auth.ts` reads from DB; existing skills/CLI still get `ACME_GH_TOKEN` etc env vars. |
-| GA8 | RT | Slack DM: "[smoke github-app] me lista PRs abertos no AcmeBooks/ecomm" → agent uses `mcp__github-app-fnlivros__list_pull_requests` |
+| GA7 | Migration | After GA5 verified, the yaml `github_app:` block + `.pem` file move to `tmp/legacy-github-app/`. Worker boot's `app-auth.ts` reads from DB; existing skills/CLI still get the `<ORG>_GH_TOKEN` env vars. |
+| GA8 | RT | Slack DM: "[smoke github-app] list open PRs in AcmeBooks/ecomm" → agent uses `mcp__github-app-acmebooks__list_pull_requests` |
 
 ### Coexistence
 
@@ -184,7 +184,7 @@ Provide two catalog-installable GitHub connectors. The Personal flow is a one-ti
 
 ## Coverage gaps
 
-- **Non-owner runtime path** for write tools (e.g., `merge_pull_request`): same gap as Linear. Single-tenant `fn` profile.
+- **Non-owner runtime path** for write tools (e.g., `merge_pull_request`): same gap as Linear. Single-tenant operator profile.
 - **OAuth App flow**: deferred.
 - **Multi-profile shared GitHub App**: not designed for. Each profile maintains its own.
 

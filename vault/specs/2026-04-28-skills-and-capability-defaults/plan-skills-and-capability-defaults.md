@@ -22,7 +22,7 @@ The work breaks into three concerns layered on top of the existing spec 0052 mec
 
 3. **API + UI immutability lock.** The skills API rejects `PATCH /api/skills/:id` and `DELETE /api/skills/:id` with HTTP 403 + `error: "zeno_default_immutable"` when the row's `source` is `'zeno_default'`. The dashboard hides the edit/delete buttons for those skills and shows a `default · zeno` badge instead; profile-source rows show `profile · <name>` and remain editable.
 
-The two skill files (`zeno-development`, `fn-code-review`) are content-only deliverables — adapted from the backups under `tmp/profile-fn-backup-2026-04-27/skills/`. Playwright joins the catalog as a regular entry; Chrome is installed at Docker build time so the first call doesn't fail. The detail-nav bug is investigated last (likely a stale `route-tree.gen.ts`); a single fix unblocks E2E.
+The two skill files (`zeno-development`, `code-review`) are content-only deliverables — adapted from operator-profile backups. Playwright joins the catalog as a regular entry; Chrome is installed at Docker build time so the first call doesn't fail. The detail-nav bug is investigated last (likely a stale `route-tree.gen.ts`); a single fix unblocks E2E.
 
 ## Architecture
 
@@ -63,7 +63,7 @@ The two skill files (`zeno-development`, `fn-code-review`) are content-only deli
 | `apps/dashboard/src/routes/_authed/skills.tsx` | Modified | Badge in row when `source !== 'dashboard'`. |
 | `apps/dashboard/src/routes/_authed/skills.$id.tsx` | Modified | Hide edit/delete buttons when `source === 'zeno_default'`; show "managed by Zeno" notice. Investigate why the route renders nothing today and fix. |
 | `agent/skills/zeno-development/SKILL.md` | New | Adapted dev workflow playbook; description tuned for auto-discovery on dev intents. |
-| `profiles/fn/skills/fn-code-review/SKILL.md` | New | Adapted code review playbook; description tuned for PR review intents. |
+| `profiles/<your-profile>/skills/code-review/SKILL.md` | New | Adapted code review playbook; description tuned for PR review intents. |
 | `agent/connectors-catalog.json` | Modified | Add `playwright` entry: slug `playwright`, transport `stdio`, command `npx -y @playwright/mcp@latest`, default tools list. |
 | `infra/Dockerfile` | Modified | Runtime stage runs `npx -y playwright install chrome` after deps install. |
 | Test files | New / Modified | `migrations.test.ts`, `db.test.ts`, `skills.test.ts` (storage); `seed.test.ts` (worker); `skills.test.ts` route (api); plus dashboard typecheck propagation. |
@@ -74,7 +74,7 @@ The two skill files (`zeno-development`, `fn-code-review`) are content-only deli
 - `apps/worker/src/skills/seed.ts`
 - `apps/worker/tests/skills/seed.test.ts`
 - `agent/skills/zeno-development/SKILL.md`
-- `profiles/fn/skills/fn-code-review/SKILL.md`
+- `profiles/<your-profile>/skills/code-review/SKILL.md`
 
 ### Modified
 - `packages/storage/src/migrations.ts` — append migrations 13, 14
@@ -113,7 +113,7 @@ C. API source field + immutability lock + tests
    ↓
 D. zeno-development SKILL.md content
    ↓
-E. fn-code-review SKILL.md content
+E. code-review SKILL.md content
    ↓
 F. Playwright catalog + Dockerfile chrome (parallel with G/H)
    ↓
@@ -138,5 +138,5 @@ F, G, H can run in parallel after C lands. Everything else is serial.
 - **`route-tree.gen.ts` regeneration.** If gitignored, the dashboard build inside the Docker image may be missing the new route. Investigation step in Phase G must check git status of that file before editing components.
 - **Playwright catalog default permissions.** Catalog entries usually default tools to `permission='ask'`. For Playwright that means the operator has to manually mark tools as `always_allow` after install. Acceptable per the catalog convention; documented in S7.
 - **Chrome install in Dockerfile.** `playwright install chrome` requires network at build time. If the build runs in a sandboxed environment without internet, the build breaks. Standard CI/dev assumption is fine for our use case.
-- **`fn-code-review` description calibration.** The skill must auto-discover on @-mentions with PR URLs in PT-BR. Calibration is iterative and lives in Phase J (E2E). Plan budgets one tightening pass.
+- **`code-review` description calibration.** The skill must auto-discover on @-mentions with PR URLs. Calibration is iterative and lives in Phase J (E2E). Plan budgets one tightening pass.
 - **Stacked PR base.** Branch is `feat/skills-defaults-and-prreview` with `feat/skills` (PR #14) as base. We cannot merge this PR until #14 lands. Coordinate with the user before merge; the work itself can ship to draft.

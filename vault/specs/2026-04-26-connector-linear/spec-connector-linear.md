@@ -13,7 +13,7 @@ shipped: 2026-04-27
 
 ### Why Linear, why now?
 
-Linear is the issue tracker for Flávia Nasser engineering. Today there's no Zeno path to query/update Linear from Slack DMs — anything Linear-related requires a human in the Linear UI. Adding the connector unlocks read-paths immediately (status checks, sprint summaries, "what am I assigned to?") and write-paths once permissions allow.
+Linear is the issue tracker for the operator's engineering team. Today there's no Zeno path to query/update Linear from Slack DMs — anything Linear-related requires a human in the Linear UI. Adding the connector unlocks read-paths immediately (status checks, sprint summaries, "what am I assigned to?") and write-paths once permissions allow.
 
 ### What does the live MCP expose?
 

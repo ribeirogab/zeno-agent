@@ -911,7 +911,7 @@ git commit -m "refactor(design): import ToastProvider from @zeno/ui"
 - `apps/design/src/components/modals/delete-cron-modal.tsx`
 - `apps/design/src/components/modals/add-custom-modal.tsx`
 - `apps/design/src/routes/dashboard/connectors/linear/index.tsx`
-- `apps/design/src/routes/dashboard/connectors/fn-scrum/index.tsx`
+- `apps/design/src/routes/dashboard/connectors/example-scrum/index.tsx`
 - `apps/design/src/routes/dashboard/connectors/add-remote/index.tsx`
 - `apps/design/src/routes/dashboard/connectors/add-catalog/index.tsx`
 - `apps/design/src/routes/dashboard/connectors/add-local/index.tsx`
@@ -934,7 +934,7 @@ perl -i -pe "s|from '\@/lib/toast'|from '\@zeno/ui'|g" \
   apps/design/src/components/modals/delete-cron-modal.tsx \
   apps/design/src/components/modals/add-custom-modal.tsx \
   apps/design/src/routes/dashboard/connectors/linear/index.tsx \
-  apps/design/src/routes/dashboard/connectors/fn-scrum/index.tsx \
+  apps/design/src/routes/dashboard/connectors/example-scrum/index.tsx \
   apps/design/src/routes/dashboard/connectors/add-remote/index.tsx \
   apps/design/src/routes/dashboard/connectors/add-catalog/index.tsx \
   apps/design/src/routes/dashboard/connectors/add-local/index.tsx \

@@ -15,8 +15,8 @@ created: 2026-04-21
 
 Four commits, each self-contained:
 
-1. **File move.** Create `profiles/default/` (examples) + `profiles/fn/` (current FN stuff). Delete old `profile/`. Update gitignore.
-2. **Infra.** New compose files (`docker-compose.default.yml`, `docker-compose.fn.yml`), wrapper script `docker.sh`. Delete old `docker-compose.yml`. Update `package.json` scripts.
+1. **File move.** Create `profiles/default/` (examples) + `profiles/acme/` (existing operator content). Delete old `profile/`. Update gitignore.
+2. **Infra.** New compose files (`docker-compose.default.yml`, `docker-compose.acme.yml`), wrapper script `docker.sh`. Delete old `docker-compose.yml`. Update `package.json` scripts.
 3. **Volume migration.** Migrate existing `zeno-agent_claude_home` → external `claude_home`.
 4. **Docs.** Update README + CLAUDE.md with new layout, setup, and usage.
 
@@ -31,23 +31,23 @@ Four commits, each self-contained:
 | `profiles/default/config.example.yaml` | Moved from `profile/config.example.yaml` |
 | `profiles/default/mcp.example.json` | Moved from `profile/mcp.example.json` |
 | `profiles/default/skills/.gitkeep` | Keeps the empty skills dir in git |
-| `profiles/fn/.env` | Moved from root `.env` (gitignored) |
-| `profiles/fn/USER.md` | Moved from `profile/USER.md` (gitignored) |
-| `profiles/fn/config.yaml` | Moved from `profile/config.yaml` (gitignored) |
-| `profiles/fn/mcp.json` | Moved from `profile/mcp.json` (gitignored) |
-| `profiles/fn/skills/acme/` | Moved from `profile/skills/acme/` (gitignored) |
+| `profiles/acme/.env` | Moved from root `.env` (gitignored) |
+| `profiles/acme/USER.md` | Moved from `profile/USER.md` (gitignored) |
+| `profiles/acme/config.yaml` | Moved from `profile/config.yaml` (gitignored) |
+| `profiles/acme/mcp.json` | Moved from `profile/mcp.json` (gitignored) |
+| `profiles/acme/skills/acme/` | Moved from `profile/skills/acme/` (gitignored) |
 | `infra/docker-compose.default.yml` | Compose for default profile (port 3000) |
-| `infra/docker-compose.fn.yml` | Compose for fn profile (port 3001, gitignored) |
+| `infra/docker-compose.acme.yml` | Compose for acme profile (port 3001, gitignored) |
 | `infra/docker.sh` | Wrapper script — reads `PROFILE` env var, delegates to compose |
 
 ### DELETE
 
 | File | Reason |
 |---|---|
-| `profile/` (entire directory) | Replaced by `profiles/default/` + `profiles/fn/` |
+| `profile/` (entire directory) | Replaced by `profiles/default/` + `profiles/acme/` |
 | `infra/docker-compose.yml` | Replaced by per-profile compose files |
 | `.env.example` (root) | Moved to `profiles/default/.env.example` |
-| `.env` (root) | Moved to `profiles/fn/.env` |
+| `.env` (root) | Moved to `profiles/acme/.env` |
 
 ### EDIT
 

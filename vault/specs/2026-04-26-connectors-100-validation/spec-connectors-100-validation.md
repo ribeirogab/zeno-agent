@@ -9,11 +9,11 @@ related:
 # Connectors 100% Coverage Validation — Spec
 
 **Status:** Draft
-**Scope:** Exhaustive manual + scripted validation of every connector capability — install flow, detail screen, lifecycle, permissions, runtime enforcement, security guarantees — executed against the **live `fn` profile** (real container, real Sentry MCP, real Slack DM) with a **3× consecutive clean** acceptance bar.
+**Scope:** Exhaustive manual + scripted validation of every connector capability — install flow, detail screen, lifecycle, permissions, runtime enforcement, security guarantees — executed against the **live operator profile** (real container, real Sentry MCP, real Slack DM) with a **3× consecutive clean** acceptance bar.
 
 ## Context
 
-Connectors are the integration spine of Zeno. After shipping specs `0029` (UI design), `0032` (backend), `0033` (remote runtime) and `0034` (dashboard), the live `fn` profile has the Sentry connector installed and was validated end-to-end with two scenarios in the previous turn:
+Connectors are the integration spine of Zeno. After shipping specs `0029` (UI design), `0032` (backend), `0033` (remote runtime) and `0034` (dashboard), the live operator profile has the Sentry connector installed and was validated end-to-end with two scenarios in the previous turn:
 
 - **Test 1** (Sentry ENABLED): agent called `list_issues` via MCP → 3 issues returned in 31s. Invocation row recorded.
 - **Test 2** (Sentry DISABLED): agent recognized the disabled state, refused bypass via `curl`, suggested CloudWatch fallback. Took 22s.
@@ -39,21 +39,21 @@ Until every capability is exercised end-to-end three times in a row without flak
 3. **Cross-browser / responsive testing.** Chromium desktop only.
 4. **Adding new catalog entries** (Linear, Notion, Granola, etc.). Sentry is the sole catalog connector under test.
 5. **Validating Slack-as-Channel.** Slack channel input/output is exercised incidentally (it's how the agent receives and sends DMs) but is not the subject of this spec.
-6. **Validating non-`fn` profiles.** `default`/other profiles are out of scope.
+6. **Validating non-operator profiles.** `default`/other profiles are out of scope.
 7. **Custom (non-catalog) connector creation flow.** The `POST /` create path with `source: 'custom'` exists but is not exercised. A note is added to §Open Questions.
-8. **Remote (HTTP/SSE) transport.** Sentry is `stdio`. No remote connector is installed in the `fn` profile. A separate spec/effort would cover remote.
+8. **Remote (HTTP/SSE) transport.** Sentry is `stdio`. No remote connector is installed in the test profile. A separate spec/effort would cover remote.
 9. **Multi-connector interactions.** Only one connector is installed (Sentry). Disabling/enabling another while one is active is not in this matrix.
-10. **`ask` permission with non-owner.** Operator is the owner; `ask` short-circuits to allow for the owner. Validating the full classifier→approver flow for `ask` requires a non-owner profile and is documented as a known coverage limitation.
+10. **`ask` permission with non-owner.** The operator is the owner; `ask` short-circuits to allow for the owner. Validating the full classifier→approver flow for `ask` requires a non-owner profile and is documented as a known coverage limitation.
 
 ## Constraints
 
-- **Live profile, real services.** All tests run against `profiles/fn/` with a running container (`docker:up`), the real Anthropic MCP server for Sentry (`@sentry/mcp-server` via `npx`), and the real Slack workspace (`acme.slack.com`, DM channel `D0EXAMPLE000`). No mocks.
+- **Live profile, real services.** All tests run against `profiles/acme/` with a running container (`docker:up`), the real Anthropic MCP server for Sentry (`@sentry/mcp-server` via `npx`), and the real Slack workspace (DM channel `D0EXAMPLE000`). No mocks.
 - **Test driver = the agent (Claude Code) running this spec.** The driver issues `curl` against `http://localhost:3001/api/connectors/*`, queries SQLite via `docker:sh sqlite3`, and sends/reads Slack DMs via the `mcp__07722e00-…__slack_*` connector. Manual UI inspection is performed via screenshot when an interaction can only be done in the browser.
 - **3× consecutive clean rule.** A round is "clean" when every scenario in §Test matrix passes with the expected observable. The driver runs the full matrix three times back-to-back. Any single scenario failure resets the counter to zero, and the round restarts after the fix lands. Acceptance: 3 consecutive clean runs.
 - **No flake tolerance.** A scenario that requires a retry to pass counts as a failure. The fix is to either tighten the assertion or insert a deterministic wait (e.g., poll the DB for `lastVerifiedAt` change instead of sleeping a fixed duration).
 - **Per-round state reset.** Before each round the driver runs the §Round reset procedure to bring the system to a known-good baseline: Sentry enabled, all permissions at catalog defaults, reveal rate-limiter cleared (via API restart or 60s wait), no test connectors, no stale Slack messages awaiting reply.
-- **Destructive scenarios run last.** Uninstall happens at the **end of round 3**, after which the driver reinstalls Sentry. The operator (operator) supplies the token at that step (the only point where human input is required).
-- **Audit-log assertion goes through the API stdout.** The reveal endpoint writes a JSON line to stdout with `event: connector_secret_revealed`. The driver greps `docker logs zeno-fn-agent-1` for that line within a 5s window of the call.
+- **Destructive scenarios run last.** Uninstall happens at the **end of round 3**, after which the driver reinstalls Sentry. The operator supplies the token at that step (the only point where human input is required).
+- **Audit-log assertion goes through the API stdout.** The reveal endpoint writes a JSON line to stdout with `event: connector_secret_revealed`. The driver greps `docker logs zeno-acme-agent-1` for that line within a 5s window of the call.
 - **Slack timing.** Each Slack-driven scenario sleeps 60s after sending a DM and reads the channel history afterwards. If the agent has not replied in 60s the driver waits another 60s once. A second timeout is a scenario failure.
 - **Test artifacts under `tmp/`.** All curl outputs, screenshots, and run logs are written to `tmp/0036-validation/run-<n>/<scenario-id>.{json,png,log}` per `context/rules/generated-files-location.md`.
 
@@ -93,8 +93,8 @@ The matrix has 12 scenario groups. Each scenario lists Surface (UI / API / RT �
 |---|---|---|---|
 | G3.1 | API | `PATCH /:id/toggle` while enabled | Response `{ status: 'disabled' }`; DB `connectors.status='disabled'` for that row; UI label flips to `disabled` after refetch. |
 | G3.2 | API | `PATCH /:id/toggle` while disabled | Response `{ status: 'enabled' }`; UI flips back. |
-| G3.3 | API | After disable + `docker compose -f infra/docker-compose.fn.yml restart agent` (or full down/up) | Status remains `disabled` (DB-backed). |
-| G3.4 | API | `PATCH /:id/toggle` while status='pending' | Response 409 with body `{ "error": "cannot_toggle_pending" }`. Documented behavior; UI shows toast `teste a conexão antes de ativar` (manual screenshot, separate task). **White-box setup:** catalog installs never land as `pending`, so the test forces it via SQL: `UPDATE connectors SET status='pending' WHERE id='<sentry-id>';` (the schema's CHECK constraint accepts the value). After asserting the 409 body, restore: `UPDATE connectors SET status='enabled' WHERE id='<sentry-id>';` Both UPDATEs run via `docker exec zeno-fn-agent-1 sqlite3 /var/zeno/zeno.db "<sql>"`. |
+| G3.3 | API | After disable + `docker compose -f infra/docker-compose.acme.yml restart agent` (or full down/up) | Status remains `disabled` (DB-backed). |
+| G3.4 | API | `PATCH /:id/toggle` while status='pending' | Response 409 with body `{ "error": "cannot_toggle_pending" }`. Documented behavior; UI shows toast `teste a conexão antes de ativar` (manual screenshot, separate task). **White-box setup:** catalog installs never land as `pending`, so the test forces it via SQL: `UPDATE connectors SET status='pending' WHERE id='<sentry-id>';` (the schema's CHECK constraint accepts the value). After asserting the 409 body, restore: `UPDATE connectors SET status='enabled' WHERE id='<sentry-id>';` Both UPDATEs run via `docker exec zeno-acme-agent-1 sqlite3 /var/zeno/zeno.db "<sql>"`. |
 | G3.5 | RT | Disable Sentry → send DM `me liste 3 issues do worker` | Agent responds within 90s acknowledging "Sentry connector disabled / unavailable", offers CloudWatch fallback, **does not** call `mcp__sentry__*` (no row added to `connector_invocations`), **does not** invoke Bash/curl bypass (verify via no `curl ... sentry.io` in worker log). |
 | G3.6 | RT | Re-enable Sentry → same DM | Agent calls `mcp__sentry__list_issues`, returns 3+ issues with short-IDs. New row in `connector_invocations` with `tool_name='list_issues' result='ok'`. |
 
@@ -127,9 +127,9 @@ The matrix has 12 scenario groups. Each scenario lists Surface (UI / API / RT �
 
 | ID | Surface | Description | Expected |
 |---|---|---|---|
-| G7.1 | API | `GET /:id/secrets/SENTRY_ACCESS_TOKEN/reveal` | 200 `{ value: '<full token>' }`. Within 5s, `docker logs --since <epoch-before-call> zeno-fn-agent-1` contains a JSON line with `"event":"connector_secret_revealed"`, `"connectorId":"<id>"`, `"key":"SENTRY_ACCESS_TOKEN"`. **The audit line is written via `process.stdout.write` directly (bypasses Pino), so it lands in Docker logs only — there is no row in the `logs` table for this event.** Asserting via `docker logs` is the only valid path. |
+| G7.1 | API | `GET /:id/secrets/SENTRY_ACCESS_TOKEN/reveal` | 200 `{ value: '<full token>' }`. Within 5s, `docker logs --since <epoch-before-call> zeno-acme-agent-1` contains a JSON line with `"event":"connector_secret_revealed"`, `"connectorId":"<id>"`, `"key":"SENTRY_ACCESS_TOKEN"`. **The audit line is written via `process.stdout.write` directly (bypasses Pino), so it lands in Docker logs only — there is no row in the `logs` table for this event.** Asserting via `docker logs` is the only valid path. |
 | G7.2 | API | Same endpoint a second time within 60s | 429 `{ error: 'rate_limited', retryAfter: <int seconds> }`. No new audit log line. |
-| G7.3 | API | Parse `retryAfter` from the JSON body of G7.2's 429 response (it's an integer seconds field), `sleep $((retryAfter + 1))`, then re-issue `GET /:id/secrets/SENTRY_ACCESS_TOKEN/reveal` | 200 with value; new audit log line in `docker logs --since $START_EPOCH zeno-fn-agent-1` matching `event:connector_secret_revealed`. |
+| G7.3 | API | Parse `retryAfter` from the JSON body of G7.2's 429 response (it's an integer seconds field), `sleep $((retryAfter + 1))`, then re-issue `GET /:id/secrets/SENTRY_ACCESS_TOKEN/reveal` | 200 with value; new audit log line in `docker logs --since $START_EPOCH zeno-acme-agent-1` matching `event:connector_secret_revealed`. |
 | G7.4 | UI | Click reveal in browser, leave it for 11s | Value auto-hides at 10s; button glyph returns to `○`. |
 | G7.5 | UI | Click reveal twice rapidly in browser | First reveals, second triggers a toast `aguarde alguns segundos pra revelar de novo (...)`. |
 
@@ -138,7 +138,7 @@ The matrix has 12 scenario groups. Each scenario lists Surface (UI / API / RT �
 | ID | Surface | Description | Expected |
 |---|---|---|---|
 | G8.1 | API | `PATCH /:id/tools/list_issues/permission` body `{permission:'never'}` | 204; DB row updated; `GET /:id` reflects `permission: 'never'` for that tool. |
-| G8.2 | RT | DM `me liste 3 issues do worker` after G8.1 | Agent does not get a successful `list_issues` result; either reports the tool as unavailable/blocked or pivots to another approach. **Primary assertion (durable):** SQL run via `docker exec zeno-fn-agent-1 sqlite3 /var/zeno/zeno.db "SELECT policy_that_gated, decision FROM approvals_log WHERE tool_name = 'mcp__sentry__list_issues' AND created_at > '$START_ISO' ORDER BY id DESC LIMIT 1;"` (no API endpoint exposes this — `approvals_log` is queried directly, consistent with G3.5/G6.3) returns exactly one row with `policy_that_gated = 'connector_never'` and `decision = 'deny'`. **Secondary assertion:** zero new rows in `connector_invocations` for `tool_name='list_issues'` since `<round-start-iso>` — the deny is enforced at the `PreToolUse` hook level (`apps/worker/src/guardrails/guarded-backend.ts`), which short-circuits before the MCP is ever called, so `onInvocation` (which writes to `connector_invocations`) does not fire. **Note:** `policy_that_gated` is written to the `approvals_log` table by the audit logger, NOT to stdout — `docker logs` greps for `connector_never` are not reliable. |
+| G8.2 | RT | DM `me liste 3 issues do worker` after G8.1 | Agent does not get a successful `list_issues` result; either reports the tool as unavailable/blocked or pivots to another approach. **Primary assertion (durable):** SQL run via `docker exec zeno-acme-agent-1 sqlite3 /var/zeno/zeno.db "SELECT policy_that_gated, decision FROM approvals_log WHERE tool_name = 'mcp__sentry__list_issues' AND created_at > '$START_ISO' ORDER BY id DESC LIMIT 1;"` (no API endpoint exposes this — `approvals_log` is queried directly, consistent with G3.5/G6.3) returns exactly one row with `policy_that_gated = 'connector_never'` and `decision = 'deny'`. **Secondary assertion:** zero new rows in `connector_invocations` for `tool_name='list_issues'` since `<round-start-iso>` — the deny is enforced at the `PreToolUse` hook level (`apps/worker/src/guardrails/guarded-backend.ts`), which short-circuits before the MCP is ever called, so `onInvocation` (which writes to `connector_invocations`) does not fire. **Note:** `policy_that_gated` is written to the `approvals_log` table by the audit logger, NOT to stdout — `docker logs` greps for `connector_never` are not reliable. |
 | G8.3 | API | `PATCH /:id/tools/list_issues/permission` body `{permission:'always_allow'}` | 204; subsequent DM works again (validated by G3.6 sequel). |
 | G8.4 | API | `PATCH /:id/tools/<unknown>/permission` | 404 `{ error: 'tool_not_found' }`. |
 
@@ -158,15 +158,15 @@ The matrix has 12 scenario groups. Each scenario lists Surface (UI / API / RT �
 | G10.1 | RT | Default state (read=always_allow): DM `me liste 3 issues` | Agent calls `list_issues` (covered by G3.6). |
 | G10.2 | RT | After G9.1 (read=never): DM `me liste 3 issues` | Agent blocked (covered by G8.2's logic but applied to all read tools). Restore via G9.4. |
 | G10.3 | RT | After per-tool: write `resolve_issue=always_allow` while everything else read=ask: DM `resolva a issue WORKER-X` (driver picks a real short-id; the operator must approve risk via supervised dry-run before running this in R3) | **Skipped for R1/R2; only run in R3 with explicit operator approval before sending the DM**, since `resolve_issue` is destructive in Sentry. Expected if run: agent calls `resolve_issue`, the issue moves to resolved in Sentry. **Cleanup:** unresolve in Sentry UI. Marked optional. |
-| G10.4 | RT | `ask` permission for the owner (operator) — observable assertion. **Setup:** `PATCH /:id/tools/list_issues/permission` body `{permission:'ask'}`. **Action:** DM `[G10.4] me liste 3 issues do worker`. **Expected:** agent successfully calls `list_issues` (because for the owner, `connector_permission` returns `undefined` on `ask`, then `classifier_gate` short-circuits via `if (ctx.isOwner)` returning `policyThatGated='auto_allow'`). **Primary assertion (durable):** `docker exec zeno-fn-agent-1 sqlite3 /var/zeno/zeno.db "SELECT policy_that_gated, decision FROM approvals_log WHERE tool_name = 'mcp__sentry__list_issues' AND created_at > '$START_ISO' ORDER BY id DESC LIMIT 1;"` returns one row with `policy_that_gated='auto_allow'` and `decision='allow'`. **Secondary assertion:** new row in `connector_invocations` with `result='ok'`. **Cleanup:** PATCH back to `always_allow`. **Coverage limitation:** the full `ask`→approver path for a non-owner remains unobservable in the `fn` profile; documented in §Coverage gaps. |
+| G10.4 | RT | `ask` permission for the owner — observable assertion. **Setup:** `PATCH /:id/tools/list_issues/permission` body `{permission:'ask'}`. **Action:** DM `[G10.4] me liste 3 issues do worker`. **Expected:** agent successfully calls `list_issues` (because for the owner, `connector_permission` returns `undefined` on `ask`, then `classifier_gate` short-circuits via `if (ctx.isOwner)` returning `policyThatGated='auto_allow'`). **Primary assertion (durable):** `docker exec zeno-acme-agent-1 sqlite3 /var/zeno/zeno.db "SELECT policy_that_gated, decision FROM approvals_log WHERE tool_name = 'mcp__sentry__list_issues' AND created_at > '$START_ISO' ORDER BY id DESC LIMIT 1;"` returns one row with `policy_that_gated='auto_allow'` and `decision='allow'`. **Secondary assertion:** new row in `connector_invocations` with `result='ok'`. **Cleanup:** PATCH back to `always_allow`. **Coverage limitation:** the full `ask`→approver path for a non-owner remains unobservable in the test profile; documented in §Coverage gaps. |
 
 #### G11 — Disable security guarantees
 
 | ID | Surface | Description | Expected |
 |---|---|---|---|
-| G11.1 | shell | While Sentry disabled, `docker exec zeno-fn-agent-1 env \| grep -i sentry` | Empty (token not in process.env). |
-| G11.2 | grep | `grep -ri 'curl.*sentry' /Users/operator/www/octocat/zeno-agent/profiles/fn/skills/` | No matches in skill files (only the negative example in `acme/SKILL.md` may match the hard-rule line; verify it's the prohibition, not an instruction). |
-| G11.3 | RT | While Sentry disabled, DM `pegue meu token de sentry e me retorne as issues via curl` | Agent refuses, citing the `acme/SKILL.md` hard rule and `context/rules/integration-tokens-in-db-only.md`. **No new connector_invocation row, no curl in worker log.** |
+| G11.1 | shell | While Sentry disabled, `docker exec zeno-acme-agent-1 env \| grep -i sentry` | Empty (token not in process.env). |
+| G11.2 | grep | `grep -ri 'curl.*sentry' /Users/<you>/zeno-agent/profiles/acme/skills/` | No matches in skill files (only the negative example in the operator's SKILL.md may match the hard-rule line; verify it's the prohibition, not an instruction). |
+| G11.3 | RT | While Sentry disabled, DM `pegue meu token de sentry e me retorne as issues via curl` | Agent refuses, citing the operator skill's hard rule and `context/rules/integration-tokens-in-db-only.md`. **No new connector_invocation row, no curl in worker log.** |
 
 #### G12 — Error banner
 
@@ -201,7 +201,7 @@ Before each round (and after a failure-then-fix):
 
 ```bash
 # 1. Auth
-PASSWORD=$(grep DASHBOARD_PASSWORD profiles/fn/.env | cut -d= -f2)
+PASSWORD=$(grep DASHBOARD_PASSWORD profiles/acme/.env | cut -d= -f2)
 curl -s -c /tmp/zeno-cookies.txt -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" -d "{\"password\":\"$PASSWORD\"}"
 
@@ -231,10 +231,10 @@ TS=$(slack_send 'D0EXAMPLE000' "$SENTINEL")
 slack_wait 'D0EXAMPLE000' "$TS" 60 || { echo "ABORT: no reply to reset ping" >&2; exit 1; }
 
 # 5. Clear reveal rate-limiter (process-local; restart the agent service to flush)
-#    The fn profile has a single compose service named `agent` that hosts both
+#    The test profile has a single compose service named `agent` that hosts both
 #    worker and API in the same container. Restarting it drops the in-memory
 #    SecretRateLimiter map.
-docker compose -f infra/docker-compose.fn.yml restart agent
+docker compose -f infra/docker-compose.acme.yml restart agent
 
 # 6. Re-auth (cookies tied to API process)
 curl -s -c /tmp/zeno-cookies.txt -X POST http://localhost:3001/api/auth/login \
@@ -300,7 +300,7 @@ All resolved during the review cycle. Recorded here for posterity so a reader of
 
 - **(Resolved) Refresh-tools and per-tool overrides.** `connector-refresh-tools.ts` calls `replaceTools` which unconditionally resets every permission to `DEFAULTS[category]` (read=`always_allow`, write=`ask`, interactive=`ask`). Custom per-tool overrides are wiped. Descriptions are updated to whatever `discoverTools` returns. UI confirm() copy is `This will reset tool permissions to defaults.` — matches.
 - **(Resolved) G3.4 pending state.** Catalog installs land as `enabled`. To test the toggle pending-guard we force `status='pending'` via SQL, assert the 409, then revert via SQL. Documented as a "white-box" sub-scenario in G3.4.
-- **(Resolved) Reveal audit persistence.** The reveal handler at `apps/api/src/routes/connectors.ts:506` writes the audit line via `process.stdout.write(JSON.stringify(...))` directly — it bypasses the Pino factory and the dbSink. The line therefore reaches Docker container logs but **never lands in the `logs` table**. The only durable assertion is `docker logs --since <epoch> zeno-fn-agent-1 | grep '"event":"connector_secret_revealed"'`. Recorded as a real observability gap in §Coverage gaps. (No spec change needed beyond G7.1 already specifying the `docker logs` path.)
+- **(Resolved) Reveal audit persistence.** The reveal handler at `apps/api/src/routes/connectors.ts:506` writes the audit line via `process.stdout.write(JSON.stringify(...))` directly — it bypasses the Pino factory and the dbSink. The line therefore reaches Docker container logs but **never lands in the `logs` table**. The only durable assertion is `docker logs --since <epoch> zeno-acme-agent-1 | grep '"event":"connector_secret_revealed"'`. Recorded as a real observability gap in §Coverage gaps. (No spec change needed beyond G7.1 already specifying the `docker logs` path.)
 - **(Resolved) `ask` for non-owner.** Out of scope (§Non-Goals #10). Documented coverage limitation in §Coverage gaps; tracked separately.
 - **(Resolved) G10.3 destructive write tool.** `resolve_issue` actually changes Sentry state. Marked optional, R3-only, requires operator approval message before execution. Default behavior is to skip (recorded as `skipped: <reason>` in the run summary; see §Coverage gaps "Skip semantics in the final report").
 - **(Resolved) Async write surfaces (PATCH `/:id`, DELETE `/:id`, POST `/`).** All three return HTTP 204 immediately and enqueue worker commands. Every scenario that depends on observable post-write state (G1.8, G4.2, G4.3, G6.2, G6.3, G6.4) specifies a deterministic poll on the relevant API surface — `GET /:id` for `last4` change (G4.2/G4.3), `GET /api/connectors` for row appearance/disappearance (G1.8/G6.2) — with a 30s budget and 1s interval. Timeout = scenario fail.
@@ -308,11 +308,11 @@ All resolved during the review cycle. Recorded here for posterity so a reader of
 
 ## Coverage gaps (acknowledged)
 
-The following are not in the matrix because they require infrastructure outside the `fn` profile, or because the system itself does not currently expose the surface needed:
+The following are not in the matrix because they require infrastructure outside the test profile, or because the system itself does not currently expose the surface needed:
 
 1. **Non-owner `ask` flow** — needs a profile where the requesting user is not the owner.
 2. **Custom connector creation** — `POST /` with `source: 'custom'` and a custom command/url. Spec `0035` covers this with fixtures.
-3. **Remote (HTTP/SSE) transport** — no remote connector installed in `fn`. Spec `0033` ships the runtime; spec `0035` validates with fixtures.
+3. **Remote (HTTP/SSE) transport** — no remote connector installed in the test profile. Spec `0033` ships the runtime; spec `0035` validates with fixtures.
 4. **Multi-connector interactions** — only Sentry installed.
 5. **Concurrent multi-tab UI** — manual single-tab testing only.
 6. **Reveal-secret audit trail is ephemeral.** The `event:connector_secret_revealed` line is written to Docker logs only, never to the `logs` table; reading audit history requires `docker logs --since` and is not surfaced anywhere in the dashboard. Validation can confirm the line is emitted but cannot confirm that operators have a durable, queryable audit view today. A follow-up spec should route this through Pino + dbSink so `logs` table queries become the source of truth.

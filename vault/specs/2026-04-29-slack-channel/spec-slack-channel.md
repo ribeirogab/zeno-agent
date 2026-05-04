@@ -8,7 +8,7 @@ shipped: null
 
 **Status:** Draft
 **Branch:** `feat/spec-2026-04-29-slack-channel` (worktree: `../zeno-agent-worktrees/2026-04-29-slack-channel/`)
-**Scope:** Refactor Zeno's Slack listener so it's a registrable **channel** of `kind: 'channel'` (vs existing `kind: 'mcp'` connectors), with credentials read from the DB `connector_secrets` table (managed via dashboard) instead of hardcoded `SLACK_APP_TOKEN`/`SLACK_BOT_TOKEN` envvars in `profiles/<name>/.env`. **Code-only** — `profiles/fn` is NOT migrated in this spec; the `.env` path stays working as backward-compat fallback. Validation is in-process (unit + integration with mocked Slack). Live cutover of `profiles/fn` is the next spec (0058). Stacked on `main`.
+**Scope:** Refactor Zeno's Slack listener so it's a registrable **channel** of `kind: 'channel'` (vs existing `kind: 'mcp'` connectors), with credentials read from the DB `connector_secrets` table (managed via dashboard) instead of hardcoded `SLACK_APP_TOKEN`/`SLACK_BOT_TOKEN` envvars in `profiles/<name>/.env`. **Code-only** — `profiles/<example>` is NOT migrated in this spec; the `.env` path stays working as backward-compat fallback. Validation is in-process (unit + integration with mocked Slack). Live cutover of `profiles/<example>` is the next spec (0058). Stacked on `main`.
 
 ## Context
 
@@ -16,7 +16,7 @@ Today's Zeno has a clean ports-and-adapters core for channels (`apps/worker/src/
 
 - `apps/worker/src/config.ts:4-5` declares `SLACK_APP_TOKEN` and `SLACK_BOT_TOKEN` as required envvars (Zod-validated `xapp-` / `xoxb-` prefixes).
 - `apps/worker/src/index.ts:362` does `new SlackChannel({...config.slack, workspaceDir: config.workspaceDir})` — credentials flow directly from `process.env` → `config.slack` → constructor.
-- The Slack credentials live in `profiles/fn/.env`; if missing, the worker fails to boot.
+- The Slack credentials live in `profiles/<example>/.env`; if missing, the worker fails to boot.
 
 Every other integration (Sentry, Linear, GitHub, Klaviyo, Swarmia, Playwright) is managed via the dashboard:
 
@@ -36,19 +36,19 @@ Two problems, both rooted in the same architectural inconsistency:
 
 2. **The bootstrap forks per channel kind.** Adding Telegram tomorrow means duplicating the envvar pattern (`TELEGRAM_BOT_TOKEN` etc.) plus the bootstrap branch. Two channels = two forks. Five channels = five forks. The right answer is one bootstrap path that iterates over a list of installed channels from the catalog.
 
-Spec 0057 fixes the architecture without breaking anyone — `profiles/fn` keeps working untouched on the existing `.env` path until spec 0058 cuts over.
+Spec 0057 fixes the architecture without breaking anyone — `profiles/<example>` keeps working untouched on the existing `.env` path until spec 0058 cuts over.
 
 ## Non-Goals
 
 The following are explicitly OUT of scope for spec 0057:
 
-- **Migrating `profiles/fn` to the new path.** That is spec 0058 (production cutover, executed live with rollback plan + backup of `.env`).
+- **Migrating `profiles/<example>` to the new path.** That is spec 0058 (production cutover, executed live with rollback plan + backup of `.env`).
 - **Removing the `.env` fallback from code.** The fallback stays in this PR; a follow-up commit (or spec 0058's optional last commit) removes it after cutover stabilizes.
 - **Adding Telegram, WhatsApp, or any new channel.** Those are future specs (0066+ TBD). 0057 ships the *infrastructure* to register channels — the only registered channel after 0057 is Slack.
 - **Slack-side feature changes.** No new Slack capabilities (no slash commands, no DMs to other users, no new event handlers). The adapter behavior is identical to today; only its bootstrap path changes.
 - **Changing the `Channel` interface.** `apps/worker/src/channels/types.ts` already defines a clean port — no API surface changes.
 - **Routing changes.** Mention-triggered agent dispatch stays the same. Future "skill X handles channel Y" routing is out of scope.
-- **Real Slack workspace validation.** Tests are in-process (mocked Slack). Live boot against the FN workspace is intentionally deferred to spec 0058 (because two socket-mode connections to the same Slack app conflict — running 0057's sandbox against the live Slack would compete with `profiles/fn`'s active container).
+- **Real Slack workspace validation.** Tests are in-process (mocked Slack). Live boot against the Acme workspace is intentionally deferred to spec 0058 (because two socket-mode connections to the same Slack app conflict — running 0057's sandbox against the live Slack would compete with `profiles/<example>`'s active container).
 - **Refactoring connectors-catalog.json itself.** The MCP catalog stays as-is. Channels get a separate file (see Approach Q3).
 - **Multi-channel support.** Worker boots ONE channel for now (Slack). Iterating over a list of installed channels is naturally enabled but only Slack populates the list in this spec.
 
@@ -487,9 +487,9 @@ This spec ships when ALL the following pass on the branch:
 - [ ] `config.ts` Zod schema makes `SLACK_*_TOKEN` optional. Worker boots successfully when `.env` lacks them AND a Slack channel is installed in DB.
 
 **Backward compat (the "don't break Operator's Zeno" criterion):**
-- [ ] `profiles/fn` is NOT touched — no edits to `profiles/fn/.env`, no new files in `profiles/fn/`, no skills materialized for it.
-- [ ] An existing profile with `SLACK_*_TOKEN` set in `.env` and NO Slack DB row boots via the env fallback path. Verified by integration test — NOT by booting `profiles/fn` (which would conflict with the live container).
-- [ ] No Docker commands run by this PR's tests. No port conflicts with `zeno-fn-agent-1`.
+- [ ] `profiles/<example>` is NOT touched — no edits to `profiles/<example>/.env`, no new files in `profiles/<example>/`, no skills materialized for it.
+- [ ] An existing profile with `SLACK_*_TOKEN` set in `.env` and NO Slack DB row boots via the env fallback path. Verified by integration test — NOT by booting `profiles/<example>` (which would conflict with the live container).
+- [ ] No Docker commands run by this PR's tests. No port conflicts with `zeno-agent-1`.
 
 **Documentation:**
 - [ ] `context/learnings/<atomic-note>.md` capturing the channels-vs-connectors distinction (created at end of implementation per project convention).
@@ -502,14 +502,14 @@ This spec ships when ALL the following pass on the branch:
 
 | Risk | Mitigation |
 |---|---|
-| Migration ordering — adding `kind` to `connectors` while running profiles still on the old schema | Migration is additive only (no DROP / no constraint tightening on existing values). Default `kind='mcp'` makes all existing rows valid post-migration. Tested with a snapshot of `profiles/fn` schema as fixture. |
+| Migration ordering — adding `kind` to `connectors` while running profiles still on the old schema | Migration is additive only (no DROP / no constraint tightening on existing values). Default `kind='mcp'` makes all existing rows valid post-migration. Tested with a snapshot of `profiles/<example>` schema as fixture. |
 | `transport` constraint forces a meaningless value for channel rows | Use `transport='remote'` semantically as "runtime-managed, no MCP spawn" for channel rows. Documented in spec + repo. Cleanup possible later if it bothers; not a 0057 concern. **Guard required** in `apps/worker/src/agent/mcp-build.ts`: `if (row.kind !== 'mcp') continue;` so the MCP loader never tries to spawn a channel row. Tested explicitly. |
-| Tests pass in mocked env but live Slack boot breaks something subtle | This is exactly why 0058 exists. 0057 explicitly does NOT claim production-readiness for the `profiles/fn` cutover; that risk is deferred and managed in 0058 with rollback plan + backup of `.env`. |
+| Tests pass in mocked env but live Slack boot breaks something subtle | This is exactly why 0058 exists. 0057 explicitly does NOT claim production-readiness for the `profiles/<example>` cutover; that risk is deferred and managed in 0058 with rollback plan + backup of `.env`. |
 | `.env` fallback code stays forever as dead crud | Optional 0058's last commit removes the fallback after cutover stabilizes. Tracked in 0058's plan, not 0057's. |
 | Channels catalog loader semantics drift from connectors loader | Share helpers where reasonable (validation, file reads). Both loaders tested side-by-side. If drift becomes a problem, refactor to a generic catalog loader with `kind`-specific validators. |
 | Dashboard UI doesn't show Channels section yet — operator can't install via UI | Spec 0058 (cutover) handles UI install. For 0057 alone, the install can happen via direct API call (`curl -X POST /api/connectors -d '{...kind: channel...}'`). UI section is a follow-up, NOT a 0057 blocker. |
 | Worker boot resolver's "DB row exists + secrets missing" edge case is rarely hit, hard to test | Explicit unit test fixture (insert row with no secrets, assert hard error). Documented as expected operator-error behavior. |
-| Adding `kind` column to a populated DB on `profiles/fn` breaks the running container when the migration runs at next boot | NOT A 0057 RISK. 0057 doesn't run the migration on `profiles/fn`. 0058 will, with backup + rollback. |
+| Adding `kind` column to a populated DB on `profiles/<example>` breaks the running container when the migration runs at next boot | NOT A 0057 RISK. 0057 doesn't run the migration on `profiles/<example>`. 0058 will, with backup + rollback. |
 
 ## Open Questions
 
@@ -525,15 +525,15 @@ If new questions surface during implementation:
 
 ## Out-of-scope follow-ups
 
-- **Spec 0058 — production cutover.** Install Slack via dashboard (or curl), validate live, remove `SLACK_*` from `profiles/fn/.env`, optionally remove `.env` fallback code from worker.
+- **Spec 0058 — production cutover.** Install Slack via dashboard (or curl), validate live, remove `SLACK_*` from `profiles/<example>/.env`, optionally remove `.env` fallback code from worker.
 - **Channel UI section in dashboard.** Spec 0058 may include a small UI tweak; full Channels page redesign is a future polish spec.
 - **Multi-channel boot loop.** Worker iterates `listByKind('channel')` and instantiates each via a registry. Not needed until spec 0066 (Telegram) lands.
 - **`transport` schema cleanup for channel rows.** Currently using `'remote'` as a placeholder. Future migration could either relax the constraint or rename the column. Cosmetic, not a correctness issue.
 - **Skill-to-channel routing rules** (e.g., "skill X only responds in channel Y"). Future spec, when concrete need arises.
-- **Replacing `.env` for ALL profiles** (not just `profiles/fn`). The fallback handles any profile; cutover is per-profile. New profiles just install via dashboard from day one.
+- **Replacing `.env` for ALL profiles** (not just `profiles/<example>`). The fallback handles any profile; cutover is per-profile. New profiles just install via dashboard from day one.
 
 ## Errata (post-merge)
 
-**2026-04-29 (spec 0058 cutover):** the 6-row resolution table described in Track 3 has been simplified to 4 rows. Cases 3, 4, 5, 6 (env_fallback paths) were removed when `profiles/fn` cut over to DB-only credentials and the `.env` fallback code became unreachable. See spec 0058 Phase H for the simplification. The `Config.slack` field, the `SLACK_*_TOKEN` Zod schema entries, and the `env_fallback` source field on `ResolvedSlackCredentials` are also gone.
+**2026-04-29 (spec 0058 cutover):** the 6-row resolution table described in Track 3 has been simplified to 4 rows. Cases 3, 4, 5, 6 (env_fallback paths) were removed when `profiles/<example>` cut over to DB-only credentials and the `.env` fallback code became unreachable. See spec 0058 Phase H for the simplification. The `Config.slack` field, the `SLACK_*_TOKEN` Zod schema entries, and the `env_fallback` source field on `ResolvedSlackCredentials` are also gone.
 
 **2026-04-29 follow-up identified during cutover (Phase C.5):** `GET /api/connectors/:id` returns the legacy hardcoded UI discriminator `kind: 'connector'` (from `buildListItem`), not the new DB column `kind: 'mcp' | 'channel'`. The DB row is correctly stored as `kind='channel'` (verified during cutover); only the detail-endpoint response masks this. Future spec should expose the DB `kind` field on the detail endpoint (separate from the `kind: 'connector' | 'app'` UI discriminator). Not blocking — the resolver queries DB directly via `listByKind('channel')`, which works correctly.

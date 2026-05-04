@@ -13,7 +13,7 @@ shipped: 2026-04-27
 
 ### Why Swarmia, why now?
 
-Engineering visibility — DORA metrics (deploy frequency, lead time, change-failure rate, MTTR), team throughput, code review metrics. Live token validation already pulled real data: 4.4 deploys/day, 31 deploys in the last 7 days for the FN org. Adding the connector lets ops questions like "como está nossa lead time esta semana?" land in Slack.
+Engineering visibility — DORA metrics (deploy frequency, lead time, change-failure rate, MTTR), team throughput, code review metrics. Live token validation already pulled real data: 4.4 deploys/day, 31 deploys in the last 7 days for the operator's org. Adding the connector lets ops questions like "how's our lead time this week?" land in Slack.
 
 ### Official vs community MCP
 

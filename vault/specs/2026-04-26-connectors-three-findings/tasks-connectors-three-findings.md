@@ -141,8 +141,8 @@ The base script already exists from spec 0037 Task 7.1 (mirror-only mode). This 
 
 ### Task 5.1: Deploy to live profile
 
-- [ ] Step 1: `docker compose -f infra/docker-compose.fn.yml build` (incremental).
-- [ ] Step 2: `docker compose -f infra/docker-compose.fn.yml restart agent`.
+- [ ] Step 1: `docker compose -f infra/docker-compose.<profile>.yml build` (incremental).
+- [ ] Step 2: `docker compose -f infra/docker-compose.<profile>.yml restart agent`.
 - [ ] Step 3: Confirm API up via `curl -o /dev/null -w '%{http_code}' http://localhost:3001/api/auth/me` returning 401.
 
 ### Task 5.2: Run affected scenarios from `tmp/0036-validation/`

@@ -8,9 +8,9 @@ created: 2026-04-29
 
 **For this plan:** `[[plan-slack-channel]]`
 
-> **For agentic workers:** Implement task-by-task in order. Use TDD strictly — write test first, run to fail, write minimal impl, run to pass, commit. NO Docker commands ANYWHERE — operator's `profiles/fn` container is running and would conflict. Per cleanup contract (`tmp/zeno-cleanup-contract.md`) Rule 4: skip approvals for trivia, only stop at `git push` / `gh pr create`.
+> **For agentic workers:** Implement task-by-task in order. Use TDD strictly — write test first, run to fail, write minimal impl, run to pass, commit. NO Docker commands ANYWHERE — operator's `profiles/<example>` container is running and would conflict. Per cleanup contract (`tmp/zeno-cleanup-contract.md`) Rule 4: skip approvals for trivia, only stop at `git push` / `gh pr create`.
 >
-> All commands run from the worktree root: `/Users/operator/www/octocat/zeno-agent-worktrees/2026-04-29-slack-channel/`. Tests run via `pnpm vitest run <pattern>` from package roots.
+> All commands run from the worktree root: `/Users/<you>/www/your-github-username/zeno-agent-worktrees/2026-04-29-slack-channel/`. Tests run via `pnpm vitest run <pattern>` from package roots.
 
 ---
 
@@ -825,7 +825,7 @@ created: 2026-04-29
       });
       const logger = createLogger({ service: 'test' });
       // Build with no MCP rows — only the channel row exists.
-      const result = buildMcpServersMap({ connectors, logger /* + any other deps the fn needs */ });
+      const result = buildMcpServersMap({ connectors, logger /* + any other deps the function needs */ });
       // Channel rows must NOT appear in the map.
       expect(Object.keys(result)).toHaveLength(0);
     });
@@ -1339,6 +1339,6 @@ Per cleanup contract Rule 2: each round inspects the full branch diff. Reset cou
   git push -u origin feat/spec-2026-04-29-slack-channel
   ```
 
-- [ ] **H.2** Open PR using `/open-pr` slash command (project convention) targeting `main`. PR description: summarize architecture (catalog/storage/worker/api split), confirm `profiles/fn` untouched, list all 8 commits' purposes, link spec.
+- [ ] **H.2** Open PR using `/open-pr` slash command (project convention) targeting `main`. PR description: summarize architecture (catalog/storage/worker/api split), confirm `profiles/<example>` untouched, list all 8 commits' purposes, link spec.
 
 - [ ] **H.3** Return PR URL. STOP — done.

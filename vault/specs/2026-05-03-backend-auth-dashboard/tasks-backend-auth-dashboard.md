@@ -127,7 +127,7 @@ import { encrypt, decrypt } from '@/crypto';
 describe('crypto', () => {
   const masterKey = Buffer.from('a'.repeat(64), 'hex');
   const profileA = 'default';
-  const profileB = 'fn';
+  const profileB = 'example';
 
   it('round-trips plaintext', () => {
     const { iv, ciphertext } = encrypt(masterKey, profileA, 'sk-ant-secret');
@@ -1154,7 +1154,7 @@ git commit -m "feat(worker): pre-migration DB backup + pass crypto opts to runMi
 
 **Files:**
 - Modify: `infra/docker-compose.default.yml`
-- Modify: `infra/docker-compose.fn.yml`
+- Modify: `infra/docker-compose.<example>.yml`
 
 - [ ] **Step 1: Edit `infra/docker-compose.default.yml`**
 
@@ -1170,12 +1170,12 @@ Update the `agent` service's volume mount:
 - claude_home_default:/home/node/.claude
 ```
 
-- [ ] **Step 2: Same for `infra/docker-compose.fn.yml`** — `claude_home_fn`.
+- [ ] **Step 2: Same for `infra/docker-compose.<example>.yml`** — `claude_home_<example>`.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add infra/docker-compose.default.yml infra/docker-compose.fn.yml
+git add infra/docker-compose.default.yml infra/docker-compose.<example>.yml
 git commit -m "feat(infra): per-profile claude_home volume (spec 0071 Phase D)"
 ```
 
@@ -1192,7 +1192,7 @@ git commit -m "feat(infra): per-profile claude_home volume (spec 0071 Phase D)"
 # `claude_home_<profile>` volume. Idempotent — safe to run multiple times.
 # Usage: ./infra/migrate-claude-home.sh <profile>
 set -euo pipefail
-PROFILE="${1:?profile required (e.g. default, fn)}"
+PROFILE="${1:?profile required (e.g. default, example)}"
 SRC=claude_home
 DST="claude_home_${PROFILE}"
 

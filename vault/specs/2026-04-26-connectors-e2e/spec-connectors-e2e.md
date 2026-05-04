@@ -117,7 +117,7 @@ Each scenario covers exactly one user-facing behavior. The list:
 #### Group B — Custom flow (3 scenarios)
 
 - **B1** stdio: Add custom (local) modal. Name "echo", Command "node", Args ["./tests/fixtures/echo-mcp/server.ts"], no secrets. Test → ✓ + 3 tools detected with right categories. Add → connector lands as `enabled`.
-- **B2** remote: Add custom (remote) modal. Name "fn-scrum", URL = remote fixture URL, Authorization = "Bearer test". Test → ✓ + 3 tools. Add → enabled.
+- **B2** remote: Add custom (remote) modal. Name "acme-scrum", URL = remote fixture URL, Authorization = "Bearer test". Test → ✓ + 3 tools. Add → enabled.
 - **B3** save without test: Add custom (remote) without running Test. Add allowed. Connector lands as `pending`. The detail page shows the empty Activity + the "no tools yet" tool permissions. Run Test → tools discovered, status flips to `enabled`.
 
 #### Group C — Lifecycle (5 scenarios)

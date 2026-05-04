@@ -32,7 +32,7 @@ The `type` field is the discriminator. `http` and `sse` differ in transport sema
 
 ## Problem Statement
 
-Without remote support, the dashboard's Add custom (remote) flow saves a connector that the worker rejects on load. Operators who want to connect to a hosted MCP (e.g., a remote Linear, a remote internal tool such as `fn-scrum`) cannot do so. The dashboard surface is visually complete (spec 0029 + spec 0034) but functionally blocked.
+Without remote support, the dashboard's Add custom (remote) flow saves a connector that the worker rejects on load. Operators who want to connect to a hosted MCP (e.g., a remote Linear, a remote internal tool such as a custom scrum tracker) cannot do so. The dashboard surface is visually complete (spec 0029 + spec 0034) but functionally blocked.
 
 This spec is intentionally narrow: implement the remote transport, mirror the operational behaviors of stdio (test-connection, refresh-tools, runtime auth, logging), and stop there.
 
@@ -63,7 +63,7 @@ This spec is intentionally narrow: implement the remote transport, mirror the op
 - **Failure semantics match stdio.** A 401 / 5xx / network error during a runtime tool call lands in `connector_invocations` with `result='error'`, `error_message=<short>`, plus `last_error` / `last_error_at` updated on the connector row. Status remains `enabled`. The operator decides whether to disable.
 - **`RemoteTransportNotImplementedError` is removed.** Spec 0032 introduced the error class as a marker. This spec deletes the throw and the export. Any test that expected the throw is updated to assert successful loading instead.
 - **No changes to the guardrails pipeline.** Permission resolution is identical between stdio and remote — the policy reads from `connector_tool_permissions` regardless of transport.
-- **`fn-scrum` reference path.** The user has a real custom remote MCP at `github.com/AcmeBooks/mcps/tree/main/fn-scrum`. The integration test in spec 0035 will exercise either that path against a local mock server or a fixture. This spec ships a minimal fixture remote MCP (HTTP) for unit testing.
+- **Custom remote MCP reference path.** The integration test in spec 0035 will exercise a custom remote MCP path against a local mock server or a fixture. This spec ships a minimal fixture remote MCP (HTTP) for unit testing.
 
 ## Design
 
@@ -200,8 +200,8 @@ This table is the contract between specs 0032 and 0033:
    - Connector saved as `enabled`. Tool list and per-tool defaults persisted.
    - Agent calls `mcp__linear__list_issues`. Pipeline `connector_permission` finds always_allow. SDK initializes the HTTP/SSE connection, makes the call. Result returned. Invocation row written. `last_verified_at` bumped.
 
-2. **Operator adds a custom remote MCP (`fn-scrum`).**
-   - Add custom (remote) modal. URL: `https://fn-scrum.example.com/mcp`. Advanced > Authorization: `Bearer <pre-obtained-token>`.
+2. **Operator adds a custom remote MCP (e.g., a private scrum tracker).**
+   - Add custom (remote) modal. URL: `https://scrum.example.com/mcp`. Advanced > Authorization: `Bearer <pre-obtained-token>`.
    - Test-connection: succeeds. 8 tools discovered. Categories inferred via heuristic.
    - Connector saved. Permissions: read tools `always_allow`, write tools `ask`, interactive tools `ask`.
 

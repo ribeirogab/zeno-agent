@@ -167,7 +167,7 @@ Quatro fases sequenciais, cada uma terminando em typecheck/test verde + commit i
    - **C.4** (N commits): apps/dashboard mirroring. Wired to TanStack Query hooks + API.
 4. **Phase D — Verification + delivery**:
    - **D.1**: `pnpm run quality-gate` — all turbo tasks green.
-   - **D.2**: Docker boot test (`PROFILE=fn`).
+   - **D.2**: Docker boot test (`PROFILE=<example>`).
    - **D.3**: 3-round review by phase (already done per-phase) + final batch review (3 consecutive clean rounds against `git diff main..HEAD`).
    - **D.4**: Push branch + open PR.
 

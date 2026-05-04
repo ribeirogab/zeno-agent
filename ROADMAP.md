@@ -12,14 +12,14 @@ The maintainer also keeps a private scratch doc on local disk (`vault/backlog.md
 
 ## Next (committed, soon)
 
-- [ ] #8 — feat(agent): multi-backend toggle + Codex impl (spec 0072)
-- [ ] #9 — feat(channels): channel inbound files (spec 0064)
-- [ ] #10 — feat(channels): channel outbound files (spec 0065)
+- [ ] #8 — feat(agent): multi-backend toggle + Codex impl
+- [ ] #9 — feat(channels): channel inbound files
+- [ ] #10 — feat(channels): channel outbound files
 
 ## Later (no commitment)
 
-- [ ] #11 — feat(channels): audio in / Slack voice transcription (spec 0068)
-- [ ] #12 — feat(channels): audio out / TTS reply (spec 0069)
+- [ ] #11 — feat(channels): audio in / Slack voice transcription
+- [ ] #12 — feat(channels): audio out / TTS reply
 
 ## Recently shipped
 

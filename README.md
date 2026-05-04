@@ -3,6 +3,7 @@
 > Personal agent that operates across the apps you use, by composing the connectors you install. Self-hosted. Single-user.
 
 [![License: MIT](https://img.shields.io/badge/LICENSE-MIT-brightgreen?style=flat-square)](./LICENSE)
+[![Status: experimental](https://img.shields.io/badge/STATUS-EXPERIMENTAL-orange?style=flat-square)](./GOVERNANCE.md)
 [![Built By](https://img.shields.io/badge/BUILT%20BY-ribeirogab-blueviolet?style=flat-square)](https://github.com/ribeirogab)
 
 > [!WARNING]

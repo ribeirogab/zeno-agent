@@ -67,6 +67,7 @@ Architecture detail lives in `vault/constitution.md` until the documentation sit
 
 ## Contributing, security, license
 
+- Roadmap: see [ROADMAP.md](./ROADMAP.md).
 - Issues and pull requests: see [CONTRIBUTING.md](./CONTRIBUTING.md).
 - Vulnerability reports: see [SECURITY.md](./SECURITY.md).
 - Code of conduct: [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).

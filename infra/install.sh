@@ -4,33 +4,41 @@
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/ribeirogab/zeno-agent/main/infra/install.sh | sh
 #
-# Defaults:
-#   ZENO_HOME=$HOME/zeno-agent
-#   bin    =$HOME/.local/bin/zeno
-#
 # Behavior:
-#   - Refuses to run if $ZENO_HOME already exists. Use 'zeno update'
-#     for routine updates, or remove the directory to reinstall.
-#   - Verifies prerequisites (git, docker, node 24+, pnpm 10+) and
-#     prints an install URL when one is missing.
-#   - Clones the repo, runs pnpm install, builds @zeno/cli, and
-#     symlinks ~/.local/bin/zeno -> $ZENO_HOME/apps/cli/dist/index.js.
+#   - Hardcoded install path: ~/.zeno/zeno-agent. No ZENO_HOME override.
+#   - Refuses to run if ~/.zeno/zeno-agent already exists. Use 'zeno upgrade'
+#     for routine version moves, or remove the directory to reinstall.
+#   - Verifies prerequisites (git, docker, node 24+, pnpm 10+) and prints an
+#     install URL when one is missing.
+#   - Detects the legacy ~/zeno-agent install and prints an explicit cleanup
+#     instruction (manual; the installer never deletes operator data).
+#   - Clones the repo, runs pnpm install, builds @zeno/cli, and symlinks
+#     ~/.local/bin/zeno -> ~/.zeno/zeno-agent/apps/cli/dist/index.js.
 #   - Prints a PATH hint when ~/.local/bin is not on $PATH.
-#   - This script is intentionally POSIX sh: no bash arrays, no
-#     [[ ]], no ${var,,}, no process substitution.
+#   - Intentionally POSIX sh: no bash arrays, no [[ ]], no ${var,,}, no
+#     process substitution.
 
 set -eu
 
-ZENO_HOME="${ZENO_HOME:-$HOME/zeno-agent}"
+ZENO_DATA="$HOME/.zeno"
+ZENO_HOME="$ZENO_DATA/zeno-agent"
 BIN_DIR="$HOME/.local/bin"
-REPO_URL="${ZENO_REPO_URL:-https://github.com/ribeirogab/zeno-agent.git}"
-GIT_REF="${ZENO_GIT_REF:-main}"
+REPO_URL="https://github.com/ribeirogab/zeno-agent.git"
+GIT_REF="main"
 
 if [ -e "$ZENO_HOME" ]; then
   printf 'error: %s already exists.\n' "$ZENO_HOME" >&2
-  printf '       to update, run: zeno update\n' >&2
-  printf '       to reinstall, remove the directory first.\n' >&2
+  printf '       to update, run: zeno upgrade\n' >&2
+  printf '       to reinstall, remove the directory first: rm -rf %s\n' "$ZENO_HOME" >&2
   exit 1
+fi
+
+if [ -e "$HOME/zeno-agent" ]; then
+  printf '\nnote: legacy install detected at %s\n' "$HOME/zeno-agent" >&2
+  printf '      this is the pre-multi-profile-cli location and is no longer used.\n' >&2
+  printf '      back up any work in ~/zeno-agent/profiles/* (zeno.db lives in docker volumes,\n' >&2
+  printf '      not in the repo), then remove the legacy install:\n' >&2
+  printf '        rm -rf %s\n\n' "$HOME/zeno-agent" >&2
 fi
 
 need() {
@@ -52,6 +60,8 @@ if [ "$NODE_MAJOR" -lt 24 ]; then
   exit 1
 fi
 
+mkdir -p "$ZENO_DATA"
+
 printf 'cloning %s (ref %s) into %s\n' "$REPO_URL" "$GIT_REF" "$ZENO_HOME"
 git clone --depth 1 --branch "$GIT_REF" "$REPO_URL" "$ZENO_HOME"
 
@@ -63,7 +73,8 @@ mkdir -p "$BIN_DIR"
 ln -sf "$ZENO_HOME/apps/cli/dist/index.js" "$BIN_DIR/zeno"
 chmod +x "$ZENO_HOME/apps/cli/dist/index.js"
 
-printf '\n* zeno installed at %s/zeno\n' "$BIN_DIR"
+printf '\n* Cloned to %s\n' "$ZENO_HOME"
+printf '* Installed CLI to %s/zeno\n' "$BIN_DIR"
 
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
@@ -82,4 +93,6 @@ case ":$PATH:" in
     ;;
 esac
 
-printf '\nnext: configure profile (DASHBOARD_PASSWORD, USER.md, config.yaml) -- see README.\n'
+printf '\nNext:  zeno profile create <profile>\n'
+printf '       zeno start <profile>\n\n'
+printf 'Docs:  https://github.com/ribeirogab/zeno-agent#readme\n'

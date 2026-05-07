@@ -1,6 +1,6 @@
 # Zeno — Agent Instructions
 
-Zeno is a personal agent. The owner of this instance is described in `profiles/<name>/USER.md` (gitignored — see `profiles/default/USER.example.md`). This repo is Zeno's workspace: identity, capabilities, configuration, and operating knowledge.
+Zeno is a personal agent. The operator of this instance is described in `~/.zeno/profiles/<profile>/USER.md` (off-repo, owner-only). The canonical scaffold lives at `templates/profile/USER.md`; the `zeno` CLI substitutes placeholders into the operator's copy on `zeno profile create`. This repo is Zeno's workspace: identity, capabilities, configuration, and operating knowledge.
 
 ## Before starting any work
 
@@ -32,21 +32,24 @@ When a spec is shipped (all tasks done, `status: shipped`), always run an explic
 
 Turborepo + `pnpm` workspaces. **Runtime is Docker-only** — use `pnpm run quality-gate` for fast IDE feedback.
 
-The `zeno` CLI is the documented entry point for daily ops; the `pnpm run docker:*` scripts in `package.json` remain as a fallback for environments where `zeno` is not yet installed.
+The `zeno` CLI is the documented entry point for daily ops. The CLI talks directly to the Docker socket via `dockerode` and stores profile metadata in `~/.zeno/state.db` (drizzle + better-sqlite3).
 
 | Command | What it does |
 |---|---|
 | `pnpm run quality-gate` | Lint + typecheck + tests across all workspaces. Gates every commit. |
-| `zeno start` / `zeno stop` / `zeno restart` | Lifecycle of the agent container. |
-| `zeno status` / `zeno logs` / `zeno shell` | Daily ops. |
-| `zeno build` | Build the container image. |
-| `zeno doctor` | Preflight diagnostics (docker running, `.env` valid, profile resolves, etc.). |
-| `zeno open` | Open the dashboard at `http://localhost:3000`. |
-| `zeno update` | `git pull` + rebuild the CLI. |
-| `zeno profile use <name>` / `show` / `list` | Switch profiles. |
-| `zeno docker <args...>` | Raw `docker compose` escape hatch. |
+| `zeno profile create <profile> [--owner X]` | Create a new profile (allocates port, generates master key, scaffolds USER.md + .env). |
+| `zeno profile list` / `show <profile>` / `delete <profile>` | Inventory + drill-down + tear-down. |
+| `zeno profile edit <profile> --port N` | Move a profile's host port. |
+| `zeno profile use <profile>` | Set sticky default. |
+| `zeno start [profile|--all] [--build]` | Start container(s). Auto-builds `zeno-agent:dev` if missing. |
+| `zeno stop [profile|--all]` / `restart [profile|--all]` | Lifecycle. |
+| `zeno logs [profile] [--tail N]` | Follow container logs (SIGINT to abort). |
+| `zeno open [profile]` | Open the profile's dashboard in the system browser. |
+| `zeno doctor` | Preflight diagnostics (docker reachable, DB ↔ Docker drift, etc.). |
+| `zeno upgrade [--list / --to / --prerelease / --edge]` | Version pin via `gh release list` + `git checkout` + rebuild. |
+| `zeno repo` | Print the canonical repo path. |
 
-Dashboard: http://localhost:3000
+Each profile's dashboard binds `127.0.0.1` on a port allocated from `[6101, 6200]` and shown in `zeno profile list`.
 
 ## Knowledge locations
 

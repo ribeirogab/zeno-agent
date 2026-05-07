@@ -42,8 +42,6 @@ packages/*/dist/
 apps/*/.turbo/
 packages/*/.turbo/
 
-# zeno CLI runtime state (per-clone, never committed)
-apps/cli/.state.json
 
 # TanStack Router generated route tree
 apps/dashboard/src/route-tree.gen.ts

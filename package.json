@@ -16,13 +16,7 @@
     "build": "turbo run build",
     "design:lint": "design.md lint DESIGN.md",
     "design:diff": "design.md diff",
-    "design:export-tailwind": "design.md export --format tailwind DESIGN.md",
-    "docker:build": "docker compose -f infra/docker-compose.default.yml --project-directory . build",
-    "docker:up": "sh infra/docker.sh up -d",
-    "docker:down": "sh infra/docker.sh down",
-    "docker:logs": "sh infra/docker.sh logs -f",
-    "docker:setup-token": "sh infra/docker.sh run --rm agent claude setup-token",
-    "docker:sh": "sh infra/docker.sh exec agent bash"
+    "design:export-tailwind": "design.md export --format tailwind DESIGN.md"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",

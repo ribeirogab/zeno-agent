@@ -31,6 +31,8 @@ export function BetaToggle({ active, onChange }: BetaToggleProps) {
         fontWeight: 600,
         letterSpacing: '0.04em',
         cursor: 'pointer',
+        transition:
+          'color 280ms cubic-bezier(0.4, 0, 0.2, 1), border-color 280ms cubic-bezier(0.4, 0, 0.2, 1), background-color 280ms cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
       <span aria-hidden="true" style={{ fontStyle: 'italic' }}>

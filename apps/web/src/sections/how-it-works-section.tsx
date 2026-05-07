@@ -61,7 +61,6 @@ export function HowItWorksSection() {
             lineHeight: '22px',
             color: 'var(--color-text-secondary)',
             margin: 0,
-            maxWidth: '80ch',
           }}
         >
           A small core orchestrates pluggable parts. Adding a capability is always an installation,

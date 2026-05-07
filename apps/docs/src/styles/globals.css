@@ -11,8 +11,22 @@ html > body[data-scroll-locked] {
   --removed-body-scroll-bar-size: 0px !important;
 }
 
-/* Imperial Terminal — see DESIGN.md. Override Fumadocs neutral defaults. */
-:root,
+/*
+ * Zeno colors — Imperial Terminal (see DESIGN.md).
+ *
+ * The brand is dark-only by upstream design, but apps/docs ships both light
+ * and dark to respect outsider OS preferences. Strategy:
+ *   - Light: keep Fumadocs neutral defaults, override only --color-fd-primary
+ *     to imperial gold so the brand mark and primary affirmative actions
+ *     stay recognizable across both themes.
+ *   - Dark: full Imperial Terminal palette (ink-blue surfaces + imperial gold
+ *     accent), per DESIGN.md.
+ */
+
+:root {
+  --color-fd-primary: #d9b362; /* imperial gold, brand-mark + primary */
+}
+
 .dark {
   --color-fd-background: #08090f;
   --color-fd-foreground: #e8eaf5;

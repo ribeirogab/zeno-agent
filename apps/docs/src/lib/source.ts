@@ -5,6 +5,6 @@ import { docs as docsRaw } from '../../.source/server';
 const docs = docsRaw as DocsCollectionEntry;
 
 export const source = loader({
-  baseUrl: '/docs',
+  baseUrl: '/',
   source: docs.toFumadocsSource(),
 });

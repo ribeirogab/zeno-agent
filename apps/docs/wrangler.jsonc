@@ -19,5 +19,10 @@
   },
   "observability": {
     "enabled": true
-  }
+  },
+  // Custom domain — `zeno-agent.dev` is on Cloudflare DNS in the same account,
+  // so wrangler creates the proxied DNS record and provisions the SSL cert
+  // automatically on the next deploy. The default `*.workers.dev` URL keeps
+  // working alongside this.
+  "routes": [{ "pattern": "docs.zeno-agent.dev", "custom_domain": true }]
 }

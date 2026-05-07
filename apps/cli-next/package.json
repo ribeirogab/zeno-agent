@@ -1,0 +1,27 @@
+{
+  "name": "@zeno/cli-next",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Spec preview of multi-profile CLI. All Docker/DB calls mocked. Throwaway — see vault/specs/<spec>/.",
+  "bin": {
+    "zeno-next": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "biome check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "citty": "^0.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  }
+}

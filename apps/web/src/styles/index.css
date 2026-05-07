@@ -32,3 +32,24 @@ body {
 a {
   color: inherit;
 }
+
+@keyframes particle-drift {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: var(--particle-opacity, 0.6);
+  }
+  50% {
+    transform: translate3d(var(--particle-dx, 0), var(--particle-dy, -16px), 0);
+    opacity: calc(var(--particle-opacity, 0.6) * 0.35);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: var(--particle-opacity, 0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-particle="true"] {
+    animation: none !important;
+  }
+}

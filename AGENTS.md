@@ -70,12 +70,5 @@ Repo-local skills under `.claude/` for Claude Code only — **not** loaded by Ze
 - **`recall`** — quick reconnaissance of `vault/`.
 - **`/learn`** — investigate a topic and save a learning note.
 - **`/spec`** — promote the current conversation into the spec flow.
-- **`/new-issue`** — **REQUIRED** to file a GitHub issue. Picks issue type, applies the matching `.github/ISSUE_TEMPLATE/` body, asks the roadmap label question, runs `gh issue create` with the right `--label`s, and reports the issue number.
-- **`/new-pr`** — **REQUIRED** to open a pull request. Refuses if on `main`, runs `pnpm run quality-gate`, runs the sanitization heuristic on the diff, pushes the branch if needed, drafts title + body matching `.github/PULL_REQUEST_TEMPLATE.md`, calls `gh pr create` with `--label` and `--assignee "@me"`.
-
-### Hard rule — never bypass these commands
-
-- **NEVER** run `gh issue create` directly. Always invoke `/new-issue`.
-- **NEVER** run `gh pr create` directly. Always invoke `/new-pr`.
-
-These commands enforce the project's templates, sanitization heuristic, label discipline, and roadmap update prompt. Bypassing them produces inconsistent issues and PRs, and skips quality + sanitization checks that the project requires.
+- **`/new-issue`** — required for filing GitHub issues. Never run `gh issue create` directly.
+- **`/new-pr`** — required for opening PRs. Never run `gh pr create` directly.

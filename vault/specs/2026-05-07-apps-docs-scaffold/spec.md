@@ -1,8 +1,8 @@
 ---
-status: draft
+status: shipped
 feature: apps-docs-scaffold
 created: 2026-05-07
-shipped: null
+shipped: 2026-05-07
 ---
 # Apps/Docs Minimal Scaffold — Spec
 

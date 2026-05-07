@@ -73,10 +73,11 @@ export function TerminalBlock({ tab, meta, comment, command, headerRight }: Term
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            padding: '4px 10px',
+            padding: '3px 10px',
             borderRadius: '4px',
-            backgroundColor: 'var(--color-gold)',
-            color: 'var(--color-text-ink)',
+            backgroundColor: 'transparent',
+            border: '1px solid var(--color-gold)',
+            color: 'var(--color-gold)',
             fontFamily: 'var(--font-mono)',
             fontSize: '11px',
             fontWeight: 600,
@@ -98,6 +99,7 @@ export function TerminalBlock({ tab, meta, comment, command, headerRight }: Term
         ) : null}
         {headerRight ? (
           <div
+            data-terminal-actions=""
             style={{
               marginLeft: 'auto',
               display: 'inline-flex',

@@ -187,8 +187,14 @@ a {
     line-height: 24px !important;
   }
 
-  /* Terminal block: smaller padding, tighter font, header allowed
-     to wrap (already flex-wrap on the inline style). */
+  /* Terminal block on mobile. Layout intentionally stacks:
+       row 1: tab (`one-liner`)
+       row 2: OS selector
+       row 3: BETA toggle + copy button
+     The 3 traffic-light dots are hidden (decorative). The actions
+     wrapper uses display: contents so OS + BETA become direct flex
+     children of the header, which lets the OS toggle take its own
+     row via flex-basis: 100%. */
   [data-terminal-body] {
     padding: 16px !important;
   }
@@ -196,18 +202,48 @@ a {
   [data-terminal-body] span:first-of-type {
     font-size: 12px !important;
   }
+  [data-terminal-header] {
+    row-gap: 8px !important;
+    column-gap: 8px !important;
+    padding: 10px 12px !important;
+    align-items: center !important;
+  }
+  [data-terminal-header] > div:first-child {
+    display: none !important;
+  }
+  [data-terminal-header] [data-terminal-actions] {
+    display: contents !important;
+  }
+  /* tab fills its own row */
+  [data-terminal-header] > span:first-of-type {
+    flex-basis: 100% !important;
+  }
+  /* OS selector fills its own row */
+  [data-terminal-header] fieldset[aria-label="Operating system"] {
+    flex-basis: 100% !important;
+    margin-left: 0 !important;
+  }
+  /* BETA + copy share the third row, copy pushed to the right */
+  [data-terminal-header] [role="switch"] {
+    margin-left: 0 !important;
+  }
+  [data-terminal-copy] {
+    margin-left: auto !important;
+  }
 
-  /* Footer: stack vertically — crest above, links below. */
+  /* Footer: stack vertically + center on mobile (desktop unchanged). */
   footer[aria-label="footer"] {
     flex-direction: column !important;
-    align-items: flex-start !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
     gap: 16px !important;
     padding-top: 24px !important;
     padding-bottom: 24px !important;
   }
-  /* Footer link group wraps if needed. */
   footer[aria-label="footer"] > div {
     flex-wrap: wrap !important;
+    justify-content: center !important;
     gap: 16px !important;
   }
 

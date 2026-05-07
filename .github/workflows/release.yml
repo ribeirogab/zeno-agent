@@ -64,10 +64,29 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "title=$TITLE" >> $GITHUB_OUTPUT
 
-      - name: Push tag
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Bump root package.json version
         run: |
+          TAG="${{ steps.resolve.outputs.tag }}"
+          VER="${TAG#v}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          pnpm version "$VER" --no-git-tag-version
+          git add package.json
+          git commit -m "chore(release): $TAG"
+          git push origin HEAD:main
+
+      - name: Push tag
+        run: |
           git tag "${{ steps.resolve.outputs.tag }}"
           git push origin "${{ steps.resolve.outputs.tag }}"
 

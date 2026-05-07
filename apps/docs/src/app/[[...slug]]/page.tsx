@@ -1,7 +1,8 @@
-import { MarkdownCopyButton } from 'fumadocs-ui/layouts/docs/page';
+import { MarkdownCopyButton, ViewOptionsPopover } from 'fumadocs-ui/layouts/docs/page';
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/page';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { CopyMarkdownUrlButton } from '@/components/copy-markdown-url-button';
 import { source } from '@/lib/source';
 
 export default async function Page({ params }: { params: Promise<{ slug?: string[] }> }) {
@@ -12,13 +13,16 @@ export default async function Page({ params }: { params: Promise<{ slug?: string
   const MDX = page.data.body;
 
   const slugString = (slug ?? []).join('/');
+  const markdownUrl = `/llms.mdx/${slugString}`;
 
   return (
     <DocsPage toc={page.data.toc}>
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
-      <div className="not-prose mb-4">
-        <MarkdownCopyButton markdownUrl={`/llms.mdx/${slugString}`} />
+      <div className="not-prose mb-4 flex flex-wrap items-center gap-2">
+        <MarkdownCopyButton markdownUrl={markdownUrl} />
+        <CopyMarkdownUrlButton markdownUrl={markdownUrl} />
+        <ViewOptionsPopover markdownUrl={markdownUrl} />
       </div>
       <DocsBody>
         <MDX components={{}} />

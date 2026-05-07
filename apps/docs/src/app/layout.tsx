@@ -27,6 +27,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               url: '/',
             }}
             githubUrl="https://github.com/ribeirogab/zeno-agent"
+            themeSwitch={{ mode: 'light-dark-system' }}
           >
             {children}
           </DocsLayout>

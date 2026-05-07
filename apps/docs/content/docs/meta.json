@@ -1,4 +1,5 @@
 {
-  "title": "Docs",
-  "pages": ["index", "hello", "configuration"]
+  "title": "Documentation",
+  "root": true,
+  "pages": ["---Getting started---", "index", "hello", "configuration"]
 }

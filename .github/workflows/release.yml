@@ -72,13 +72,34 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Bump root package.json version
+      - name: Bump version + update README install URL
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.resolve.outputs.tag }}"
           VER="${TAG#v}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           pnpm version "$VER" --no-git-tag-version
+
+          # README install URL points to the latest release tag, never `main`.
+          # Stable releases always update. Pre-releases only update when no
+          # stable release exists yet (so README never silently regresses
+          # from a stable to a pre-release).
+          UPDATE_README="false"
+          if [ "${{ inputs.prerelease }}" = "false" ]; then
+            UPDATE_README="true"
+          else
+            STABLE_COUNT=$(gh release list --limit 50 --json isPrerelease | jq '[.[] | select(.isPrerelease==false)] | length')
+            if [ "$STABLE_COUNT" = "0" ]; then
+              UPDATE_README="true"
+            fi
+          fi
+          if [ "$UPDATE_README" = "true" ]; then
+            sed -i "s|raw\.githubusercontent\.com/ribeirogab/zeno-agent/[^/]*/infra/install\.sh|raw.githubusercontent.com/ribeirogab/zeno-agent/$TAG/infra/install.sh|g" README.md
+            git add README.md
+          fi
+
           git add package.json
           git commit -m "chore(release): $TAG"
           git push origin HEAD:main

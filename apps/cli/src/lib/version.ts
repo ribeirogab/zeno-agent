@@ -1,17 +1,20 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { DB } from '@zeno/db/host';
+import { queries } from '@zeno/db/host';
+import { ZENO_HOME } from './paths.js';
 
-export function readVersion(home: string): string {
-  const path = join(home, 'package.json');
-  let raw: string;
+export function readVersionFromPackage(): string {
+  const path = join(ZENO_HOME, 'package.json');
+  if (!existsSync(path)) return '0.0.0-dev';
   try {
-    raw = readFileSync(path, 'utf8');
+    const pkg = JSON.parse(readFileSync(path, 'utf8')) as { version?: string };
+    return pkg.version ?? '0.0.0-dev';
   } catch {
-    throw new Error(`zeno: cannot read ${path} (zeno-agent install corrupted; re-run install.sh)`);
+    return '0.0.0-dev';
   }
-  const pkg = JSON.parse(raw) as { version?: string };
-  if (!pkg.version) {
-    throw new Error(`zeno: ${path} has no "version" field`);
-  }
-  return pkg.version;
+}
+
+export function getCurrentVersion(db: DB): string {
+  return queries.getVersion(db) ?? `v${readVersionFromPackage()}`;
 }

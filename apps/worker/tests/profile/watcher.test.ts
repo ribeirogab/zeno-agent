@@ -36,7 +36,6 @@ describe('ProfileWatcher', () => {
     const onPromptFilesChanged = vi.fn();
     const watcher = new ProfileWatcher({
       onPromptFilesChanged,
-      onCronsChanged: vi.fn(),
       debounceMs: 50,
     });
     watcher.start();
@@ -53,31 +52,10 @@ describe('ProfileWatcher', () => {
     expect(onPromptFilesChanged).toHaveBeenCalledTimes(1);
   });
 
-  it('routes profile/config.yaml edits to onCronsChanged', async () => {
-    const onCronsChanged = vi.fn();
-    const watcher = new ProfileWatcher({
-      onPromptFilesChanged: vi.fn(),
-      onCronsChanged,
-      debounceMs: 50,
-    });
-    watcher.start();
-    // give fs.watch a moment to attach (macOS can lose events otherwise)
-    await wait(50);
-
-    touchProfile('config.yaml', 'crons: []\n');
-
-    await wait(150);
-    watcher.stop();
-
-    expect(onCronsChanged).toHaveBeenCalledTimes(1);
-  });
-
   it('ignores mcp.json edits (DB-managed connectors after spec 0032)', async () => {
     const onPromptFilesChanged = vi.fn();
-    const onCronsChanged = vi.fn();
     const watcher = new ProfileWatcher({
       onPromptFilesChanged,
-      onCronsChanged,
       debounceMs: 50,
     });
     watcher.start();
@@ -90,7 +68,6 @@ describe('ProfileWatcher', () => {
     watcher.stop();
 
     expect(onPromptFilesChanged).not.toHaveBeenCalled();
-    expect(onCronsChanged).not.toHaveBeenCalled();
   });
 
   // Spec 0062: the 'skills' bucket now points at /workspace/skills/
@@ -102,7 +79,6 @@ describe('ProfileWatcher', () => {
     const onSkillsChanged = vi.fn();
     const watcher = new ProfileWatcher({
       onPromptFilesChanged: vi.fn(),
-      onCronsChanged: vi.fn(),
       onSkillsChanged,
       dashboardSkillsPath,
       debounceMs: 50,
@@ -133,7 +109,6 @@ describe('ProfileWatcher', () => {
     const onSkillsChanged = vi.fn();
     const watcher = new ProfileWatcher({
       onPromptFilesChanged: vi.fn(),
-      onCronsChanged: vi.fn(),
       onSkillsChanged,
       debounceMs: 50,
     });
@@ -157,7 +132,6 @@ describe('ProfileWatcher', () => {
     const onSkillsChanged = vi.fn();
     const watcher = new ProfileWatcher({
       onPromptFilesChanged: vi.fn(),
-      onCronsChanged: vi.fn(),
       onSkillsChanged,
       debounceMs: 50,
     });
@@ -193,10 +167,13 @@ describe('ProfileWatcher', () => {
       expect(classify('skills', 'whatever.txt')).toBe('skills');
     });
 
-    it('preserves spec-0052 routes — SOUL.md → prompt, USER.md → prompt, config.yaml → crons', () => {
+    it('preserves prompt routes — SOUL.md → prompt, USER.md → prompt', () => {
       expect(classify('agent', 'SOUL.md')).toBe('prompt');
       expect(classify('profile', 'USER.md')).toBe('prompt');
-      expect(classify('profile', 'config.yaml')).toBe('crons');
+    });
+
+    it('config.yaml is no longer recognized (killed in multi-profile-cli spec)', () => {
+      expect(classify('profile', 'config.yaml')).toBe('ignored');
     });
 
     it('non-skill / non-special files fall through to "ignored"', () => {
@@ -211,7 +188,6 @@ describe('ProfileWatcher', () => {
       onPromptFilesChanged: () => {
         throw new Error('handler boom');
       },
-      onCronsChanged: vi.fn(),
       debounceMs: 50,
     });
     watcher.start();

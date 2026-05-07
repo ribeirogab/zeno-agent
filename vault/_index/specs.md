@@ -14,6 +14,7 @@ Template: `[[../specs/_template/spec|_template/spec]]`
 
 ## Active
 
+- [[../specs/2026-05-07-multi-profile-cli/spec|2026-05-07 — Multi-Profile CLI + kill config.yaml]] (draft) — CLI-driven multi-profile orchestration via dockerode + drizzle SQLite at `~/.zeno/state.db`; `templates/profile/` scaffolds; profiles bind 127.0.0.1 in port range `[6101, 6200]`. Hard cut, breaking change in pre-release notes.
 - [[../specs/2026-04-23-documentation-platform/spec-documentation-platform|0027 — Documentation Platform]] (draft) — Fumadocs + llms.txt for agent-friendly docs site in `apps/docs/`.
 - [[../specs/2026-04-24-skill-final-reaction/spec-skill-final-reaction|0028 — Skill-controlled Final Reaction]] (draft) — in-process MCP (`set_final_reaction`, `slack_react`, `slack_unreact`) + optional `AgentOutput.finalReaction` so skills can override the core's default ✅.
 - [[../specs/2026-04-30-ui-dashboard-cleanup/spec-ui-dashboard-cleanup|0066 — UI Dashboard Cleanup]] (draft) — four corrections: live USER.md sidebar identity, drop `sessions` from primary nav, Playwright as first-boot connector with official logo + trimmed tools, official brand-color logos for Slack/GitHub/Klaviyo/Swarmia.

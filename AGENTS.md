@@ -32,14 +32,19 @@ When a spec is shipped (all tasks done, `status: shipped`), always run an explic
 
 Turborepo + `pnpm` workspaces. **Runtime is Docker-only** — use `pnpm run quality-gate` for fast IDE feedback.
 
+The `zeno` CLI is the documented entry point for daily ops; the `pnpm run docker:*` scripts in `package.json` remain as a fallback for environments where `zeno` is not yet installed.
+
 | Command | What it does |
 |---|---|
 | `pnpm run quality-gate` | Lint + typecheck + tests across all workspaces. Gates every commit. |
-| `pnpm run docker:build` | Build the multi-stage container image. |
-| `pnpm run docker:up` / `docker:down` | Start / stop the default profile container (`PROFILE=<name>` for others). |
-| `pnpm run docker:logs` | Tail container logs (prefixed `[worker]` / `[api]`). |
-| `pnpm run docker:sh` | Shell into the running container. |
-| `pnpm run docker:setup-token` | One-time Claude OAuth token helper. |
+| `zeno start` / `zeno stop` / `zeno restart` | Lifecycle of the agent container. |
+| `zeno status` / `zeno logs` / `zeno shell` | Daily ops. |
+| `zeno build` | Build the container image. |
+| `zeno doctor` | Preflight diagnostics (docker running, `.env` valid, profile resolves, etc.). |
+| `zeno open` | Open the dashboard at `http://localhost:3000`. |
+| `zeno update` | `git pull` + rebuild the CLI. |
+| `zeno profile use <name>` / `show` / `list` | Switch profiles. |
+| `zeno docker <args...>` | Raw `docker compose` escape hatch. |
 
 Dashboard: http://localhost:3000
 

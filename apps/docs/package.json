@@ -9,8 +9,11 @@
     "start": "next start -p 4242",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "clean": "rm -rf .next"
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf .next .source",
+    "postinstall": "fumadocs-mdx",
+    "predev": "fumadocs-mdx",
+    "prebuild": "fumadocs-mdx"
   },
   "dependencies": {
     "fumadocs-core": "^16.8.8",

@@ -1,0 +1,33 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
+html {
+  scrollbar-gutter: stable;
+}
+
+html > body[data-scroll-locked] {
+  margin-right: 0px !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}
+
+/* Imperial Terminal — see DESIGN.md. Override Fumadocs neutral defaults. */
+:root,
+.dark {
+  --color-fd-background: #08090f;
+  --color-fd-foreground: #e8eaf5;
+  --color-fd-muted: #0f1119;
+  --color-fd-muted-foreground: #8a8fab;
+  --color-fd-card: #0f1119;
+  --color-fd-card-foreground: #e8eaf5;
+  --color-fd-popover: #151824;
+  --color-fd-popover-foreground: #e8eaf5;
+  --color-fd-border: #1e2131;
+  --color-fd-primary: #d9b362;
+  --color-fd-primary-foreground: #0a0b12;
+  --color-fd-secondary: #151824;
+  --color-fd-secondary-foreground: #e8eaf5;
+  --color-fd-accent: #151824;
+  --color-fd-accent-foreground: #e8eaf5;
+  --color-fd-ring: #d9b362;
+}

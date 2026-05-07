@@ -24,10 +24,10 @@ Prerequisites:
 ### Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ribeirogab/zeno-agent/v2026.5.7-7/install.sh | sh
+curl -fsSL https://zeno-agent.dev/install.sh | sh
 ```
 
-Clones the repo to `~/.zeno/zeno-agent/`, builds the `zeno` CLI, and symlinks it to `~/.local/bin/zeno`. The clone path is fixed (no `ZENO_HOME` override). Source: [`install.sh`](./install.sh).
+Clones the repo to `~/.zeno/zeno-agent/`, builds the `zeno` CLI, and symlinks it to `~/.local/bin/zeno`. The clone path is fixed (no `ZENO_HOME` override). The wrapper served at `https://zeno-agent.dev/install.sh` forwards to the install.sh shipped at the most recent release tag; pass `--beta` (`| sh -s -- --beta`) to install from `main` instead. Source: [`install.sh`](./install.sh).
 
 ### Create a profile
 

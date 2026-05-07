@@ -18,6 +18,7 @@ type DiagramFlowProps = {
 export function DiagramFlow({ nodes }: DiagramFlowProps) {
   return (
     <div
+      data-diagram-flow=""
       style={{
         display: 'flex',
         alignItems: 'stretch',
@@ -35,6 +36,7 @@ export function DiagramFlow({ nodes }: DiagramFlowProps) {
           {index < nodes.length - 1 ? (
             <span
               aria-hidden="true"
+              data-diagram-arrow=""
               style={{
                 display: 'flex',
                 alignItems: 'center',

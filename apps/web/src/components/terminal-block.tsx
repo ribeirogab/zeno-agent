@@ -53,10 +53,12 @@ export function TerminalBlock({ tab, meta, comment, command, headerRight }: Term
       }}
     >
       <div
+        data-terminal-header=""
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '16px',
+          flexWrap: 'wrap',
+          gap: '12px',
           padding: '12px 16px',
           borderBottom: '1px solid var(--color-border-subtle)',
           backgroundColor: 'var(--color-sidebar)',
@@ -162,11 +164,13 @@ export function TerminalBlock({ tab, meta, comment, command, headerRight }: Term
         </button>
       </div>
       <div
+        data-terminal-body=""
         style={{
           display: 'flex',
           flexDirection: 'column',
           gap: '6px',
           padding: '20px 24px',
+          overflowX: 'auto',
         }}
       >
         <span
@@ -174,6 +178,7 @@ export function TerminalBlock({ tab, meta, comment, command, headerRight }: Term
             fontFamily: 'var(--font-mono)',
             fontSize: '12px',
             color: 'var(--color-text-tertiary)',
+            whiteSpace: 'nowrap',
           }}
         >
           {comment}
@@ -195,6 +200,7 @@ export function TerminalBlock({ tab, meta, comment, command, headerRight }: Term
               fontSize: '14px',
               color: 'var(--color-text-primary)',
               lineHeight: '22px',
+              whiteSpace: 'nowrap',
             }}
           >
             {command}

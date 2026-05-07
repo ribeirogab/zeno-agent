@@ -15,8 +15,8 @@
     "predev": "fumadocs-mdx",
     "prebuild": "fumadocs-mdx",
     "cf:build": "fumadocs-mdx && opennextjs-cloudflare build",
-    "preview": "fumadocs-mdx && opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "fumadocs-mdx && opennextjs-cloudflare deploy"
+    "preview": "pnpm run cf:build && opennextjs-cloudflare preview",
+    "deploy": "pnpm run cf:build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "fumadocs-core": "^16.8.8",

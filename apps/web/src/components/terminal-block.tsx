@@ -1,10 +1,13 @@
-import { useCallback, useState } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 
 type TerminalBlockProps = {
   tab: string;
   meta?: string;
   comment: string;
   command: string;
+  // Optional slot rendered between the meta string and the copy button.
+  // Used to embed segmented controls (OS toggle, BETA toggle, etc.).
+  headerRight?: ReactNode;
 };
 
 const dotStyle: React.CSSProperties = {
@@ -18,7 +21,7 @@ const dotStyle: React.CSSProperties = {
 // The header carries an optional meta string and a copy button that
 // writes `command` to the clipboard (graceful no-op when the API is
 // missing). Used in <QuickStartSection> as the install moment.
-export function TerminalBlock({ tab, meta, comment, command }: TerminalBlockProps) {
+export function TerminalBlock({ tab, meta, comment, command, headerRight }: TerminalBlockProps) {
   const [copied, setCopied] = useState(false);
 
   const onCopy = useCallback(() => {
@@ -91,13 +94,25 @@ export function TerminalBlock({ tab, meta, comment, command }: TerminalBlockProp
             {meta}
           </span>
         ) : null}
+        {headerRight ? (
+          <div
+            style={{
+              marginLeft: 'auto',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            {headerRight}
+          </div>
+        ) : null}
         <button
           type="button"
           onClick={onCopy}
           aria-label="Copy install command to clipboard"
           data-terminal-copy=""
           style={{
-            marginLeft: 'auto',
+            marginLeft: headerRight ? '8px' : 'auto',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',

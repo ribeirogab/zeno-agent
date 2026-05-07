@@ -12,11 +12,9 @@ import {
   SessionRepo,
 } from '@zeno/storage';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { signSession } from '@/auth/hmac';
-import { COOKIE_NAME } from '@/auth/middleware';
 import { createApp } from '@/server';
+import { csrfHeaders } from '../csrf-helper';
 
-const SECRET = '0'.repeat(64);
 let db: DB;
 let claudeHome: string;
 
@@ -29,12 +27,12 @@ beforeEach(() => {
 function makeApp(database: DB) {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: SECRET,
       logLevel: 'info',
       workspaceDir: '/tmp',
       nodeEnv: 'test',
       port: 3000,
+      masterKey: Buffer.alloc(32),
+      profileId: 'test',
     },
     db: database,
     cronRepo: new CronRepo(database),
@@ -46,16 +44,7 @@ function makeApp(database: DB) {
   });
 }
 
-function authed(): { Cookie: string } {
-  return { Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}` };
-}
-
 describe('GET /api/sessions', () => {
-  it('rejects without auth', async () => {
-    const res = await makeApp(db).request('/api/sessions');
-    expect(res.status).toBe(401);
-  });
-
   it('returns sessions ordered by last_used_at desc', async () => {
     const sessions = new SessionRepo(db);
     sessions.upsert('thread-old', 'sess-1');
@@ -63,7 +52,7 @@ describe('GET /api/sessions', () => {
       "UPDATE sessions SET last_used_at = datetime('now','-2 days') WHERE thread_id='thread-old'",
     ).run();
     sessions.upsert('thread-new', 'sess-2');
-    const res = await makeApp(db).request('/api/sessions', { headers: authed() });
+    const res = await makeApp(db).request('/api/sessions', { headers: csrfHeaders() });
     const body = (await res.json()) as Array<{ threadId: string }>;
     expect(body[0]?.threadId).toBe('thread-new');
   });
@@ -71,7 +60,7 @@ describe('GET /api/sessions', () => {
 
 describe('GET /api/sessions/:threadId', () => {
   it('returns 404 when thread unknown', async () => {
-    const res = await makeApp(db).request('/api/sessions/nope', { headers: authed() });
+    const res = await makeApp(db).request('/api/sessions/nope', { headers: csrfHeaders() });
     expect(res.status).toBe(404);
   });
 
@@ -82,7 +71,7 @@ describe('GET /api/sessions/:threadId', () => {
       join(claudeHome, 'sess-abc.jsonl'),
       `{"type":"user","message":{"role":"user","content":[{"type":"text","text":"oi"}]},"uuid":"u1"}\n`,
     );
-    const res = await makeApp(db).request('/api/sessions/thread-1', { headers: authed() });
+    const res = await makeApp(db).request('/api/sessions/thread-1', { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       session: { threadId: string };
@@ -96,7 +85,7 @@ describe('GET /api/sessions/:threadId', () => {
   it('returns session with empty messages if JSONL missing', async () => {
     const sessions = new SessionRepo(db);
     sessions.upsert('thread-2', 'sess-no-file');
-    const res = await makeApp(db).request('/api/sessions/thread-2', { headers: authed() });
+    const res = await makeApp(db).request('/api/sessions/thread-2', { headers: csrfHeaders() });
     const body = (await res.json()) as { messages: unknown[] };
     expect(body.messages).toEqual([]);
   });

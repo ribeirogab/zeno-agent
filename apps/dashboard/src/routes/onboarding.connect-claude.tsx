@@ -26,15 +26,6 @@ import { useOAuthSession } from '@/lib/use-oauth-session';
  */
 export const Route = createFileRoute('/onboarding/connect-claude')({
   beforeLoad: async () => {
-    // Auth guard — same as _authed.tsx.
-    try {
-      await apiFetch<void>('/api/auth/me');
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        throw redirect({ to: '/login' });
-      }
-      throw err;
-    }
     // Reverse-redirect — if any backend is configured, send to settings tab.
     try {
       const r = await apiFetch<BackendsResponse>('/api/backends');

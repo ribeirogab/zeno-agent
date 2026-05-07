@@ -6,7 +6,6 @@ import {
   CommandItem,
   CommandList,
   CommandPalette,
-  CommandSeparator,
   CommandShortcut,
 } from '@zeno/ui';
 import { type JSX, useEffect, useState } from 'react';
@@ -71,12 +70,6 @@ export function DashboardCommandPalette(): JSX.Element {
           <CommandItem value="settings system mcp profile" onSelect={() => goto('/settings')}>
             <span>settings</span>
             <CommandShortcut>⌘,</CommandShortcut>
-          </CommandItem>
-        </CommandGroup>
-        <CommandSeparator />
-        <CommandGroup heading="actions">
-          <CommandItem value="exit logout sign out" onSelect={() => goto('/login')}>
-            <span>exit · sign out</span>
           </CommandItem>
         </CommandGroup>
       </CommandList>

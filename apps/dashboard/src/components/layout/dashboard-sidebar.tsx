@@ -71,6 +71,13 @@ function Brand(): JSX.Element {
   })();
   const tooltip = active ? `Claude · ${active.status}` : 'Claude · loading';
 
+  // dashboard-cleanup spec: sidebar version comes from /api/health (the
+  // running container's package.json), not a hardcoded literal. While
+  // useHealth is still loading, render an ellipsis so the slot is reserved
+  // and operators don't see a stale number.
+  const health = useHealth();
+  const versionLabel = health.data?.version ?? 'v…';
+
   return (
     <div className="relative flex items-center gap-[10px] px-2 pt-1.5 pb-4 border-b border-border-subtle">
       <span className="text-gold">
@@ -86,7 +93,9 @@ function Brand(): JSX.Element {
         title={tooltip}
         aria-label={tooltip}
       />
-      <span className="font-mono text-[9px] tracking-[0.15em] text-text-tertiary">v0.3.1</span>
+      <span className="font-mono text-[9px] tracking-[0.15em] text-text-tertiary">
+        {versionLabel}
+      </span>
       <div className="absolute -bottom-px left-2 w-7 h-px bg-gold" />
     </div>
   );
@@ -338,12 +347,6 @@ function User(): JSX.Element {
           {subtitle}
         </span>
       </div>
-      <Link
-        to="/login"
-        className="px-1.5 py-1 border border-border-subtle font-mono text-[10px] text-text-tertiary tracking-[0.1em] hover:text-text-primary hover:border-border-strong transition-colors duration-[120ms]"
-      >
-        exit
-      </Link>
     </div>
   );
 }

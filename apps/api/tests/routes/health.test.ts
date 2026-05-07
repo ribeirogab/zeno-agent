@@ -20,12 +20,12 @@ beforeEach(() => {
 function makeApp(database: DB) {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: '0'.repeat(64),
       logLevel: 'info',
       workspaceDir: '/tmp',
       nodeEnv: 'test',
       port: 3000,
+      masterKey: Buffer.alloc(32),
+      profileId: 'test',
     },
     db: database,
     cronRepo: new CronRepo(database),
@@ -44,6 +44,7 @@ describe('GET /api/health', () => {
     const body = (await res.json()) as Record<string, unknown>;
     expect(body).toEqual({
       status: 'ok',
+      version: expect.any(String),
       uptime: expect.any(Number),
       services: {
         backend: 'unknown',

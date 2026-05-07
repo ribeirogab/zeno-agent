@@ -14,18 +14,8 @@ import {
   SkillRepo,
 } from '@zeno/storage';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { signSession } from '@/auth/hmac';
-import { COOKIE_NAME } from '@/auth/middleware';
 import { createApp } from '@/server';
-
-const SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-
-function authed(): { Cookie: string; 'Content-Type': string } {
-  return {
-    Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}`,
-    'Content-Type': 'application/json',
-  };
-}
+import { csrfHeaders } from '../csrf-helper';
 
 let db: DB;
 
@@ -37,12 +27,12 @@ beforeEach(() => {
 function makeApp(database: DB) {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: SECRET,
       logLevel: 'info',
       workspaceDir: '/tmp',
       nodeEnv: 'test',
       port: 3000,
+      masterKey: Buffer.alloc(32),
+      profileId: 'test',
     },
     db: database,
     cronRepo: new CronRepo(database),
@@ -92,7 +82,9 @@ function seedConnector(database: DB, slug: string) {
 describe('GET /api/crons/:id/connectors', () => {
   it('returns 404 for unknown cron', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/crons/nonexistent/connectors', { headers: authed() });
+    const res = await app.request('/api/crons/nonexistent/connectors', {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(404);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe('cron_not_found');
@@ -101,7 +93,9 @@ describe('GET /api/crons/:id/connectors', () => {
   it('returns empty list when no connectors are linked', async () => {
     const cron = seedCron(db, 'my-cron');
     const app = makeApp(db);
-    const res = await app.request(`/api/crons/${cron.id}/connectors`, { headers: authed() });
+    const res = await app.request(`/api/crons/${cron.id}/connectors`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([]);
   });
@@ -117,7 +111,9 @@ describe('GET /api/crons/:id/connectors', () => {
     links.add(cron.id, github.id);
 
     const app = makeApp(db);
-    const res = await app.request(`/api/crons/${cron.id}/connectors`, { headers: authed() });
+    const res = await app.request(`/api/crons/${cron.id}/connectors`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<{ slug: string }>;
     expect(body.map((c) => c.slug)).toEqual(['github', 'linear', 'sentry']);
@@ -130,7 +126,9 @@ describe('GET /api/crons/:id/connectors', () => {
     links.add(cron.id, c.id);
 
     const app = makeApp(db);
-    const res = await app.request(`/api/crons/${cron.id}/connectors`, { headers: authed() });
+    const res = await app.request(`/api/crons/${cron.id}/connectors`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     const body = (await res.json()) as Array<{
       id: string;
       slug: string;
@@ -154,11 +152,13 @@ describe('PATCH /api/crons/:id/connectors', () => {
     let res = await app.request(`/api/crons/${cron.id}/connectors`, {
       method: 'PATCH',
       body: JSON.stringify({ connectorIds: [a.id, b.id] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(204);
 
-    let listRes = await app.request(`/api/crons/${cron.id}/connectors`, { headers: authed() });
+    let listRes = await app.request(`/api/crons/${cron.id}/connectors`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(((await listRes.json()) as Array<{ slug: string }>).map((c) => c.slug).sort()).toEqual([
       'a',
       'b',
@@ -167,10 +167,12 @@ describe('PATCH /api/crons/:id/connectors', () => {
     res = await app.request(`/api/crons/${cron.id}/connectors`, {
       method: 'PATCH',
       body: JSON.stringify({ connectorIds: [c.id, b.id] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(204);
-    listRes = await app.request(`/api/crons/${cron.id}/connectors`, { headers: authed() });
+    listRes = await app.request(`/api/crons/${cron.id}/connectors`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(((await listRes.json()) as Array<{ slug: string }>).map((c) => c.slug).sort()).toEqual([
       'b',
       'c',
@@ -187,11 +189,13 @@ describe('PATCH /api/crons/:id/connectors', () => {
     const res = await app.request(`/api/crons/${cron.id}/connectors`, {
       method: 'PATCH',
       body: JSON.stringify({ connectorIds: [] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(204);
 
-    const listRes = await app.request(`/api/crons/${cron.id}/connectors`, { headers: authed() });
+    const listRes = await app.request(`/api/crons/${cron.id}/connectors`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(await listRes.json()).toEqual([]);
   });
 
@@ -200,7 +204,7 @@ describe('PATCH /api/crons/:id/connectors', () => {
     const res = await app.request('/api/crons/nonexistent/connectors', {
       method: 'PATCH',
       body: JSON.stringify({ connectorIds: [] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(404);
   });
@@ -213,11 +217,13 @@ describe('PATCH /api/crons/:id/connectors', () => {
     const res = await app.request(`/api/crons/${cron.id}/connectors`, {
       method: 'PATCH',
       body: JSON.stringify({ connectorIds: [real.id, 'fake-id'] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(204);
 
-    const listRes = await app.request(`/api/crons/${cron.id}/connectors`, { headers: authed() });
+    const listRes = await app.request(`/api/crons/${cron.id}/connectors`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     const body = (await listRes.json()) as Array<{ id: string }>;
     expect(body).toHaveLength(1);
     expect(body[0]?.id).toBe(real.id);

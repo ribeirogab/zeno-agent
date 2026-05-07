@@ -12,18 +12,8 @@ import {
   SkillRepo,
 } from '@zeno/storage';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { signSession } from '@/auth/hmac';
-import { COOKIE_NAME } from '@/auth/middleware';
 import { createApp } from '@/server';
-
-const SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-
-function authed(): { Cookie: string; 'Content-Type': string } {
-  return {
-    Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}`,
-    'Content-Type': 'application/json',
-  };
-}
+import { csrfHeaders } from '../csrf-helper';
 
 let db: DB;
 
@@ -35,12 +25,12 @@ beforeEach(() => {
 function makeApp(database: DB) {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: SECRET,
       logLevel: 'info',
       workspaceDir: '/tmp',
       nodeEnv: 'test',
       port: 3000,
+      masterKey: Buffer.alloc(32),
+      profileId: 'test',
     },
     db: database,
     cronRepo: new CronRepo(database),
@@ -63,7 +53,9 @@ function makeApp(database: DB) {
 describe('GET /api/agent-capabilities', () => {
   it('returns all 11 seeded tools — 8 enabled by default after spec 0053 + Skill seed (Bash/Edit/Glob/Grep/Read/Skill/ToolSearch/Write); 3 disabled (Task/WebFetch/WebSearch)', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/agent-capabilities', { headers: authed() });
+    const res = await app.request('/api/agent-capabilities', {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<{ toolName: string; enabled: boolean }>;
     expect(body).toHaveLength(11);
@@ -102,7 +94,7 @@ describe('PATCH /api/agent-capabilities', () => {
     const res = await app.request('/api/agent-capabilities', {
       method: 'PATCH',
       body: JSON.stringify({ updates: [{ toolName: 'Bash', enabled: true }] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<{ toolName: string; enabled: boolean }>;
@@ -121,7 +113,7 @@ describe('PATCH /api/agent-capabilities', () => {
           { toolName: 'Bash', enabled: true },
         ],
       }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<{ toolName: string; enabled: boolean }>;
@@ -152,7 +144,7 @@ describe('PATCH /api/agent-capabilities', () => {
     await app.request('/api/agent-capabilities', {
       method: 'PATCH',
       body: JSON.stringify({ updates: [{ toolName: 'Read', enabled: false }] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
 
     const res = await app.request('/api/agent-capabilities', {
@@ -163,14 +155,16 @@ describe('PATCH /api/agent-capabilities', () => {
           { toolName: 'NonexistentTool', enabled: true },
         ],
       }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(400);
     expect((await res.json()) as { error: string }).toMatchObject({ error: 'unknown_tool' });
 
     // Read change should have rolled back to its pre-call value (false).
     const list = (await (
-      await app.request('/api/agent-capabilities', { headers: authed() })
+      await app.request('/api/agent-capabilities', {
+        headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+      })
     ).json()) as Array<{ toolName: string; enabled: boolean }>;
     expect(list.find((c) => c.toolName === 'Read')?.enabled).toBe(false);
   });
@@ -180,7 +174,7 @@ describe('PATCH /api/agent-capabilities', () => {
     const res = await app.request('/api/agent-capabilities', {
       method: 'PATCH',
       body: JSON.stringify({ updates: [] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(400);
   });

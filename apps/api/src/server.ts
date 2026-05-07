@@ -17,12 +17,11 @@ import type {
 } from '@zeno/storage';
 import { SessionRepo } from '@zeno/storage';
 import { Hono } from 'hono';
-import { requireAuth } from '@/auth/middleware';
 import type { ApiConfig } from '@/config';
+import { csrf } from '@/csrf/middleware';
 import type { ChannelsCatalog } from '@/lib/channels-catalog-loader';
 import { buildActivityRoute } from '@/routes/activity';
 import { buildAgentCapabilitiesRoute } from '@/routes/agent-capabilities';
-import { buildAuthRoutes } from '@/routes/auth';
 import { buildBackendsRoute } from '@/routes/backends';
 import { buildChannelsRoute } from '@/routes/channels';
 import { buildConnectorSkillsRoute } from '@/routes/connector-skills';
@@ -88,17 +87,12 @@ export function createApp(deps: AppDeps): Hono {
   const app = new Hono();
   const secure = deps.config.nodeEnv === 'production';
   const apiLogger = createLogger({ service: 'api' });
+
+  // dashboard-cleanup spec: no auth. Single-user, bind 127.0.0.1. CSRF token
+  // (double-submit cookie) covers mutating routes; reads are open.
+  app.use('*', csrf({ secure }));
+
   app.route('/api/health', buildHealthRoute(deps.db));
-  app.route(
-    '/api/auth',
-    buildAuthRoutes({
-      password: deps.config.password,
-      sessionSecret: deps.config.sessionSecret,
-      secure,
-    }),
-  );
-  app.use('/api/stats', requireAuth({ secret: deps.config.sessionSecret, secure }));
-  app.use('/api/stats/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
   app.route(
     '/api/stats',
     buildStatsRoute({
@@ -107,10 +101,7 @@ export function createApp(deps: AppDeps): Hono {
       sessions: new SessionRepo(deps.db),
     }),
   );
-  app.use('/api/activity', requireAuth({ secret: deps.config.sessionSecret, secure }));
   app.route('/api/activity', buildActivityRoute(deps.db));
-  app.use('/api/crons', requireAuth({ secret: deps.config.sessionSecret, secure }));
-  app.use('/api/crons/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
   app.route(
     '/api/crons',
     buildCronsRoute({
@@ -119,8 +110,7 @@ export function createApp(deps: AppDeps): Hono {
       commands: deps.commandRepo,
     }),
   );
-  // Spec 0054: cron ↔ skills + connectors M:N (mounted under /api/crons,
-  // auth covered by the /api/crons* middleware above).
+  // Spec 0054: cron ↔ skills + connectors M:N (mounted under /api/crons).
   if (deps.cronSkillRepo) {
     app.route(
       '/api/crons',
@@ -136,8 +126,6 @@ export function createApp(deps: AppDeps): Hono {
       }),
     );
   }
-  app.use('/api/sessions', requireAuth({ secret: deps.config.sessionSecret, secure }));
-  app.use('/api/sessions/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
   app.route(
     '/api/sessions',
     buildSessionsRoute({
@@ -146,20 +134,14 @@ export function createApp(deps: AppDeps): Hono {
       profileDir: deps.profileDir,
     }),
   );
-  app.use('/api/settings', requireAuth({ secret: deps.config.sessionSecret, secure }));
-  app.use('/api/settings/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
   app.route(
     '/api/settings',
     buildSettingsRoute({
       profileDir: deps.profileDir,
     }),
   );
-  app.use('/api/logs', requireAuth({ secret: deps.config.sessionSecret, secure }));
-  app.use('/api/logs/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
   app.route('/api/logs', buildLogsRoute({ logs: deps.logRepo }));
   if (deps.connectorRepo) {
-    app.use('/api/connectors', requireAuth({ secret: deps.config.sessionSecret, secure }));
-    app.use('/api/connectors/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
     app.route(
       '/api/connectors',
       buildConnectorsRoute({
@@ -170,11 +152,7 @@ export function createApp(deps: AppDeps): Hono {
     );
   }
   // Spec 0057: channels routes (gated on connectorRepo + channelsCatalog).
-  // Channels share storage with MCP connectors (`connectors` table with
-  // kind='channel') but get their own catalog file + listing endpoint.
   if (deps.connectorRepo && deps.channelsCatalog) {
-    app.use('/api/channels', requireAuth({ secret: deps.config.sessionSecret, secure }));
-    app.use('/api/channels/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
     app.route(
       '/api/channels',
       buildChannelsRoute({
@@ -185,8 +163,6 @@ export function createApp(deps: AppDeps): Hono {
   }
   // Spec 0071: backend auth via dashboard.
   if (deps.backendCredentialsRepo && deps.backendSettingsRepo) {
-    app.use('/api/backends', requireAuth({ secret: deps.config.sessionSecret, secure }));
-    app.use('/api/backends/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
     app.route(
       '/api/backends',
       buildBackendsRoute({
@@ -200,8 +176,6 @@ export function createApp(deps: AppDeps): Hono {
   }
   // Spec 0052 + 0062: skills (zip install + file CRUD + downloads).
   if (deps.skillRepo && deps.connectorSkillRepo && deps.cronSkillRepo) {
-    app.use('/api/skills', requireAuth({ secret: deps.config.sessionSecret, secure }));
-    app.use('/api/skills/*', requireAuth({ secret: deps.config.sessionSecret, secure }));
     app.route(
       '/api/skills',
       buildSkillsRoute({
@@ -214,11 +188,6 @@ export function createApp(deps: AppDeps): Hono {
   }
   // Spec 0052: agent capabilities (global non-MCP tool toggles).
   if (deps.agentCapabilityRepo) {
-    app.use('/api/agent-capabilities', requireAuth({ secret: deps.config.sessionSecret, secure }));
-    app.use(
-      '/api/agent-capabilities/*',
-      requireAuth({ secret: deps.config.sessionSecret, secure }),
-    );
     app.route(
       '/api/agent-capabilities',
       buildAgentCapabilitiesRoute({ agentCapabilities: deps.agentCapabilityRepo }),
@@ -226,7 +195,6 @@ export function createApp(deps: AppDeps): Hono {
   }
   // Spec 0052: connector ↔ skills M:N (mounted under /api/connectors).
   if (deps.connectorRepo && deps.connectorSkillRepo) {
-    // Auth is already covered by the /api/connectors* middleware above.
     app.route(
       '/api/connectors',
       buildConnectorSkillsRoute({

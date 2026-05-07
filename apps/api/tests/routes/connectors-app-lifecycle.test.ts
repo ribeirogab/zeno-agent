@@ -22,18 +22,8 @@ import {
   runMigrations,
 } from '@zeno/storage';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { signSession } from '@/auth/hmac';
-import { COOKIE_NAME } from '@/auth/middleware';
 import { createApp } from '@/server';
-
-const SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-
-function authed(): { Cookie: string; 'Content-Type': string } {
-  return {
-    Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}`,
-    'Content-Type': 'application/json',
-  };
-}
+import { csrfHeaders } from '../csrf-helper';
 
 function newPem(): string {
   const { privateKey } = generateKeyPairSync('rsa', {
@@ -72,12 +62,12 @@ afterEach(() => {
 function makeApp() {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: SECRET,
       logLevel: 'info',
       workspaceDir: '/tmp',
       nodeEnv: 'test',
       port: 3000,
+      masterKey: Buffer.alloc(32),
+      profileId: 'test',
     },
     db,
     cronRepo: new CronRepo(db),
@@ -141,7 +131,7 @@ describe('POST /api/connectors/catalog/github-app/uninstall-app cascade', () => 
     const res = await makeApp().request('/api/connectors/catalog/github-app/uninstall-app', {
       method: 'POST',
       body: JSON.stringify({ confirmAppName: 'Zen' }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(200);
 

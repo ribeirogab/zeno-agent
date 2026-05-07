@@ -1,20 +1,13 @@
-import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
+import { createFileRoute, Outlet } from '@tanstack/react-router';
 import type { JSX } from 'react';
 import { DashboardCommandPalette } from '@/components/layout/dashboard-command-palette';
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar';
-import { ApiError, apiFetch } from '@/lib/api-client';
 
+// dashboard-cleanup spec: auth removed (single-user, bind 127.0.0.1, CSRF guard
+// on mutating routes only). The `_authed` prefix is preserved for now so the
+// existing route tree under _authed/ continues to render through this layout
+// without a churn-heavy rename. The directory name no longer implies a guard.
 export const Route = createFileRoute('/_authed')({
-  beforeLoad: async () => {
-    try {
-      await apiFetch<void>('/api/auth/me');
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        throw redirect({ to: '/login' });
-      }
-      throw err;
-    }
-  },
   component: AuthedLayout,
 });
 

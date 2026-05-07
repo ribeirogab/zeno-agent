@@ -3,8 +3,6 @@ import { z } from 'zod';
 const HEX_64 = /^[0-9a-fA-F]{64}$/;
 
 const schema = z.object({
-  DASHBOARD_PASSWORD: z.string().min(1),
-  DASHBOARD_SESSION_SECRET: z.string().min(32),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('info'),
   WORKSPACE_DIR: z.string().default('/workspace'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('production'),
@@ -17,8 +15,6 @@ const schema = z.object({
 });
 
 export type ApiConfig = {
-  password: string;
-  sessionSecret: string;
   logLevel: 'trace' | 'debug' | 'info' | 'warn' | 'error';
   workspaceDir: string;
   nodeEnv: 'development' | 'production' | 'test';
@@ -37,8 +33,6 @@ export function loadApiConfig(): ApiConfig {
   }
   const env = parsed.data;
   return {
-    password: env.DASHBOARD_PASSWORD,
-    sessionSecret: env.DASHBOARD_SESSION_SECRET,
     logLevel: env.LOG_LEVEL,
     workspaceDir: env.WORKSPACE_DIR,
     nodeEnv: env.NODE_ENV,

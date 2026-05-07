@@ -31,18 +31,8 @@ import {
 } from '@zeno/storage';
 import unzipper from 'unzipper';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { signSession } from '@/auth/hmac';
-import { COOKIE_NAME } from '@/auth/middleware';
 import { createApp } from '@/server';
-
-const SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-
-function authed(extra: Record<string, string> = {}): Record<string, string> {
-  return {
-    Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}`,
-    ...extra,
-  };
-}
+import { csrfHeaders } from '../csrf-helper';
 
 let db: DB;
 let sandbox: string;
@@ -76,12 +66,12 @@ afterEach(async () => {
 function makeApp(database: DB) {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: SECRET,
       logLevel: 'info',
       workspaceDir: sandbox,
       nodeEnv: 'test',
       port: 3000,
+      masterKey: Buffer.alloc(32),
+      profileId: 'test',
     },
     db: database,
     cronRepo: new CronRepo(database),
@@ -155,7 +145,9 @@ async function buildZip(files: Record<string, string>): Promise<Buffer> {
 describe('GET /api/skills', () => {
   it('returns empty list when no skills installed', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/skills', { headers: authed() });
+    const res = await app.request('/api/skills', {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([]);
   });
@@ -163,7 +155,9 @@ describe('GET /api/skills', () => {
   it('returns metadata only (no body field)', async () => {
     await seedSkill({ name: 'a', description: 'A' });
     const app = makeApp(db);
-    const res = await app.request('/api/skills', { headers: authed() });
+    const res = await app.request('/api/skills', {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(200);
     const list = (await res.json()) as Array<Record<string, unknown>>;
     expect(list).toHaveLength(1);
@@ -176,7 +170,9 @@ describe('GET /api/skills/:id', () => {
   it('returns full skill metadata + aggregate counts (connectorSkillsCount, cronSkillsCount)', async () => {
     const skill = await seedSkill({ name: 'a', description: 'A' });
     const app = makeApp(db);
-    const res = await app.request(`/api/skills/${skill.id}`, { headers: authed() });
+    const res = await app.request(`/api/skills/${skill.id}`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(200);
     const json = (await res.json()) as Record<string, unknown>;
     expect(json).toMatchObject({
@@ -192,7 +188,9 @@ describe('GET /api/skills/:id', () => {
 
   it('returns 404 for missing id', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/skills/nope', { headers: authed() });
+    const res = await app.request('/api/skills/nope', {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(404);
   });
 });
@@ -209,7 +207,9 @@ describe('GET /api/skills/:id/files', () => {
       },
     });
     const app = makeApp(db);
-    const res = await app.request(`/api/skills/${skill.id}/files`, { headers: authed() });
+    const res = await app.request(`/api/skills/${skill.id}/files`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(200);
     const tree = (await res.json()) as Array<{ path: string; sizeBytes: number; mimeType: string }>;
     const paths = tree.map((e) => e.path).sort();
@@ -221,7 +221,9 @@ describe('GET /api/skills/:id/files', () => {
 
   it('404 for missing skill', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/skills/nope/files', { headers: authed() });
+    const res = await app.request('/api/skills/nope/files', {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(404);
   });
 });
@@ -237,7 +239,7 @@ describe('GET /api/skills/:id/files/:path', () => {
     const res = await app.request(
       `/api/skills/${skill.id}/files/${encodeURIComponent('references/api.md')}`,
       {
-        headers: authed(),
+        headers: csrfHeaders({ 'Content-Type': 'application/json' }),
       },
     );
     expect(res.status).toBe(200);
@@ -251,7 +253,7 @@ describe('GET /api/skills/:id/files/:path', () => {
     const app = makeApp(db);
     const res = await app.request(
       `/api/skills/${skill.id}/files/${encodeURIComponent('../escape')}`,
-      { headers: authed() },
+      { headers: csrfHeaders({ 'Content-Type': 'application/json' }) },
     );
     expect(res.status).toBe(400);
     const body = (await res.json()) as Record<string, unknown>;
@@ -261,7 +263,9 @@ describe('GET /api/skills/:id/files/:path', () => {
   it('404 for missing file', async () => {
     const skill = await seedSkill({ name: 'multi', description: 'd' });
     const app = makeApp(db);
-    const res = await app.request(`/api/skills/${skill.id}/files/nope.md`, { headers: authed() });
+    const res = await app.request(`/api/skills/${skill.id}/files/nope.md`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(404);
   });
 });
@@ -278,7 +282,7 @@ describe('PUT /api/skills/:id/files/:path', () => {
       `/api/skills/${skill.id}/files/${encodeURIComponent('references/api.md')}`,
       {
         method: 'PUT',
-        headers: authed({ 'Content-Type': 'text/plain' }),
+        headers: csrfHeaders({ 'Content-Type': 'text/plain' }),
         body: 'new content',
       },
     );
@@ -296,7 +300,7 @@ describe('PUT /api/skills/:id/files/:path', () => {
     const newSkillMd = `---\nname: multi\ndescription: new desc\n---\n\nnew body`;
     const res = await app.request(`/api/skills/${skill.id}/files/SKILL.md`, {
       method: 'PUT',
-      headers: authed({ 'Content-Type': 'text/plain' }),
+      headers: csrfHeaders({ 'Content-Type': 'text/plain' }),
       body: newSkillMd,
     });
     expect(res.status).toBe(204);
@@ -309,7 +313,7 @@ describe('PUT /api/skills/:id/files/:path', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/skills/${skill.id}/files/SKILL.md`, {
       method: 'PUT',
-      headers: authed({ 'Content-Type': 'text/plain' }),
+      headers: csrfHeaders({ 'Content-Type': 'text/plain' }),
       body: 'new',
     });
     expect(res.status).toBe(403);
@@ -321,7 +325,7 @@ describe('PUT /api/skills/:id/files/:path', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/skills/${skill.id}/files/SKILL.md`, {
       method: 'PUT',
-      headers: authed({ 'Content-Type': 'text/plain' }),
+      headers: csrfHeaders({ 'Content-Type': 'text/plain' }),
       body: 'new',
     });
     expect(res.status).toBe(403);
@@ -333,7 +337,7 @@ describe('PUT /api/skills/:id/files/:path', () => {
     const big = 'x'.repeat(1_100_000);
     const res = await app.request(`/api/skills/${skill.id}/files/big.txt`, {
       method: 'PUT',
-      headers: authed({ 'Content-Type': 'text/plain' }),
+      headers: csrfHeaders({ 'Content-Type': 'text/plain' }),
       body: big,
     });
     expect(res.status).toBe(413);
@@ -351,7 +355,7 @@ describe('DELETE /api/skills/:id/files/:path', () => {
     const app = makeApp(db);
     const res = await app.request(
       `/api/skills/${skill.id}/files/${encodeURIComponent('references/api.md')}`,
-      { method: 'DELETE', headers: authed() },
+      { method: 'DELETE', headers: csrfHeaders({ 'Content-Type': 'application/json' }) },
     );
     expect(res.status).toBe(204);
     await expect(stat(join(skillRepo.canonicalPath(skill), 'references/api.md'))).rejects.toThrow();
@@ -362,7 +366,7 @@ describe('DELETE /api/skills/:id/files/:path', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/skills/${skill.id}/files/SKILL.md`, {
       method: 'DELETE',
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(422);
     expect(((await res.json()) as Record<string, unknown>).error).toBe('skill_md_required');
@@ -378,7 +382,7 @@ describe('DELETE /api/skills/:id/files/:path', () => {
     const app = makeApp(db);
     const res = await app.request(
       `/api/skills/${skill.id}/files/${encodeURIComponent('references/api.md')}`,
-      { method: 'DELETE', headers: authed() },
+      { method: 'DELETE', headers: csrfHeaders({ 'Content-Type': 'application/json' }) },
     );
     expect(res.status).toBe(403);
   });
@@ -393,7 +397,9 @@ describe('GET /api/skills/:id/download', () => {
       extras: { 'references/api.md': '## API' },
     });
     const app = makeApp(db);
-    const res = await app.request(`/api/skills/${skill.id}/download`, { headers: authed() });
+    const res = await app.request(`/api/skills/${skill.id}/download`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('application/zip');
     expect(res.headers.get('content-disposition')).toContain('multi.zip');
@@ -413,7 +419,9 @@ describe('GET /api/skills/download-all', () => {
       extras: { 'extra.md': 'x' },
     });
     const app = makeApp(db);
-    const res = await app.request('/api/skills/download-all', { headers: authed() });
+    const res = await app.request('/api/skills/download-all', {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(200);
     const buf = Buffer.from(await res.arrayBuffer());
     const dir = await unzipper.Open.buffer(buf);
@@ -437,7 +445,7 @@ describe('POST /api/skills (zip install)', () => {
     );
     const res = await app.request('/api/skills', {
       method: 'POST',
-      headers: authed(),
+      headers: csrfHeaders(),
       body: fd,
     });
     expect(res.status).toBe(201);
@@ -453,7 +461,11 @@ describe('POST /api/skills (zip install)', () => {
     const app = makeApp(db);
     const fd = new FormData();
     fd.append('file', new Blob([new Uint8Array(zip)], { type: 'application/zip' }), 'empty.zip');
-    const res = await app.request('/api/skills', { method: 'POST', headers: authed(), body: fd });
+    const res = await app.request('/api/skills', {
+      method: 'POST',
+      headers: csrfHeaders(),
+      body: fd,
+    });
     expect(res.status).toBe(400);
     expect(((await res.json()) as Record<string, unknown>).error).toBe('skill_frontmatter_missing');
   });
@@ -466,7 +478,11 @@ describe('POST /api/skills (zip install)', () => {
     const app = makeApp(db);
     const fd = new FormData();
     fd.append('file', new Blob([new Uint8Array(zip)], { type: 'application/zip' }), 'taken.zip');
-    const res = await app.request('/api/skills', { method: 'POST', headers: authed(), body: fd });
+    const res = await app.request('/api/skills', {
+      method: 'POST',
+      headers: csrfHeaders(),
+      body: fd,
+    });
     expect(res.status).toBe(409);
     expect(((await res.json()) as Record<string, unknown>).error).toBe('skill_name_taken');
   });
@@ -484,7 +500,11 @@ describe('POST /api/skills (zip install)', () => {
     const app = makeApp(db);
     const fd = new FormData();
     fd.append('file', new Blob([new Uint8Array(zip)], { type: 'application/zip' }), 'rogue.zip');
-    const res = await app.request('/api/skills', { method: 'POST', headers: authed(), body: fd });
+    const res = await app.request('/api/skills', {
+      method: 'POST',
+      headers: csrfHeaders(),
+      body: fd,
+    });
     expect(res.status).toBe(400);
     expect(((await res.json()) as Record<string, unknown>).error).toBe('skill_path_invalid');
   });
@@ -499,7 +519,11 @@ describe('POST /api/skills (zip install)', () => {
     const fd = new FormData();
     fd.append('file', new Blob([new Uint8Array(zip)], { type: 'application/zip' }), 'big.zip');
     const start = Date.now();
-    const res = await app.request('/api/skills', { method: 'POST', headers: authed(), body: fd });
+    const res = await app.request('/api/skills', {
+      method: 'POST',
+      headers: csrfHeaders(),
+      body: fd,
+    });
     const elapsed = Date.now() - start;
     expect(res.status).toBe(413);
     expect(((await res.json()) as Record<string, unknown>).error).toBe('skill_file_too_large');
@@ -515,7 +539,7 @@ describe('PATCH /api/skills/:id (description-only)', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/skills/${skill.id}`, {
       method: 'PATCH',
-      headers: authed({ 'Content-Type': 'application/json' }),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ description: 'new' }),
     });
     expect(res.status).toBe(200);
@@ -527,7 +551,7 @@ describe('PATCH /api/skills/:id (description-only)', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/skills/${skill.id}`, {
       method: 'PATCH',
-      headers: authed({ 'Content-Type': 'application/json' }),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ description: 'new' }),
     });
     expect(res.status).toBe(403);
@@ -538,7 +562,7 @@ describe('PATCH /api/skills/:id (description-only)', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/skills/${skill.id}`, {
       method: 'PATCH',
-      headers: authed({ 'Content-Type': 'application/json' }),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ description: 'new' }),
     });
     expect(res.status).toBe(403);
@@ -552,7 +576,7 @@ describe('DELETE /api/skills/:id', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/skills/${skill.id}`, {
       method: 'DELETE',
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(204);
     expect(skillRepo.get(skill.id)).toBeNull();
@@ -565,7 +589,7 @@ describe('DELETE /api/skills/:id', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/skills/${skill.id}`, {
       method: 'DELETE',
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(204);
     expect(skillRepo.get(skill.id)).toBeNull();
@@ -579,7 +603,7 @@ describe('DELETE /api/skills/:id', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/skills/${skill.id}`, {
       method: 'DELETE',
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(403);
     expect(skillRepo.get(skill.id)).not.toBeNull();

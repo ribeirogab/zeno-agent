@@ -14,18 +14,8 @@ import {
   SkillRepo,
 } from '@zeno/storage';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { signSession } from '@/auth/hmac';
-import { COOKIE_NAME } from '@/auth/middleware';
 import { createApp } from '@/server';
-
-const SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-
-function authed(): { Cookie: string; 'Content-Type': string } {
-  return {
-    Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}`,
-    'Content-Type': 'application/json',
-  };
-}
+import { csrfHeaders } from '../csrf-helper';
 
 let db: DB;
 
@@ -37,12 +27,12 @@ beforeEach(() => {
 function makeApp(database: DB) {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: SECRET,
       logLevel: 'info',
       workspaceDir: '/tmp',
       nodeEnv: 'test',
       port: 3000,
+      masterKey: Buffer.alloc(32),
+      profileId: 'test',
     },
     db: database,
     cronRepo: new CronRepo(database),
@@ -76,7 +66,9 @@ function seedCron(database: DB, name: string) {
 describe('GET /api/crons/:id/skills', () => {
   it('returns 404 for unknown cron', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/crons/nonexistent/skills', { headers: authed() });
+    const res = await app.request('/api/crons/nonexistent/skills', {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(404);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe('cron_not_found');
@@ -85,7 +77,9 @@ describe('GET /api/crons/:id/skills', () => {
   it('returns empty list when no skills are linked', async () => {
     const cron = seedCron(db, 'my-cron');
     const app = makeApp(db);
-    const res = await app.request(`/api/crons/${cron.id}/skills`, { headers: authed() });
+    const res = await app.request(`/api/crons/${cron.id}/skills`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([]);
   });
@@ -100,7 +94,9 @@ describe('GET /api/crons/:id/skills', () => {
     links.add(cron.id, a.id);
 
     const app = makeApp(db);
-    const res = await app.request(`/api/crons/${cron.id}/skills`, { headers: authed() });
+    const res = await app.request(`/api/crons/${cron.id}/skills`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<{ name: string }>;
     expect(body.map((s) => s.name)).toEqual(['aws-debug', 'zeta-skill']);
@@ -114,7 +110,9 @@ describe('GET /api/crons/:id/skills', () => {
     links.add(cron.id, s.id);
 
     const app = makeApp(db);
-    const res = await app.request(`/api/crons/${cron.id}/skills`, { headers: authed() });
+    const res = await app.request(`/api/crons/${cron.id}/skills`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     const body = (await res.json()) as Array<{
       id: string;
       name: string;
@@ -138,11 +136,13 @@ describe('PATCH /api/crons/:id/skills', () => {
     let res = await app.request(`/api/crons/${cron.id}/skills`, {
       method: 'PATCH',
       body: JSON.stringify({ skillIds: [a.id, b.id] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(204);
 
-    let listRes = await app.request(`/api/crons/${cron.id}/skills`, { headers: authed() });
+    let listRes = await app.request(`/api/crons/${cron.id}/skills`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(((await listRes.json()) as Array<{ name: string }>).map((s) => s.name).sort()).toEqual([
       'a',
       'b',
@@ -152,10 +152,12 @@ describe('PATCH /api/crons/:id/skills', () => {
     res = await app.request(`/api/crons/${cron.id}/skills`, {
       method: 'PATCH',
       body: JSON.stringify({ skillIds: [c.id, b.id] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(204);
-    listRes = await app.request(`/api/crons/${cron.id}/skills`, { headers: authed() });
+    listRes = await app.request(`/api/crons/${cron.id}/skills`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(((await listRes.json()) as Array<{ name: string }>).map((s) => s.name).sort()).toEqual([
       'b',
       'c',
@@ -173,11 +175,13 @@ describe('PATCH /api/crons/:id/skills', () => {
     const res = await app.request(`/api/crons/${cron.id}/skills`, {
       method: 'PATCH',
       body: JSON.stringify({ skillIds: [] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(204);
 
-    const listRes = await app.request(`/api/crons/${cron.id}/skills`, { headers: authed() });
+    const listRes = await app.request(`/api/crons/${cron.id}/skills`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(await listRes.json()).toEqual([]);
   });
 
@@ -186,7 +190,7 @@ describe('PATCH /api/crons/:id/skills', () => {
     const res = await app.request('/api/crons/nonexistent/skills', {
       method: 'PATCH',
       body: JSON.stringify({ skillIds: [] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(404);
   });
@@ -200,11 +204,13 @@ describe('PATCH /api/crons/:id/skills', () => {
     const res = await app.request(`/api/crons/${cron.id}/skills`, {
       method: 'PATCH',
       body: JSON.stringify({ skillIds: [real.id, 'fake-id', 'another-fake'] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(204);
 
-    const listRes = await app.request(`/api/crons/${cron.id}/skills`, { headers: authed() });
+    const listRes = await app.request(`/api/crons/${cron.id}/skills`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     const body = (await listRes.json()) as Array<{ id: string }>;
     expect(body).toHaveLength(1);
     expect(body[0]?.id).toBe(real.id);

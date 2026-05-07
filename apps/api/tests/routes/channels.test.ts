@@ -10,10 +10,9 @@ import {
   runMigrations,
 } from '@zeno/storage';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { signSession } from '@/auth/hmac';
-import { COOKIE_NAME } from '@/auth/middleware';
 import { _resetChannelsCatalogCache, loadChannelsCatalog } from '@/lib/channels-catalog-loader';
 import { createApp } from '@/server';
+import { csrfHeaders } from '../csrf-helper';
 
 // Spec 0057: chdir to worktree root so AGENT_CANDIDATES = ['agent'] resolves.
 // catalog-loader.ts and channels-catalog-loader.ts read 'agent/' relative to
@@ -22,8 +21,6 @@ const ORIGINAL_CWD = process.cwd();
 const WORKTREE_ROOT = resolve(__dirname, '../../../..');
 beforeAll(() => process.chdir(WORKTREE_ROOT));
 afterAll(() => process.chdir(ORIGINAL_CWD));
-
-const SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 let db: DB;
 
@@ -39,12 +36,12 @@ afterEach(() => {
 function makeApp(database: DB) {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: SECRET,
       logLevel: 'info',
       workspaceDir: '/tmp',
       nodeEnv: 'test',
       port: 3000,
+      masterKey: Buffer.alloc(32),
+      profileId: 'test',
     },
     db: database,
     cronRepo: new CronRepo(database),
@@ -61,14 +58,10 @@ function makeApp(database: DB) {
   });
 }
 
-function authed(): { Cookie: string } {
-  return { Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}` };
-}
-
 describe('GET /api/channels/catalog (spec 0057)', () => {
   it('returns the channels catalog with at least Slack', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/channels/catalog', { headers: authed() });
+    const res = await app.request('/api/channels/catalog', { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { channels: Array<{ id: string; name: string }> };
     const slack = body.channels.find((c) => c.id === 'slack');
@@ -78,25 +71,19 @@ describe('GET /api/channels/catalog (spec 0057)', () => {
 
   it('catalog entries include iconUrl pointing to /api/connectors/catalog/icons', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/channels/catalog', { headers: authed() });
+    const res = await app.request('/api/channels/catalog', { headers: csrfHeaders() });
     const body = (await res.json()) as {
       channels: Array<{ id: string; iconUrl: string }>;
     };
     const slack = body.channels.find((c) => c.id === 'slack');
     expect(slack?.iconUrl).toBe('/api/connectors/catalog/icons/slack.svg');
   });
-
-  it('requires auth (no cookie → 401)', async () => {
-    const app = makeApp(db);
-    const res = await app.request('/api/channels/catalog');
-    expect(res.status).toBe(401);
-  });
 });
 
 describe('GET /api/channels (spec 0057)', () => {
   it('returns empty array when no channels installed', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/channels', { headers: authed() });
+    const res = await app.request('/api/channels', { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual([]);
@@ -138,7 +125,7 @@ describe('GET /api/channels (spec 0057)', () => {
     });
 
     const app = makeApp(db);
-    const res = await app.request('/api/channels', { headers: authed() });
+    const res = await app.request('/api/channels', { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<Record<string, unknown>>;
     expect(body).toHaveLength(1);
@@ -180,7 +167,7 @@ describe('GET /api/connectors filters channel rows (spec 0057)', () => {
     });
 
     const app = makeApp(db);
-    const res = await app.request('/api/connectors', { headers: authed() });
+    const res = await app.request('/api/connectors', { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<{ slug: string }>;
     const slugs = body.map((c) => c.slug);
@@ -194,7 +181,7 @@ describe('POST /api/connectors with kind=channel (spec 0057)', () => {
     const app = makeApp(db);
     const res = await app.request('/api/connectors', {
       method: 'POST',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({
         source: 'catalog',
         catalogId: 'slack',
@@ -223,7 +210,7 @@ describe('POST /api/connectors with kind=channel (spec 0057)', () => {
     const app = makeApp(db);
     const res = await app.request('/api/connectors', {
       method: 'POST',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({
         source: 'custom',
         kind: 'channel',
@@ -241,7 +228,7 @@ describe('POST /api/connectors with kind=channel (spec 0057)', () => {
     const app = makeApp(db);
     const res = await app.request('/api/connectors', {
       method: 'POST',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({
         source: 'catalog',
         catalogId: 'discord', // not in channels-catalog.json
@@ -258,7 +245,7 @@ describe('POST /api/connectors with kind=channel (spec 0057)', () => {
     const app = makeApp(db);
     const res = await app.request('/api/connectors', {
       method: 'POST',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({
         source: 'catalog',
         catalogId: 'slack',
@@ -277,7 +264,7 @@ describe('GET /api/connectors/catalog/icons/slack.svg (spec 0057)', () => {
   it('serves Slack channel icon (extended knownIcons set)', async () => {
     const app = makeApp(db);
     const res = await app.request('/api/connectors/catalog/icons/slack.svg', {
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toBe('image/svg+xml');
@@ -312,7 +299,7 @@ describe('GET /api/channels/:id (spec 0059)', () => {
     });
 
     const app = makeApp(db);
-    const res = await app.request(`/api/channels/${channel.id}`, { headers: authed() });
+    const res = await app.request(`/api/channels/${channel.id}`, { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.id).toBe(channel.id);
@@ -348,20 +335,14 @@ describe('GET /api/channels/:id (spec 0059)', () => {
       tools: [],
     });
     const app = makeApp(db);
-    const res = await app.request(`/api/channels/${mcp.id}`, { headers: authed() });
+    const res = await app.request(`/api/channels/${mcp.id}`, { headers: csrfHeaders() });
     expect(res.status).toBe(404);
   });
 
   it('returns 404 for unknown id', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/channels/nonexistent-id', { headers: authed() });
+    const res = await app.request('/api/channels/nonexistent-id', { headers: csrfHeaders() });
     expect(res.status).toBe(404);
-  });
-
-  it('returns 401 unauthed', async () => {
-    const app = makeApp(db);
-    const res = await app.request('/api/channels/some-id');
-    expect(res.status).toBe(401);
   });
 });
 
@@ -394,7 +375,7 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/channels/${channel.id}/secrets`, {
       method: 'PATCH',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({
         mode: 'merge',
         secrets: [{ key: 'SLACK_BOT_TOKEN', value: 'xoxb-B2-CCCC' }],
@@ -416,7 +397,7 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/channels/${channel.id}/secrets`, {
       method: 'PATCH',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({
         mode: 'replace',
         secrets: [{ key: 'SLACK_APP_TOKEN', value: 'xapp-NEW' }],
@@ -436,7 +417,7 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/channels/${channel.id}/secrets`, {
       method: 'PATCH',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({
         secrets: [{ key: 'SLACK_APP_TOKEN', value: 'xapp-NEW' }],
       }),
@@ -470,20 +451,10 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/channels/${mcp.id}/secrets`, {
       method: 'PATCH',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({ secrets: [{ key: 'X', value: 'Y' }] }),
     });
     expect(res.status).toBe(404);
-  });
-
-  it('returns 401 unauthed', async () => {
-    const app = makeApp(db);
-    const res = await app.request('/api/channels/some-id/secrets', {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ secrets: [] }),
-    });
-    expect(res.status).toBe(401);
   });
 });
 
@@ -509,7 +480,7 @@ describe('DELETE /api/channels/:id (spec 0059)', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/channels/${channel.id}`, {
       method: 'DELETE',
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(204);
     expect(repo.get(channel.id)).toBeNull();
@@ -536,23 +507,17 @@ describe('DELETE /api/channels/:id (spec 0059)', () => {
     const app = makeApp(db);
     const res = await app.request(`/api/channels/${mcp.id}`, {
       method: 'DELETE',
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(404);
     expect(repo.get(mcp.id)).not.toBeNull(); // not deleted
-  });
-
-  it('returns 401 unauthed', async () => {
-    const app = makeApp(db);
-    const res = await app.request('/api/channels/some-id', { method: 'DELETE' });
-    expect(res.status).toBe(401);
   });
 });
 
 describe('GET /api/channels/catalog/setup/:catalogId (spec 0059)', () => {
   it('returns slack setup helper with steps + manifest', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/channels/catalog/setup/slack', { headers: authed() });
+    const res = await app.request('/api/channels/catalog/setup/slack', { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       steps: Array<{ index: number; html: string }>;
@@ -568,14 +533,10 @@ describe('GET /api/channels/catalog/setup/:catalogId (spec 0059)', () => {
 
   it('returns 404 for unknown catalogId', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/channels/catalog/setup/discord', { headers: authed() });
+    const res = await app.request('/api/channels/catalog/setup/discord', {
+      headers: csrfHeaders(),
+    });
     expect(res.status).toBe(404);
-  });
-
-  it('returns 401 unauthed', async () => {
-    const app = makeApp(db);
-    const res = await app.request('/api/channels/catalog/setup/slack');
-    expect(res.status).toBe(401);
   });
 
   // Spec 0059: graceful-degradation contract for the setup helper.

@@ -63,7 +63,7 @@ This spec explicitly does **not** ship:
 
 ## User Stories / Scenarios
 
-1. **Maintainer scaffolds and runs locally.** Maintainer pulls the branch, runs `pnpm install`, then `pnpm --filter @zeno/docs dev`. Browser opens `http://localhost:4242` and shows a docs site with a sidebar, three navigable pages, working search, and a "Copy as markdown" button on each page.
+1. **Maintainer scaffolds and runs locally.** Maintainer pulls the branch, runs `pnpm install`, then `pnpm --filter @zeno/docs dev`. Browser opens `http://localhost:4242` and shows a docs site with a sidebar, three navigable pages (`/`, `/hello`, `/configuration` — no `/docs` prefix because the site itself is the docs), working search, and a "Copy as markdown" button on each page.
 
 2. **Maintainer ships a placeholder change.** Maintainer adds a fourth `*.mdx` to `apps/docs/content/docs/`. The page appears in the sidebar without code changes; `/llms.txt` and `/llms-full.txt` reflect it on the next request.
 
@@ -79,7 +79,7 @@ Each item is a binary check verifiable in under a minute by someone other than t
 - [x] `pnpm install` from the repo root resolves all dependencies without error after `apps/docs/` is added.
 - [x] `pnpm --filter @zeno/docs dev` starts a Next.js dev server bound to `:4242`; `curl -sI http://localhost:4242/` returns HTTP 200.
 - [x] Three MDX files exist under `apps/docs/content/docs/`: `index.mdx`, `hello.mdx`, `configuration.mdx`. Each has frontmatter with `title` and `description`.
-- [x] `http://localhost:4242/docs/hello` and `http://localhost:4242/docs/configuration` render their pages; the Fumadocs sidebar lists all three.
+- [x] `http://localhost:4242/hello` and `http://localhost:4242/configuration` render their pages; the Fumadocs sidebar lists all three. The site is the docs — pages live at the root, no `/docs` prefix.
 - [x] `curl -s http://localhost:4242/llms.txt` returns `text/plain` markdown that contains the literal token `# Zeno`, a blockquote line, and a link entry for each of the three pages with title, URL, and description.
 - [x] `curl -s http://localhost:4242/llms-full.txt` returns `text/plain` markdown containing the full body text of all three pages, separated by `---` rules.
 - [x] `curl -s http://localhost:4242/llms.mdx/hello` returns `text/markdown` with the raw MDX body of `hello.mdx`. Requesting a non-existent slug returns HTTP 404.

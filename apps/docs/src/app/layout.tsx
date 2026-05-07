@@ -18,6 +18,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <DocsLayout
             tree={source.pageTree}
             nav={{
+              mode: 'top',
               title: (
                 <span className="inline-flex items-center gap-2 font-medium">
                   <Crest size={20} />

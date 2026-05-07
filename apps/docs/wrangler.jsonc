@@ -1,0 +1,23 @@
+// Cloudflare Worker config for the @zeno/docs site.
+//
+// Deployed via @opennextjs/cloudflare:
+//   pnpm --filter @zeno/docs deploy
+//
+// `account_id` is committed on purpose — Cloudflare account IDs are not
+// secrets (they're visible in any worker URL anyone can hit). Do NOT move
+// it to a repo secret.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zeno-docs",
+  "main": ".open-next/worker.js",
+  "account_id": "9890bc74ec17df307df583147a6ea97f",
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

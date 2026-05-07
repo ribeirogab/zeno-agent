@@ -9,3 +9,10 @@ next-env.d.ts
 
 # Pagefind output (search index)
 public/_pagefind/
+
+# OpenNext + Cloudflare Workers build artifact
+.open-next/
+
+# Wrangler local state + secrets
+.dev.vars
+.wrangler/

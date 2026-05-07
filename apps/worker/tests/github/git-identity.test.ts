@@ -1,76 +1,8 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildGitEnv, parseGitIdentityFromConfig } from '@/github/git-identity';
-
-const TMP = join(tmpdir(), `git-identity-test-${Date.now()}`);
-const CONFIG_PATH = join(TMP, 'config.yaml');
-
-beforeEach(() => {
-  mkdirSync(TMP, { recursive: true });
-});
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { buildGitEnv } from '@/github/git-identity';
 
 afterEach(() => {
-  if (existsSync(TMP)) rmSync(TMP, { recursive: true });
   vi.restoreAllMocks();
-});
-
-describe('parseGitIdentityFromConfig', () => {
-  it('returns identity when git_identity is present in config', () => {
-    writeFileSync(
-      CONFIG_PATH,
-      `
-github_app:
-  app_id: "123"
-  private_key_file: key.pem
-  git_identity:
-    name: "my-bot[bot]"
-    email: "123+my-bot[bot]@users.noreply.github.com"
-  installations: []
-`,
-    );
-
-    const result = parseGitIdentityFromConfig([TMP]);
-    expect(result).toEqual({
-      name: 'my-bot[bot]',
-      email: '123+my-bot[bot]@users.noreply.github.com',
-    });
-  });
-
-  it('returns null when no git_identity section', () => {
-    writeFileSync(
-      CONFIG_PATH,
-      `
-github_app:
-  app_id: "123"
-  private_key_file: key.pem
-  installations: []
-`,
-    );
-
-    const result = parseGitIdentityFromConfig([TMP]);
-    expect(result).toBeNull();
-  });
-
-  it('returns null when no config file exists', () => {
-    const result = parseGitIdentityFromConfig(['/nonexistent/path']);
-    expect(result).toBeNull();
-  });
-
-  it('returns null when git_identity has missing fields', () => {
-    writeFileSync(
-      CONFIG_PATH,
-      `
-github_app:
-  git_identity:
-    name: "bot"
-`,
-    );
-
-    const result = parseGitIdentityFromConfig([TMP]);
-    expect(result).toBeNull();
-  });
 });
 
 describe('buildGitEnv', () => {

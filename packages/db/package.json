@@ -1,0 +1,35 @@
+{
+  "name": "@zeno/db",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/host/index.js",
+  "types": "./dist/host/index.d.ts",
+  "exports": {
+    "./host": {
+      "types": "./dist/host/index.d.ts",
+      "import": "./dist/host/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b && pnpm run copy-migrations",
+    "copy-migrations": "rm -rf dist/host/migrations && cp -R src/host/migrations dist/host/migrations",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "clean": "rm -rf dist",
+    "db:host:generate": "drizzle-kit generate --config drizzle.host.config.ts",
+    "db:host:check": "drizzle-kit check --config drizzle.host.config.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.0.0",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  }
+}

@@ -1,0 +1,11 @@
+# Next.js build output
+.next/
+
+# Next.js generated env types (auto-regenerated)
+next-env.d.ts
+
+# Fumadocs generated source
+.source/
+
+# Pagefind output (search index)
+public/_pagefind/

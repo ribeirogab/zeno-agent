@@ -1,13 +1,14 @@
 ---
 id: "0027"
 title: Documentation Platform
-status: draft
+status: superseded
 created: 2026-04-23
+superseded_by: "[[../2026-05-07-apps-docs-scaffold/spec]]"
 ---
 
 # 0027 — Documentation Platform
 
-**Status:** Draft
+**Status:** Superseded by [[../2026-05-07-apps-docs-scaffold/spec]] — kept as research history (framework comparison: Mintlify, Starlight, Nextra, Docusaurus). The new spec adopts Fumadocs (not in 0027's comparison) and limits scope to a structural scaffold, deferring official content authoring and hosting to follow-up specs.
 **Scope:** Choose and configure a documentation framework for Zeno that is self-hostable, agent-friendly, and visually aligned with the Imperial Terminal design system.
 
 ## Context

@@ -54,6 +54,7 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/node-lts-current|Node.js LTS status]] — Node 24 is current Active LTS (as of 2026-04).
 - [[../learnings/docker-node-image-variants|Node.js Docker image variant]] — `node:24-slim` is the right default for Zeno.
 - [[../learnings/moduleresolution-split-worker-vs-dashboard|`moduleResolution` split: NodeNext in packages, Bundler in apps]] — what each workspace uses and why.
+- [[../learnings/fumadocs-version-triple-2026-05|Fumadocs version triple (as of 2026-05-07)]] — supported tuple is `fumadocs-core@^16.8.8 + fumadocs-ui@^16.8.8 + fumadocs-mdx@^15.0.0`; UI 17 blocked by mdx peer.
 
 ## `#gotcha` — Things that tripped us up
 
@@ -81,6 +82,10 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/tailwind-v4-import-needs-workspace-dep|`@import "@workspace/pkg/path.css"` needs the dep declared]] — PostCSS uses Node resolution; without the workspace dep in `package.json`, the `@import` errors `ENOENT` even though the file exists.
 - [[../learnings/tailwind-v4-unlayered-css-overrides-utilities|Unlayered CSS in Tailwind v4 silently beats utilities]] — base resets outside `@layer base` win over every utility; wrap them or every `font-mono` etc. is mute.
 - [[../learnings/connectors-validation-findings|Connectors validation surfaced three real findings]] — what the 0036 validation pass caught (token-source enforcement, etc.); each finding feeds a follow-up spec.
+- [[../learnings/tailwind4-postcss-still-needed-with-turbopack|Tailwind 4 + Fumadocs needs `postcss.config.mjs` even on Turbopack]] — without it, `@apply bg-fd-diff-remove` and friends fail; Turbopack defaults don't replace the postcss plugin.
+- [[../learnings/fumadocs-css-override-needs-id-specificity|Overriding Fumadocs theme tokens needs ID-level specificity]] — `neutral.css` re-binds tokens under `.dark #nd-sidebar`; `:root, .dark` overrides lose; use the same ids and `[data-active='true']` for active states.
+- [[../learnings/fumadocs-mdx-source-postinstall|`fumadocs-mdx` needs a postinstall hook to materialize `.source/`]] — required scripts: `postinstall`, `predev`, `prebuild`. Import from `.source/server`, cast to `DocsCollectionEntry`.
+- [[../learnings/tanstack-router-pretypecheck-regen|Dashboard `tsr generate` not wired to typecheck]] — `route-tree.gen.ts` is gitignored and needs a Vite build before `tsc --noEmit` works; fresh worktrees fail `quality-gate` until then.
 
 ## `#meta` — Workflow and process
 

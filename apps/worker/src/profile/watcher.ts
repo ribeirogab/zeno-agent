@@ -5,7 +5,7 @@ import { createLogger } from '@zeno/logger';
 const logger = createLogger({ service: 'worker' });
 
 /** Logical groupings of identity/config files. The watcher dispatches one group per debounce window. */
-type FileGroup = 'prompt' | 'crons' | 'skills' | 'ignored';
+type FileGroup = 'prompt' | 'skills' | 'ignored';
 
 type SourceKind = 'agent' | 'profile' | 'skills';
 
@@ -15,8 +15,6 @@ const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
 interface ProfileWatcherOptions {
   /** Called when SOUL.md (agent/) or USER.md (profile/) changes. */
   onPromptFilesChanged: () => void;
-  /** Called when profile/config.yaml changes. */
-  onCronsChanged: () => void;
   /** Spec 0052/0062: called when any skill content changes (SSH-edits in agent/profile/dashboard skills, dashboard zip uploads, etc.). */
   onSkillsChanged?: () => void;
   /**
@@ -146,9 +144,6 @@ export class ProfileWatcher {
         case 'prompt':
           this.opts.onPromptFilesChanged();
           break;
-        case 'crons':
-          this.opts.onCronsChanged();
-          break;
         case 'skills':
           this.opts.onSkillsChanged?.();
           break;
@@ -185,7 +180,6 @@ export function classify(source: SourceKind, filename: string): FileGroup {
   const normalized = filename.replace(/\\/g, '/');
   if (source === 'agent' && normalized === 'SOUL.md') return 'prompt';
   if (source === 'profile' && normalized === 'USER.md') return 'prompt';
-  if (source === 'profile' && normalized === 'config.yaml') return 'crons';
   if (source === 'skills') return 'skills';
   // Spec 0062: edits to agent/skills/* and profile/skills/* fire skills events.
   if (source === 'agent' && normalized.startsWith('skills/')) return 'skills';

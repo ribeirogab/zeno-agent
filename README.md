@@ -24,42 +24,39 @@ Prerequisites:
 ### Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ribeirogab/zeno-agent/main/infra/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ribeirogab/zeno-agent/v2026.5.7-5/install.sh | sh
 ```
 
-This clones the repo to `~/zeno-agent` and installs `zeno` to `~/.local/bin/zeno`. Override the clone path with `ZENO_HOME=/path/to/dir curl ... | sh`. Source: [`infra/install.sh`](./infra/install.sh).
+Clones the repo to `~/.zeno/zeno-agent/`, builds the `zeno` CLI, and symlinks it to `~/.local/bin/zeno`. The clone path is fixed (no `ZENO_HOME` override). Source: [`install.sh`](./install.sh).
 
-### Configure
+### Create a profile
 
 ```bash
-cd ~/zeno-agent
-cp profiles/default/.env.example profiles/default/.env
-cp profiles/default/USER.example.md profiles/default/USER.md
-cp profiles/default/config.example.yaml profiles/default/config.yaml
-echo "ZENO_MASTER_KEY=$(openssl rand -hex 32)" >> profiles/default/.env
-# then edit profiles/default/.env, USER.md, config.yaml
+zeno profile create personal --owner "Alice"
+$EDITOR ~/.zeno/profiles/personal/USER.md   # add Preferences and Context
+zeno start personal                         # auto-builds image on first run
+zeno open personal                          # opens dashboard
 ```
 
-### Run
-
-```bash
-zeno build
-zeno start
-zeno open  # opens http://localhost:3000
-```
-
-Sign in with the `DASHBOARD_PASSWORD` you set in `.env`, click **Connect Claude** to complete the OAuth flow, install at least one connector from the catalogue, then mention the bot in any Slack channel where it is invited.
+In the dashboard: click **Connect Claude** to complete the OAuth flow, install at least one connector from the catalogue, then mention the bot in any Slack channel where it is invited. Each profile gets its own dashboard at `http://localhost:6101+` (allocated automatically; range `6101-6200`).
 
 ### Daily ops
 
 ```bash
-zeno status        # check container state
-zeno logs          # tail logs (use --service worker|api to filter)
-zeno shell         # bash inside the container
-zeno restart       # bounce
-zeno doctor        # preflight diagnostics
-zeno update        # git pull + rebuild
-zeno --help        # full surface
+zeno profile list                  # inventory of all profiles + live status
+zeno start [profile|--all]         # start (sticky default if no arg)
+zeno stop [profile|--all]          # stop
+zeno restart [profile|--all]       # stop + start
+zeno logs [profile] --tail 100     # follow container logs
+zeno open [profile]                # open dashboard in browser
+zeno doctor                        # preflight diagnostics
+zeno upgrade                       # move to latest stable release
+zeno upgrade --list                # see available versions (stable / pre-release / edge)
+zeno profile use <profile>         # set sticky default
+zeno profile show <profile>        # full detail block
+zeno profile delete <profile>      # confirm + tear down container, volumes, dir, DB row
+zeno repo                          # print canonical repo path (~/.zeno/zeno-agent)
+zeno --help                        # full surface
 ```
 
 ## What works today
@@ -69,26 +66,30 @@ zeno --help        # full surface
 - Linear connector (issues, projects, cycles)
 - Klaviyo connector (campaigns, profiles)
 - Skill playbooks (markdown files installed via dashboard upload, auto-discovered by the agent)
-- Multi-profile isolation (run a separate container per workspace, each with its own credentials)
+- Multi-profile isolation via the `zeno` CLI: each profile is its own container with its own dashboard, volumes, and credentials
 - Per-tool capability gating (toggle individual connector tools on or off from the dashboard)
 
 What is **not** here yet: no multi-user support (single operator only), no production-deployment recipe, no hosted instance.
 
 ## Setup notes
 
-- Profile examples live at `profiles/default/.env.example`, `profiles/default/USER.example.md`, and `profiles/default/config.example.yaml`. The non-`.example` copies are gitignored.
+- Profile templates live at `templates/profile/USER.md` and `templates/profile/env.template`. The CLI substitutes `<your-name>` and `<auto-detected-tz>` and writes the rendered files into `~/.zeno/profiles/<profile>/` on `zeno profile create`.
+- CLI orchestration state lives at `~/.zeno/state.db` (SQLite, owner-only `chmod 600`). Profile dashboards bind `127.0.0.1` on ports `6101-6200`.
 - The Slack app manifest is at `infra/slack-app-manifest.json`.
-- Detailed reading: `CLAUDE.md` for the agent's working contract, `vault/_index/home.md` for the project's knowledge map, and `vault/constitution.md` for the non-negotiable design principles. A full documentation site (`apps/docs`) is on the roadmap.
+- Detailed reading: `AGENTS.md` for the agent's working contract, `vault/_index/home.md` for the project's knowledge map, and `vault/constitution.md` for the non-negotiable design principles. A full documentation site (`apps/docs`) is on the roadmap.
 
 ## Project layout
 
 ```
-apps/        worker (agent runtime), api (REST), dashboard (Vite + React)
-packages/    @zeno/storage, @zeno/logger, @zeno/ui, @zeno/github-app, @zeno/mcp-discover
+apps/        worker (agent runtime), api (REST), dashboard (Vite + React), cli
+packages/    @zeno/db (host SQLite), @zeno/storage (runtime SQLite), @zeno/logger,
+             @zeno/ui, @zeno/github-app, @zeno/mcp-discover
 agent/       SOUL.md, mcp.json, connectors-catalog.json (committed identity)
-infra/       Dockerfile, docker-compose, entrypoint, slack-app-manifest.json
-profiles/    per-context isolation (default committed as examples; rest gitignored)
+templates/   profile/ — read-only scaffolds the CLI uses on profile create
+infra/       Dockerfile, entrypoint, slack-app-manifest.json
+install.sh   one-shot installer (curl-pipe target)
 vault/       constitution + specs + learnings + conventions + rules
+~/.zeno/     (off-repo) zeno-agent clone, state.db, profiles/<name>/
 ```
 
 Architecture detail lives in `vault/constitution.md` until the documentation site ships.

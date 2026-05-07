@@ -8,28 +8,13 @@ vault/backlog.md
 # OS
 .DS_Store
 
-# Profiles — only default's examples are committed by default
-profiles/*/
-!profiles/default/
-profiles/default/*
-!profiles/default/.env.example
-!profiles/default/USER.example.md
-!profiles/default/config.example.yaml
-
-# Profile skills live on disk and are seeded into the DB at boot;
-# they are intentionally not tracked in git. Profiles other than
-# `default` follow the `profiles/*/` rule above.
-
-# Profile-specific compose files (only default is committed)
-infra/docker-compose.*.yml
-!infra/docker-compose.default.yml
+# Profiles never live in the repo (templates → templates/profile/, instances → ~/.zeno/profiles/).
+# Defense in depth: if anything ever lands here, it stays out of git.
+profiles/
 
 # Root .env no longer used (each profile has its own)
 /.env
 /.env.*
-
-# Agent config (only example is committed)
-agent/config.yaml
 
 # Node
 node_modules/
@@ -57,8 +42,6 @@ packages/*/dist/
 apps/*/.turbo/
 packages/*/.turbo/
 
-# zeno CLI runtime state (per-clone, never committed)
-apps/cli/.state.json
 
 # TanStack Router generated route tree
 apps/dashboard/src/route-tree.gen.ts

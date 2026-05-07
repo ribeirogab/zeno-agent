@@ -1,117 +1,103 @@
-import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { createConnection } from 'node:net';
-import { join } from 'node:path';
+import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
-import { composeFileExists } from '../lib/compose.js';
-import { buildContext } from '../lib/context.js';
-
-interface CheckResult {
-  name: string;
-  ok: boolean;
-  skipped?: boolean;
-  detail?: string;
-}
-
-function dockerDaemonReachable(): CheckResult {
-  const r = spawnSync('docker', ['info'], { stdio: 'ignore' });
-  return { name: 'docker daemon reachable', ok: r.status === 0 };
-}
-
-function homeExists(home: string): CheckResult {
-  return { name: `$ZENO_HOME exists (${home})`, ok: existsSync(home) };
-}
-
-function composeExists(home: string, profile: string): CheckResult {
-  return {
-    name: `compose file for profile '${profile}' exists`,
-    ok: composeFileExists(home, profile),
-    detail: `infra/docker-compose.${profile}.yml`,
-  };
-}
-
-function envExists(home: string, profile: string): CheckResult {
-  const path = join(home, 'profiles', profile, '.env');
-  return {
-    name: `profile '${profile}' .env exists`,
-    ok: existsSync(path),
-    detail: path,
-  };
-}
-
-function containerRunning(home: string, profile: string): CheckResult {
-  const r = spawnSync(
-    'docker',
-    [
-      'compose',
-      '-f',
-      `infra/docker-compose.${profile}.yml`,
-      '--project-directory',
-      home,
-      'ps',
-      '--quiet',
-      '--status',
-      'running',
-    ],
-    { encoding: 'utf8' },
-  );
-  const ids = (r.stdout ?? '').trim().split(/\s+/).filter(Boolean);
-  return { name: 'agent container running', ok: ids.length > 0 };
-}
-
-function dashboardReachable(): Promise<CheckResult> {
-  return new Promise((resolve) => {
-    const sock = createConnection({ host: '127.0.0.1', port: 3000 });
-    const timer = setTimeout(() => {
-      sock.destroy();
-      resolve({ name: 'dashboard port 3000 reachable', ok: false });
-    }, 1000);
-    sock.on('connect', () => {
-      clearTimeout(timer);
-      sock.destroy();
-      resolve({ name: 'dashboard port 3000 reachable', ok: true });
-    });
-    sock.on('error', () => {
-      clearTimeout(timer);
-      resolve({ name: 'dashboard port 3000 reachable', ok: false });
-    });
-  });
-}
+import { orchestrator } from '../lib/orchestrator/singleton.js';
+import { c, err, info, ok, rule, warn } from '../lib/output.js';
+import { containerName, STATE_DB_PATH, ZENO_HOME } from '../lib/paths.js';
+import { db } from '../lib/state.js';
+import { getCurrentVersion } from '../lib/version.js';
 
 export default defineCommand({
   meta: { name: 'doctor', description: 'preflight diagnostics' },
-  args: {
-    profile: { type: 'string', description: 'override resolved profile' },
-  },
-  async run({ args }) {
-    const ctx = buildContext({ profileFlag: args.profile });
-    const checks: CheckResult[] = [];
-    checks.push(dockerDaemonReachable());
-    checks.push(homeExists(ctx.home));
-    checks.push(composeExists(ctx.home, ctx.profile.name));
-    checks.push(envExists(ctx.home, ctx.profile.name));
+  async run() {
+    const conn = db();
+    const orch = orchestrator();
 
-    const running = containerRunning(ctx.home, ctx.profile.name);
-    checks.push(running);
-    if (running.ok) {
-      checks.push(await dashboardReachable());
-    } else {
-      checks.push({
-        name: 'dashboard port 3000 reachable',
-        ok: true,
-        skipped: true,
-        detail: 'agent not running',
-      });
-    }
+    console.log('');
+    console.log(`  ${c.bold('Zeno health check')}`);
+    console.log(`  ${rule(50)}`);
 
     let failed = false;
-    for (const c of checks) {
-      const mark = c.skipped ? '○' : c.ok ? '✓' : '✗';
-      const tail = c.detail ? `  (${c.detail})` : '';
-      const note = c.skipped ? ' [skipped]' : '';
-      console.log(`${mark} ${c.name}${note}${tail}`);
-      if (!c.ok && !c.skipped) failed = true;
+
+    const dockerOk = await orch.daemonReachable();
+    console.log(
+      `  ${dockerOk ? ok('Docker daemon'.padEnd(28)) : err('Docker daemon'.padEnd(28))} ${
+        dockerOk ? c.gray('reachable') : c.red('unreachable')
+      }`,
+    );
+    if (!dockerOk) {
+      console.log(
+        `    ${c.gray('hint: on Linux, add yourself to the docker group: sudo usermod -aG docker $USER')}`,
+      );
+      failed = true;
     }
-    process.exit(failed ? 1 : 0);
+
+    const repoOk = existsSync(ZENO_HOME);
+    console.log(
+      `  ${repoOk ? ok('Repo path'.padEnd(28)) : err('Repo path'.padEnd(28))} ${c.gray(ZENO_HOME)}`,
+    );
+    if (!repoOk) failed = true;
+
+    const stateOk = existsSync(STATE_DB_PATH);
+    const profilesCount = stateOk ? queries.listProfiles(conn).length : 0;
+    console.log(
+      `  ${stateOk ? ok('State DB'.padEnd(28)) : warn('State DB'.padEnd(28))} ${c.gray(
+        `${STATE_DB_PATH} (${profilesCount} profiles)`,
+      )}`,
+    );
+
+    console.log(`  ${ok('Schema migrations'.padEnd(28))} ${c.gray('up to date')}`);
+    console.log(`  ${ok('Installed version'.padEnd(28))} ${c.gold(getCurrentVersion(conn))}`);
+
+    // Drift: DB profiles vs Docker reality.
+    if (dockerOk) {
+      try {
+        const live = await orch.listManagedContainers();
+        const liveByProfile = new Map(live.map((l) => [l.profile, l]));
+        const dbProfiles = queries.listProfiles(conn);
+        const dbNames = new Set(dbProfiles.map((p) => p.name));
+
+        const drifted: string[] = [];
+        for (const p of dbProfiles) {
+          const l = liveByProfile.get(p.name);
+          if (p.status === 'running' && (!l || l.state !== 'running')) {
+            drifted.push(`profile '${p.name}' marked running in DB but no live container`);
+          }
+        }
+        for (const l of live) {
+          if (!dbNames.has(l.profile)) {
+            drifted.push(`container ${containerName(l.profile)} exists but no DB row`);
+          }
+        }
+        const running = live.filter((l) => l.state === 'running').length;
+        console.log(`  ${ok('Running profiles'.padEnd(28))} ${c.gray(`${running} active`)}`);
+
+        if (drifted.length === 0) {
+          console.log(`  ${ok('DB ↔ Docker drift'.padEnd(28))} ${c.gray('none')}`);
+        } else {
+          console.log(
+            `  ${warn('DB ↔ Docker drift'.padEnd(28))} ${c.yellow(`${drifted.length} found`)}`,
+          );
+          for (const d of drifted) console.log(`    ${c.gray('-')} ${d}`);
+          failed = true;
+        }
+      } catch (e) {
+        console.log(
+          `  ${warn('DB ↔ Docker drift'.padEnd(28))} ${c.gray(`check failed: ${(e as Error).message}`)}`,
+        );
+      }
+    }
+
+    const sticky = queries.getSticky(conn);
+    console.log(
+      `  ${ok('Sticky profile'.padEnd(28))} ${sticky ? c.gray(sticky) : c.gray('none set')}`,
+    );
+
+    console.log('');
+    if (failed) {
+      console.log(`  ${err('one or more checks failed.')}`);
+      process.exit(1);
+    }
+    console.log(`  ${info('all checks pass.')}`);
   },
 });

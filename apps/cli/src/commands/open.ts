@@ -1,25 +1,35 @@
 import { spawn } from 'node:child_process';
 import { defineCommand } from 'citty';
-
-const URL = 'http://localhost:3000';
+import { c, err } from '../lib/output.js';
+import { requireProfile, resolveName } from '../lib/profile.js';
+import { db } from '../lib/state.js';
 
 function platformOpener(): string {
+  if (process.env.WSL_DISTRO_NAME) return 'wslview';
   if (process.platform === 'darwin') return 'open';
   if (process.platform === 'win32') return 'start';
-  if (process.env.WSL_DISTRO_NAME) return 'wslview';
   return 'xdg-open';
 }
 
 export default defineCommand({
-  meta: { name: 'open', description: 'open dashboard in browser' },
-  run() {
-    const child = spawn(platformOpener(), [URL], { stdio: 'inherit' });
-    child.on('exit', (code) => {
-      process.exit(code ?? 1);
-    });
-    child.on('error', (err) => {
-      console.error(`error: failed to open browser: ${err.message}`);
-      console.error(`       open ${URL} manually`);
+  meta: { name: 'open', description: 'open the profile dashboard in your browser' },
+  args: {
+    profile: {
+      type: 'positional',
+      description: 'profile identifier (omit for sticky)',
+      required: false,
+    },
+  },
+  run({ args }) {
+    const conn = db();
+    const name = resolveName(conn, args.profile as string | undefined);
+    const p = requireProfile(conn, name);
+    const url = `http://localhost:${p.port}`;
+    const child = spawn(platformOpener(), [url], { stdio: 'inherit' });
+    child.on('exit', (code) => process.exit(code ?? 1));
+    child.on('error', (e) => {
+      console.error(err(`failed to open browser: ${e.message}`));
+      console.error(c.gray(`  open ${url} manually`));
       process.exit(1);
     });
   },

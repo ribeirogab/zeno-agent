@@ -12,7 +12,8 @@
     }
   },
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && pnpm run copy-migrations",
+    "copy-migrations": "rm -rf dist/host/migrations && cp -R src/host/migrations dist/host/migrations",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",

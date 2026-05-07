@@ -5,6 +5,7 @@ import { applyMigrations, loadMigrations } from '../shared/migrate.js';
 
 export type { DB } from '../shared/client.js';
 export { closeSqlite, openSqlite } from '../shared/client.js';
+export type { AuditEntry, ProfileRow, ProfileStatus } from './queries.js';
 export * as queries from './queries.js';
 export * as schema from './schema.js';
 

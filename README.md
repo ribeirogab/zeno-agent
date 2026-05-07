@@ -17,22 +17,50 @@ Zeno acts on your behalf inside the apps you already work in. Open a pull reques
 
 Prerequisites:
 
-- Docker and Docker Compose
+- `git`, `docker`, Node 24 LTS, pnpm 10
 - A Slack workspace where you can install a custom app (manifest: `infra/slack-app-manifest.json`)
 - A Claude account on a Pro or Max plan
 
+### Install
+
 ```bash
-git clone https://github.com/ribeirogab/zeno-agent.git
-cd zeno-agent
+curl -fsSL https://raw.githubusercontent.com/ribeirogab/zeno-agent/main/infra/install.sh | sh
+```
+
+This clones the repo to `~/zeno-agent` and installs `zeno` to `~/.local/bin/zeno`. Override the clone path with `ZENO_HOME=/path/to/dir curl ... | sh`. Source: [`infra/install.sh`](./infra/install.sh).
+
+### Configure
+
+```bash
+cd ~/zeno-agent
 cp profiles/default/.env.example profiles/default/.env
 cp profiles/default/USER.example.md profiles/default/USER.md
 cp profiles/default/config.example.yaml profiles/default/config.yaml
 echo "ZENO_MASTER_KEY=$(openssl rand -hex 32)" >> profiles/default/.env
-pnpm run docker:build
-pnpm run docker:up
+# then edit profiles/default/.env, USER.md, config.yaml
 ```
 
-Open `http://localhost:3000`, sign in with the `DASHBOARD_PASSWORD` you set in `.env`, click **Connect Claude** to complete the OAuth flow, install at least one connector from the catalogue, then mention the bot in any Slack channel where it is invited.
+### Run
+
+```bash
+zeno build
+zeno start
+zeno open  # opens http://localhost:3000
+```
+
+Sign in with the `DASHBOARD_PASSWORD` you set in `.env`, click **Connect Claude** to complete the OAuth flow, install at least one connector from the catalogue, then mention the bot in any Slack channel where it is invited.
+
+### Daily ops
+
+```bash
+zeno status        # check container state
+zeno logs          # tail logs (use --service worker|api to filter)
+zeno shell         # bash inside the container
+zeno restart       # bounce
+zeno doctor        # preflight diagnostics
+zeno update        # git pull + rebuild
+zeno --help        # full surface
+```
 
 ## What works today
 

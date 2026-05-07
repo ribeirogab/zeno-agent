@@ -6,7 +6,6 @@ The maintainer also keeps a private scratch doc on local disk (`vault/backlog.md
 
 ## Now (in flight)
 
-- [ ] [#7](https://github.com/ribeirogab/zeno-agent/issues/7) — feat(web): add apps/web landing page
 - [ ] [#17](https://github.com/ribeirogab/zeno-agent/issues/17) — feat(cli): multi-profile via CLI + kill config.yaml
 
 ## Next (committed, soon)
@@ -22,6 +21,7 @@ The maintainer also keeps a private scratch doc on local disk (`vault/backlog.md
 
 ## Recently shipped
 
+- [x] [#7](https://github.com/ribeirogab/zeno-agent/issues/7) — feat(web): add apps/web landing page
 - [x] [#6](https://github.com/ribeirogab/zeno-agent/issues/6) — feat(docs): add apps/docs minimal scaffold ([PR #19](https://github.com/ribeirogab/zeno-agent/pull/19))
 - [x] [#5](https://github.com/ribeirogab/zeno-agent/issues/5) — feat(cli): add zeno CLI to replace daily docker compose ([PR #15](https://github.com/ribeirogab/zeno-agent/pull/15))
 - [x] [#1](https://github.com/ribeirogab/zeno-agent/issues/1) — Track A: sanitization rule + final scrub + EN migration ([PR #1](https://github.com/ribeirogab/zeno-agent/pull/1))

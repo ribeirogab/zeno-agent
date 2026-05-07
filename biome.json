@@ -17,6 +17,7 @@
       "!**/dist",
       "!**/node_modules",
       "!**/.turbo",
+      "!**/migrations/**",
       "!apps/dashboard/src/route-tree.gen.ts",
       "!apps/design/src/route-tree.gen.ts"
     ]

@@ -2,7 +2,7 @@
 # zeno-agent installer.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/ribeirogab/zeno-agent/main/infra/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/ribeirogab/zeno-agent/main/install.sh | sh
 #
 # Behavior:
 #   - Hardcoded install path: ~/.zeno/zeno-agent. No ZENO_HOME override.

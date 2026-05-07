@@ -8,7 +8,7 @@ shipped_url: null
 # Apps/Web — Cloudflare Workers Deploy — Spec
 
 **Status:** Draft
-**Scope:** Wire `apps/web` (the Vite static landing shipped in PR #25) to deploy to Cloudflare Workers via Workers Static Assets, with a GitHub Action that publishes on push to `main` whenever `apps/web/**` changes. First deploy lands at `zeno-web.<account-subdomain>.workers.dev`. Custom domain (`zeno-agent.dev` — already used as the SEO placeholder in `apps/web/index.html`) is deferred until the maintainer registers it.
+**Scope:** Wire `apps/web` (the Vite static landing shipped in PR #25) to deploy to Cloudflare Workers via Workers Static Assets, bound to the custom domain `zeno-agent.dev` (apex + `www`). First production URL is `https://zeno-agent.dev/`. A GitHub Action publishes on push to `main` whenever `apps/web/**` changes.
 
 ## Context
 
@@ -24,7 +24,7 @@ The Cloudflare account, the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` s
 
 ## Non-Goals
 
-- **Custom domain wiring.** `zeno-agent.dev` is the placeholder declared by the SEO meta but the maintainer has not registered it. This spec ships the `*.workers.dev` URL only. Registering the domain and pointing it at the Worker is a one-paragraph follow-up — `wrangler.jsonc` gains a `routes` (or `custom_domains`) block, and the SEO meta in `apps/web/index.html` is already correct.
+- **Apex-only canonical / www → apex 301 redirect.** Both `zeno-agent.dev` and `www.zeno-agent.dev` are bound to the same Worker as custom domains, so both serve the landing directly. The `<link rel="canonical" href="https://zeno-agent.dev/" />` in `apps/web/index.html` tells crawlers which one is canonical; an explicit `www → apex` 301 (via Cloudflare Bulk Redirect or a small redirect Worker) is a follow-up if SEO ever cares.
 - **Per-PR preview deployments.** Workers supports `--preview` uploads but the workflow ships only a `main → production` flow today.
 - **Server-side runtime / Workers Functions.** `apps/web` is static. If a route handler is ever needed (form submission, OAuth callback, etc.) the spec is amended; not now.
 - **Pages-based deploy.** Workers Static Assets is the modern recommendation; `apps/docs` already uses Workers, so `apps/web` matches.
@@ -54,7 +54,7 @@ The Cloudflare account, the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` s
 
 Each item is a binary check verifiable in under a minute by someone other than the implementer.
 
-- [ ] `apps/web/wrangler.jsonc` exists with `name: "zeno-web"`, the maintainer's account ID, `compatibility_date: "2025-03-01"`, and an `assets` block pointing at `dist` with `not_found_handling: "single-page-application"`.
+- [ ] `apps/web/wrangler.jsonc` exists with `name: "zeno-web"`, the maintainer's account ID, `compatibility_date: "2025-03-01"`, an `assets` block pointing at `dist` with `not_found_handling: "single-page-application"`, and a `routes` array binding both `zeno-agent.dev` and `www.zeno-agent.dev` as `custom_domain: true`.
 - [ ] `apps/web/.gitignore` excludes `.wrangler/` and `.dev.vars`.
 - [ ] `apps/web/package.json` declares `wrangler@^4.86.0` as a devDependency and adds `preview:cf` and `deploy` scripts that run `pnpm run build` then a `wrangler` command.
 - [ ] `pnpm install` from a clean repo resolves with no new peer warnings attributable to `@zeno/web`.
@@ -63,10 +63,12 @@ Each item is a binary check verifiable in under a minute by someone other than t
 - [ ] `.github/workflows/deploy-web.yml` exists with: trigger on push to `main` filtered to `apps/web/**` plus lockfile + workflow file; `workflow_dispatch` for manual runs; concurrency group `deploy-web` with `cancel-in-progress: false`; build + deploy step using `wrangler deploy` with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` env vars sourced from repo secrets.
 - [ ] `gh secret list` shows `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (already set; no new secret added).
 - [ ] After merge, the deploy workflow finishes successfully (green check on `main`).
-- [ ] `curl -sI https://zeno-web.<account>.workers.dev/` returns `HTTP/2 200`.
-- [ ] `curl -s https://zeno-web.<account>.workers.dev/` returns HTML containing the substring `Zeno — Personal agent that gets the work done`.
-- [ ] `curl -sI https://zeno-web.<account>.workers.dev/og-image.png` returns HTTP 200 and `Content-Type: image/png`.
-- [ ] `curl -sI https://zeno-web.<account>.workers.dev/favicon.svg` returns HTTP 200 and `Content-Type: image/svg+xml`.
+- [ ] `curl -sI https://zeno-agent.dev/` returns `HTTP/2 200` with a valid TLS cert (no `--insecure` flag needed).
+- [ ] `curl -sI https://www.zeno-agent.dev/` returns `HTTP/2 200`.
+- [ ] `curl -s https://zeno-agent.dev/` returns HTML containing the substring `Zeno — Personal agent that gets the work done`.
+- [ ] `curl -sI https://zeno-agent.dev/og-image.png` returns HTTP 200 and `Content-Type: image/png`.
+- [ ] `curl -sI https://zeno-agent.dev/favicon.svg` returns HTTP 200 and `Content-Type: image/svg+xml`.
+- [ ] The Cloudflare dashboard shows both `zeno-agent.dev` and `www.zeno-agent.dev` as **Active** custom domains on the `zeno-web` Worker, with TLS cert provisioned.
 - [ ] No real identifiers (maintainer email, real names, etc.) appear in `wrangler.jsonc`, the workflow, or any committed file. Account ID is the only Cloudflare identifier shipped.
 
 ## Risks and Mitigations
@@ -81,6 +83,8 @@ Each item is a binary check verifiable in under a minute by someone other than t
 | SPA fallback masks legitimate 404s for assets. | `not_found_handling: "single-page-application"` falls back to `index.html` only when no asset matches; static asset paths (`/og-image.png`, `/favicon.svg`, etc.) resolve normally. Verified by AC. |
 | Repo-level `CLOUDFLARE_API_TOKEN` leaks. | Already in scope from the docs spec; recommendation to rotate after first verified web deploy if not already rotated post-docs. |
 | `apps/web/dist/` was added to `.gitignore` by Phase 1 of the landing spec. CI must build before deploy, not rely on a committed `dist/`. | The deploy workflow runs `pnpm install` then `pnpm run deploy` (which itself runs `pnpm run build` first). The `dist/` is generated in CI on every deploy. |
+| First custom-domain bind takes a few minutes (Cloudflare provisions DNS + TLS). The first deploy may show `525 SSL handshake failed` or `522 Connection timed out` for ~3–10 minutes after the initial publish before the cert is live. | Expected one-time delay. The AC is verified once both domains report **Active** in the Cloudflare dashboard and `curl -sI` returns 200 cleanly without TLS errors. Subsequent deploys reuse the existing bind. |
+| The Worker is bound to `zeno-agent.dev` and `www.zeno-agent.dev`, but the apex DNS may already have legacy records from the registrar's parking page. | The zone is freshly purchased and lives in the same Cloudflare account — `wrangler deploy` with `custom_domain: true` will overwrite the parked `A`/`CNAME` records to point at the Worker. If a legacy record blocks the bind, `wrangler` returns an error explicitly; resolve by deleting the conflicting record from the Cloudflare DNS UI and re-running deploy. |
 
 ## Open Questions
 

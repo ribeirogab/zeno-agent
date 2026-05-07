@@ -19,6 +19,15 @@
     "directory": "dist",
     "not_found_handling": "single-page-application"
   },
+  // Custom domain. The zone (zeno-agent.dev) lives in the same Cloudflare
+  // account; `custom_domain: true` makes Cloudflare auto-provision DNS +
+  // TLS cert when the Worker is published. Apex + www both serve the same
+  // landing; `https://zeno-agent.dev/` is the canonical (matches the SEO
+  // meta in apps/web/index.html).
+  "routes": [
+    { "pattern": "zeno-agent.dev", "custom_domain": true },
+    { "pattern": "www.zeno-agent.dev", "custom_domain": true }
+  ],
   "observability": {
     "enabled": true
   }

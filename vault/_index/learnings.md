@@ -32,6 +32,8 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/lowercase-pill-convention|Lowercase pill convention]] — status pills lowercase, kickers and filter chips uppercase.
 - [[../learnings/optimistic-mutation-pattern|Optimistic-mutation primitive over TanStack useMutation]] — declarative wrapper handles snapshot/restore/invalidate; each mutation becomes ~10 lines of config.
 - [[../learnings/docker-multi-profile-via-compose|Multi-profile isolation via Docker Compose]] — same image, N compose files, N profile dirs; shared claude_home, isolated workspace volumes.
+- [[../learnings/citty-cli-gotchas|citty CLI gotchas]] — subcommand flags must follow the subcommand name; no native positional varargs (use `rawArgs` + manual flag stripping for passthrough commands).
+- [[../learnings/tsup-bundle-symlinked-cli|tsup must bundle deps for symlinked CLIs]] — `noExternal: ['citty', ...]` is required so the bundle is self-contained; externalized deps break when the dist file is moved or `node_modules` is pruned.
 - [[../learnings/skill-scoped-credentials-pattern|Skill-scoped credentials pattern]] — **superseded by spec 0049**: skills no longer exist at runtime; credentials are connector-scoped (DB-stored, dashboard-managed).
 - [[../learnings/github-app-token-rotation|GitHub App token rotation]] — JWT → installation token exchange; 55-min refresh loop. **Spec 0051 update:** the per-installation operator-picked envVar field was retired; the github-mcp-server subprocess receives `GITHUB_PERSONAL_ACCESS_TOKEN` synthesized from the cached token.
 

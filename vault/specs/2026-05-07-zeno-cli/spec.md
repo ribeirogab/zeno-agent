@@ -1,8 +1,8 @@
 ---
-status: draft
+status: shipped
 feature: zeno-cli
 created: 2026-05-07
-shipped: null
+shipped: 2026-05-07
 ---
 # Zeno CLI — Spec
 

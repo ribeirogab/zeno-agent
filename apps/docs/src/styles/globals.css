@@ -45,3 +45,28 @@ html > body[data-scroll-locked] {
   --color-fd-accent-foreground: #e8eaf5;
   --color-fd-ring: #d9b362;
 }
+
+/*
+ * Fumadocs's neutral.css raises --color-fd-muted-foreground to hsl(0,0%,72%)
+ * inside `.dark #nd-sidebar` — that wins on specificity over our `.dark` block.
+ * Re-pin it to the Imperial Terminal lavender muted so inactive sidebar links
+ * match the rest of the dark theme. Match both desktop (`#nd-sidebar`) and
+ * mobile (`#nd-sidebar-mobile`) instances.
+ */
+.dark #nd-sidebar,
+.dark #nd-sidebar-mobile {
+  --color-fd-muted-foreground: #8a8fab;
+}
+
+/*
+ * Active sidebar item: Fumadocs default tints with `bg-fd-primary/10` +
+ * `text-fd-primary` — this paints the active link gold, which the operator
+ * doesn't want. Override to a neutral accent panel + foreground text so the
+ * gold stays reserved for affirmative actions and the brand mark. Use ID
+ * selectors so the rule beats Fumadocs's own `.dark #nd-sidebar` specificity.
+ */
+#nd-sidebar a[data-active='true'],
+#nd-sidebar-mobile a[data-active='true'] {
+  background-color: var(--color-fd-accent);
+  color: var(--color-fd-foreground);
+}

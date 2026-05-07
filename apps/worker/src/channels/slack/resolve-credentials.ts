@@ -2,21 +2,19 @@ import type { Logger } from '@zeno/logger';
 import type { ConnectorRepo } from '@zeno/storage';
 
 /**
- * Spec 0058: simplified Slack credentials resolver. The 6-row resolution table
- * shipped in spec 0057 collapses to 4 cases now that the .env fallback path is
- * removed:
- *
- *   1. enabled DB row + both secrets → returns creds
- *   2. enabled + missing secret → HARD ERROR (operator misconfig)
- *   3. disabled / pending row → HARD ERROR (treated identically to "no row")
- *   4. no DB row at all → HARD ERROR (Slack channel not installed)
+ * Resolves Slack credentials from the connector DB. Returns null when Slack is
+ * not installed or its secrets are incomplete — letting the worker boot
+ * without a channel so the dashboard at apps/api stays reachable for the
+ * operator to install Slack via /connectors. Once installed + restarted, the
+ * real SlackChannel takes over from the NoopChannel fallback.
  *
  * Synchronous because better-sqlite3 is synchronous.
  *
- * Spec 0057's `env_fallback` path (cases 3 + 5 of the old table) is gone —
- * the operator's profile cut over to DB-only credentials in spec 0058 and
- * the fallback code became unreachable. New profiles MUST install Slack via
- * dashboard.
+ * Cases:
+ *   1. enabled DB row + both secrets → returns creds
+ *   2. enabled + missing secret → log warn, return null (treat as not installed)
+ *   3. disabled / pending row → return null
+ *   4. no DB row at all → return null
  */
 
 export interface SlackCredentialsResolverDeps {
@@ -31,16 +29,18 @@ export interface ResolvedSlackCredentials {
 
 export function resolveSlackCredentials(
   deps: SlackCredentialsResolverDeps,
-): ResolvedSlackCredentials {
+): ResolvedSlackCredentials | null {
   const { connectors, logger } = deps;
   const slack = connectors
     .listByKind('channel')
     .find((c) => c.slug === 'slack' && c.status === 'enabled');
 
   if (!slack) {
-    const msg = 'Slack channel not installed — install via dashboard at /connectors';
-    logger.error({ event: 'slack_creds_missing' }, msg);
-    throw new Error(msg);
+    logger.warn(
+      { event: 'slack_creds_missing' },
+      'Slack channel not installed — boot continuing without it; install via dashboard /connectors',
+    );
+    return null;
   }
 
   const secrets = connectors.getSecrets(slack.id);
@@ -48,9 +48,11 @@ export function resolveSlackCredentials(
   const botToken = secrets.find((s) => s.key === 'SLACK_BOT_TOKEN')?.value;
 
   if (!appToken || !botToken) {
-    const msg = 'Slack channel installed but credentials missing — fix via dashboard or uninstall';
-    logger.error({ event: 'slack_creds_empty_after_install', connectorId: slack.id }, msg);
-    throw new Error(msg);
+    logger.warn(
+      { event: 'slack_creds_empty_after_install', connectorId: slack.id },
+      'Slack channel installed but credentials missing — boot continuing without it; fix via dashboard',
+    );
+    return null;
   }
 
   logger.info(

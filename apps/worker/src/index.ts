@@ -34,8 +34,10 @@ import type { McpServerConfig } from '@/agent/mcp';
 import { buildMcpServersMap } from '@/agent/mcp-build';
 import { buildSystemPrompt, loadAgentFile, loadProfileFile } from '@/agent/system-prompt';
 import type { AgentBackend } from '@/agent/types';
+import { NoopChannel } from '@/channels/noop/noop-channel';
 import { SlackChannel } from '@/channels/slack/adapter';
 import { resolveSlackCredentials } from '@/channels/slack/resolve-credentials';
+import type { Channel } from '@/channels/types';
 import { buildDispatcher } from '@/commands/dispatcher';
 import { buildHandlerMap } from '@/commands/handlers';
 import { CommandsPoller } from '@/commands/poller';
@@ -475,19 +477,19 @@ async function main(): Promise<void> {
     process.env.GIT_COMMITTER_EMAIL = gitIdentity.email;
   }
 
-  // Spec 0058: resolve Slack creds via channel-connector DB row. The .env
-  // fallback path was removed in spec 0058 after the operator's profile cut
-  // over to DB-only credentials. Operators install Slack via dashboard at
-  // /connectors; the resolver throws hard on missing/empty installs.
-  const slackCreds = resolveSlackCredentials({
-    connectors,
-    logger,
-  });
-  const slack = new SlackChannel({
-    appToken: slackCreds.appToken,
-    botToken: slackCreds.botToken,
-    workspaceDir: config.workspaceDir,
-  });
+  // Resolve Slack creds via channel-connector DB row. When absent (first install,
+  // or operator hasn't installed the Slack connector yet), boot continues with a
+  // NoopChannel — the dashboard at apps/api stays reachable so the operator can
+  // install Slack via /connectors. Restarting the container picks up the real
+  // SlackChannel.
+  const slackCreds = resolveSlackCredentials({ connectors, logger });
+  const slack: Channel = slackCreds
+    ? new SlackChannel({
+        appToken: slackCreds.appToken,
+        botToken: slackCreds.botToken,
+        workspaceDir: config.workspaceDir,
+      })
+    : new NoopChannel(logger);
   const defaultCronChannel = process.env.ZENO_CRON_DEFAULT_CHANNEL ?? null;
 
   const isClaudeBackend = (process.env.ZENO_BACKEND ?? 'claude-code') === 'claude-code';

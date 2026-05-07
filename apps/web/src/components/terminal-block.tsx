@@ -1,10 +1,13 @@
-import { useCallback, useState } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 
 type TerminalBlockProps = {
   tab: string;
   meta?: string;
   comment: string;
   command: string;
+  // Optional slot rendered between the meta string and the copy button.
+  // Used to embed segmented controls (OS toggle, BETA toggle, etc.).
+  headerRight?: ReactNode;
 };
 
 const dotStyle: React.CSSProperties = {
@@ -18,7 +21,7 @@ const dotStyle: React.CSSProperties = {
 // The header carries an optional meta string and a copy button that
 // writes `command` to the clipboard (graceful no-op when the API is
 // missing). Used in <QuickStartSection> as the install moment.
-export function TerminalBlock({ tab, meta, comment, command }: TerminalBlockProps) {
+export function TerminalBlock({ tab, meta, comment, command, headerRight }: TerminalBlockProps) {
   const [copied, setCopied] = useState(false);
 
   const onCopy = useCallback(() => {
@@ -50,10 +53,12 @@ export function TerminalBlock({ tab, meta, comment, command }: TerminalBlockProp
       }}
     >
       <div
+        data-terminal-header=""
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '16px',
+          flexWrap: 'wrap',
+          gap: '12px',
           padding: '12px 16px',
           borderBottom: '1px solid var(--color-border-subtle)',
           backgroundColor: 'var(--color-sidebar)',
@@ -91,13 +96,25 @@ export function TerminalBlock({ tab, meta, comment, command }: TerminalBlockProp
             {meta}
           </span>
         ) : null}
+        {headerRight ? (
+          <div
+            style={{
+              marginLeft: 'auto',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            {headerRight}
+          </div>
+        ) : null}
         <button
           type="button"
           onClick={onCopy}
           aria-label="Copy install command to clipboard"
           data-terminal-copy=""
           style={{
-            marginLeft: 'auto',
+            marginLeft: headerRight ? '8px' : 'auto',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
@@ -147,11 +164,13 @@ export function TerminalBlock({ tab, meta, comment, command }: TerminalBlockProp
         </button>
       </div>
       <div
+        data-terminal-body=""
         style={{
           display: 'flex',
           flexDirection: 'column',
           gap: '6px',
           padding: '20px 24px',
+          overflowX: 'auto',
         }}
       >
         <span
@@ -159,6 +178,7 @@ export function TerminalBlock({ tab, meta, comment, command }: TerminalBlockProp
             fontFamily: 'var(--font-mono)',
             fontSize: '12px',
             color: 'var(--color-text-tertiary)',
+            whiteSpace: 'nowrap',
           }}
         >
           {comment}
@@ -180,6 +200,7 @@ export function TerminalBlock({ tab, meta, comment, command }: TerminalBlockProp
               fontSize: '14px',
               color: 'var(--color-text-primary)',
               lineHeight: '22px',
+              whiteSpace: 'nowrap',
             }}
           >
             {command}

@@ -7,10 +7,12 @@
     "dev": "vite --port 3000",
     "build": "vite build",
     "preview": "vite preview --port 3000",
+    "preview:cf": "pnpm run build && wrangler dev",
+    "deploy": "pnpm run build && wrangler deploy",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist .wrangler"
   },
   "dependencies": {
     "@zeno/ui": "workspace:*",
@@ -31,6 +33,7 @@
     "tailwindcss": "^4.2.2",
     "typescript": "^6.0.2",
     "vite": "^8.0.8",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.4",
+    "wrangler": "^4.86.0"
   }
 }

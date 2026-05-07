@@ -94,3 +94,134 @@ a {
   color: var(--color-gold);
 }
 
+/* ============================================================
+   Responsive — landing must work on mobile + tablet + desktop.
+   The page-level styles use inline styles (per the spec); the
+   media queries below override the section-level paddings and
+   layouts that don't fit narrow viewports.
+   Breakpoints:
+     - mobile:   max-width: 640px  (small phones)
+     - phablet:  641px - 900px     (large phones / small tablets)
+     - tablet:   901px - 1199px    (tablets / small laptops)
+     - desktop:  1200px+           (default inline styles)
+   ============================================================ */
+
+/* --- Universal: terminal command must always scroll, not break --- */
+[data-terminal-body] {
+  overflow-x: auto;
+}
+
+/* ============================================================
+   Tablet (901–1199px): tighten the 192px gutters.
+   ============================================================ */
+@media (max-width: 1199px) {
+  section[aria-label="experimental"],
+  section[aria-label="quick-start"],
+  section[aria-label="how-it-works"],
+  section[aria-label="cta"],
+  footer[aria-label="footer"] {
+    padding-left: 64px !important;
+    padding-right: 64px !important;
+  }
+}
+
+/* ============================================================
+   Phablet (641–900px): drop gutters further, allow CTAs to wrap.
+   ============================================================ */
+@media (max-width: 900px) {
+  section[aria-label="experimental"],
+  section[aria-label="quick-start"],
+  section[aria-label="how-it-works"],
+  section[aria-label="cta"],
+  footer[aria-label="footer"] {
+    padding-left: 32px !important;
+    padding-right: 32px !important;
+  }
+
+  section[aria-label="hero"] {
+    padding: 96px 32px 64px !important;
+  }
+
+  /* Diagram: stack vertically; rotate arrow glyph 90deg. */
+  [data-diagram-flow] {
+    flex-direction: column !important;
+    padding: 24px !important;
+  }
+  [data-diagram-arrow] {
+    transform: rotate(90deg);
+    padding: 4px 0 !important;
+  }
+
+  /* CTA tiles: 1 column on phablet (cleaner than 3 cramped tiles). */
+  section[aria-label="cta"] {
+    flex-direction: column !important;
+  }
+}
+
+/* ============================================================
+   Mobile (≤640px): aggressive scale-down.
+   ============================================================ */
+@media (max-width: 640px) {
+  section[aria-label="experimental"],
+  section[aria-label="quick-start"],
+  section[aria-label="how-it-works"],
+  section[aria-label="cta"],
+  footer[aria-label="footer"] {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+
+  /* Hero: tighter padding, slightly smaller wordmark. */
+  section[aria-label="hero"] {
+    padding: 72px 20px 56px !important;
+  }
+  section[aria-label="hero"] h1 {
+    font-size: 40px !important;
+    line-height: 44px !important;
+  }
+  section[aria-label="hero"] p {
+    font-size: 16px !important;
+    line-height: 24px !important;
+  }
+  /* Tagline kicker — squeeze letter-spacing so it fits one line. */
+  section[aria-label="hero"] > span:first-of-type {
+    letter-spacing: 0.16em !important;
+    font-size: 10px !important;
+  }
+  /* Particles are anchored at 1440-wide-hero pixel positions; on
+     mobile they cluster on the left and look broken. Hide them. */
+  section[aria-label="hero"] [data-particle="true"] {
+    display: none !important;
+  }
+
+  /* Quick Start heading + footnote tighten. */
+  section[aria-label="quick-start"] h2,
+  section[aria-label="how-it-works"] h2 {
+    font-size: 18px !important;
+    line-height: 24px !important;
+  }
+
+  /* Terminal block: smaller padding, tighter font, header allowed
+     to wrap (already flex-wrap on the inline style). */
+  [data-terminal-body] {
+    padding: 16px !important;
+  }
+  [data-terminal-body] code,
+  [data-terminal-body] span:first-of-type {
+    font-size: 12px !important;
+  }
+
+  /* Footer: stack vertically — crest above, links below. */
+  footer[aria-label="footer"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+    padding-top: 24px !important;
+    padding-bottom: 24px !important;
+  }
+  /* Footer link group wraps if needed. */
+  footer[aria-label="footer"] > div {
+    flex-wrap: wrap !important;
+    gap: 16px !important;
+  }
+}

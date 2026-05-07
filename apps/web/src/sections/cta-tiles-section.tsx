@@ -56,8 +56,8 @@ export function CTATilesSection() {
       <CTATile
         href={DOCS_URL}
         icon={DocsIcon}
-        title="Docs — soon"
-        caption="Concepts, connector authoring, skills. Lands with apps/docs."
+        title="Docs"
+        caption="Concepts, connector authoring, skills."
       />
       <CTATile
         href={ROADMAP_URL}

@@ -17,6 +17,13 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  // Custom domain. The zone (zeno-agent.dev) lives in the same Cloudflare
+  // account; `custom_domain: true` makes Cloudflare auto-provision DNS +
+  // TLS cert when the Worker is published. The docs are pinned to the
+  // `docs.` subdomain so the apex is free for `apps/web` (the landing).
+  "routes": [
+    { "pattern": "docs.zeno-agent.dev", "custom_domain": true }
+  ],
   "observability": {
     "enabled": true
   },

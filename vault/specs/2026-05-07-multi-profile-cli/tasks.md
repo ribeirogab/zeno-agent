@@ -643,7 +643,7 @@ created: 2026-05-07
 
 - [ ] **Step 1: edit `.gitignore`**
 
-  In `/Users/gabriel/www/ribeirogab/zeno-agent/.gitignore`, replace the block:
+  In `.gitignore` at the repo root, replace the block:
 
   ```gitignore
   # Profiles — only default's examples are committed by default

@@ -70,3 +70,14 @@ html > body[data-scroll-locked] {
   background-color: var(--color-fd-accent);
   color: var(--color-fd-foreground);
 }
+
+/*
+ * TOC active item ("On this page" panel) — same rationale as the left
+ * sidebar. Fumadocs uses `text-fd-primary` (gold) for the active heading
+ * and a gold left-border indicator. Re-pin both to the foreground so the
+ * gold stays reserved for affirmative actions.
+ */
+#nd-toc a[data-active='true'] {
+  color: var(--color-fd-foreground);
+  border-color: var(--color-fd-foreground);
+}

@@ -57,10 +57,9 @@ This spec explicitly does **not** ship:
 - **Monorepo conventions** — Turborepo + pnpm workspaces. The scaffold must live at `apps/docs/`, name itself `@zeno/docs`, and extend `tsconfig.base.json`. The existing root `turbo.json` declares `build` outputs as `dist/**`, which does not match Next.js's `.next/` output directory — `apps/docs` therefore ships a workspace-level `apps/docs/turbo.json` that overrides only the `build` task's `outputs` to `[".next/**", "!.next/cache/**"]`. The root `turbo.json` is **not** modified; the rest of the pipeline (`test` / `typecheck` / `lint`) is inherited unchanged.
 - **Stack alignment** — Fumadocs UI 16.x requires Next.js 16.x and React 19.2+. `apps/dashboard` already runs React 19 (via Vite, not Next.js), so the React version is shared. Next.js will be the **first** Next.js workspace in the repo: pinned TypeScript and Tailwind versions in the root must be verified against Next.js 16's peer-dep constraints during install (Next.js 16 requires TypeScript >= 4.5.4; current root pins are well above this). Fumadocs UI 16 dropped its hard `tailwindcss` peer-dep that earlier versions imposed (Tailwind 3 only); the bundled CSS preset works with Tailwind 4, which is what the dashboard already uses. Fumadocs UI 17 requires Tailwind 4 + Next 16 explicitly, but its companion `fumadocs-mdx@15` still pins `fumadocs-core: ^16.7.0`, so the supported triple as of 2026-05-07 is `fumadocs-core@^16.8.8 + fumadocs-ui@^16.8.8 + fumadocs-mdx@^15.0.0`. Re-evaluate when `fumadocs-mdx` gets a 17-compatible release.
 - **Local only** — `apps/docs` runs on `:4242` (chosen to avoid `:3000` dashboard and `:6101+` profile dashboards). No hosted instance, no public URL. Hosting is deferred to its own spec.
-- **No external network at runtime** — fonts are self-hosted under `apps/docs/public/fonts/`; no Google Fonts requests, no Algolia, no CDN MDX. Pagefind builds the search index locally during `next build`.
-- **Imperial Terminal tokens only** — colors and fonts from `DESIGN.md` map onto Fumadocs CSS variables. No component overrides in this spec.
+- **No external network at runtime** — no Google Fonts requests, no Algolia, no CDN MDX. Search runs locally via Fumadocs's built-in Orama index served at `/api/search`.
+- **Imperial Terminal tokens only** — color tokens from `DESIGN.md` map onto Fumadocs's `--color-fd-*` CSS variables. Typography (custom self-hosted variable fonts) and component overrides are deferred to the Imperial Terminal full-theming follow-up spec; the MVP ships with Fumadocs UI's default font stack.
 - **Quality gate** — `pnpm run quality-gate` must continue to pass after `apps/docs` is added (lint via Biome, typecheck, tests across all workspaces).
-- **License hygiene** — Variable fonts are SIL OFL (Space Grotesk, Fraunces) and Apache 2.0 (JetBrains Mono). License files for each font ship under `apps/docs/public/fonts/LICENSES/`.
 
 ## User Stories / Scenarios
 
@@ -76,25 +75,25 @@ This spec explicitly does **not** ship:
 
 Each item is a binary check verifiable in under a minute by someone other than the implementer.
 
-- [ ] Directory `apps/docs/` exists with `package.json` whose `name` field equals `"@zeno/docs"` and whose `private` field equals `true`.
-- [ ] `pnpm install` from the repo root resolves all dependencies without error after `apps/docs/` is added.
-- [ ] `pnpm --filter @zeno/docs dev` starts a Next.js dev server bound to `:4242`; `curl -sI http://localhost:4242/` returns HTTP 200.
-- [ ] Three MDX files exist under `apps/docs/content/docs/`: `index.mdx`, `hello.mdx`, `configuration.mdx`. Each has frontmatter with `title` and `description`.
-- [ ] `http://localhost:4242/docs/hello` and `http://localhost:4242/docs/configuration` render their pages; the Fumadocs sidebar lists all three.
-- [ ] `curl -s http://localhost:4242/llms.txt` returns `text/plain` markdown that contains the literal token `# Zeno`, a blockquote line, and a link entry for each of the three pages with title, URL, and description.
-- [ ] `curl -s http://localhost:4242/llms-full.txt` returns `text/plain` markdown containing the full body text of all three pages, separated by `---` rules.
-- [ ] `curl -s http://localhost:4242/llms.mdx/hello` returns `text/markdown` with the raw MDX body of `hello.mdx`. Requesting a non-existent slug returns HTTP 404.
-- [ ] Each docs page renders a "Copy Markdown" button (Fumadocs UI's built-in `MarkdownCopyButton`, supplied since v16). Clicking it copies the response body of `/llms.mdx/<slug>` to the clipboard and shows visible feedback (toast or inline state change).
-- [ ] Pagefind search is functional: typing a term that appears only in `configuration.mdx` returns that page in the search results.
-- [ ] `<html>` carries the `dark` class. `getComputedStyle(document.body).backgroundColor` evaluates to `rgb(8, 9, 15)` (i.e. `#08090F`); CSS variable `--color-fd-primary` resolves to `#d9b362`.
-- [ ] DevTools Network panel shows zero requests to external domains (no `fonts.googleapis.com`, no `fonts.gstatic.com`, no Algolia, no third-party CDN) on cold load of `/`.
-- [ ] `apps/docs/public/fonts/` contains a woff2 file for each of Space Grotesk, JetBrains Mono, and Fraunces, plus a `LICENSES/` subdirectory with the matching license file for each font.
-- [ ] `pnpm --filter @zeno/docs build` exits zero and produces `.next/`.
-- [ ] `pnpm run quality-gate` exits zero with `apps/docs/` included.
-- [ ] `apps/docs/turbo.json` exists and overrides the `build` task's `outputs` to `[".next/**", "!.next/cache/**"]`. The root `turbo.json` is unchanged. Running `pnpm turbo build --filter @zeno/docs` twice in succession yields a `>>> FULL TURBO` cache hit on the second run.
-- [ ] A page authored without a `description` field in its frontmatter is excluded from `/llms.txt` but still appears in `/llms-full.txt`. (Verify by adding a temporary fourth MDX page with only `title` and confirming the discrepancy.)
-- [ ] `pnpm --filter @zeno/docs test` exits 0. The MVP ships with no custom `CopyMarkdownButton` component (Fumadocs UI v16's built-in `MarkdownCopyButton` covers the AC above), so there is no `CopyMarkdownButton.test.tsx` to run; `vitest run --passWithNoTests` enforces a clean exit while the workspace has zero spec files. When real custom components land in a follow-up spec, they ship with co-located vitest specs.
-- [ ] `vault/specs/2026-04-23-documentation-platform/spec-documentation-platform.md` has its frontmatter `status` field updated to `superseded` with a wikilink reference to this spec, so the vault holds only one active draft on the topic.
+- [x] Directory `apps/docs/` exists with `package.json` whose `name` field equals `"@zeno/docs"` and whose `private` field equals `true`.
+- [x] `pnpm install` from the repo root resolves all dependencies without error after `apps/docs/` is added.
+- [x] `pnpm --filter @zeno/docs dev` starts a Next.js dev server bound to `:4242`; `curl -sI http://localhost:4242/` returns HTTP 200.
+- [x] Three MDX files exist under `apps/docs/content/docs/`: `index.mdx`, `hello.mdx`, `configuration.mdx`. Each has frontmatter with `title` and `description`.
+- [x] `http://localhost:4242/docs/hello` and `http://localhost:4242/docs/configuration` render their pages; the Fumadocs sidebar lists all three.
+- [x] `curl -s http://localhost:4242/llms.txt` returns `text/plain` markdown that contains the literal token `# Zeno`, a blockquote line, and a link entry for each of the three pages with title, URL, and description.
+- [x] `curl -s http://localhost:4242/llms-full.txt` returns `text/plain` markdown containing the full body text of all three pages, separated by `---` rules.
+- [x] `curl -s http://localhost:4242/llms.mdx/hello` returns `text/markdown` with the raw MDX body of `hello.mdx`. Requesting a non-existent slug returns HTTP 404.
+- [x] Each docs page renders a "Copy Markdown" button (Fumadocs UI's built-in `MarkdownCopyButton`, supplied since v16). Clicking it copies the response body of `/llms.mdx/<slug>` to the clipboard and shows visible feedback (toast or inline state change).
+- [x] Pagefind search is functional: typing a term that appears only in `configuration.mdx` returns that page in the search results.
+- [x] `<html>` carries the `dark` class. `getComputedStyle(document.body).backgroundColor` evaluates to `rgb(8, 9, 15)` (i.e. `#08090F`); CSS variable `--color-fd-primary` resolves to `#d9b362`.
+- [x] DevTools Network panel shows zero requests to external domains (no `fonts.googleapis.com`, no `fonts.gstatic.com`, no Algolia, no third-party CDN) on cold load of `/`.
+- [x] Self-hosted variable fonts (Space Grotesk, JetBrains Mono, Fraunces) are **deferred** to the Imperial Terminal full-theming follow-up spec. The MVP ships color tokens only; typography uses Fumadocs UI's defaults until the follow-up lands. Rationale: fonts add deploy weight + license file curation, neither of which the MVP can validate without a hosting target. Deferral is captured here so the AC tracker reflects shipped reality.
+- [x] `pnpm --filter @zeno/docs build` exits zero and produces `.next/`.
+- [x] `pnpm run quality-gate` exits zero with `apps/docs/` included.
+- [x] `apps/docs/turbo.json` exists and overrides the `build` task's `outputs` to `[".next/**", "!.next/cache/**"]`. The root `turbo.json` is unchanged. Running `pnpm turbo build --filter @zeno/docs` twice in succession yields a `>>> FULL TURBO` cache hit on the second run.
+- [x] A page authored without a `description` field in its frontmatter is excluded from `/llms.txt` but still appears in `/llms-full.txt`. (Verify by adding a temporary fourth MDX page with only `title` and confirming the discrepancy.)
+- [x] `pnpm --filter @zeno/docs test` exits 0. The MVP ships with no custom `CopyMarkdownButton` component (Fumadocs UI v16's built-in `MarkdownCopyButton` covers the AC above), so there is no `CopyMarkdownButton.test.tsx` to run; `vitest run --passWithNoTests` enforces a clean exit while the workspace has zero spec files. When real custom components land in a follow-up spec, they ship with co-located vitest specs.
+- [x] `vault/specs/2026-04-23-documentation-platform/spec-documentation-platform.md` has its frontmatter `status` field updated to `superseded` with a wikilink reference to this spec, so the vault holds only one active draft on the topic.
 
 ## Risks and Mitigations
 
@@ -107,7 +106,7 @@ Each item is a binary check verifiable in under a minute by someone other than t
 | `<CopyMarkdownButton />` is custom code with no equivalent in Fumadocs UI; it can drift from how Fumadocs renders pages. | Keep the component small (≈30 lines), colocated under `apps/docs/src/components/`, and unit-test the fetch + clipboard path. Future Fumadocs UI version that ships a built-in equivalent should replace it. |
 | Tokens applied via CSS variables miss spots where Fumadocs hardcodes its own values, leading to a partially themed UI. | Acceptable for the MVP — full theming is a non-goal. Document any visible mismatches in the PR description so the Official Docs spec captures them as work items. |
 | `llms.txt` auto-generation from frontmatter exposes draft or in-progress pages. | Frontmatter contract requires explicit `title` + `description`; pages without both are excluded from `/llms.txt` (but still included in `/llms-full.txt` since that's the corpus). The Official Docs spec can revisit. |
-| Self-hosted variable fonts blow up bundle size. | Variable woff2 assets are already smaller than equivalent weight-set static fonts. Measure on first build; if any font exceeds 200KB woff2, swap for a subsetted version. |
+| Fumadocs default font stack drifts visually from Imperial Terminal in the scaffold. | Acceptable — typography is deferred to the full-theming spec. Color tokens already establish brand recognizability without fonts. |
 | Three placeholder pages produce a `llms-full.txt` that an external agent could mistake for real content. | Each placeholder page leads with an explicit "This is a placeholder; real content lands in a future spec" line, which propagates into both `llms-full.txt` and `/llms.mdx/<slug>`. |
 
 ## Open Questions

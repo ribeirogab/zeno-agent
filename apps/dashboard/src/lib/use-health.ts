@@ -5,6 +5,7 @@ export type ServiceStatus = 'ticking' | 'idle' | 'stale' | 'unknown';
 
 export interface Health {
   status: 'ok';
+  version: string;
   uptime: number;
   services: { backend: ServiceStatus; slack: ServiceStatus; runner: ServiceStatus };
   lastTickAt: string | null;

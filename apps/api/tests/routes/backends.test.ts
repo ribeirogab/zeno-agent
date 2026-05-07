@@ -11,10 +11,9 @@ import {
   runMigrations,
 } from '@zeno/storage';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { signSession } from '@/auth/hmac';
-import { COOKIE_NAME } from '@/auth/middleware';
 import { _resetBackendsCatalogCache } from '@/lib/backends-catalog-loader';
 import { createApp } from '@/server';
+import { csrfHeaders } from '../csrf-helper';
 
 // Same trick as channels.test.ts — run from worktree root so the catalog
 // loader's CWD-relative search finds agent/backends-catalog.json.
@@ -23,7 +22,6 @@ const WORKTREE_ROOT = resolve(__dirname, '../../../..');
 beforeAll(() => process.chdir(WORKTREE_ROOT));
 afterAll(() => process.chdir(ORIGINAL_CWD));
 
-const SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 const MASTER_KEY = Buffer.from('a'.repeat(64), 'hex');
 
 let db: DB;
@@ -41,8 +39,6 @@ interface AppOpts {
 function makeApp(database: DB, opts: AppOpts = {}) {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: SECRET,
       logLevel: 'info',
       workspaceDir: '/tmp',
       nodeEnv: 'test',
@@ -66,14 +62,10 @@ function makeApp(database: DB, opts: AppOpts = {}) {
   });
 }
 
-function authed() {
-  return { Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}` };
-}
-
 describe('GET /api/backends (spec 0071)', () => {
   it('lists catalog backends merged with status (defaults to not_configured)', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/backends', { headers: authed() });
+    const res = await app.request('/api/backends', { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { active_backend_id: string | null; backends: unknown[] };
     expect(Array.isArray(body.backends)).toBe(true);
@@ -91,17 +83,11 @@ describe('GET /api/backends (spec 0071)', () => {
     const repo = new BackendCredentialsRepo(db, { masterKey: MASTER_KEY, profileId: 'test' });
     repo.upsert({ backendId: 'claude-code', fieldName: 'oauth_token', value: 'sk-ant-secret' });
     const app = makeApp(db);
-    const res = await app.request('/api/backends', { headers: authed() });
+    const res = await app.request('/api/backends', { headers: csrfHeaders() });
     const text = await res.text();
     expect(text).not.toMatch(/sk-ant-secret/);
     expect(text).not.toMatch(/value_encrypted/);
     expect(text).not.toMatch(/"iv"/);
-  });
-
-  it('requires auth', async () => {
-    const app = makeApp(db);
-    const res = await app.request('/api/backends');
-    expect(res.status).toBe(401);
   });
 });
 
@@ -110,7 +96,7 @@ describe('POST /api/backends/:id/credentials (paste-token, spec 0071)', () => {
     const app = makeApp(db);
     const res = await app.request('/api/backends/claude-code/credentials', {
       method: 'POST',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({ token: 'not-a-real-token' }),
     });
     expect(res.status).toBe(400);
@@ -125,7 +111,7 @@ describe('POST /api/backends/:id/credentials (paste-token, spec 0071)', () => {
     const app = makeApp(db, { fetchImpl });
     const res = await app.request('/api/backends/claude-code/credentials', {
       method: 'POST',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({
         token: 'sk-ant-oat01-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
       }),
@@ -143,7 +129,7 @@ describe('POST /api/backends/:id/credentials (paste-token, spec 0071)', () => {
     const app = makeApp(db, { fetchImpl });
     const res = await app.request('/api/backends/claude-code/credentials', {
       method: 'POST',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({
         token: 'sk-ant-oat01-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
       }),
@@ -162,7 +148,7 @@ describe('POST /api/backends/:id/credentials (paste-token, spec 0071)', () => {
     const token = 'sk-ant-oat01-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB';
     const res = await app.request('/api/backends/claude-code/credentials', {
       method: 'POST',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({ token }),
     });
     expect(res.status).toBe(200);
@@ -182,7 +168,7 @@ describe('POST /api/backends/:id/credentials (paste-token, spec 0071)', () => {
     const token = 'sk-ant-oat01-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC';
     const res = await app.request('/api/backends/claude-code/credentials', {
       method: 'POST',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({ token }),
     });
     expect(res.status).toBe(200);
@@ -196,7 +182,7 @@ describe('PUT /api/backends/active (spec 0071)', () => {
     const app = makeApp(db);
     const res = await app.request('/api/backends/active', {
       method: 'PUT',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({ backend_id: 'claude-code' }),
     });
     expect(res.status).toBe(200);
@@ -208,7 +194,7 @@ describe('PUT /api/backends/active (spec 0071)', () => {
     const app = makeApp(db);
     const res = await app.request('/api/backends/active', {
       method: 'PUT',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({ backend_id: 'not-a-backend' }),
     });
     expect(res.status).toBe(400);

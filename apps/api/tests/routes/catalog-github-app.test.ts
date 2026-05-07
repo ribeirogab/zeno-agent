@@ -19,18 +19,8 @@ import {
   runMigrations,
 } from '@zeno/storage';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { signSession } from '@/auth/hmac';
-import { COOKIE_NAME } from '@/auth/middleware';
 import { createApp } from '@/server';
-
-const SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-
-function authed(): { Cookie: string; 'Content-Type': string } {
-  return {
-    Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}`,
-    'Content-Type': 'application/json',
-  };
-}
+import { csrfHeaders } from '../csrf-helper';
 
 function newPem(): string {
   const { privateKey } = generateKeyPairSync('rsa', {
@@ -71,12 +61,12 @@ afterEach(() => {
 function makeApp() {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: SECRET,
       logLevel: 'info',
       workspaceDir: '/tmp',
       nodeEnv: 'test',
       port: 3000,
+      masterKey: Buffer.alloc(32),
+      profileId: 'test',
     },
     db,
     cronRepo: new CronRepo(db),
@@ -113,15 +103,6 @@ function fakeErr(status: number, body = 'err') {
 }
 
 describe('POST /api/connectors/catalog/github-app/test', () => {
-  it('rejects without auth', async () => {
-    const res = await makeApp().request('/api/connectors/catalog/github-app/test', {
-      method: 'POST',
-      body: JSON.stringify({ appId: '1', pem: 'x' }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    expect(res.status).toBe(401);
-  });
-
   it('returns ok=true with appName + installations on success', async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url.endsWith('/app')) {
@@ -144,7 +125,7 @@ describe('POST /api/connectors/catalog/github-app/test', () => {
     const res = await makeApp().request('/api/connectors/catalog/github-app/test', {
       method: 'POST',
       body: JSON.stringify({ appId: '12345', pem }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
@@ -164,7 +145,7 @@ describe('POST /api/connectors/catalog/github-app/test', () => {
     const res = await makeApp().request('/api/connectors/catalog/github-app/test', {
       method: 'POST',
       body: JSON.stringify({ appId: '12345', pem }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { ok: boolean; errorKind: string };
@@ -181,7 +162,7 @@ describe('POST /api/connectors/catalog/github-app/test', () => {
     const res = await makeApp().request('/api/connectors/catalog/github-app/test', {
       method: 'POST',
       body: JSON.stringify({ appId: '12345', pem }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { ok: boolean; error: string };
@@ -193,7 +174,7 @@ describe('POST /api/connectors/catalog/github-app/test', () => {
     const res = await makeApp().request('/api/connectors/catalog/github-app/test', {
       method: 'POST',
       body: JSON.stringify({ appId: '12345', pem: 'not-a-pem' }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     // zod refine fails → 400 from zValidator
     expect(res.status).toBe(400);
@@ -210,7 +191,7 @@ describe('POST /api/connectors/catalog/github-app/install', () => {
     const res = await makeApp().request('/api/connectors/catalog/github-app/install', {
       method: 'POST',
       body: JSON.stringify({ appId: '7777', pem }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { ok: boolean; appUuid: string; appName: string };
@@ -241,12 +222,12 @@ describe('POST /api/connectors/catalog/github-app/install', () => {
     await app.request('/api/connectors/catalog/github-app/install', {
       method: 'POST',
       body: JSON.stringify({ appId: '7777', pem }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     const second = await app.request('/api/connectors/catalog/github-app/install', {
       method: 'POST',
       body: JSON.stringify({ appId: '7777', pem }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(second.status).toBe(409);
     const body = (await second.json()) as {
@@ -274,7 +255,7 @@ describe('POST /api/connectors/catalog/github-app/install', () => {
     const first = await app.request('/api/connectors/catalog/github-app/install', {
       method: 'POST',
       body: JSON.stringify({ appId: '7777', pem }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(first.status).toBe(200);
     // Try to install second app with id 8888 — should be rejected by the
@@ -287,7 +268,7 @@ describe('POST /api/connectors/catalog/github-app/install', () => {
     const second = await app.request('/api/connectors/catalog/github-app/install', {
       method: 'POST',
       body: JSON.stringify({ appId: '8888', pem: pem2 }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(second.status).toBe(409);
     const body = (await second.json()) as { error: string };
@@ -299,7 +280,7 @@ describe('POST /api/connectors/catalog/github-app/installations/discover', () =>
   it('returns 404 when no app installed', async () => {
     const res = await makeApp().request(
       '/api/connectors/catalog/github-app/installations/discover',
-      { method: 'POST', body: '{}', headers: authed() },
+      { method: 'POST', body: '{}', headers: csrfHeaders({ 'Content-Type': 'application/json' }) },
     );
     expect(res.status).toBe(404);
   });
@@ -357,7 +338,7 @@ describe('POST /api/connectors/catalog/github-app/installations/discover', () =>
 
     const res = await makeApp().request(
       '/api/connectors/catalog/github-app/installations/discover',
-      { method: 'POST', body: '{}', headers: authed() },
+      { method: 'POST', body: '{}', headers: csrfHeaders({ 'Content-Type': 'application/json' }) },
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
@@ -379,7 +360,7 @@ describe('POST /api/connectors/catalog/github-app/installations', () => {
         installationId: '100',
         displayName: 'acme',
       }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(404);
   });
@@ -400,7 +381,7 @@ describe('POST /api/connectors/catalog/github-app/installations', () => {
         installationId: '100',
         displayName: 'Acme Corp',
       }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(200);
 
@@ -444,7 +425,7 @@ describe('POST /api/connectors/catalog/github-app/uninstall-app', () => {
     const res = await makeApp().request('/api/connectors/catalog/github-app/uninstall-app', {
       method: 'POST',
       body: JSON.stringify({ confirmAppName: 'Wrong' }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(400);
   });
@@ -479,7 +460,7 @@ describe('POST /api/connectors/catalog/github-app/uninstall-app', () => {
     const res = await makeApp().request('/api/connectors/catalog/github-app/uninstall-app', {
       method: 'POST',
       body: JSON.stringify({ confirmAppName: 'Zen' }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(200);
 
@@ -494,7 +475,7 @@ describe('POST /api/connectors/catalog/github-app/uninstall-app', () => {
 describe('GET /api/connectors/catalog/github-app/app', () => {
   it('returns 404 when not installed', async () => {
     const res = await makeApp().request('/api/connectors/catalog/github-app/app', {
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(404);
   });
@@ -510,7 +491,7 @@ describe('GET /api/connectors/catalog/github-app/app', () => {
       pemSha256: 'a'.repeat(64),
     });
     const res = await makeApp().request('/api/connectors/catalog/github-app/app', {
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { appId: string; appName: string; pemSha256: string };

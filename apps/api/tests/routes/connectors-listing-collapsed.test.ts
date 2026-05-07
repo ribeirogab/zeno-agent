@@ -17,15 +17,8 @@ import {
   runMigrations,
 } from '@zeno/storage';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { signSession } from '@/auth/hmac';
-import { COOKIE_NAME } from '@/auth/middleware';
 import { createApp } from '@/server';
-
-const SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-
-function authed(): { Cookie: string } {
-  return { Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}` };
-}
+import { csrfHeaders } from '../csrf-helper';
 
 let db: DB;
 const originalCwd = process.cwd();
@@ -49,12 +42,12 @@ beforeEach(() => {
 function makeApp() {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: SECRET,
       logLevel: 'info',
       workspaceDir: '/tmp',
       nodeEnv: 'test',
       port: 3000,
+      masterKey: Buffer.alloc(32),
+      profileId: 'test',
     },
     db,
     cronRepo: new CronRepo(db),
@@ -107,7 +100,7 @@ describe('GET /api/connectors — discriminated union', () => {
       secrets: [],
       tools: [],
     });
-    const res = await makeApp().request('/api/connectors', { headers: authed() });
+    const res = await makeApp().request('/api/connectors', { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     const items = (await res.json()) as ListEntry[];
     expect(items).toHaveLength(1);
@@ -164,7 +157,7 @@ describe('GET /api/connectors — discriminated union', () => {
       tools: [],
     });
 
-    const res = await makeApp().request('/api/connectors', { headers: authed() });
+    const res = await makeApp().request('/api/connectors', { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     const items = (await res.json()) as ListEntry[];
 
@@ -213,7 +206,7 @@ describe('GET /api/connectors — discriminated union', () => {
     });
     connRepo.update(c1.id, { lastVerifiedAt: '2026-04-01T00:00:00Z' });
 
-    const res = await makeApp().request('/api/connectors', { headers: authed() });
+    const res = await makeApp().request('/api/connectors', { headers: csrfHeaders() });
     const items = (await res.json()) as ListEntry[];
     const appItem = items.find((i) => i.kind === 'app') as AppListItem | undefined;
     expect(appItem?.statusAggregate).toBe('active');
@@ -252,7 +245,7 @@ describe('GET /api/connectors — discriminated union', () => {
       lastErrorAt: new Date().toISOString(),
     });
 
-    const res = await makeApp().request('/api/connectors', { headers: authed() });
+    const res = await makeApp().request('/api/connectors', { headers: csrfHeaders() });
     const items = (await res.json()) as ListEntry[];
     const appItem = items.find((i) => i.kind === 'app') as AppListItem | undefined;
     expect(appItem?.statusAggregate).toBe('error');
@@ -290,7 +283,7 @@ describe('GET /api/connectors — discriminated union', () => {
       lastErrorAt: new Date(Date.now() - 48 * 60 * 60_000).toISOString(),
     });
 
-    const res = await makeApp().request('/api/connectors', { headers: authed() });
+    const res = await makeApp().request('/api/connectors', { headers: csrfHeaders() });
     const items = (await res.json()) as ListEntry[];
     const appItem = items.find((i) => i.kind === 'app') as AppListItem | undefined;
     expect(appItem?.statusAggregate).not.toBe('error');
@@ -300,7 +293,7 @@ describe('GET /api/connectors — discriminated union', () => {
 describe('GET /api/connectors/apps/:appUuid', () => {
   it('returns 404 for unknown appUuid', async () => {
     const res = await makeApp().request('/api/connectors/apps/unknown-uuid', {
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(404);
   });
@@ -342,7 +335,9 @@ describe('GET /api/connectors/apps/:appUuid', () => {
       appId: app.id,
     });
 
-    const res = await makeApp().request(`/api/connectors/apps/${app.id}`, { headers: authed() });
+    const res = await makeApp().request(`/api/connectors/apps/${app.id}`, {
+      headers: csrfHeaders(),
+    });
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       app: { appName: string; pemSha256: string; pem?: string };
@@ -391,7 +386,9 @@ describe('GET /api/connectors/apps/:appUuid', () => {
 
     // Hitting /:id with the connector id should still return the connector
     // (Hono matches /apps/:appUuid first, then /:id).
-    const res = await makeApp().request(`/api/connectors/${created.id}`, { headers: authed() });
+    const res = await makeApp().request(`/api/connectors/${created.id}`, {
+      headers: csrfHeaders(),
+    });
     expect(res.status).toBe(200);
   });
 });

@@ -8,11 +8,8 @@ import {
   runMigrations,
 } from '@zeno/storage';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { signSession } from '@/auth/hmac';
-import { COOKIE_NAME } from '@/auth/middleware';
 import { createApp } from '@/server';
-
-const SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+import { csrfHeaders } from '../csrf-helper';
 
 let db: DB;
 
@@ -24,12 +21,12 @@ beforeEach(() => {
 function makeApp(database: DB) {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: SECRET,
       logLevel: 'info',
       workspaceDir: '/tmp',
       nodeEnv: 'test',
       port: 3000,
+      masterKey: Buffer.alloc(32),
+      profileId: 'test',
     },
     db: database,
     cronRepo: new CronRepo(database),
@@ -41,18 +38,9 @@ function makeApp(database: DB) {
   });
 }
 
-function authed(): { Cookie: string } {
-  return { Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}` };
-}
-
 describe('GET /api/crons', () => {
-  it('rejects without auth', async () => {
-    const res = await makeApp(db).request('/api/crons');
-    expect(res.status).toBe(401);
-  });
-
   it('returns empty list on empty db', async () => {
-    const res = await makeApp(db).request('/api/crons', { headers: authed() });
+    const res = await makeApp(db).request('/api/crons', { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([]);
   });
@@ -77,7 +65,7 @@ describe('GET /api/crons', () => {
       first.id,
     );
     db.prepare("UPDATE crons SET created_at = datetime('now') WHERE id = ?").run(second.id);
-    const res = await makeApp(db).request('/api/crons', { headers: authed() });
+    const res = await makeApp(db).request('/api/crons', { headers: csrfHeaders() });
     const body = (await res.json()) as Array<{ name: string }>;
     expect(body).toHaveLength(2);
     expect(body[0]?.name).toBe('second');
@@ -99,7 +87,7 @@ describe('GET /api/crons', () => {
       source: 'chat',
       enabled: false,
     });
-    const res = await makeApp(db).request('/api/crons?enabled=true', { headers: authed() });
+    const res = await makeApp(db).request('/api/crons?enabled=true', { headers: csrfHeaders() });
     const body = (await res.json()) as Array<{ name: string }>;
     expect(body).toHaveLength(1);
     expect(body[0]?.name).toBe('on');
@@ -113,7 +101,7 @@ describe('GET /api/crons/:id', () => {
     const cron = crons.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'chat' });
     const run = runs.start(cron.id);
     runs.finish(run.id, 'success', 'ok');
-    const res = await makeApp(db).request(`/api/crons/${cron.id}`, { headers: authed() });
+    const res = await makeApp(db).request(`/api/crons/${cron.id}`, { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       cron: { id: string };
@@ -124,7 +112,7 @@ describe('GET /api/crons/:id', () => {
   });
 
   it('returns 404 for unknown id', async () => {
-    const res = await makeApp(db).request('/api/crons/nope', { headers: authed() });
+    const res = await makeApp(db).request('/api/crons/nope', { headers: csrfHeaders() });
     expect(res.status).toBe(404);
   });
 });
@@ -134,7 +122,7 @@ describe('POST /api/crons', () => {
     const commands = new CommandRepo(db);
     const res = await makeApp(db).request('/api/crons', {
       method: 'POST',
-      headers: { ...authed(), 'Content-Type': 'application/json' },
+      headers: { ...csrfHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: 'new-one',
         prompt: 'hi',
@@ -150,19 +138,10 @@ describe('POST /api/crons', () => {
   it('rejects invalid body', async () => {
     const res = await makeApp(db).request('/api/crons', {
       method: 'POST',
-      headers: { ...authed(), 'Content-Type': 'application/json' },
+      headers: { ...csrfHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'x' }),
     });
     expect(res.status).toBe(400);
-  });
-
-  it('rejects without auth', async () => {
-    const res = await makeApp(db).request('/api/crons', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'x', prompt: 'p', schedule: '* * * * *' }),
-    });
-    expect(res.status).toBe(401);
   });
 });
 
@@ -172,7 +151,7 @@ describe('POST /api/crons/:id/pause', () => {
     const cron = crons.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'chat' });
     const res = await makeApp(db).request(`/api/crons/${cron.id}/pause`, {
       method: 'POST',
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(204);
     const pending = new CommandRepo(db).claimPending(1);
@@ -182,7 +161,7 @@ describe('POST /api/crons/:id/pause', () => {
   it('returns 404 if cron does not exist', async () => {
     const res = await makeApp(db).request('/api/crons/missing/pause', {
       method: 'POST',
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(404);
   });
@@ -194,7 +173,7 @@ describe('POST /api/crons/:id/resume', () => {
     const cron = crons.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'chat' });
     const res = await makeApp(db).request(`/api/crons/${cron.id}/resume`, {
       method: 'POST',
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(204);
     const pending = new CommandRepo(db).claimPending(1);
@@ -204,7 +183,7 @@ describe('POST /api/crons/:id/resume', () => {
   it('returns 404 if cron does not exist', async () => {
     const res = await makeApp(db).request('/api/crons/missing/resume', {
       method: 'POST',
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(404);
   });
@@ -216,7 +195,7 @@ describe('POST /api/crons/:id/run-now', () => {
     const cron = crons.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'chat' });
     const res = await makeApp(db).request(`/api/crons/${cron.id}/run-now`, {
       method: 'POST',
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(204);
     const pending = new CommandRepo(db).claimPending(1);
@@ -226,7 +205,7 @@ describe('POST /api/crons/:id/run-now', () => {
   it('returns 404 if cron does not exist', async () => {
     const res = await makeApp(db).request('/api/crons/missing/run-now', {
       method: 'POST',
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(404);
   });
@@ -238,7 +217,7 @@ describe('DELETE /api/crons/:id', () => {
     const cron = crons.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'static' });
     const res = await makeApp(db).request(`/api/crons/${cron.id}`, {
       method: 'DELETE',
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(409);
   });
@@ -248,7 +227,7 @@ describe('DELETE /api/crons/:id', () => {
     const cron = crons.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'chat' });
     const res = await makeApp(db).request(`/api/crons/${cron.id}`, {
       method: 'DELETE',
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(204);
     const pending = new CommandRepo(db).claimPending(1);

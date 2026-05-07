@@ -11,11 +11,9 @@ import {
   runMigrations,
 } from '@zeno/storage';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { signSession } from '@/auth/hmac';
-import { COOKIE_NAME } from '@/auth/middleware';
 import { createApp } from '@/server';
+import { csrfHeaders } from '../csrf-helper';
 
-const SECRET = '0'.repeat(64);
 let db: DB;
 let profileDir: string;
 
@@ -28,12 +26,12 @@ beforeEach(() => {
 function makeApp(database: DB) {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: SECRET,
       logLevel: 'info',
       workspaceDir: '/tmp',
       nodeEnv: 'test',
       port: 3000,
+      masterKey: Buffer.alloc(32),
+      profileId: 'test',
     },
     db: database,
     cronRepo: new CronRepo(database),
@@ -45,20 +43,11 @@ function makeApp(database: DB) {
   });
 }
 
-function authed(): { Cookie: string } {
-  return { Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}` };
-}
-
 describe('GET /api/settings', () => {
-  it('rejects without auth', async () => {
-    const res = await makeApp(db).request('/api/settings');
-    expect(res.status).toBe(401);
-  });
-
   it('returns backend + profile files', async () => {
     writeFileSync(join(profileDir, 'SOUL.md'), '# Zeno');
     writeFileSync(join(profileDir, 'crons.yaml'), 'crons: []');
-    const res = await makeApp(db).request('/api/settings', { headers: authed() });
+    const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       backend: { name: string };
@@ -79,14 +68,14 @@ describe('GET /api/settings', () => {
       join(profileDir, 'USER.md'),
       '---\nname: Alex\ngithub: alex-octocat\n---\n\n# bio',
     );
-    const res = await makeApp(db).request('/api/settings', { headers: authed() });
+    const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBe('Alex');
     expect(body.profile.slug).toBe('default');
   });
 
   it('returns profile.name=null when USER.md is missing', async () => {
-    const res = await makeApp(db).request('/api/settings', { headers: authed() });
+    const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBeNull();
     expect(body.profile.slug).toBe('default');
@@ -94,14 +83,14 @@ describe('GET /api/settings', () => {
 
   it('returns profile.name=null when USER.md has no frontmatter and no Name: in body', async () => {
     writeFileSync(join(profileDir, 'USER.md'), '# just a heading\n\nno name in here');
-    const res = await makeApp(db).request('/api/settings', { headers: authed() });
+    const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBeNull();
   });
 
   it('returns profile.name=null when frontmatter has no `name:` key', async () => {
     writeFileSync(join(profileDir, 'USER.md'), '---\ngithub: alex-octocat\n---\n\n# bio');
-    const res = await makeApp(db).request('/api/settings', { headers: authed() });
+    const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBeNull();
   });
@@ -113,14 +102,14 @@ describe('GET /api/settings', () => {
       join(profileDir, 'USER.md'),
       '# User\n\n## Identity\n\n- **Name:** Alex\n- **GitHub username:** `alex-octocat`\n',
     );
-    const res = await makeApp(db).request('/api/settings', { headers: authed() });
+    const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBe('Alex');
   });
 
   it('parses profile.name from plain `Name: X` markdown line', async () => {
     writeFileSync(join(profileDir, 'USER.md'), '# User\n\nName: Maria José\n\nbio');
-    const res = await makeApp(db).request('/api/settings', { headers: authed() });
+    const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBe('Maria José');
   });
@@ -130,14 +119,14 @@ describe('GET /api/settings', () => {
       join(profileDir, 'USER.md'),
       '---\nname: FromFrontmatter\n---\n\n- **Name:** FromBody\n',
     );
-    const res = await makeApp(db).request('/api/settings', { headers: authed() });
+    const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBe('FromFrontmatter');
   });
 
   it('strips trailing markdown emphasis from body name', async () => {
     writeFileSync(join(profileDir, 'USER.md'), '# User\n\n**Name:** *Alex*\n');
-    const res = await makeApp(db).request('/api/settings', { headers: authed() });
+    const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBe('Alex');
   });
@@ -146,7 +135,7 @@ describe('GET /api/settings', () => {
     const previous = process.env.ZENO_PROFILE;
     process.env.ZENO_PROFILE = 'work';
     try {
-      const res = await makeApp(db).request('/api/settings', { headers: authed() });
+      const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
       const body = (await res.json()) as { profile: { name: string | null; slug: string } };
       expect(body.profile.slug).toBe('work');
     } finally {
@@ -171,7 +160,7 @@ describe('GET /api/settings/profile-files/USER.md', () => {
   it('returns the file content + mtime', async () => {
     writeFileSync(join(profileDir, 'USER.md'), '---\nname: Alex\n---\n\n# Bio');
     const res = await makeApp(db).request('/api/settings/profile-files/USER.md', {
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { path: string; content: string; bytes: number };
@@ -182,7 +171,7 @@ describe('GET /api/settings/profile-files/USER.md', () => {
 
   it('returns 404 when USER.md is missing', async () => {
     const res = await makeApp(db).request('/api/settings/profile-files/USER.md', {
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(404);
   });
@@ -190,7 +179,7 @@ describe('GET /api/settings/profile-files/USER.md', () => {
   it('returns 403 for non-allowlisted files (SOUL.md)', async () => {
     writeFileSync(join(profileDir, 'SOUL.md'), '# soul');
     const res = await makeApp(db).request('/api/settings/profile-files/SOUL.md', {
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(403);
   });
@@ -200,7 +189,7 @@ describe('PUT /api/settings/profile-files/USER.md', () => {
   function putUserMd(database: DB, content: string) {
     return makeApp(database).request('/api/settings/profile-files/USER.md', {
       method: 'PUT',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({ content }),
     });
   }
@@ -220,7 +209,7 @@ describe('PUT /api/settings/profile-files/USER.md', () => {
   it('rejects non-allowlisted paths with 403', async () => {
     const res = await makeApp(db).request('/api/settings/profile-files/SOUL.md', {
       method: 'PUT',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({ content: 'evil' }),
     });
     expect(res.status).toBe(403);
@@ -235,18 +224,9 @@ describe('PUT /api/settings/profile-files/USER.md', () => {
   it('rejects non-string content with 400', async () => {
     const res = await makeApp(db).request('/api/settings/profile-files/USER.md', {
       method: 'PUT',
-      headers: { ...authed(), 'content-type': 'application/json' },
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({ content: 42 }),
     });
     expect(res.status).toBe(400);
-  });
-
-  it('rejects unauthenticated requests with 401', async () => {
-    const res = await makeApp(db).request('/api/settings/profile-files/USER.md', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ content: 'no auth' }),
-    });
-    expect(res.status).toBe(401);
   });
 });

@@ -358,8 +358,8 @@ function FirstRunHero({ displayName }: { displayName: string }): JSX.Element {
         Hi <em className="italic text-gold">{displayName}</em>. Let's wire Zeno up.
       </h1>
       <p className="m-0 max-w-[640px] font-sans text-base leading-[1.6] text-text-secondary">
-        Everything's quiet — that's expected on a fresh profile. Two steps below get the agent
-        talking and put it on a schedule.
+        Everything's quiet — that's expected on a fresh profile. Three steps below get Claude
+        connected, the agent listening, and a cron on the wall.
       </p>
     </header>
   );
@@ -373,19 +373,28 @@ function FirstRunChecklist({ onPasteToken }: { onPasteToken: () => void }): JSX.
           setup checklist
         </h2>
         <span className="font-mono text-[10px] tracking-[0.2em] leading-3 uppercase text-text-tertiary">
-          0 of 2 complete · ~5 min
+          0 of 3 complete · ~7 min
         </span>
       </div>
       <FirstRunStep
         index={1}
-        title="connect a slack workspace"
+        title="configure Claude backend"
+        helper="Zeno needs a Claude OAuth token before it can reply. Authorize once and the worker picks it up on next start."
+        cta="configure Claude →"
+        ctaTo="/settings"
+        ctaSearch={{ tab: 'backend' }}
+        active
+      />
+      <FirstRunStep
+        index={2}
+        title="connect a Slack workspace"
         helper="Zeno listens for mentions and DMs in your workspace. Bot already deployed — just paste the bot token from api.slack.com."
         cta="paste token →"
         active
         onClick={onPasteToken}
       />
       <FirstRunStep
-        index={2}
+        index={3}
         title="schedule your first cron"
         helper="A morning standup, a weekly digest, a health-check ping. The runner ticks every 60s once a cron lands."
         cta="+ new cron"
@@ -403,6 +412,7 @@ function FirstRunStep({
   cta,
   active,
   ctaTo,
+  ctaSearch,
   onClick,
 }: {
   index: number;
@@ -411,6 +421,7 @@ function FirstRunStep({
   cta: string;
   active?: boolean;
   ctaTo?: string;
+  ctaSearch?: Record<string, string>;
   onClick?: () => void;
 }): JSX.Element {
   const containerCls = `relative flex items-start gap-5 px-7 py-6 border ${
@@ -440,9 +451,15 @@ function FirstRunStep({
         <p className={helperCls}>{helper}</p>
       </div>
       {ctaTo ? (
-        <Link to={ctaTo} className={ctaCls}>
-          {cta}
-        </Link>
+        ctaSearch ? (
+          <Link to={ctaTo} search={ctaSearch} className={ctaCls}>
+            {cta}
+          </Link>
+        ) : (
+          <Link to={ctaTo} className={ctaCls}>
+            {cta}
+          </Link>
+        )
       ) : (
         <button type="button" onClick={onClick} disabled={!active} className={ctaCls}>
           {cta}

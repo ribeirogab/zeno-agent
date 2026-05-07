@@ -12,18 +12,8 @@ import {
   SkillRepo,
 } from '@zeno/storage';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { signSession } from '@/auth/hmac';
-import { COOKIE_NAME } from '@/auth/middleware';
 import { createApp } from '@/server';
-
-const SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-
-function authed(): { Cookie: string; 'Content-Type': string } {
-  return {
-    Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}`,
-    'Content-Type': 'application/json',
-  };
-}
+import { csrfHeaders } from '../csrf-helper';
 
 let db: DB;
 
@@ -35,12 +25,12 @@ beforeEach(() => {
 function makeApp(database: DB) {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: SECRET,
       logLevel: 'info',
       workspaceDir: '/tmp',
       nodeEnv: 'test',
       port: 3000,
+      masterKey: Buffer.alloc(32),
+      profileId: 'test',
     },
     db: database,
     cronRepo: new CronRepo(database),
@@ -63,7 +53,9 @@ function makeApp(database: DB) {
 describe('GET /api/connectors/:id/skills', () => {
   it('returns 404 for unknown connector', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/connectors/nonexistent/skills', { headers: authed() });
+    const res = await app.request('/api/connectors/nonexistent/skills', {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(404);
   });
 
@@ -82,7 +74,9 @@ describe('GET /api/connectors/:id/skills', () => {
       secrets: [],
     });
     const app = makeApp(db);
-    const res = await app.request(`/api/connectors/${c.id}/skills`, { headers: authed() });
+    const res = await app.request(`/api/connectors/${c.id}/skills`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([]);
   });
@@ -110,7 +104,9 @@ describe('GET /api/connectors/:id/skills', () => {
     links.add(c.id, a.id);
 
     const app = makeApp(db);
-    const res = await app.request(`/api/connectors/${c.id}/skills`, { headers: authed() });
+    const res = await app.request(`/api/connectors/${c.id}/skills`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<{ name: string }>;
     expect(body.map((s) => s.name)).toEqual(['aws-debug', 'zeta-skill']);
@@ -142,11 +138,13 @@ describe('PATCH /api/connectors/:id/skills', () => {
     let res = await app.request(`/api/connectors/${c.id}/skills`, {
       method: 'PATCH',
       body: JSON.stringify({ skillIds: [a.id, b.id] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(204);
 
-    let listRes = await app.request(`/api/connectors/${c.id}/skills`, { headers: authed() });
+    let listRes = await app.request(`/api/connectors/${c.id}/skills`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(((await listRes.json()) as Array<{ name: string }>).map((s) => s.name).sort()).toEqual([
       'a',
       'b',
@@ -156,10 +154,12 @@ describe('PATCH /api/connectors/:id/skills', () => {
     res = await app.request(`/api/connectors/${c.id}/skills`, {
       method: 'PATCH',
       body: JSON.stringify({ skillIds: [cSkill.id, b.id] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(204);
-    listRes = await app.request(`/api/connectors/${c.id}/skills`, { headers: authed() });
+    listRes = await app.request(`/api/connectors/${c.id}/skills`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(((await listRes.json()) as Array<{ name: string }>).map((s) => s.name).sort()).toEqual([
       'b',
       'c',
@@ -190,11 +190,13 @@ describe('PATCH /api/connectors/:id/skills', () => {
     const res = await app.request(`/api/connectors/${c.id}/skills`, {
       method: 'PATCH',
       body: JSON.stringify({ skillIds: [] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(204);
 
-    const listRes = await app.request(`/api/connectors/${c.id}/skills`, { headers: authed() });
+    const listRes = await app.request(`/api/connectors/${c.id}/skills`, {
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+    });
     expect(await listRes.json()).toEqual([]);
   });
 
@@ -203,7 +205,7 @@ describe('PATCH /api/connectors/:id/skills', () => {
     const res = await app.request('/api/connectors/nonexistent/skills', {
       method: 'PATCH',
       body: JSON.stringify({ skillIds: [] }),
-      headers: authed(),
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(404);
   });

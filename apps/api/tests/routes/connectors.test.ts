@@ -9,11 +9,8 @@ import {
   runMigrations,
 } from '@zeno/storage';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { signSession } from '@/auth/hmac';
-import { COOKIE_NAME } from '@/auth/middleware';
 import { createApp } from '@/server';
-
-const SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+import { csrfHeaders } from '../csrf-helper';
 
 let db: DB;
 
@@ -28,12 +25,12 @@ beforeEach(() => {
 function makeApp(database: DB) {
   return createApp({
     config: {
-      password: 'pw',
-      sessionSecret: SECRET,
       logLevel: 'info',
       workspaceDir: '/tmp',
       nodeEnv: 'test',
       port: 3000,
+      masterKey: Buffer.alloc(32),
+      profileId: 'test',
     },
     db: database,
     cronRepo: new CronRepo(database),
@@ -49,18 +46,9 @@ function makeApp(database: DB) {
   });
 }
 
-function authed(): { Cookie: string } {
-  return { Cookie: `${COOKIE_NAME}=${signSession(SECRET, Date.now() + 60_000)}` };
-}
-
 describe('GET /api/connectors', () => {
-  it('rejects without auth', async () => {
-    const res = await makeApp(db).request('/api/connectors');
-    expect(res.status).toBe(401);
-  });
-
   it('returns empty list on empty DB', async () => {
-    const res = await makeApp(db).request('/api/connectors', { headers: authed() });
+    const res = await makeApp(db).request('/api/connectors', { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([]);
   });
@@ -79,7 +67,7 @@ describe('GET /api/connectors', () => {
       secrets: [{ key: 'TOKEN', value: 'xyz' }],
       tools: [{ toolName: 't1', description: null, category: 'read', permission: 'always_allow' }],
     });
-    const res = await makeApp(db).request('/api/connectors', { headers: authed() });
+    const res = await makeApp(db).request('/api/connectors', { headers: csrfHeaders() });
     const body = (await res.json()) as Array<Record<string, unknown>>;
     expect(body).toHaveLength(1);
     expect(body[0]).toMatchObject({
@@ -95,7 +83,7 @@ describe('GET /api/connectors', () => {
 
 describe('GET /api/connectors/:id', () => {
   it('returns 404 on miss', async () => {
-    const res = await makeApp(db).request('/api/connectors/missing', { headers: authed() });
+    const res = await makeApp(db).request('/api/connectors/missing', { headers: csrfHeaders() });
     expect(res.status).toBe(404);
   });
 
@@ -118,7 +106,7 @@ describe('GET /api/connectors/:id', () => {
       tools: [],
     });
     const res = await makeApp(db).request(`/api/connectors/${created.id}`, {
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     const body = (await res.json()) as { secrets: Array<{ key: string; last4: string }> };
     const byKey = Object.fromEntries(body.secrets.map((s) => [s.key, s.last4]));
@@ -133,7 +121,7 @@ describe('GET /api/connectors/catalog', () => {
     // If the dynamic :id route is registered before the static /catalog,
     // requesting /api/connectors/catalog hits :id='catalog' and returns 404
     // (which is the body of GET /:id). We assert the catalog handler runs.
-    const res = await makeApp(db).request('/api/connectors/catalog', { headers: authed() });
+    const res = await makeApp(db).request('/api/connectors/catalog', { headers: csrfHeaders() });
     // 200 if catalog file is present in the working dir, 500 if missing
     // (CatalogReadError). Either way, not 404 from the :id route.
     expect([200, 500]).toContain(res.status);
@@ -158,13 +146,13 @@ describe('PATCH /api/connectors/:id/toggle', () => {
     const app = makeApp(db);
     const r1 = await app.request(`/api/connectors/${created.id}/toggle`, {
       method: 'PATCH',
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(r1.status).toBe(200);
     expect(await r1.json()).toEqual({ status: 'disabled' });
     const r2 = await app.request(`/api/connectors/${created.id}/toggle`, {
       method: 'PATCH',
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(await r2.json()).toEqual({ status: 'enabled' });
   });
@@ -186,7 +174,7 @@ describe('PATCH /api/connectors/:id/toggle', () => {
     });
     const res = await makeApp(db).request(`/api/connectors/${created.id}/toggle`, {
       method: 'PATCH',
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(409);
   });
@@ -209,7 +197,7 @@ describe('PATCH /api/connectors/:id/tools/:toolName/permission', () => {
     });
     const res = await makeApp(db).request(`/api/connectors/${created.id}/tools/t1/permission`, {
       method: 'PATCH',
-      headers: { ...authed(), 'Content-Type': 'application/json' },
+      headers: { ...csrfHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ permission: 'always_allow' }),
     });
     expect(res.status).toBe(204);
@@ -234,7 +222,7 @@ describe('PATCH /api/connectors/:id/tools/:toolName/permission', () => {
       `/api/connectors/${created.id}/tools/missing/permission`,
       {
         method: 'PATCH',
-        headers: { ...authed(), 'Content-Type': 'application/json' },
+        headers: { ...csrfHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ permission: 'never' }),
       },
     );
@@ -263,7 +251,7 @@ describe('PATCH /api/connectors/:id/tools/permissions/bulk', () => {
     });
     const res = await makeApp(db).request(`/api/connectors/${created.id}/tools/permissions/bulk`, {
       method: 'PATCH',
-      headers: { ...authed(), 'Content-Type': 'application/json' },
+      headers: { ...csrfHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ category: 'read', permission: 'always_allow' }),
     });
     expect(res.status).toBe(200);
@@ -276,7 +264,7 @@ describe('POST /api/connectors (catalog) enqueues a command', () => {
   it('returns 404 if the catalog id is unknown', async () => {
     const res = await makeApp(db).request('/api/connectors', {
       method: 'POST',
-      headers: { ...authed(), 'Content-Type': 'application/json' },
+      headers: { ...csrfHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
         source: 'catalog',
         catalogId: 'unknown',
@@ -294,7 +282,7 @@ describe('POST /api/connectors (custom) enqueues a connector_create', () => {
     const before = commandRepo.recent(10).length;
     const res = await makeApp(db).request('/api/connectors', {
       method: 'POST',
-      headers: { ...authed(), 'Content-Type': 'application/json' },
+      headers: { ...csrfHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
         source: 'custom',
         displayName: 'My MCP',
@@ -329,7 +317,7 @@ describe('DELETE /api/connectors/:id', () => {
     });
     const res = await makeApp(db).request(`/api/connectors/${created.id}`, {
       method: 'DELETE',
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(204);
     expect(commandRepo.recent(10)[0]?.type).toBe('connector_uninstall');
@@ -352,7 +340,7 @@ describe('GET /api/connectors/:id/secrets/:key/reveal', () => {
       tools: [],
     });
     const res = await makeApp(db).request(`/api/connectors/${created.id}/secrets/TOKEN/reveal`, {
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ value: 'lin_test_xyz' });
@@ -374,10 +362,10 @@ describe('GET /api/connectors/:id/secrets/:key/reveal', () => {
     });
     const app = makeApp(db);
     await app.request(`/api/connectors/${created.id}/secrets/TOKEN/reveal`, {
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     const res2 = await app.request(`/api/connectors/${created.id}/secrets/TOKEN/reveal`, {
-      headers: authed(),
+      headers: csrfHeaders(),
     });
     expect(res2.status).toBe(429);
     const body = (await res2.json()) as { error: string; retryAfter: number };

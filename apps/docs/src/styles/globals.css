@@ -16,15 +16,24 @@ html > body[data-scroll-locked] {
  *
  * The brand is dark-only by upstream design, but apps/docs ships both light
  * and dark to respect outsider OS preferences. Strategy:
- *   - Light: keep Fumadocs neutral defaults, override only --color-fd-primary
- *     to imperial gold so the brand mark and primary affirmative actions
- *     stay recognizable across both themes.
- *   - Dark: full Imperial Terminal palette (ink-blue surfaces + imperial gold
- *     accent), per DESIGN.md.
+ *   - Light: keep Fumadocs neutral defaults, with `--color-fd-primary` and
+ *     `--color-fd-ring` re-pinned to the foreground so the gold accent never
+ *     bleeds into UI chrome (active sidebar/TOC, focus rings, link tint).
+ *     The brand mark (Crest) uses `currentColor` and inherits the
+ *     foreground, so the brand stays visible in monochrome.
+ *   - Dark: full Imperial Terminal palette (ink-blue surfaces + lavender
+ *     foreground), per DESIGN.md, with the same primary→foreground swap.
+ *
+ * Imperial gold (#d9b362) is reserved for affirmative actions and the
+ * brand mark in the dashboard — the docs UI is a navigation surface and
+ * does not have either, so the token never resolves to gold here.
  */
 
 :root {
-  --color-fd-primary: #d9b362; /* imperial gold, brand-mark + primary */
+  /* Pin primary + ring to foreground so Fumadocs's `bg-fd-primary`,
+     `text-fd-primary`, and `ring-fd-primary` utilities never paint gold. */
+  --color-fd-primary: var(--color-fd-foreground);
+  --color-fd-ring: var(--color-fd-foreground);
 }
 
 .dark {
@@ -37,13 +46,13 @@ html > body[data-scroll-locked] {
   --color-fd-popover: #151824;
   --color-fd-popover-foreground: #e8eaf5;
   --color-fd-border: #1e2131;
-  --color-fd-primary: #d9b362;
+  --color-fd-primary: #e8eaf5; /* foreground; reserve gold for the dashboard. */
   --color-fd-primary-foreground: #0a0b12;
   --color-fd-secondary: #151824;
   --color-fd-secondary-foreground: #e8eaf5;
   --color-fd-accent: #151824;
   --color-fd-accent-foreground: #e8eaf5;
-  --color-fd-ring: #d9b362;
+  --color-fd-ring: #e8eaf5;
 }
 
 /*

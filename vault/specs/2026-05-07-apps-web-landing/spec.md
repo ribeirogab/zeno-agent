@@ -277,7 +277,7 @@ Total bounded count: **17 tests across 10 files**. Storybook, full visual regres
 - [x] The rendered `<App />` contains six `<section>` elements (or `<footer>` for the last) in this top-to-bottom order: hero, experimental warning, quick start, how it works, CTA tiles, footer.
 - [x] The hero section renders the Zeno crest SVG and a heading element whose text content equals `Zeno`.
 - [x] The hero `Zeno` heading has a CSS `background-image` whose value contains `linear-gradient` (the gold-gradient text fill).
-- [x] The hero contains exactly 20 elements with `data-particle="true"` (the static dots).
+- [x] The hero contains exactly 40 elements with `data-particle="true"` (the static dots).
 - [x] The warning section contains a node whose text begins with the case-insensitive substring `experimental` and a body element containing the substring `Single-user`.
 - [x] The quick start section contains a `<code>` element whose `textContent` equals the `INSTALL_CMD` constant from `lib/constants.ts`.
 - [x] The quick start terminal block renders a tab element with text `one-liner` and a meta element with text matching `/macOS.+Linux.+WSL2/`.

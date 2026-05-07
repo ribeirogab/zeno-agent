@@ -10,8 +10,8 @@ describe('<HeroSection />', () => {
     expect(screen.getByText(/personal agent that gets the work done/i)).toBeInTheDocument();
   });
 
-  it('renders 20 elements with data-particle="true"', () => {
+  it('renders 40 elements with data-particle="true"', () => {
     const { container } = render(<HeroSection />);
-    expect(container.querySelectorAll('[data-particle="true"]')).toHaveLength(20);
+    expect(container.querySelectorAll('[data-particle="true"]')).toHaveLength(40);
   });
 });

@@ -6,7 +6,6 @@ The maintainer also keeps a private scratch doc on local disk (`vault/backlog.md
 
 ## Now (in flight)
 
-- [ ] #5 — feat(cli): add zeno CLI to replace daily docker compose
 - [ ] #6 — feat(docs): add apps/docs minimal scaffold
 - [ ] #7 — feat(web): add apps/web landing page
 
@@ -23,6 +22,7 @@ The maintainer also keeps a private scratch doc on local disk (`vault/backlog.md
 
 ## Recently shipped
 
+- [x] #5 — feat(cli): add zeno CLI to replace daily docker compose (PR #15)
 - [x] #1 — Track A: sanitization rule + final scrub + EN migration (PR #1)
 - [x] #2 — Track B: license + community files (PR #2)
 - [x] #3 — Track D: README rewrite for outsider (PR #3)

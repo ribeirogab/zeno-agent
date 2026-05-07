@@ -3,11 +3,12 @@ status: shipped
 feature: apps-docs-cf-deploy
 created: 2026-05-07
 shipped: 2026-05-07
-shipped_url: https://zeno-docs.57vjct26wg.workers.dev
+shipped_url: https://docs.zeno-agent.dev
+shipped_url_workers: https://zeno-docs.57vjct26wg.workers.dev
 ---
 # Apps/Docs — Cloudflare Workers Deploy — Spec
 
-**Status:** Shipped — live at https://zeno-docs.57vjct26wg.workers.dev
+**Status:** Shipped — live at https://docs.zeno-agent.dev (also reachable at https://zeno-docs.57vjct26wg.workers.dev)
 **Scope:** Wire `apps/docs` to deploy to Cloudflare Workers via `@opennextjs/cloudflare`, with a GitHub Action that publishes on push to `main` whenever `apps/docs/**` changes. First deploy lands at `zeno-docs.<account>.workers.dev`; custom domain (`docs.zeno.dev` or similar) is deferred until the maintainer registers the domain.
 
 ## Context

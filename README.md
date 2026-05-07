@@ -76,7 +76,7 @@ What is **not** here yet: no multi-user support (single operator only), no produ
 - Profile templates live at `templates/profile/USER.md` and `templates/profile/env.template`. The CLI substitutes `<your-name>` and `<auto-detected-tz>` and writes the rendered files into `~/.zeno/profiles/<profile>/` on `zeno profile create`.
 - CLI orchestration state lives at `~/.zeno/state.db` (SQLite, owner-only `chmod 600`). Profile dashboards bind `127.0.0.1` on ports `6101-6200`.
 - The Slack app manifest is at `infra/slack-app-manifest.json`.
-- Detailed reading: `AGENTS.md` for the agent's working contract, `vault/_index/home.md` for the project's knowledge map, and `vault/constitution.md` for the non-negotiable design principles. A full documentation site (`apps/docs`) is on the roadmap.
+- Detailed reading: `AGENTS.md` for the agent's working contract, `vault/_index/home.md` for the project's knowledge map, and `vault/constitution.md` for the non-negotiable design principles. The outsider documentation site lives at <https://docs.zeno-agent.dev> (source under `apps/docs/`); it is currently a structural scaffold while the official content is being authored.
 
 ## Project layout
 
@@ -92,7 +92,7 @@ vault/       constitution + specs + learnings + conventions + rules
 ~/.zeno/     (off-repo) zeno-agent clone, state.db, profiles/<name>/
 ```
 
-Architecture detail lives in `vault/constitution.md` until the documentation site ships.
+Architecture detail lives in `vault/constitution.md` until <https://docs.zeno-agent.dev> grows a full architecture section.
 
 ## Contributing, security, license
 

@@ -4,11 +4,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resolveSlackCredentials } from '@/channels/slack/resolve-credentials';
 
 /**
- * Spec 0058: 4-row resolution table (the .env fallback path was removed after
- * the operator's profile cut over to DB-only credentials). Tests use REAL
- * ConnectorRepo against in-memory SQLite — no mocks. This matches the existing
- * repo test pattern and keeps the resolver tests honest (real SQL constraints
- * exercised end-to-end).
+ * Resolves Slack credentials from the connector DB. The .env fallback path is
+ * gone (DB-only since spec 0058). After multi-profile-cli, missing/incomplete
+ * Slack returns null instead of throwing — the worker boots with a NoopChannel
+ * so the dashboard at apps/api stays reachable for the operator to install
+ * Slack via /connectors. Tests use REAL ConnectorRepo against in-memory SQLite.
  */
 
 const logger = createLogger({ service: 'test' });
@@ -42,7 +42,7 @@ const SLACK_BASE = {
   tools: [],
 };
 
-describe('resolveSlackCredentials — resolution table (spec 0058)', () => {
+describe('resolveSlackCredentials — resolution table', () => {
   it('1. enabled DB row + both secrets → returns creds', () => {
     connectors.create({
       ...SLACK_BASE,
@@ -53,21 +53,22 @@ describe('resolveSlackCredentials — resolution table (spec 0058)', () => {
       ],
     });
     const result = resolveSlackCredentials({ connectors, logger });
-    expect(result.appToken).toBe('xapp-fromdb');
-    expect(result.botToken).toBe('xoxb-fromdb');
+    expect(result).not.toBeNull();
+    expect(result?.appToken).toBe('xapp-fromdb');
+    expect(result?.botToken).toBe('xoxb-fromdb');
   });
 
-  it('2. enabled DB row + missing secret → hard error (operator misconfig)', () => {
+  it('2. enabled DB row + missing secret → returns null (worker boots with NoopChannel)', () => {
     connectors.create({
       ...SLACK_BASE,
       status: 'enabled',
       secrets: [{ key: 'SLACK_APP_TOKEN', value: 'xapp-only' }],
       // SLACK_BOT_TOKEN missing
     });
-    expect(() => resolveSlackCredentials({ connectors, logger })).toThrow(/credentials missing/);
+    expect(resolveSlackCredentials({ connectors, logger })).toBeNull();
   });
 
-  it('3. disabled row → hard error (treated identically to "not installed")', () => {
+  it('3. disabled row → returns null (treated identically to "not installed")', () => {
     connectors.create({
       ...SLACK_BASE,
       status: 'disabled',
@@ -76,14 +77,10 @@ describe('resolveSlackCredentials — resolution table (spec 0058)', () => {
         { key: 'SLACK_BOT_TOKEN', value: 'xoxb-x' },
       ],
     });
-    expect(() => resolveSlackCredentials({ connectors, logger })).toThrow(
-      /Slack channel not installed/,
-    );
+    expect(resolveSlackCredentials({ connectors, logger })).toBeNull();
   });
 
-  it('4. no DB row → hard error (Slack channel not installed)', () => {
-    expect(() => resolveSlackCredentials({ connectors, logger })).toThrow(
-      /Slack channel not installed/,
-    );
+  it('4. no DB row → returns null (Slack channel not installed)', () => {
+    expect(resolveSlackCredentials({ connectors, logger })).toBeNull();
   });
 });

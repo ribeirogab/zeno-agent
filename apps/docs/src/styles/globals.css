@@ -1,0 +1,83 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
+html {
+  scrollbar-gutter: stable;
+}
+
+html > body[data-scroll-locked] {
+  margin-right: 0px !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}
+
+/*
+ * Zeno colors — Imperial Terminal (see DESIGN.md).
+ *
+ * The brand is dark-only by upstream design, but apps/docs ships both light
+ * and dark to respect outsider OS preferences. Strategy:
+ *   - Light: keep Fumadocs neutral defaults, override only --color-fd-primary
+ *     to imperial gold so the brand mark and primary affirmative actions
+ *     stay recognizable across both themes.
+ *   - Dark: full Imperial Terminal palette (ink-blue surfaces + imperial gold
+ *     accent), per DESIGN.md.
+ */
+
+:root {
+  --color-fd-primary: #d9b362; /* imperial gold, brand-mark + primary */
+}
+
+.dark {
+  --color-fd-background: #08090f;
+  --color-fd-foreground: #e8eaf5;
+  --color-fd-muted: #0f1119;
+  --color-fd-muted-foreground: #8a8fab;
+  --color-fd-card: #0f1119;
+  --color-fd-card-foreground: #e8eaf5;
+  --color-fd-popover: #151824;
+  --color-fd-popover-foreground: #e8eaf5;
+  --color-fd-border: #1e2131;
+  --color-fd-primary: #d9b362;
+  --color-fd-primary-foreground: #0a0b12;
+  --color-fd-secondary: #151824;
+  --color-fd-secondary-foreground: #e8eaf5;
+  --color-fd-accent: #151824;
+  --color-fd-accent-foreground: #e8eaf5;
+  --color-fd-ring: #d9b362;
+}
+
+/*
+ * Fumadocs's neutral.css raises --color-fd-muted-foreground to hsl(0,0%,72%)
+ * inside `.dark #nd-sidebar` — that wins on specificity over our `.dark` block.
+ * Re-pin it to the Imperial Terminal lavender muted so inactive sidebar links
+ * match the rest of the dark theme. Match both desktop (`#nd-sidebar`) and
+ * mobile (`#nd-sidebar-mobile`) instances.
+ */
+.dark #nd-sidebar,
+.dark #nd-sidebar-mobile {
+  --color-fd-muted-foreground: #8a8fab;
+}
+
+/*
+ * Active sidebar item: Fumadocs default tints with `bg-fd-primary/10` +
+ * `text-fd-primary` — this paints the active link gold, which the operator
+ * doesn't want. Override to a neutral accent panel + foreground text so the
+ * gold stays reserved for affirmative actions and the brand mark. Use ID
+ * selectors so the rule beats Fumadocs's own `.dark #nd-sidebar` specificity.
+ */
+#nd-sidebar a[data-active='true'],
+#nd-sidebar-mobile a[data-active='true'] {
+  background-color: var(--color-fd-accent);
+  color: var(--color-fd-foreground);
+}
+
+/*
+ * TOC active item ("On this page" panel) — same rationale as the left
+ * sidebar. Fumadocs uses `text-fd-primary` (gold) for the active heading
+ * and a gold left-border indicator. Re-pin both to the foreground so the
+ * gold stays reserved for affirmative actions.
+ */
+#nd-toc a[data-active='true'] {
+  color: var(--color-fd-foreground);
+  border-color: var(--color-fd-foreground);
+}

@@ -1,0 +1,25 @@
+// Cloudflare Worker config for the @zeno/web landing page.
+//
+// Deployed via `wrangler deploy` against the static `dist/` produced by
+// Vite. There is no Worker `main` — Cloudflare auto-injects an asset-only
+// Worker around the `assets` binding. SPA fallback returns `index.html`
+// for any unmatched path so the landing always renders something.
+//
+//   pnpm --filter @zeno/web deploy
+//
+// `account_id` is committed on purpose — Cloudflare account IDs are not
+// secrets (they're visible in any Worker URL anyone can hit). Do NOT move
+// it to a repo secret.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zeno-web",
+  "account_id": "9890bc74ec17df307df583147a6ea97f",
+  "compatibility_date": "2025-03-01",
+  "assets": {
+    "directory": "dist",
+    "not_found_handling": "single-page-application"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

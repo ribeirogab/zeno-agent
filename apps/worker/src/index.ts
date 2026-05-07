@@ -41,7 +41,6 @@ import { buildHandlerMap } from '@/commands/handlers';
 import { CommandsPoller } from '@/commands/poller';
 import { type Config, loadConfig } from '@/config';
 import { CronRunner } from '@/cron/runner';
-import { loadStaticCrons } from '@/cron/static-loader';
 import { buildCronMcpServer } from '@/cron/tools';
 import { type GitHubAppAuth, loadGitHubAppFromDb } from '@/github/app-auth';
 import { resolveGitIdentity } from '@/github/git-identity';
@@ -306,11 +305,6 @@ async function main(): Promise<void> {
       'USER.md not found — Zeno will run without user-specific context',
     );
   }
-
-  // Static crons are the source of truth in profile/config.yaml — replace on every boot.
-  const staticCrons = loadStaticCrons();
-  crons.replaceStaticSet(staticCrons);
-  logger.info({ event: 'cron_static_loaded', count: staticCrons.length }, 'static crons loaded');
 
   // Spec 0052: skills are content-only markdown playbooks materialized
   // from DB to ${claudeHome}/skills/<name>/SKILL.md. The Claude Agent SDK
@@ -665,11 +659,6 @@ async function main(): Promise<void> {
         { event: 'system_prompt_reloaded', bytes: promptHolder.value.length },
         'system prompt reloaded',
       );
-    },
-    onCronsChanged: () => {
-      const next = loadStaticCrons();
-      crons.replaceStaticSet(next);
-      logger.info({ event: 'static_crons_reloaded', count: next.length }, 'static crons reloaded');
     },
     // Spec 0062: skill bucket watches /workspace/skills/ (dashboard volume)
     // AND fires on agent/skills/* + profile/skills/* (via classify rules

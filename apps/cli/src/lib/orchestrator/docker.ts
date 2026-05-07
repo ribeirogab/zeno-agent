@@ -39,11 +39,12 @@ export class DockerOrchestrator implements Orchestrator {
 
   async buildImage(opts: BuildOpts): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      const child = spawn(
-        'docker',
-        ['build', '-t', opts.tag, '-f', opts.dockerfile, opts.context],
-        { stdio: ['ignore', 'pipe', 'pipe'] },
-      );
+      // cwd: opts.context so the Dockerfile path and `.` build context resolve
+      // against the repo root regardless of where the operator invoked the CLI.
+      const child = spawn('docker', ['build', '-t', opts.tag, '-f', opts.dockerfile, '.'], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        cwd: opts.context,
+      });
       let stderr = '';
       const onLine = (chunk: Buffer) => {
         const text = chunk.toString('utf8');

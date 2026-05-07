@@ -41,8 +41,10 @@ jobs:
             BASE="v$(date -u +%Y).$(date -u +%-m).$(date -u +%-d)"
             TAG="$BASE"
             N=1
+            # When the day's base tag is taken, append a semver-valid pre-release
+            # suffix `-N` (NOT `.N`, which produces 4-part tags rejected by `pnpm version`).
             while git rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1; do
-              TAG="$BASE.$N"
+              TAG="$BASE-$N"
               N=$((N+1))
               if [ $N -gt 99 ]; then
                 echo "::error::100 tags on $BASE already exist; pass an explicit version input." >&2

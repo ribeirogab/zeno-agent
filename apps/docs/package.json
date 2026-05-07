@@ -1,0 +1,38 @@
+{
+  "name": "@zeno/docs",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 4242",
+    "build": "next build",
+    "start": "next start -p 4242",
+    "lint": "biome check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf .next"
+  },
+  "dependencies": {
+    "fumadocs-core": "^16.8.8",
+    "fumadocs-mdx": "^15.0.0",
+    "fumadocs-ui": "^16.8.8",
+    "next": "^16.2.6",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "lucide-react": "^0.460.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/node": "25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^25.0.1",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  }
+}

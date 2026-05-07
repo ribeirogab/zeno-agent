@@ -1,12 +1,13 @@
 ---
-status: draft
+status: shipped
 feature: apps-docs-cf-deploy
 created: 2026-05-07
-shipped: null
+shipped: 2026-05-07
+shipped_url: https://zeno-docs.57vjct26wg.workers.dev
 ---
 # Apps/Docs — Cloudflare Workers Deploy — Spec
 
-**Status:** Draft
+**Status:** Shipped — live at https://zeno-docs.57vjct26wg.workers.dev
 **Scope:** Wire `apps/docs` to deploy to Cloudflare Workers via `@opennextjs/cloudflare`, with a GitHub Action that publishes on push to `main` whenever `apps/docs/**` changes. First deploy lands at `zeno-docs.<account>.workers.dev`; custom domain (`docs.zeno.dev` or similar) is deferred until the maintainer registers the domain.
 
 ## Context
@@ -54,19 +55,19 @@ Cloudflare Workers + `@opennextjs/cloudflare` is the recommended path:
 
 Each item is a binary check verifiable in under a minute by someone other than the implementer.
 
-- [ ] `apps/docs/wrangler.jsonc` exists with `name: "zeno-docs"`, `main: ".open-next/worker.js"`, `compatibility_flags` containing `"nodejs_compat"`, and the maintainer's account ID.
-- [ ] `apps/docs/open-next.config.ts` exists and exports `defineCloudflareConfig()` (default config, no custom incremental cache).
-- [ ] `apps/docs/.gitignore` excludes `.open-next/` (build artifact) and `.dev.vars` (local secrets).
-- [ ] `apps/docs/package.json` declares `@opennextjs/cloudflare` and `wrangler` as devDependencies pinned to versions compatible with `next@16.2.6` and adds `deploy` + `preview` scripts that delegate to `opennextjs-cloudflare`.
-- [ ] `pnpm install` from a clean repo resolves without `@zeno/docs`-attributed peer warnings.
-- [ ] `pnpm --filter @zeno/docs exec opennextjs-cloudflare build` exits zero locally and produces `.open-next/worker.js` + `.open-next/assets/`.
-- [ ] `.github/workflows/deploy-docs.yml` exists with: trigger on push to `main` filtered to `apps/docs/**` plus lockfile + workflow file; `workflow_dispatch` for manual runs; concurrency group `deploy-docs` with `cancel-in-progress: false`; build + deploy step using `@opennextjs/cloudflare deploy` with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` env vars sourced from repo secrets.
-- [ ] `gh secret list` shows `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (already set in this session before the spec landed).
-- [ ] After merge, the deploy workflow finishes successfully (green check on `main`).
-- [ ] `curl -s https://zeno-docs.<account>.workers.dev/` returns HTTP 200 and the Welcome page HTML.
-- [ ] `curl -s https://zeno-docs.<account>.workers.dev/llms.txt` returns the same `# Zeno` markdown that `curl -s http://localhost:4242/llms.txt` does locally.
-- [ ] `curl -s 'https://zeno-docs.<account>.workers.dev/api/search?query=SUPERCALIFRAGILISTIC'` returns the `/configuration` page in `hits`.
-- [ ] No real identifiers (maintainer email, real names, etc.) appear in `wrangler.jsonc`, the workflow, or any committed file. Account ID is the only Cloudflare identifier shipped.
+- [x] `apps/docs/wrangler.jsonc` exists with `name: "zeno-docs"`, `main: ".open-next/worker.js"`, `compatibility_flags` containing `"nodejs_compat"`, and the maintainer's account ID.
+- [x] `apps/docs/open-next.config.ts` exists and exports `defineCloudflareConfig()` (default config, no custom incremental cache).
+- [x] `apps/docs/.gitignore` excludes `.open-next/` (build artifact) and `.dev.vars` (local secrets).
+- [x] `apps/docs/package.json` declares `@opennextjs/cloudflare` and `wrangler` as devDependencies pinned to versions compatible with `next@16.2.6` and adds `deploy` + `preview` scripts that delegate to `opennextjs-cloudflare`.
+- [x] `pnpm install` from a clean repo resolves without `@zeno/docs`-attributed peer warnings.
+- [x] `pnpm --filter @zeno/docs exec opennextjs-cloudflare build` exits zero locally and produces `.open-next/worker.js` + `.open-next/assets/`.
+- [x] `.github/workflows/deploy-docs.yml` exists with: trigger on push to `main` filtered to `apps/docs/**` plus lockfile + workflow file; `workflow_dispatch` for manual runs; concurrency group `deploy-docs` with `cancel-in-progress: false`; build + deploy step using `@opennextjs/cloudflare deploy` with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` env vars sourced from repo secrets.
+- [x] `gh secret list` shows `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (already set in this session before the spec landed).
+- [x] After merge, the deploy workflow finishes successfully (green check on `main`).
+- [x] `curl -s https://zeno-docs.<account>.workers.dev/` returns HTTP 200 and the Welcome page HTML.
+- [x] `curl -s https://zeno-docs.<account>.workers.dev/llms.txt` returns the same `# Zeno` markdown that `curl -s http://localhost:4242/llms.txt` does locally.
+- [x] `curl -s 'https://zeno-docs.<account>.workers.dev/api/search?query=SUPERCALIFRAGILISTIC'` returns the `/configuration` page in `hits`.
+- [x] No real identifiers (maintainer email, real names, etc.) appear in `wrangler.jsonc`, the workflow, or any committed file. Account ID is the only Cloudflare identifier shipped.
 
 ## Risks and Mitigations
 

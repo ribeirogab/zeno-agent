@@ -86,6 +86,7 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/fumadocs-css-override-needs-id-specificity|Overriding Fumadocs theme tokens needs ID-level specificity]] — `neutral.css` re-binds tokens under `.dark #nd-sidebar`; `:root, .dark` overrides lose; use the same ids and `[data-active='true']` for active states.
 - [[../learnings/fumadocs-mdx-source-postinstall|`fumadocs-mdx` needs a postinstall hook to materialize `.source/`]] — required scripts: `postinstall`, `predev`, `prebuild`. Import from `.source/server`, cast to `DocsCollectionEntry`.
 - [[../learnings/tanstack-router-pretypecheck-regen|Dashboard `tsr generate` not wired to typecheck]] — `route-tree.gen.ts` is gitignored and needs a Vite build before `tsc --noEmit` works; fresh worktrees fail `quality-gate` until then.
+- [[../learnings/fumadocs-gettext-raw-breaks-on-workers|Fumadocs `getText('raw')` reads from disk — breaks on Cloudflare Workers]] — switch to `'processed'` + enable `postprocess.includeProcessedMarkdown` in `source.config.ts`; otherwise `/llms.mdx/<slug>` 500s in production.
 
 ## `#meta` — Workflow and process
 

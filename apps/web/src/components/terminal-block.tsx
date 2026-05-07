@@ -1,3 +1,5 @@
+import { useCallback, useState } from 'react';
+
 type TerminalBlockProps = {
   tab: string;
   meta?: string;
@@ -13,13 +15,30 @@ const dotStyle: React.CSSProperties = {
 };
 
 // macOS-style terminal panel with a single tab + comment line + prompt.
-// Used in <QuickStartSection> as the install moment.
+// The header carries an optional meta string and a copy button that
+// writes `command` to the clipboard (graceful no-op when the API is
+// missing). Used in <QuickStartSection> as the install moment.
 export function TerminalBlock({ tab, meta, comment, command }: TerminalBlockProps) {
+  const [copied, setCopied] = useState(false);
+
+  const onCopy = useCallback(() => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) return;
+    void navigator.clipboard.writeText(command).then(
+      () => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1800);
+      },
+      () => {
+        // Clipboard write rejected (insecure context, permission, etc.).
+        // Stay silent — the visible command is still copyable manually.
+      },
+    );
+  }, [command]);
+
   return (
     <div
       style={{
         width: '100%',
-        maxWidth: '1040px',
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: 'var(--color-panel)',
@@ -72,6 +91,60 @@ export function TerminalBlock({ tab, meta, comment, command }: TerminalBlockProp
             {meta}
           </span>
         ) : null}
+        <button
+          type="button"
+          onClick={onCopy}
+          aria-label="Copy install command to clipboard"
+          data-terminal-copy=""
+          style={{
+            marginLeft: 'auto',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 10px',
+            border: '1px solid var(--color-border-strong)',
+            backgroundColor: 'transparent',
+            color: copied ? 'var(--color-gold)' : 'var(--color-text-secondary)',
+            borderRadius: '4px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '11px',
+            fontWeight: 500,
+            letterSpacing: '0.04em',
+            cursor: 'pointer',
+          }}
+        >
+          {copied ? (
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          ) : (
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="9" y="9" width="13" height="13" rx="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          )}
+          {copied ? 'copied' : 'copy'}
+        </button>
       </div>
       <div
         style={{

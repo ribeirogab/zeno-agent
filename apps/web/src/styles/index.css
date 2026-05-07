@@ -76,6 +76,19 @@ a {
   background-color: rgba(217, 179, 98, 0.1);
 }
 
+/* Terminal copy button hover. */
+[data-terminal-copy] {
+  transition:
+    color 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+[data-terminal-copy]:hover {
+  color: var(--color-gold);
+  border-color: var(--color-gold-line);
+  background-color: rgba(217, 179, 98, 0.06);
+}
+
 /* Footer link hover. */
 [data-footer-link] {
   transition: color 180ms cubic-bezier(0.2, 0.8, 0.2, 1);

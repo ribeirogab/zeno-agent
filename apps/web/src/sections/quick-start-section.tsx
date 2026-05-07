@@ -12,7 +12,6 @@ export function QuickStartSection() {
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
         gap: '20px',
         padding: '32px 192px 64px',
         backgroundImage:
@@ -27,14 +26,12 @@ export function QuickStartSection() {
           lineHeight: '28px',
           color: 'var(--color-text-primary)',
           margin: 0,
-          alignSelf: 'flex-start',
         }}
       >
         <span style={{ color: 'var(--color-gold)' }}>›</span> Quick Start
       </h2>
       <TerminalBlock
         tab="one-liner"
-        meta="macOS · Linux · WSL2"
         comment="# Clones to ~/zeno-agent and installs the `zeno` CLI to ~/.local/bin"
         command={INSTALL_CMD}
       />
@@ -45,7 +42,6 @@ export function QuickStartSection() {
           lineHeight: '20px',
           color: 'var(--color-text-secondary)',
           margin: 0,
-          alignSelf: 'flex-start',
           maxWidth: '80ch',
         }}
       >

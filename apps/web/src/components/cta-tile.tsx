@@ -15,6 +15,7 @@ export function CTATile({ href, icon, title, caption }: CTATileProps) {
   return (
     <a
       href={href}
+      data-cta-tile=""
       style={{
         flex: 1,
         minWidth: 0,
@@ -30,6 +31,7 @@ export function CTATile({ href, icon, title, caption }: CTATileProps) {
       }}
     >
       <div
+        data-cta-icon=""
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -39,6 +41,8 @@ export function CTATile({ href, icon, title, caption }: CTATileProps) {
           borderRadius: '4px',
           backgroundColor: 'var(--color-panel-2)',
           border: '1px solid var(--color-border-strong)',
+          transition:
+            'border-color 180ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 180ms cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
       >
         {icon}

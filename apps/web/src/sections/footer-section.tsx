@@ -32,13 +32,13 @@ export function FooterSection() {
       <FooterRule />
       <ZenoCrest size={28} />
       <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-        <a href={GITHUB_URL} style={linkStyle}>
+        <a href={GITHUB_URL} data-footer-link="" style={linkStyle}>
           GitHub
         </a>
-        <a href={ROADMAP_URL} style={linkStyle}>
+        <a href={ROADMAP_URL} data-footer-link="" style={linkStyle}>
           Roadmap
         </a>
-        <a href={LICENSE_URL} style={linkStyle}>
+        <a href={LICENSE_URL} data-footer-link="" style={linkStyle}>
           License
         </a>
       </div>

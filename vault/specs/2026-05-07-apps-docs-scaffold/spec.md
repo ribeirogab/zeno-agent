@@ -84,7 +84,7 @@ Each item is a binary check verifiable in under a minute by someone other than t
 - [ ] `curl -s http://localhost:4242/llms.txt` returns `text/plain` markdown that contains the literal token `# Zeno`, a blockquote line, and a link entry for each of the three pages with title, URL, and description.
 - [ ] `curl -s http://localhost:4242/llms-full.txt` returns `text/plain` markdown containing the full body text of all three pages, separated by `---` rules.
 - [ ] `curl -s http://localhost:4242/llms.mdx/hello` returns `text/markdown` with the raw MDX body of `hello.mdx`. Requesting a non-existent slug returns HTTP 404.
-- [ ] Each docs page renders a "Copy as markdown" button. Clicking it copies the response body of `/llms.mdx/<slug>` to the clipboard and shows visible feedback (toast or inline state change).
+- [ ] Each docs page renders a "Copy Markdown" button (Fumadocs UI's built-in `MarkdownCopyButton`, supplied since v16). Clicking it copies the response body of `/llms.mdx/<slug>` to the clipboard and shows visible feedback (toast or inline state change).
 - [ ] Pagefind search is functional: typing a term that appears only in `configuration.mdx` returns that page in the search results.
 - [ ] `<html>` carries the `dark` class. `getComputedStyle(document.body).backgroundColor` evaluates to `rgb(8, 9, 15)` (i.e. `#08090F`); CSS variable `--color-fd-primary` resolves to `#d9b362`.
 - [ ] DevTools Network panel shows zero requests to external domains (no `fonts.googleapis.com`, no `fonts.gstatic.com`, no Algolia, no third-party CDN) on cold load of `/`.
@@ -93,7 +93,7 @@ Each item is a binary check verifiable in under a minute by someone other than t
 - [ ] `pnpm run quality-gate` exits zero with `apps/docs/` included.
 - [ ] `apps/docs/turbo.json` exists and overrides the `build` task's `outputs` to `[".next/**", "!.next/cache/**"]`. The root `turbo.json` is unchanged. Running `pnpm turbo build --filter @zeno/docs` twice in succession yields a `>>> FULL TURBO` cache hit on the second run.
 - [ ] A page authored without a `description` field in its frontmatter is excluded from `/llms.txt` but still appears in `/llms-full.txt`. (Verify by adding a temporary fourth MDX page with only `title` and confirming the discrepancy.)
-- [ ] A unit test under `apps/docs/src/components/CopyMarkdownButton.test.tsx` exercises the fetch-then-clipboard path and is executed by `pnpm --filter @zeno/docs test`.
+- [ ] `pnpm --filter @zeno/docs test` exits 0. The MVP ships with no custom `CopyMarkdownButton` component (Fumadocs UI v16's built-in `MarkdownCopyButton` covers the AC above), so there is no `CopyMarkdownButton.test.tsx` to run; `vitest run --passWithNoTests` enforces a clean exit while the workspace has zero spec files. When real custom components land in a follow-up spec, they ship with co-located vitest specs.
 - [ ] `vault/specs/2026-04-23-documentation-platform/spec-documentation-platform.md` has its frontmatter `status` field updated to `superseded` with a wikilink reference to this spec, so the vault holds only one active draft on the topic.
 
 ## Risks and Mitigations

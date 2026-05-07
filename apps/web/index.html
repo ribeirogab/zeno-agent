@@ -3,11 +3,95 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Primary meta -->
     <title>Zeno — Personal agent that gets the work done</title>
-    <meta name="description" content="Self-hosted, single-user agent that operates across the apps you already use — Slack, GitHub, Linear — by composing the connectors you install." />
+    <meta
+      name="description"
+      content="Zeno — Self-hosted, single-user agent that operates across the apps you already use — Slack, GitHub, Linear — by composing the connectors you install."
+    />
+    <meta name="author" content="ribeirogab" />
+    <meta
+      name="keywords"
+      content="zeno, agent, ai, mcp, slack, github, linear, claude, self-hosted, open source, personal agent"
+    />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#08090F" />
+    <meta name="robots" content="index, follow" />
+
+    <!--
+      SEO URL (canonical, og:url, og:image, twitter:image) is hardcoded to
+      `https://zeno-agent.dev` as a placeholder until the landing is hosted
+      at a real domain. Swap once the hosting decision lands (one-line edit
+      across canonical, og:url, og:image, twitter:image).
+    -->
+    <link rel="canonical" href="https://zeno-agent.dev/" />
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Zeno" />
+    <meta property="og:title" content="Zeno — Personal agent that gets the work done" />
+    <meta
+      property="og:description"
+      content="Self-hosted, single-user agent that operates across the apps you already use. Composes the connectors you install."
+    />
+    <meta property="og:url" content="https://zeno-agent.dev/" />
+    <meta property="og:image" content="https://zeno-agent.dev/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
+    <meta
+      property="og:image:alt"
+      content="Zeno — Personal agent that gets the work done. Self-hosted, single-user, MCP-driven."
+    />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Zeno — Personal agent that gets the work done" />
+    <meta
+      name="twitter:description"
+      content="Self-hosted, single-user agent that operates across the apps you already use. Composes the connectors you install."
+    />
+    <meta name="twitter:image" content="https://zeno-agent.dev/og-image.png" />
+    <meta
+      name="twitter:image:alt"
+      content="Zeno — Personal agent that gets the work done."
+    />
+
+    <!-- Structured data: SoftwareApplication -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Zeno",
+        "description": "Self-hosted, single-user agent that operates across the apps you already use — Slack, GitHub, Linear — by composing the connectors you install.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "macOS, Linux, WSL2",
+        "url": "https://github.com/ribeirogab/zeno-agent",
+        "license": "https://github.com/ribeirogab/zeno-agent/blob/main/LICENSE",
+        "codeRepository": "https://github.com/ribeirogab/zeno-agent",
+        "author": {
+          "@type": "Person",
+          "name": "ribeirogab",
+          "url": "https://github.com/ribeirogab"
+        },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,100..900&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,100..900&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div id="root"></div>

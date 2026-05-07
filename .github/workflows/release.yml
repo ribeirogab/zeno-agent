@@ -98,7 +98,7 @@ jobs:
             fi
           fi
           if [ "$UPDATE_README" = "true" ]; then
-            sed -i "s|raw\.githubusercontent\.com/ribeirogab/zeno-agent/[^/]*/infra/install\.sh|raw.githubusercontent.com/ribeirogab/zeno-agent/$TAG/infra/install.sh|g" README.md
+            sed -i "s|raw\.githubusercontent\.com/ribeirogab/zeno-agent/[^/]*/install\.sh|raw.githubusercontent.com/ribeirogab/zeno-agent/$TAG/install.sh|g" README.md
             git add README.md
           fi
 

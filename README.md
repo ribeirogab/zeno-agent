@@ -24,10 +24,10 @@ Prerequisites:
 ### Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ribeirogab/zeno-agent/v2026.5.7-3/infra/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ribeirogab/zeno-agent/v2026.5.7-3/install.sh | sh
 ```
 
-Clones the repo to `~/.zeno/zeno-agent/`, builds the `zeno` CLI, and symlinks it to `~/.local/bin/zeno`. The clone path is fixed (no `ZENO_HOME` override). Source: [`infra/install.sh`](./infra/install.sh).
+Clones the repo to `~/.zeno/zeno-agent/`, builds the `zeno` CLI, and symlinks it to `~/.local/bin/zeno`. The clone path is fixed (no `ZENO_HOME` override). Source: [`install.sh`](./install.sh).
 
 ### Create a profile
 
@@ -86,7 +86,8 @@ packages/    @zeno/db (host SQLite), @zeno/storage (runtime SQLite), @zeno/logge
              @zeno/ui, @zeno/github-app, @zeno/mcp-discover
 agent/       SOUL.md, mcp.json, connectors-catalog.json (committed identity)
 templates/   profile/ — read-only scaffolds the CLI uses on profile create
-infra/       Dockerfile, install.sh, entrypoint, slack-app-manifest.json
+infra/       Dockerfile, entrypoint, slack-app-manifest.json
+install.sh   one-shot installer (curl-pipe target)
 vault/       constitution + specs + learnings + conventions + rules
 ~/.zeno/     (off-repo) zeno-agent clone, state.db, profiles/<name>/
 ```

@@ -1,6 +1,13 @@
 // Real Orchestrator implementation backed by `dockerode` against the local
 // Docker socket. Kept as a thin adapter; behavior is enforced by spec ACs.
+//
+// Image builds spawn the `docker` CLI as a subprocess (not dockerode's
+// buildImage) because the CLI honors `.dockerignore` by default — the
+// dockerode HTTP API does not, and would tar the host's `node_modules/`
+// into the build context, overwriting the multi-stage builder's
+// linux-arch native binaries with the host's macOS Mach-O ones.
 
+import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import Docker from 'dockerode';
 import type { BuildOpts, ContainerInfo, ContainerSpec, LogStream, Orchestrator } from './types.js';
@@ -31,21 +38,29 @@ export class DockerOrchestrator implements Orchestrator {
   }
 
   async buildImage(opts: BuildOpts): Promise<void> {
-    const stream = await this.docker.buildImage(
-      { context: opts.context, src: ['.'] },
-      { t: opts.tag, dockerfile: opts.dockerfile },
-    );
-    await new Promise<void>((resolve, reject) => {
-      this.docker.modem.followProgress(
-        stream,
-        (err: Error | null) => (err ? reject(err) : resolve()),
-        (event: { stream?: string; status?: string }) => {
-          if (opts.onProgress) {
-            const line = event.stream ?? event.status;
-            if (line) opts.onProgress(line.trimEnd());
-          }
-        },
+    return new Promise<void>((resolve, reject) => {
+      const child = spawn(
+        'docker',
+        ['build', '-t', opts.tag, '-f', opts.dockerfile, opts.context],
+        { stdio: ['ignore', 'pipe', 'pipe'] },
       );
+      let stderr = '';
+      const onLine = (chunk: Buffer) => {
+        const text = chunk.toString('utf8');
+        stderr += text;
+        if (opts.onProgress) {
+          for (const line of text.split('\n')) {
+            if (line.trim()) opts.onProgress(line.trimEnd());
+          }
+        }
+      };
+      child.stdout.on('data', onLine);
+      child.stderr.on('data', onLine);
+      child.on('error', reject);
+      child.on('exit', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`docker build exited ${code}\n${stderr.slice(-2000)}`));
+      });
     });
   }
 

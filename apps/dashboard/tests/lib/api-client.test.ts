@@ -24,4 +24,38 @@ describe('apiFetch', () => {
     );
     await expect(apiFetch('/api/test')).rejects.toBeInstanceOf(ApiError);
   });
+
+  it('attaches X-CSRF-Token header on POST when zeno_csrf cookie is set', async () => {
+    Object.defineProperty(document, 'cookie', {
+      configurable: true,
+      get: () => 'zeno_csrf=abc123; other=foo',
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await apiFetch('/api/test', { method: 'POST' });
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers['X-CSRF-Token']).toBe('abc123');
+  });
+
+  it('does not attach X-CSRF-Token on GET', async () => {
+    Object.defineProperty(document, 'cookie', {
+      configurable: true,
+      get: () => 'zeno_csrf=abc123',
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await apiFetch('/api/test');
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers['X-CSRF-Token']).toBeUndefined();
+  });
 });

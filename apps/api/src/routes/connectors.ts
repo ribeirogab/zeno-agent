@@ -203,6 +203,10 @@ const createCatalogSchema = z.object({
   source: z.literal('catalog'),
   catalogId: z.string(),
   secrets: z.array(apiSecretSchema),
+  /** Spec 2026-05-08-connectors-cli-first-design Q4: optional operator-supplied
+   * label distinguishing instances of the same catalog entry (e.g. multiple Linear
+   * workspaces). Drives slug derivation when present. */
+  instanceLabel: z.string().min(1).optional(),
   /** Spec 0057: optional discriminator. Defaults to 'mcp'. When 'channel', the install handler resolves the catalog entry from channels-catalog.json (NOT connectors-catalog.json) and synthesizes channel-specific defaults (transport='remote', tools=[]) into the enqueued payload. */
   kind: z.enum(['mcp', 'channel']).optional().default('mcp'),
 });
@@ -225,6 +229,9 @@ const createCustomSchema = z.object({
       }),
     )
     .optional(),
+  /** Spec 2026-05-08-connectors-cli-first-design Q4: optional operator-supplied
+   * label distinguishing instances. Drives slug derivation when present. */
+  instanceLabel: z.string().min(1).optional(),
   /** Spec 0057: included for symmetry, but channels only support source='catalog'. The install handler returns 400 channel_must_be_catalog_source if a custom + channel combo is requested. */
   kind: z.enum(['mcp', 'channel']).optional().default('mcp'),
 });
@@ -238,6 +245,9 @@ const patchSchema = z.object({
   args: z.array(z.string()).nullable().optional(),
   url: z.string().nullable().optional(),
   secrets: z.array(apiSecretSchema).optional(),
+  /** Spec 2026-05-08-connectors-cli-first-design Q4: operators can rename or
+   * clear the per-instance label after install. */
+  instanceLabel: z.string().min(1).nullable().optional(),
   // Spec 0051: M11's `envVar` field removed (operator-picked envVar customization dropped).
 });
 
@@ -905,12 +915,16 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
             return c.json({ error: 'missing_required_secret', key: sec.key }, 400);
           }
         }
+        // Spec 2026-05-08-connectors-cli-first-design: channels are stricter —
+        // ignore any operator-supplied instanceLabel and force null so DB rows
+        // for slack/etc. don't carry per-instance labels.
         const slug = resolveSlugCollision(deps.connectors, channelEntry.id);
         payload = {
           source: 'catalog',
           catalogId: channelEntry.id,
           slug,
           displayName: channelEntry.name,
+          instanceLabel: null,
           description: channelEntry.description,
           transport: 'remote', // placeholder per spec 0057 (channel rows don't spawn MCP servers)
           command: null,
@@ -924,14 +938,20 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         const entry = findCatalogEntry(body.catalogId);
         if (!entry) return c.json({ error: 'catalog_entry_not_found' }, 404);
         // Use the catalog id as the slug; it's already kebab-case + unique within the catalog.
-        // If the operator already installed this catalog entry (or a custom connector grabbed the slug),
-        // resolve a collision suffix.
-        const slug = resolveSlugCollision(deps.connectors, entry.id);
+        // Spec 2026-05-08-connectors-cli-first-design Q4: when the operator
+        // supplies an instanceLabel (multiple Linear workspaces, etc.), kebab
+        // it onto the slug base BEFORE collision resolution so the resulting
+        // slug is human-readable (e.g. linear-acme-workspace) and only falls
+        // back to numeric -2/-3 suffixes when two installs share a label.
+        const slug = body.instanceLabel
+          ? resolveSlugCollision(deps.connectors, `${entry.id}-${kebabLower(body.instanceLabel)}`)
+          : resolveSlugCollision(deps.connectors, entry.id);
         payload = {
           source: 'catalog',
           catalogId: entry.id,
           slug,
           displayName: entry.name,
+          instanceLabel: body.instanceLabel ?? null,
           description: entry.description,
           transport: entry.transport,
           command: entry.transportConfig.command ?? null,
@@ -948,11 +968,19 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         };
       }
     } else {
-      const slug = resolveSlugCollision(deps.connectors, slugify(body.displayName));
+      // Spec 2026-05-08-connectors-cli-first-design Q4: custom connectors also
+      // accept an optional label; when provided, append the kebab-cased label
+      // to the slug base so two custom connectors with the same displayName
+      // but different labels get distinguishable slugs without numeric suffixes.
+      const slugBase = body.instanceLabel
+        ? `${slugify(body.displayName)}-${kebabLower(body.instanceLabel)}`
+        : slugify(body.displayName);
+      const slug = resolveSlugCollision(deps.connectors, slugBase);
       payload = {
         source: 'custom',
         slug,
         displayName: body.displayName,
+        instanceLabel: body.instanceLabel ?? null,
         transport: body.transport,
         command: body.command ?? null,
         args: body.args ?? null,

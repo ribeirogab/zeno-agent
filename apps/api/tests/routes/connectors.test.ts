@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import {
   CommandRepo,
   ConnectorRepo,
@@ -8,9 +9,18 @@ import {
   type RuntimeDB,
   runRuntimeMigrations,
 } from '@zeno/db/runtime';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '@/server';
 import { csrfHeaders } from '../csrf-helper';
+
+// Spec 2026-05-08-connectors-cli-first-design: chdir to worktree root so
+// AGENT_CANDIDATES = ['/app/agent', 'agent'] resolves the connectors catalog.
+// Without this, vitest runs from apps/api/ and POST /api/connectors with
+// source: 'catalog' returns 500 instead of enqueuing the command.
+const ORIGINAL_CWD = process.cwd();
+const WORKTREE_ROOT = resolve(__dirname, '../../../..');
+beforeAll(() => process.chdir(WORKTREE_ROOT));
+afterAll(() => process.chdir(ORIGINAL_CWD));
 
 let opened: ReturnType<typeof openRuntimeDatabase>;
 let db: RuntimeDB;
@@ -276,6 +286,39 @@ describe('POST /api/connectors (catalog) enqueues a command', () => {
     });
     // Either 404 (catalog entry not found) or 500 (catalog file unavailable in tests).
     expect([404, 500]).toContain(res.status);
+  });
+
+  // Spec 2026-05-08-connectors-cli-first-design Q4 (separate field) + Q5
+  // (counter visible): operator-supplied label flows from the API into the
+  // enqueued connector_create payload AND drives slug derivation.
+  it('forwards instanceLabel into the queued connector_create payload', async () => {
+    const res = await makeApp(db).request('/api/connectors', {
+      method: 'POST',
+      headers: { ...csrfHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        source: 'catalog',
+        catalogId: 'linear',
+        instanceLabel: 'Acme workspace',
+        secrets: [{ key: 'LINEAR_API_KEY', value: 'lin_test_xyz' }],
+      }),
+    });
+    expect(res.status).toBe(204);
+
+    const rows = opened.raw
+      .prepare(
+        "SELECT type, payload FROM commands WHERE type = 'connector_create' ORDER BY rowid DESC LIMIT 1",
+      )
+      .all() as Array<{ type: string; payload: string }>;
+    expect(rows.length).toBe(1);
+    const payload = JSON.parse(rows[0]!.payload) as {
+      catalogId: string;
+      slug: string;
+      instanceLabel: string | null;
+    };
+    expect(payload.catalogId).toBe('linear');
+    expect(payload.instanceLabel).toBe('Acme workspace');
+    // Slug is kebab-cased from "linear" + the operator label.
+    expect(payload.slug).toBe('linear-acme-workspace');
   });
 });
 

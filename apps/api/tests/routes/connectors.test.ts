@@ -45,6 +45,7 @@ function makeApp(database: RuntimeDB) {
     }),
     claudeHome: '/tmp',
     profileDir: '/tmp',
+    writes: 'dashboard',
   });
 }
 

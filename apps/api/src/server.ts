@@ -98,6 +98,9 @@ export function createApp(deps: AppDeps): Hono {
   // (double-submit cookie) covers mutating routes; reads are open.
   app.use('*', csrf({ secure }));
 
+  // Resolve the write-mode once so all routes see the same value.
+  const writes = deps.writes ?? parseApiWriteMode(process.env.ZENO_API_WRITES);
+
   app.route('/api/health', buildHealthRoute(deps.db));
   app.route(
     '/api/stats',
@@ -154,6 +157,7 @@ export function createApp(deps: AppDeps): Hono {
         connectors: deps.connectorRepo,
         commands: deps.commandRepo,
         ...(deps.connectorAppRepo ? { connectorApps: deps.connectorAppRepo } : {}),
+        writes,
       }),
     );
   }
@@ -209,7 +213,6 @@ export function createApp(deps: AppDeps): Hono {
       }),
     );
   }
-  const writes = deps.writes ?? parseApiWriteMode(process.env.ZENO_API_WRITES);
   app.route('/api/mode', buildModeRoute({ writes }));
   if (deps.spaDir) {
     app.get('*', serveStaticSpa(deps.spaDir));

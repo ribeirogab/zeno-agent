@@ -57,6 +57,7 @@ function makeApp(database: RuntimeDB) {
     claudeHome: '/tmp',
     profileDir: '/tmp',
     channelsCatalog: loadChannelsCatalog(),
+    writes: 'dashboard',
   });
 }
 

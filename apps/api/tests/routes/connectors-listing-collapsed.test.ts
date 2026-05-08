@@ -63,6 +63,7 @@ function makeApp() {
     connectorAppRepo: new ConnectorAppRepo(db),
     claudeHome: '/tmp',
     profileDir: '/tmp',
+    writes: 'dashboard',
   });
 }
 

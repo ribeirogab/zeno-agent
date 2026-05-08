@@ -29,8 +29,9 @@ import {
   signAppJwt,
 } from '@zeno/github-app';
 import { discoverTools } from '@zeno/mcp-discover';
-import { Hono } from 'hono';
+import { type Context, Hono } from 'hono';
 import { z } from 'zod';
+import type { ApiWriteMode } from '@/lib/api-mode';
 import {
   type CatalogEntry,
   CatalogReadError,
@@ -257,11 +258,20 @@ export interface ConnectorsRouteDeps {
   /** Spec 0044: optional ConnectorApp repo enables /catalog/github-app/* endpoints. */
   connectorApps?: ConnectorAppRepo;
   rateLimiter?: SecretRateLimiter;
+  /** Spec 2026-05-08-connectors-cli-first-design: gates all mutating endpoints.
+   *  When 'cli', mutations return 403 mode_cli_only with the equivalent
+   *  `zeno connector ...` command. GET reads stay open in either mode. */
+  writes: ApiWriteMode;
 }
 
 export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   const route = new Hono();
   const rateLimiter = deps.rateLimiter ?? new SecretRateLimiter();
+
+  // Mutation gate. Returns 403 with the equivalent CLI command when the API
+  // is in CLI-only mode. Each route checks this before any DB work.
+  const blockIfCli = (action: string, cli: string) => (c: Context) =>
+    c.json({ error: 'mode_cli_only', action, cli }, 403);
 
   // ── STATIC PATHS FIRST (avoid :id collisions) ──
 
@@ -435,6 +445,12 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   });
 
   route.post('/catalog/github-app/install', zValidator('json', githubAppTestSchema), async (c) => {
+    if (deps.writes === 'cli') {
+      return blockIfCli(
+        'app_install',
+        'zeno connector app install --catalog github-app --app-id <id> --pem-file <path>',
+      )(c);
+    }
     if (!deps.connectorApps) {
       return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
     }
@@ -565,6 +581,12 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     '/catalog/github-app/installations',
     zValidator('json', addInstallationSchema),
     (c) => {
+      if (deps.writes === 'cli') {
+        return blockIfCli(
+          'app_installation_add',
+          'zeno connector app installations add --installation-id <id> --label "<label>"',
+        )(c);
+      }
       if (!deps.connectorApps) {
         return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
       }
@@ -635,6 +657,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // the type-to-confirm gesture, not the numeric App ID.
   const uninstallAppSchema = z.object({ confirmAppName: z.string().min(1) });
   route.post('/catalog/github-app/uninstall-app', zValidator('json', uninstallAppSchema), (c) => {
+    if (deps.writes === 'cli') {
+      return blockIfCli('app_uninstall', 'zeno connector app uninstall --confirm "<app-name>"')(c);
+    }
     if (!deps.connectorApps) {
       return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
     }
@@ -673,6 +698,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // POST /catalog/:id/test (resolves transportConfig server-side; for catalog installs)
   // MUST be registered AFTER the github-app static routes above.
   route.post('/catalog/:id/test', async (c) => {
+    if (deps.writes === 'cli') {
+      return blockIfCli('test_transient', 'zeno connector test <catalog-id>')(c);
+    }
     const id = c.req.param('id');
     const entry = findCatalogEntry(id);
     if (!entry) return c.json({ error: 'catalog_entry_not_found' }, 404);
@@ -722,6 +750,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // POST /test (transient — not yet saved)
   route.post('/test', zValidator('json', testConnectionSchema), async (c) => {
+    if (deps.writes === 'cli') {
+      return blockIfCli('test_transient', 'zeno connector test <catalog-id>')(c);
+    }
     const body = c.req.valid('json');
     const transient: Connector = {
       id: 'transient',
@@ -832,6 +863,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // POST / (create — enqueues command)
   route.post('/', zValidator('json', createSchema), (c) => {
+    if (deps.writes === 'cli') {
+      return blockIfCli('install', 'zeno connector install <catalog-id> --label "<label>"')(c);
+    }
     const body = c.req.valid('json');
 
     // Spec 0057: validate kind+source combination upfront. Channels are
@@ -1021,6 +1055,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // POST /:id/test (installed connector — persists outcome)
   route.post('/:id/test', async (c) => {
+    if (deps.writes === 'cli') {
+      return blockIfCli('test', 'zeno connector test <slug>')(c);
+    }
     const id = c.req.param('id');
     const connector = deps.connectors.get(id);
     if (!connector) return c.json({ error: 'not_found' }, 404);
@@ -1059,6 +1096,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // Spec 0051: M11 envVar translation block + R3 F1 collision check removed
   // alongside the operator-picked envVar field.
   route.patch('/:id', zValidator('json', patchSchema), (c) => {
+    if (deps.writes === 'cli') {
+      return blockIfCli('update', 'zeno connector secret set <slug> <key>')(c);
+    }
     const id = c.req.param('id');
     const connector = deps.connectors.get(id);
     if (!connector) return c.json({ error: 'not_found' }, 404);
@@ -1073,6 +1113,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // PATCH /:id/toggle (direct write)
   route.patch('/:id/toggle', (c) => {
+    if (deps.writes === 'cli') {
+      return blockIfCli('enable_disable', 'zeno connector enable <slug>')(c);
+    }
     const id = c.req.param('id');
     const connector = deps.connectors.get(id);
     if (!connector) return c.json({ error: 'not_found' }, 404);
@@ -1086,6 +1129,12 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // PATCH /:id/tools/permissions/bulk (BEFORE /:id/tools/:toolName/permission)
   route.patch('/:id/tools/permissions/bulk', zValidator('json', bulkPermissionSchema), (c) => {
+    if (deps.writes === 'cli') {
+      return blockIfCli(
+        'tool_permission_bulk',
+        'zeno connector tool bulk <slug> --category <cat> --permission <perm>',
+      )(c);
+    }
     const id = c.req.param('id');
     if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
     const { category, permission } = c.req.valid('json');
@@ -1099,6 +1148,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // PATCH /:id/tools/:toolName/permission
   route.patch('/:id/tools/:toolName/permission', zValidator('json', permissionSchema), (c) => {
+    if (deps.writes === 'cli') {
+      return blockIfCli('tool_permission', 'zeno connector tool set <slug> <tool> <permission>')(c);
+    }
     const id = c.req.param('id');
     const toolName = c.req.param('toolName');
     if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
@@ -1110,6 +1162,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // POST /:id/refresh-tools (enqueues command)
   route.post('/:id/refresh-tools', (c) => {
+    if (deps.writes === 'cli') {
+      return blockIfCli('refresh_tools', 'zeno connector refresh-tools <slug>')(c);
+    }
     const id = c.req.param('id');
     if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
     deps.commands.enqueue({
@@ -1122,6 +1177,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // DELETE /:id (enqueues uninstall)
   route.delete('/:id', (c) => {
+    if (deps.writes === 'cli') {
+      return blockIfCli('uninstall', 'zeno connector uninstall <slug> --yes')(c);
+    }
     const id = c.req.param('id');
     if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
     deps.commands.enqueue({
@@ -1133,7 +1191,12 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   });
 
   // GET /:id/secrets/:key/reveal (rate-limited + audited)
+  // Although HTTP-method GET, this endpoint has side effects (rate-limit
+  // counter + audit log) and exposes plaintext, so it is gated as a mutation.
   route.get('/:id/secrets/:key/reveal', (c) => {
+    if (deps.writes === 'cli') {
+      return blockIfCli('reveal_secret', 'zeno connector secret reveal <slug> <key>')(c);
+    }
     const id = c.req.param('id');
     const key = c.req.param('key');
     if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);

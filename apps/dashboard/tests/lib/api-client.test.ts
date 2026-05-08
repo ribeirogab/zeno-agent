@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ApiError, apiFetch } from '@/lib/api-client';
+import { ApiError, apiFetch, csrfHeaders } from '@/lib/api-client';
 
 describe('apiFetch', () => {
   it('returns parsed JSON on 200', async () => {
@@ -57,5 +57,35 @@ describe('apiFetch', () => {
     const init = fetchMock.mock.calls[0][1] as RequestInit;
     const headers = init.headers as Record<string, string>;
     expect(headers['X-CSRF-Token']).toBeUndefined();
+  });
+});
+
+describe('csrfHeaders', () => {
+  it('returns X-CSRF-Token for mutating methods when cookie is set', () => {
+    Object.defineProperty(document, 'cookie', {
+      configurable: true,
+      get: () => 'zeno_csrf=tok-1',
+    });
+    expect(csrfHeaders('POST')).toEqual({ 'X-CSRF-Token': 'tok-1' });
+    expect(csrfHeaders('put')).toEqual({ 'X-CSRF-Token': 'tok-1' });
+    expect(csrfHeaders('PATCH')).toEqual({ 'X-CSRF-Token': 'tok-1' });
+    expect(csrfHeaders('DELETE')).toEqual({ 'X-CSRF-Token': 'tok-1' });
+  });
+
+  it('returns empty object for safe methods', () => {
+    Object.defineProperty(document, 'cookie', {
+      configurable: true,
+      get: () => 'zeno_csrf=tok-1',
+    });
+    expect(csrfHeaders('GET')).toEqual({});
+    expect(csrfHeaders('HEAD')).toEqual({});
+  });
+
+  it('returns empty object when cookie is missing', () => {
+    Object.defineProperty(document, 'cookie', {
+      configurable: true,
+      get: () => 'other=foo',
+    });
+    expect(csrfHeaders('POST')).toEqual({});
   });
 });

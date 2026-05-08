@@ -25,6 +25,7 @@ import { buildActivityRoute } from '@/routes/activity';
 import { buildAgentCapabilitiesRoute } from '@/routes/agent-capabilities';
 import { buildBackendsRoute } from '@/routes/backends';
 import { buildChannelsRoute } from '@/routes/channels';
+import { buildCommandsRoute } from '@/routes/commands';
 import { buildConnectorSkillsRoute } from '@/routes/connector-skills';
 import { buildConnectorsRoute } from '@/routes/connectors';
 import { buildCronConnectorsRoute } from '@/routes/cron-connectors';
@@ -214,6 +215,7 @@ export function createApp(deps: AppDeps): Hono {
     );
   }
   app.route('/api/mode', buildModeRoute({ writes }));
+  app.route('/api/commands', buildCommandsRoute({ commands: deps.commandRepo }));
   if (deps.spaDir) {
     app.get('*', serveStaticSpa(deps.spaDir));
   }

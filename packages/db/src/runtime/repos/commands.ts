@@ -136,6 +136,15 @@ export class CommandRepo {
     return row ? rowToCommand(row) : null;
   }
 
+  findByCorrelationId(correlationId: string): Command | null {
+    const row = this.db
+      .select()
+      .from(commands)
+      .where(eq(commands.correlationId, correlationId))
+      .get();
+    return row ? rowToCommand(row) : null;
+  }
+
   recent(limit: number): Command[] {
     const rows = this.db
       .select()

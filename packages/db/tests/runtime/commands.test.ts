@@ -104,6 +104,25 @@ describe('CommandRepo.sweepStuck', () => {
   });
 });
 
+describe('CommandRepo.findByCorrelationId', () => {
+  it('returns the row with the given correlationId', () => {
+    const enqueued = repo.enqueue({
+      type: 'cron_pause',
+      payload: { id: '1' },
+      correlationId: 'corr-find-1',
+    });
+    const found = repo.findByCorrelationId('corr-find-1');
+    expect(found?.id).toBe(enqueued.id);
+    expect(found?.correlationId).toBe('corr-find-1');
+    expect(found?.type).toBe('cron_pause');
+  });
+
+  it('returns null when no row matches the correlationId', () => {
+    repo.enqueue({ type: 'cron_pause', correlationId: 'corr-other' });
+    expect(repo.findByCorrelationId('corr-missing')).toBeNull();
+  });
+});
+
 describe('CommandRepo.recent', () => {
   it('returns rows ordered by created_at desc', () => {
     const first = repo.enqueue({ type: 'cron_pause', correlationId: 'c1' });

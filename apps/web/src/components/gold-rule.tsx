@@ -10,6 +10,7 @@ type GoldRuleProps = {
 export function GoldRule({ children }: GoldRuleProps) {
   return (
     <div
+      data-gold-rule=""
       style={{
         flex: 1,
         display: 'flex',

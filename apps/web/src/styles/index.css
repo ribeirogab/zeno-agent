@@ -54,31 +54,12 @@ a {
   }
 }
 
-/* Bottom-CTA tile hover. */
-[data-cta-tile] {
-  transition:
-    border-color 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    background-color 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    box-shadow 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-[data-cta-tile]:hover {
-  border-color: var(--color-gold-line);
-  background-color: var(--color-panel-2);
-  box-shadow:
-    inset 0 1px 0 rgba(217, 179, 98, 0.45),
-    0 0 0 1px rgba(217, 179, 98, 0.18);
-}
-[data-cta-tile]:hover [data-cta-icon] {
-  border-color: var(--color-gold);
-  background-color: rgba(217, 179, 98, 0.1);
-}
-
 /* Terminal copy button hover. */
 [data-terminal-copy] {
   transition:
-    color 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    border-color 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    background-color 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    color 280ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 280ms cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 280ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 [data-terminal-copy]:hover {
   color: var(--color-gold);
@@ -86,11 +67,16 @@ a {
   background-color: rgba(217, 179, 98, 0.06);
 }
 
-/* Footer link hover. */
-[data-footer-link] {
-  transition: color 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+/* Standardized text-link primitive. Used by hero links + footer links.
+   Color owned here (NOT inline) so :hover wins over base. Icons inside
+   the link keep their inline fill/stroke (text-primary) and are not
+   affected by the color cascade because they declare it explicitly. */
+[data-text-link] {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: color 280ms cubic-bezier(0.4, 0, 0.2, 1);
 }
-[data-footer-link]:hover {
+[data-text-link]:hover {
   color: var(--color-gold);
 }
 
@@ -201,8 +187,14 @@ a {
     line-height: 24px !important;
   }
 
-  /* Terminal block: smaller padding, tighter font, header allowed
-     to wrap (already flex-wrap on the inline style). */
+  /* Terminal block on mobile. Layout intentionally stacks:
+       row 1: tab (`one-liner`)
+       row 2: OS selector
+       row 3: BETA toggle + copy button
+     The 3 traffic-light dots are hidden (decorative). The actions
+     wrapper uses display: contents so OS + BETA become direct flex
+     children of the header, which lets the OS toggle take its own
+     row via flex-basis: 100%. */
   [data-terminal-body] {
     padding: 16px !important;
   }
@@ -210,18 +202,57 @@ a {
   [data-terminal-body] span:first-of-type {
     font-size: 12px !important;
   }
+  [data-terminal-header] {
+    row-gap: 8px !important;
+    column-gap: 8px !important;
+    padding: 10px 12px !important;
+    align-items: center !important;
+  }
+  [data-terminal-header] > div:first-child {
+    display: none !important;
+  }
+  [data-terminal-header] [data-terminal-actions] {
+    display: contents !important;
+  }
+  /* tab fills its own row */
+  [data-terminal-header] > span:first-of-type {
+    flex-basis: 100% !important;
+  }
+  /* OS selector fills its own row */
+  [data-terminal-header] fieldset[aria-label="Operating system"] {
+    flex-basis: 100% !important;
+    margin-left: 0 !important;
+  }
+  /* BETA + copy share the third row, copy pushed to the right */
+  [data-terminal-header] [role="switch"] {
+    margin-left: 0 !important;
+  }
+  [data-terminal-copy] {
+    margin-left: auto !important;
+  }
 
-  /* Footer: stack vertically — crest above, links below. */
+  /* Footer: stack vertically + center on mobile (desktop unchanged). */
   footer[aria-label="footer"] {
     flex-direction: column !important;
-    align-items: flex-start !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
     gap: 16px !important;
     padding-top: 24px !important;
     padding-bottom: 24px !important;
   }
-  /* Footer link group wraps if needed. */
   footer[aria-label="footer"] > div {
     flex-wrap: wrap !important;
+    justify-content: center !important;
     gap: 16px !important;
+  }
+
+  /* Gold-rule callout (the EXPERIMENTAL block) — stack kicker above
+     body on mobile so the body has the full width to flow. */
+  [data-gold-rule] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+    padding: 12px 14px !important;
   }
 }

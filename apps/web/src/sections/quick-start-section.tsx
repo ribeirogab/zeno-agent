@@ -62,20 +62,19 @@ export function QuickStartSection() {
           lineHeight: '20px',
           color: 'var(--color-text-secondary)',
           margin: 0,
-          maxWidth: '80ch',
         }}
       >
-        Requires{' '}
-        <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
-          git
-        </code>
-        ,{' '}
-        <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
-          docker
-        </code>
-        , Node 24 LTS, pnpm 10, a Slack workspace where you can install a custom app, and a Claude
-        account on a Pro or Max plan.
+        Requires <code style={prereqCodeStyle}>git</code>,{' '}
+        <code style={prereqCodeStyle}>docker</code>,{' '}
+        <code style={prereqCodeStyle}>Node 24 LTS</code>,{' '}
+        <code style={prereqCodeStyle}>pnpm 10</code>, a Slack workspace where you can install a
+        custom app, and a Claude account on a Pro or Max plan.
       </p>
     </section>
   );
 }
+
+const prereqCodeStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-mono)',
+  color: 'var(--color-text-primary)',
+};

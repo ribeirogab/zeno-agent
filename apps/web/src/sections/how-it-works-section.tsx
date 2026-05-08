@@ -4,23 +4,23 @@ const NODES = [
   {
     kicker: 'channel',
     name: 'Slack',
-    caption: 'Inbound mention or DM via Socket Mode',
+    caption: 'Inbound mention or DM via Socket Mode.',
   },
   {
     kicker: 'core',
     name: 'Channel adapter',
-    caption: 'Normalizes the message, attaches USER.md context',
+    caption: 'Normalizes the message, attaches USER.md context.',
   },
   {
     kicker: 'backend',
-    name: 'Agent · Claude',
-    caption: 'Reasons over the request, decides which tools to call',
+    name: 'Agent',
+    caption: 'Reasons over the request, decides which tools to call.',
     highlighted: true,
   },
   {
     kicker: 'connectors',
     name: 'MCP servers',
-    caption: 'GitHub · Linear · Klaviyo · whatever you install',
+    caption: 'GitHub · Linear · Klaviyo · whatever you install.',
   },
 ] as const;
 
@@ -61,7 +61,6 @@ export function HowItWorksSection() {
             lineHeight: '22px',
             color: 'var(--color-text-secondary)',
             margin: 0,
-            maxWidth: '80ch',
           }}
         >
           A small core orchestrates pluggable parts. Adding a capability is always an installation,

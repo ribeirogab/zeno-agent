@@ -5,9 +5,11 @@ type DiagramNodeProps = {
   highlighted?: boolean;
 };
 
-// Single node in the connector-model diagram. Highlighted nodes get a
-// gold border + soft halo (used for "Agent · Claude" — the project's
-// brain). Unhighlighted nodes get a subtle gold top-edge inset shadow.
+// Single node in the connector-model diagram. Cards sit on canvas
+// inside a panel envelope (DiagramFlow draws the panel) — this gives
+// the layered, two-tone look that matches the install terminal.
+// Highlighted nodes get a gold border + soft halo (the agent slot —
+// today Claude, tomorrow whatever multi-backend ships).
 export function DiagramNode({ kicker, name, caption, highlighted = false }: DiagramNodeProps) {
   return (
     <div
@@ -20,12 +22,10 @@ export function DiagramNode({ kicker, name, caption, highlighted = false }: Diag
         padding: '18px',
         border: highlighted
           ? '1px solid var(--color-gold)'
-          : '1px solid var(--color-border-strong)',
-        backgroundColor: 'var(--color-panel-2)',
+          : '1px solid var(--color-border-subtle)',
+        backgroundColor: 'var(--color-canvas)',
         borderRadius: '4px',
-        boxShadow: highlighted
-          ? '0 0 0 1px rgba(217, 179, 98, 0.5), 0 0 24px rgba(217, 179, 98, 0.18)'
-          : 'inset 0 1px 0 rgba(217, 179, 98, 0.18)',
+        boxShadow: highlighted ? '0 0 24px rgba(217, 179, 98, 0.18)' : 'none',
       }}
     >
       <span
@@ -43,7 +43,7 @@ export function DiagramNode({ kicker, name, caption, highlighted = false }: Diag
       <span
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: '14px',
+          fontSize: '16px',
           fontWeight: 600,
           color: 'var(--color-text-primary)',
         }}
@@ -53,8 +53,8 @@ export function DiagramNode({ kicker, name, caption, highlighted = false }: Diag
       <span
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: '12px',
-          lineHeight: '18px',
+          fontSize: '13px',
+          lineHeight: '20px',
           color: 'var(--color-text-secondary)',
         }}
       >

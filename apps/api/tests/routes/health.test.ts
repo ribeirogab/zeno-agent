@@ -2,22 +2,24 @@ import {
   CommandRepo,
   CronRepo,
   CronRunRepo,
-  type DB,
   LogRepo,
-  openDatabase,
-  runMigrations,
-} from '@zeno/storage';
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '@/server';
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
 });
 
-function makeApp(database: DB) {
+function makeApp(database: RuntimeDB) {
   return createApp({
     config: {
       logLevel: 'info',
@@ -82,9 +84,11 @@ describe('GET /api/health', () => {
       schedule: '* * * * *',
       source: 'chat',
     });
-    db.prepare(
-      "INSERT INTO cron_runs (id, cron_id, started_at, status) VALUES (?, ?, datetime('now','-5 minutes'), 'success')",
-    ).run('r1', cron.id);
+    opened.raw
+      .prepare(
+        "INSERT INTO cron_runs (id, cron_id, started_at, status) VALUES (?, ?, datetime('now','-5 minutes'), 'success')",
+      )
+      .run('r1', cron.id);
     const res = await makeApp(db).request('/api/health');
     const body = (await res.json()) as { services: { runner: string } };
     expect(body.services.runner).toBe('stale');

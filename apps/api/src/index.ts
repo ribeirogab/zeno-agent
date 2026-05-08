@@ -3,7 +3,6 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
-import { createLogger } from '@zeno/logger';
 import {
   AgentCapabilityRepo,
   BackendCredentialsRepo,
@@ -16,12 +15,12 @@ import {
   CronRepo,
   CronRunRepo,
   CronSkillRepo,
-  closeDatabase,
   LogRepo,
-  openDatabase,
-  runMigrations,
+  openRuntimeDatabase,
+  runRuntimeMigrations,
   SkillRepo,
-} from '@zeno/storage';
+} from '@zeno/db/runtime';
+import { createLogger } from '@zeno/logger';
 import { loadApiConfig } from '@/config';
 import { loadChannelsCatalog } from '@/lib/channels-catalog-loader';
 import { createApp } from '@/server';
@@ -45,8 +44,9 @@ function main(): void {
   const config = loadApiConfig();
   bootLogger.info({ event: 'api_boot_start' }, 'api booting');
   const dbPath = join(config.workspaceDir, 'zeno.db');
-  const db = openDatabase(dbPath);
-  runMigrations(db);
+  const opened = openRuntimeDatabase(dbPath);
+  const db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   const cronRepo = new CronRepo(db);
   const cronRunRepo = new CronRunRepo(db);
   const commandRepo = new CommandRepo(db);
@@ -125,7 +125,7 @@ function main(): void {
   const shutdown = (signal: string): void => {
     logger.info({ event: 'api_shutdown', signal }, 'api shutting down');
     server.close();
-    closeDatabase(db);
+    opened.close();
     process.exit(0);
   };
   process.on('SIGINT', () => shutdown('SIGINT'));

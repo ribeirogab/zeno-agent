@@ -11,16 +11,17 @@ import {
   ConnectorRepo,
   CronRepo,
   CronRunRepo,
-  type DB,
   LogRepo,
-  openDatabase,
-  runMigrations,
-} from '@zeno/storage';
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '@/server';
 import { csrfHeaders } from '../csrf-helper';
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 const originalCwd = process.cwd();
 const repoRoot = resolve(__dirname, '..', '..', '..', '..');
 
@@ -32,11 +33,12 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   // Spec 0066 C: drop the seeded Playwright row so listing assertions
   // here ('standalone connectors', 'empty list') behave as before.
-  db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
+  opened.raw.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
 });
 
 function makeApp() {

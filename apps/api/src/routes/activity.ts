@@ -1,5 +1,6 @@
 import { zValidator } from '@hono/zod-validator';
-import type { DB } from '@zeno/storage';
+import type { RuntimeDB } from '@zeno/db/runtime';
+import { sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
@@ -23,19 +24,17 @@ function summarize(cronName: string, status: string): string {
   return `${cronName} ${status}`;
 }
 
-export function buildActivityRoute(db: DB): Hono {
+export function buildActivityRoute(db: RuntimeDB): Hono {
   const route = new Hono();
   route.get('/', zValidator('query', querySchema), (c) => {
     const { limit } = c.req.valid('query');
-    const rows = db
-      .prepare(
-        `SELECT cr.id, cr.cron_id, c.name AS cron_name, cr.started_at, cr.status, cr.output, cr.error
+    const rows = db.all<ActivityRow>(
+      sql`SELECT cr.id, cr.cron_id, c.name AS cron_name, cr.started_at, cr.status, cr.output, cr.error
          FROM cron_runs cr
          INNER JOIN crons c ON c.id = cr.cron_id
          ORDER BY cr.started_at DESC
-         LIMIT ?`,
-      )
-      .all(limit) as ActivityRow[];
+         LIMIT ${limit}`,
+    );
     return c.json(
       rows.map((r) => ({
         id: r.id,

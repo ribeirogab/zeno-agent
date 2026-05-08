@@ -22,19 +22,20 @@ import {
   CronRepo,
   CronRunRepo,
   CronSkillRepo,
-  type DB,
   LogRepo,
-  openDatabase,
-  runMigrations,
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
   type Skill,
   SkillRepo,
-} from '@zeno/storage';
+} from '@zeno/db/runtime';
 import unzipper from 'unzipper';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '@/server';
 import { csrfHeaders } from '../csrf-helper';
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 let sandbox: string;
 let agentSkillsRoot: string;
 let profileSkillsRoot: string;
@@ -43,8 +44,9 @@ let skillRepo: SkillRepo;
 let cleanups: Array<() => Promise<void>> = [];
 
 beforeEach(async () => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   sandbox = await mkdtemp(join(tmpdir(), 'zeno-skills-api-'));
   agentSkillsRoot = join(sandbox, 'agent-skills');
   profileSkillsRoot = join(sandbox, 'profile-skills');
@@ -63,7 +65,7 @@ afterEach(async () => {
   cleanups = [];
 });
 
-function makeApp(database: DB) {
+function makeApp(database: RuntimeDB) {
   return createApp({
     config: {
       logLevel: 'info',
@@ -91,7 +93,7 @@ function makeApp(database: DB) {
   });
 }
 
-/** Seed a skill: DB row + canonical FS dir with SKILL.md + optional extras. */
+/** Seed a skill: RuntimeDB row + canonical FS dir with SKILL.md + optional extras. */
 async function seedSkill(input: {
   name: string;
   description: string;
@@ -294,7 +296,7 @@ describe('PUT /api/skills/:id/files/:path', () => {
     expect(onDisk).toBe('new content');
   });
 
-  it('PUT SKILL.md re-syncs description in DB if frontmatter changed', async () => {
+  it('PUT SKILL.md re-syncs description in RuntimeDB if frontmatter changed', async () => {
     const skill = await seedSkill({ name: 'multi', description: 'old desc' });
     const app = makeApp(db);
     const newSkillMd = `---\nname: multi\ndescription: new desc\n---\n\nnew body`;

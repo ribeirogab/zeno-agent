@@ -5,24 +5,30 @@ import {
   ConnectorSkillRepo,
   CronRepo,
   CronRunRepo,
-  type DB,
   LogRepo,
-  openDatabase,
-  runMigrations,
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
   SkillRepo,
-} from '@zeno/storage';
+  seedDefaultAgentCapabilities,
+} from '@zeno/db/runtime';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '@/server';
 import { csrfHeaders } from '../csrf-helper';
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
+  // The runtime baseline does not auto-seed via migration; the route
+  // expectations mirror the boot-time seeded state.
+  seedDefaultAgentCapabilities(db);
 });
 
-function makeApp(database: DB) {
+function makeApp(database: RuntimeDB) {
   return createApp({
     config: {
       logLevel: 'info',

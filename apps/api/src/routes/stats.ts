@@ -1,4 +1,5 @@
-import type { CronRunRepo, DB, SessionRepo } from '@zeno/storage';
+import type { CronRunRepo, RuntimeDB, SessionRepo } from '@zeno/db/runtime';
+import { sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 interface CountRow {
@@ -6,7 +7,7 @@ interface CountRow {
 }
 
 export interface StatsRouteDeps {
-  db: DB;
+  db: RuntimeDB;
   cronRuns: CronRunRepo;
   sessions: SessionRepo;
 }
@@ -14,28 +15,20 @@ export interface StatsRouteDeps {
 export function buildStatsRoute(deps: StatsRouteDeps): Hono {
   const route = new Hono();
   route.get('/', (c) => {
-    const activeCrons = (
-      deps.db.prepare('SELECT COUNT(*) AS n FROM crons WHERE enabled = 1').get() as CountRow
-    ).n;
-    const sessions24h = (
-      deps.db
-        .prepare(
-          "SELECT COUNT(*) AS n FROM sessions WHERE last_used_at > datetime('now','-24 hours')",
-        )
-        .get() as CountRow
-    ).n;
-    const runsToday = (
-      deps.db
-        .prepare("SELECT COUNT(*) AS n FROM cron_runs WHERE date(started_at) = date('now')")
-        .get() as CountRow
-    ).n;
-    const failures24h = (
-      deps.db
-        .prepare(
-          "SELECT COUNT(*) AS n FROM cron_runs WHERE status = 'failed' AND started_at > datetime('now','-24 hours')",
-        )
-        .get() as CountRow
-    ).n;
+    const activeCrons =
+      deps.db.get<CountRow>(sql`SELECT COUNT(*) AS n FROM crons WHERE enabled = 1`)?.n ?? 0;
+    const sessions24h =
+      deps.db.get<CountRow>(
+        sql`SELECT COUNT(*) AS n FROM sessions WHERE last_used_at > datetime('now','-24 hours')`,
+      )?.n ?? 0;
+    const runsToday =
+      deps.db.get<CountRow>(
+        sql`SELECT COUNT(*) AS n FROM cron_runs WHERE date(started_at) = date('now')`,
+      )?.n ?? 0;
+    const failures24h =
+      deps.db.get<CountRow>(
+        sql`SELECT COUNT(*) AS n FROM cron_runs WHERE status = 'failed' AND started_at > datetime('now','-24 hours')`,
+      )?.n ?? 0;
     return c.json({ activeCrons, sessions24h, runsToday, failures24h });
   });
 

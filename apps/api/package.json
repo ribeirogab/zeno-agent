@@ -13,11 +13,12 @@
   "dependencies": {
     "@hono/node-server": "^1.19.14",
     "@hono/zod-validator": "^0.7.6",
+    "@zeno/db": "workspace:*",
     "@zeno/github-app": "workspace:*",
     "@zeno/logger": "workspace:*",
     "@zeno/mcp-discover": "workspace:*",
-    "@zeno/storage": "workspace:*",
     "archiver": "^7.0.1",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.12.14",
     "node-pty": "^1.1.0",
     "unzipper": "^0.12.3",

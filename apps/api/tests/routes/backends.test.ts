@@ -5,11 +5,11 @@ import {
   CommandRepo,
   CronRepo,
   CronRunRepo,
-  type DB,
   LogRepo,
-  openDatabase,
-  runMigrations,
-} from '@zeno/storage';
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { _resetBackendsCatalogCache } from '@/lib/backends-catalog-loader';
 import { createApp } from '@/server';
@@ -24,11 +24,13 @@ afterAll(() => process.chdir(ORIGINAL_CWD));
 
 const MASTER_KEY = Buffer.from('a'.repeat(64), 'hex');
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   _resetBackendsCatalogCache();
 });
 
@@ -36,7 +38,7 @@ interface AppOpts {
   fetchImpl?: typeof fetch;
 }
 
-function makeApp(database: DB, opts: AppOpts = {}) {
+function makeApp(database: RuntimeDB, opts: AppOpts = {}) {
   return createApp({
     config: {
       logLevel: 'info',

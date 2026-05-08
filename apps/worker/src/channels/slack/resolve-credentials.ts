@@ -1,5 +1,5 @@
+import type { ConnectorRepo } from '@zeno/db/runtime';
 import type { Logger } from '@zeno/logger';
-import type { ConnectorRepo } from '@zeno/storage';
 
 /**
  * Resolves Slack credentials from the connector DB. Returns null when Slack is

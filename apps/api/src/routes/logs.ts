@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator';
-import type { LogFilter, LogLevel, LogRepo } from '@zeno/storage';
+import type { LogFilter, LogLevel, LogRepo } from '@zeno/db/runtime';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';

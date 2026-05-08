@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { zValidator } from '@hono/zod-validator';
-import type { CommandRepo, CronRepo, CronRunRepo, CronSource } from '@zeno/storage';
+import type { CommandRepo, CronRepo, CronRunRepo, CronSource } from '@zeno/db/runtime';
 import { Hono } from 'hono';
 import { z } from 'zod';
 

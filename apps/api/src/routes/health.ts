@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { DB } from '@zeno/storage';
+import type { RuntimeDB } from '@zeno/db/runtime';
+import { sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 const startedAt = Date.now();
@@ -38,12 +39,12 @@ function resolveVersion(): string {
 
 const VERSION = resolveVersion();
 
-export function buildHealthRoute(db: DB): Hono {
+export function buildHealthRoute(db: RuntimeDB): Hono {
   const route = new Hono();
   route.get('/', (c) => {
-    const row = db
-      .prepare('SELECT started_at FROM cron_runs ORDER BY started_at DESC LIMIT 1')
-      .get() as LastTickRow | undefined;
+    const row = db.get<LastTickRow>(
+      sql`SELECT started_at FROM cron_runs ORDER BY started_at DESC LIMIT 1`,
+    );
     const lastTickAt = row?.started_at ?? null;
     let runner: ServiceStatus = 'idle';
     if (lastTickAt) {

@@ -2,25 +2,27 @@ import {
   CommandRepo,
   CronRepo,
   CronRunRepo,
-  type DB,
   LogRepo,
-  openDatabase,
-  runMigrations,
-} from '@zeno/storage';
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '@/server';
 import { csrfHeaders } from '../csrf-helper';
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 let logs: LogRepo;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   logs = new LogRepo(db);
 });
 
-function makeApp(database: DB) {
+function makeApp(database: RuntimeDB) {
   return createApp({
     config: {
       logLevel: 'info',

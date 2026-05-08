@@ -37,8 +37,8 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import type { SkillRepo, SkillSource } from '@zeno/db/runtime';
 import type { Logger } from '@zeno/logger';
-import type { SkillRepo, SkillSource } from '@zeno/storage';
 import { parse as parseYaml } from 'yaml';
 
 export interface SeedReport {

@@ -7,13 +7,12 @@ import {
   CronRepo,
   CronRunRepo,
   CronSkillRepo,
-  closeDatabase,
-  type DB,
-  openDatabase,
-  runMigrations,
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
   type Skill,
   SkillRepo,
-} from '@zeno/storage';
+} from '@zeno/db/runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentBackend } from '@/agent/types';
 import type { Channel, MessageHandler, MessageTarget, ReactionEvent } from '@/channels/types';
@@ -92,7 +91,8 @@ function makeSpyBackend(): SpyBackend {
   return backend;
 }
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 let crons: CronRepo;
 let cronRuns: CronRunRepo;
 let cronSkills: CronSkillRepo;
@@ -103,7 +103,7 @@ let channel: StubChannel;
 let sandbox: string;
 let dashboardSkillsRoot: string;
 
-/** Spec 0062: seed both DB row + canonical FS file so the runner's body read works. */
+/** Spec 0062: seed both RuntimeDB row + canonical FS file so the runner's body read works. */
 function seedSkillWithBody(input: { name: string; description: string; body: string }): Skill {
   const skill = skills.create({ name: input.name, description: input.description });
   const dir = skills.canonicalPath(skill);
@@ -124,8 +124,9 @@ beforeEach(() => {
   mkdirSync(agentSkillsRoot, { recursive: true });
   mkdirSync(profileSkillsRoot, { recursive: true });
   mkdirSync(dashboardSkillsRoot, { recursive: true });
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   crons = new CronRepo(db);
   cronRuns = new CronRunRepo(db);
   cronSkills = new CronSkillRepo(db);
@@ -139,7 +140,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  closeDatabase(db);
+  opened.close();
   rmSync(sandbox, { recursive: true, force: true });
 });
 

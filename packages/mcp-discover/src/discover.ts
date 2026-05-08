@@ -2,7 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import type { Connector, ConnectorSecret, ToolCategory } from '@zeno/storage';
+import type { Connector, ConnectorSecret, ToolCategory } from '@zeno/db/runtime';
 import { toRemoteConfig, toStdioConfig } from './build-config.js';
 
 export interface DiscoveredTool {

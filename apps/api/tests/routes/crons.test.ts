@@ -2,23 +2,25 @@ import {
   CommandRepo,
   CronRepo,
   CronRunRepo,
-  type DB,
   LogRepo,
-  openDatabase,
-  runMigrations,
-} from '@zeno/storage';
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '@/server';
 import { csrfHeaders } from '../csrf-helper';
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
 });
 
-function makeApp(database: DB) {
+function makeApp(database: RuntimeDB) {
   return createApp({
     config: {
       logLevel: 'info',
@@ -61,10 +63,10 @@ describe('GET /api/crons', () => {
     });
     // SQLite CURRENT_TIMESTAMP has second-level resolution; force distinct times
     // so the ORDER BY created_at DESC ordering is deterministic.
-    db.prepare("UPDATE crons SET created_at = datetime('now','-1 minute') WHERE id = ?").run(
-      first.id,
-    );
-    db.prepare("UPDATE crons SET created_at = datetime('now') WHERE id = ?").run(second.id);
+    opened.raw
+      .prepare("UPDATE crons SET created_at = datetime('now','-1 minute') WHERE id = ?")
+      .run(first.id);
+    opened.raw.prepare("UPDATE crons SET created_at = datetime('now') WHERE id = ?").run(second.id);
     const res = await makeApp(db).request('/api/crons', { headers: csrfHeaders() });
     const body = (await res.json()) as Array<{ name: string }>;
     expect(body).toHaveLength(2);

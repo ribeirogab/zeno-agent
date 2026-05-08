@@ -38,6 +38,9 @@ importers:
       '@hono/zod-validator':
         specifier: ^0.7.6
         version: 0.7.6(hono@4.12.14)(zod@4.3.6)
+      '@zeno/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@zeno/github-app':
         specifier: workspace:*
         version: link:../../packages/github-app
@@ -47,12 +50,12 @@ importers:
       '@zeno/mcp-discover':
         specifier: workspace:*
         version: link:../../packages/mcp-discover
-      '@zeno/storage':
-        specifier: workspace:*
-        version: link:../../packages/storage
       archiver:
         specifier: ^7.0.1
         version: 7.0.1
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@types/better-sqlite3@7.6.13)(better-sqlite3@12.9.0)
       hono:
         specifier: ^4.12.14
         version: 4.12.14
@@ -337,6 +340,9 @@ importers:
       '@slack/bolt':
         specifier: ^4.7.0
         version: 4.7.0(@types/express@5.0.6)
+      '@zeno/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@zeno/github-app':
         specifier: workspace:*
         version: link:../../packages/github-app
@@ -346,9 +352,9 @@ importers:
       '@zeno/mcp-discover':
         specifier: workspace:*
         version: link:../../packages/mcp-discover
-      '@zeno/storage':
-        specifier: workspace:*
-        version: link:../../packages/storage
+      better-sqlite3:
+        specifier: ^12.9.0
+        version: 12.9.0
       cron-parser:
         specifier: ^5.5.0
         version: 5.5.0
@@ -362,6 +368,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.3.6)
+      '@types/better-sqlite3':
+        specifier: ^7.6.13
+        version: 7.6.13
       tsc-alias:
         specifier: ^1.8.16
         version: 1.8.16
@@ -427,9 +436,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
-      '@zeno/storage':
+      '@zeno/db':
         specifier: workspace:*
-        version: link:../storage
+        version: link:../db
     devDependencies:
       typescript:
         specifier: ^6.0.2

@@ -1,4 +1,4 @@
-import type { Cron, CronRepo } from '@zeno/storage';
+import type { Cron, CronRepo } from '@zeno/db/runtime';
 import { z } from 'zod';
 import type { Handler } from '@/commands/dispatcher';
 

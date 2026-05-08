@@ -1,5 +1,5 @@
+import type { ConnectorRepo } from '@zeno/db/runtime';
 import { createLogger } from '@zeno/logger';
-import type { ConnectorRepo } from '@zeno/storage';
 import { z } from 'zod';
 import type { Handler } from '@/commands/dispatcher';
 import type { HandlerDeps } from '@/commands/handlers';

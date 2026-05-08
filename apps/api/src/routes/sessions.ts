@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator';
-import type { SessionRepo } from '@zeno/storage';
+import type { SessionRepo } from '@zeno/db/runtime';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { readSessionMessages } from '@/lib/read-session-jsonl';

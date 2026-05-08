@@ -15,19 +15,20 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { closeDatabase, type DB, openDatabase } from '@zeno/storage';
+import { openRuntimeDatabase } from '@zeno/db/runtime';
+import type Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { preMigrateBodiesToFs } from '@/skills/migrate-bodies-to-fs';
 
 /**
- * Build a DB with the LEGACY (pre-spec-0062) skills schema — body column
- * present. We can't use `runMigrations` because that applies migration 19
- * which drops body. So we build the schema manually up to migration 18's
- * shape.
+ * Build a raw SQLite handle with the LEGACY (pre-spec-0062) skills schema —
+ * body column present. We can't use `runRuntimeMigrations` because that
+ * applies migration 19 which drops body. So we build the schema manually up
+ * to migration 18's shape.
  */
-function buildLegacyDb(): DB {
-  const db = openDatabase(':memory:');
-  db.exec(`
+function buildLegacyDb(): { raw: Database.Database; close: () => void } {
+  const opened = openRuntimeDatabase(':memory:');
+  opened.raw.exec(`
     CREATE TABLE migrations (id INTEGER PRIMARY KEY);
     CREATE TABLE skills (
       id TEXT PRIMARY KEY,
@@ -41,7 +42,7 @@ function buildLegacyDb(): DB {
     CREATE INDEX idx_skills_name ON skills(name);
     CREATE INDEX idx_skills_source ON skills(source);
   `);
-  return db;
+  return { raw: opened.raw, close: opened.close };
 }
 
 function seedSkillFile(root: string, name: string, description: string, body: string): void {
@@ -59,7 +60,8 @@ describe('preMigrateBodiesToFs (spec 0062)', () => {
   let agentSkillsRoot: string;
   let profileSkillsRoot: string;
   let dashboardSkillsRoot: string;
-  let db: DB;
+  let db: Database.Database;
+  let close: () => void;
   // biome-ignore lint/suspicious/noExplicitAny: vitest mock
   const logger = {
     info: vi.fn(),
@@ -78,19 +80,23 @@ describe('preMigrateBodiesToFs (spec 0062)', () => {
     mkdirSync(agentSkillsRoot, { recursive: true });
     mkdirSync(profileSkillsRoot, { recursive: true });
     mkdirSync(dashboardSkillsRoot, { recursive: true });
-    db = buildLegacyDb();
+    const built = buildLegacyDb();
+    db = built.raw;
+    close = built.close;
     logger.info.mockClear();
     logger.warn.mockClear();
   });
 
   afterEach(() => {
-    closeDatabase(db);
+    close();
     rmSync(tmp, { recursive: true, force: true });
   });
 
   it('is a no-op when the body column is already gone (idempotency)', () => {
-    closeDatabase(db);
-    db = openDatabase(':memory:');
+    close();
+    const opened = openRuntimeDatabase(':memory:');
+    db = opened.raw;
+    close = opened.close;
     db.exec(`
       CREATE TABLE skills (
         id TEXT PRIMARY KEY,

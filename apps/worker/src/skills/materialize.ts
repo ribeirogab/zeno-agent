@@ -22,8 +22,8 @@
 import type { Dirent } from 'node:fs';
 import { lstat, mkdir, readdir, rename, rm, symlink } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { SkillRepo } from '@zeno/db/runtime';
 import type { Logger } from '@zeno/logger';
-import type { SkillRepo } from '@zeno/storage';
 
 export interface MaterializeDeps {
   skillRepo: SkillRepo;

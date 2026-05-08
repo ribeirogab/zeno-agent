@@ -8,7 +8,7 @@
  */
 
 import { zValidator } from '@hono/zod-validator';
-import type { CronRepo, CronSkillRepo } from '@zeno/storage';
+import type { CronRepo, CronSkillRepo } from '@zeno/db/runtime';
 import { Hono } from 'hono';
 import { z } from 'zod';
 

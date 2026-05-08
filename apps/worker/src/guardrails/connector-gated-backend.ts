@@ -43,13 +43,13 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { HookCallback, PreToolUseHookInput } from '@anthropic-ai/claude-agent-sdk';
-import type { Logger } from '@zeno/logger';
 import type {
   AgentCapabilityRepo,
   ConnectorRepo,
   ConnectorSkillRepo,
   SkillRepo,
-} from '@zeno/storage';
+} from '@zeno/db/runtime';
+import type { Logger } from '@zeno/logger';
 import type { ClaudeCodeBackend } from '@/agent/backends/claude-code';
 import type { AgentBackend, AgentInput, AgentOutput } from '@/agent/types';
 import { checkConnectorPermission } from '@/guardrails/policies/connector-permission';

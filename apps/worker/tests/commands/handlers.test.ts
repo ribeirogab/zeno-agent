@@ -2,10 +2,10 @@ import {
   type Command,
   CronRepo,
   CronRunRepo,
-  type DB,
-  openDatabase,
-  runMigrations,
-} from '@zeno/storage';
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildHandlerMap } from '@/commands/handlers';
 
@@ -22,14 +22,16 @@ function makeCmd(partial: Partial<Command> & Pick<Command, 'type' | 'id'>): Comm
   };
 }
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 let crons: CronRepo;
 let cronRuns: CronRunRepo;
 let handlers: ReturnType<typeof buildHandlerMap>;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   crons = new CronRepo(db);
   cronRuns = new CronRunRepo(db);
   handlers = buildHandlerMap({

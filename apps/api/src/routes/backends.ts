@@ -22,7 +22,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { zValidator } from '@hono/zod-validator';
-import type { BackendCredentialsRepo, BackendSettingsRepo } from '@zeno/storage';
+import type { BackendCredentialsRepo, BackendSettingsRepo } from '@zeno/db/runtime';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { type BackendsCatalog, loadBackendsCatalog } from '@/lib/backends-catalog-loader';

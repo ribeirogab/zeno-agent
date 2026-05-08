@@ -1,5 +1,13 @@
 @import "tailwindcss";
-@import "@zeno/ui/styles/tokens.css";
+/*
+ * Brand tokens via relative monorepo path. Turbopack's CSS pipeline does
+ * not honour the package `exports` map for CSS imports the way Vite does,
+ * so the bare specifier (`@zeno/ui/styles/tokens.css`) breaks `next dev`
+ * even with the workspace dep declared. The dashboard works only because
+ * it ships under Vite. Resolve the file directly until Turbopack catches
+ * up.
+ */
+@import "../../../../packages/ui/src/styles/tokens.css";
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
 

@@ -6,6 +6,7 @@ import list from './connector-list.js';
 import refreshTools from './connector-refresh-tools.js';
 import show from './connector-show.js';
 import test from './connector-test.js';
+import tool from './connector-tool.js';
 import uninstall from './connector-uninstall.js';
 
 export default defineCommand({
@@ -19,5 +20,6 @@ export default defineCommand({
     uninstall,
     test,
     'refresh-tools': refreshTools,
+    tool,
   },
 });

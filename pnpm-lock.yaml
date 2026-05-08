@@ -447,22 +447,6 @@ importers:
         specifier: ^4.1.4
         version: 4.1.4(@types/node@25.6.0)(happy-dom@20.9.0)(jsdom@25.0.1)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.16.9)(tsx@4.21.0)(yaml@2.8.3))
 
-  packages/storage:
-    dependencies:
-      better-sqlite3:
-        specifier: ^12.9.0
-        version: 12.9.0
-    devDependencies:
-      '@types/better-sqlite3':
-        specifier: ^7.6.13
-        version: 7.6.13
-      typescript:
-        specifier: ^6.0.2
-        version: 6.0.2
-      vitest:
-        specifier: ^4.1.4
-        version: 4.1.4(@types/node@25.6.0)(happy-dom@20.9.0)(jsdom@25.0.1)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.16.9)(tsx@4.21.0)(yaml@2.8.3))
-
   packages/ui:
     dependencies:
       '@radix-ui/react-alert-dialog':

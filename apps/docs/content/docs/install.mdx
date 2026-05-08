@@ -23,16 +23,28 @@ The installer clones the repo to `~/.zeno/zeno-agent/` and symlinks the `zeno` b
 </Callout>
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ribeirogab/zeno-agent/main/install.sh | sh
+curl -fsSL https://zeno-agent.dev/install.sh | sh
 ```
 
 That writes three things:
 
-- `~/.zeno/zeno-agent/` — the cloned repo
+- `~/.zeno/zeno-agent/` — the cloned repo, checked out at the latest stable tag
 - `~/.zeno/state.db` — host-side SQLite holding profile metadata (`chmod 600`, owner-only)
 - `~/.local/bin/zeno` — symlink to the built CLI
 
 Make sure `~/.local/bin` is on your `PATH`. Most distros ship that already; if not, add it to your shell rc.
+
+### Beta channel (track `main`)
+
+<Callout type="warn">
+The beta channel installs straight from `main`. It may be broken; breaking changes are expected. Use only if you need an unreleased fix.
+</Callout>
+
+```bash
+curl -fsSL https://zeno-agent.dev/install.sh | sh -s -- --beta
+```
+
+Once installed, you can move between channels at any time with `zeno upgrade` (interactive picker) — see [Daily ops](/daily-ops).
 
 ## Verify
 

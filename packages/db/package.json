@@ -9,17 +9,24 @@
     "./host": {
       "types": "./dist/host/index.d.ts",
       "import": "./dist/host/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "import": "./dist/runtime/index.js"
     }
   },
   "scripts": {
-    "build": "tsc -b && pnpm run copy-migrations",
+    "build": "tsc -b && pnpm run copy-migrations && pnpm run copy-runtime-migrations",
     "copy-migrations": "rm -rf dist/host/migrations && cp -R src/host/migrations dist/host/migrations",
+    "copy-runtime-migrations": "mkdir -p src/runtime/migrations && rm -rf dist/runtime/migrations && cp -R src/runtime/migrations dist/runtime/migrations",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "clean": "rm -rf dist",
     "db:host:generate": "drizzle-kit generate --config drizzle.host.config.ts",
-    "db:host:check": "drizzle-kit check --config drizzle.host.config.ts"
+    "db:host:check": "drizzle-kit check --config drizzle.host.config.ts",
+    "db:runtime:generate": "drizzle-kit generate --config drizzle.runtime.config.ts",
+    "db:runtime:check": "drizzle-kit check --config drizzle.runtime.config.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",

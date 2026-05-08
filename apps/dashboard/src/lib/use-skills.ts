@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@zeno/ui';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, csrfHeaders } from '@/lib/api-client';
 import { useOptimisticMutation } from '@/lib/use-optimistic-mutation';
 
 /** Spec 0053: skills are tagged by origin so the dashboard can hide edit/delete on
@@ -85,6 +85,7 @@ export function useInstallSkillZip() {
         method: 'POST',
         body: fd,
         credentials: 'include',
+        headers: { ...csrfHeaders('POST') },
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -115,7 +116,7 @@ export function useWriteSkillFile() {
         method: 'PUT',
         body: content,
         credentials: 'include',
-        headers: { 'Content-Type': 'text/plain' },
+        headers: { 'Content-Type': 'text/plain', ...csrfHeaders('PUT') },
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -142,6 +143,7 @@ export function useDeleteSkillFile() {
       const res = await fetch(`/api/skills/${id}/files/${encodeURIComponent(path)}`, {
         method: 'DELETE',
         credentials: 'include',
+        headers: { ...csrfHeaders('DELETE') },
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

@@ -14,6 +14,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { csrfHeaders } from '@/lib/api-client';
 
 export type OAuthFlowState =
   | { kind: 'idle' }
@@ -128,6 +129,7 @@ export function useOAuthSession() {
         void fetch(`/api/backends/${backendId}/oauth/${sid}/cancel`, {
           method: 'POST',
           credentials: 'include',
+          headers: { ...csrfHeaders('POST') },
         });
       }
     },
@@ -154,7 +156,7 @@ export function useOAuthSession() {
       const res = await fetch(`/api/backends/${backendId}/oauth/${sid}/input`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...csrfHeaders('POST') },
         body: JSON.stringify({ text: code }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

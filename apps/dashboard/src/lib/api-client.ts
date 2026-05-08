@@ -24,19 +24,25 @@ function readCsrfCookie(): string | undefined {
   return undefined;
 }
 
+/**
+ * CSRF header for raw `fetch` callers that can't use `apiFetch` (e.g. multipart
+ * uploads, text/plain bodies, fire-and-forget). Returns an empty object on GET/HEAD
+ * and when no `zeno_csrf` cookie is set; spread it into the `headers` field.
+ */
+export function csrfHeaders(method: string): Record<string, string> {
+  if (!MUTATING.has(method.toUpperCase())) return {};
+  const token = readCsrfCookie();
+  return token ? { [CSRF_HEADER]: token } : {};
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? 'GET').toUpperCase();
-  const csrfHeader: Record<string, string> = {};
-  if (MUTATING.has(method)) {
-    const token = readCsrfCookie();
-    if (token) csrfHeader[CSRF_HEADER] = token;
-  }
   const res = await fetch(path, {
     ...init,
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...csrfHeader,
+      ...csrfHeaders(method),
       ...(init?.headers ?? {}),
     },
   });

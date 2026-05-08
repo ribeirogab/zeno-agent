@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import type { RuntimeDB } from './db.js';
-import { connectorToolPermissions, connectors } from './schema.js';
+import { agentCapabilities, connectorToolPermissions, connectors } from './schema.js';
 
 interface DefaultConnector {
   slug: string;
@@ -64,6 +64,38 @@ const DEFAULTS: DefaultConnector[] = [
     ],
   },
 ];
+
+interface DefaultCapability {
+  toolName: string;
+  enabled: 0 | 1;
+}
+
+const DEFAULT_CAPABILITIES: DefaultCapability[] = [
+  { toolName: 'Read', enabled: 1 },
+  { toolName: 'Edit', enabled: 1 },
+  { toolName: 'Write', enabled: 1 },
+  { toolName: 'Bash', enabled: 1 },
+  { toolName: 'Glob', enabled: 1 },
+  { toolName: 'Grep', enabled: 1 },
+  { toolName: 'WebFetch', enabled: 0 },
+  { toolName: 'WebSearch', enabled: 0 },
+  { toolName: 'Task', enabled: 0 },
+  { toolName: 'ToolSearch', enabled: 1 },
+  { toolName: 'Skill', enabled: 1 },
+];
+
+export function seedDefaultAgentCapabilities(db: RuntimeDB): { seeded: number } {
+  let seeded = 0;
+  for (const cap of DEFAULT_CAPABILITIES) {
+    const result = db
+      .insert(agentCapabilities)
+      .values({ toolName: cap.toolName, enabled: cap.enabled })
+      .onConflictDoNothing({ target: agentCapabilities.toolName })
+      .run();
+    seeded += result.changes;
+  }
+  return { seeded };
+}
 
 export function seedDefaultConnectors(db: RuntimeDB): { seeded: number } {
   let seeded = 0;

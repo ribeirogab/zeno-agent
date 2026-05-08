@@ -19,6 +19,7 @@ import { createLogger } from '@zeno/logger';
 import { Hono } from 'hono';
 import type { ApiConfig } from '@/config';
 import { csrf } from '@/csrf/middleware';
+import { type ApiWriteMode, parseApiWriteMode } from '@/lib/api-mode';
 import type { ChannelsCatalog } from '@/lib/channels-catalog-loader';
 import { buildActivityRoute } from '@/routes/activity';
 import { buildAgentCapabilitiesRoute } from '@/routes/agent-capabilities';
@@ -31,6 +32,7 @@ import { buildCronSkillsRoute } from '@/routes/cron-skills';
 import { buildCronsRoute } from '@/routes/crons';
 import { buildHealthRoute } from '@/routes/health';
 import { buildLogsRoute } from '@/routes/logs';
+import { buildModeRoute } from '@/routes/mode';
 import { buildSessionsRoute } from '@/routes/sessions';
 import { buildSettingsRoute } from '@/routes/settings';
 import { buildSkillsRoute } from '@/routes/skills';
@@ -81,6 +83,10 @@ export interface AppDeps {
   /** Spec 0071: optional fetch override for tests of /api/backends/* routes
    *  that need to mock the Anthropic verification handshake. */
   fetchImpl?: typeof fetch;
+  /** Spec 2026-05-08-connectors-cli-first-design: gates mutating endpoints.
+   *  Defaults to 'cli' (read-only dashboard). When omitted, falls back to
+   *  parsing `process.env.ZENO_API_WRITES`. */
+  writes?: ApiWriteMode;
 }
 
 export function createApp(deps: AppDeps): Hono {
@@ -203,6 +209,8 @@ export function createApp(deps: AppDeps): Hono {
       }),
     );
   }
+  const writes = deps.writes ?? parseApiWriteMode(process.env.ZENO_API_WRITES);
+  app.route('/api/mode', buildModeRoute({ writes }));
   if (deps.spaDir) {
     app.get('*', serveStaticSpa(deps.spaDir));
   }

@@ -43,13 +43,12 @@ export function GitHubAppUninstallAppModal({
   const handleSubmit = async (): Promise<void> => {
     setError(null);
     try {
-      const res = await uninstall.mutateAsync({ confirmAppName: appName });
-      if (res.ok) {
-        onClose();
-        navigate({ to: '/connectors' });
-      } else {
-        setError('uninstall failed');
-      }
+      // Spec 2026-05-08-connectors-cli-first-design Task 10: endpoint now
+      // returns 202 + { correlationId }. apiFetch already throws on non-2xx,
+      // so reaching this line means the command was enqueued successfully.
+      await uninstall.mutateAsync({ confirmAppName: appName });
+      onClose();
+      navigate({ to: '/connectors' });
     } catch (err) {
       if (err instanceof ApiError) {
         const body = err.body as { error?: string } | null;

@@ -20,7 +20,12 @@ export interface AddInstallationInput {
 }
 
 export interface AddInstallationResponse {
-  ok: boolean;
+  /**
+   * Spec 2026-05-08-connectors-cli-first-design Task 10: 202 + correlationId.
+   * The dashboard does not poll today (the worker tear-down runs async); kept
+   * here for future adopters of the polling pattern.
+   */
+  correlationId: string;
   slug: string;
 }
 

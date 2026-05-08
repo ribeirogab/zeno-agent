@@ -650,12 +650,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         })),
         appId: app.id,
       };
+      const correlationId = randomUUID();
       deps.commands.enqueue({
         type: 'connector_create',
         payload,
-        correlationId: randomUUID(),
+        correlationId,
       });
-      return c.json({ ok: true, slug });
+      return c.json({ correlationId, slug }, 202);
     },
   );
 
@@ -682,12 +683,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       return c.json({ error: 'confirm_app_name_mismatch' }, 400);
     }
     deps.connectorApps.delete(app.id);
+    const correlationId = randomUUID();
     deps.commands.enqueue({
       type: 'app_uninstall',
       payload: { appUuid: app.id },
-      correlationId: randomUUID(),
+      correlationId,
     });
-    return c.json({ ok: true });
+    return c.json({ correlationId }, 202);
   });
 
   route.get('/catalog/github-app/app', (c) => {
@@ -1040,12 +1042,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         kind: 'mcp',
       };
     }
+    const correlationId = randomUUID();
     deps.commands.enqueue({
       type: 'connector_create',
       payload,
-      correlationId: randomUUID(),
+      correlationId,
     });
-    return c.body(null, 204);
+    return c.json({ correlationId }, 202);
   });
 
   // GET /apps/:appUuid — Spec 0045: rich App detail for the dashboard's
@@ -1181,12 +1184,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     const connector = deps.connectors.get(id);
     if (!connector) return c.json({ error: 'not_found' }, 404);
     const body = c.req.valid('json');
+    const correlationId = randomUUID();
     deps.commands.enqueue({
       type: 'connector_update',
       payload: { id, patch: body, secrets: body.secrets },
-      correlationId: randomUUID(),
+      correlationId,
     });
-    return c.body(null, 204);
+    return c.json({ correlationId }, 202);
   });
 
   // PATCH /:id/toggle (direct write)
@@ -1245,12 +1249,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     }
     const id = c.req.param('id');
     if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
+    const correlationId = randomUUID();
     deps.commands.enqueue({
       type: 'connector_refresh_tools',
       payload: { id },
-      correlationId: randomUUID(),
+      correlationId,
     });
-    return c.body(null, 204);
+    return c.json({ correlationId }, 202);
   });
 
   // DELETE /:id (enqueues uninstall)
@@ -1260,12 +1265,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     }
     const id = c.req.param('id');
     if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
+    const correlationId = randomUUID();
     deps.commands.enqueue({
       type: 'connector_uninstall',
       payload: { id },
-      correlationId: randomUUID(),
+      correlationId,
     });
-    return c.body(null, 204);
+    return c.json({ correlationId }, 202);
   });
 
   // GET /:id/secrets/:key/reveal (rate-limited + audited)

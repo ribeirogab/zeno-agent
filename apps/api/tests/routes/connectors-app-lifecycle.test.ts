@@ -136,7 +136,9 @@ describe('POST /api/connectors/catalog/github-app/uninstall-app cascade', () => 
       body: JSON.stringify({ confirmAppName: 'Zen' }),
       headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as { correlationId: string };
+    expect(body.correlationId).toMatch(/[0-9a-f-]{36}/);
 
     expect(appRepo.getOneByCatalog('github-app')).toBeNull();
     expect(connRepo.getBySlug('github-app-acme')).toBeNull();

@@ -22,7 +22,13 @@ export interface UninstallAppInput {
 }
 
 export interface UninstallAppResponse {
-  ok: boolean;
+  /**
+   * Spec 2026-05-08-connectors-cli-first-design Task 10: mutating endpoints
+   * now return 202 + correlationId so the CLI can poll. Dashboard hooks ignore
+   * this field for now (the worker tear-down still runs asynchronously); kept
+   * here so consumers can adopt the polling pattern later.
+   */
+  correlationId: string;
 }
 
 export function useUninstallApp(appUuid: string | undefined) {

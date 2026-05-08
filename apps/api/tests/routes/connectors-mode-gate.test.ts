@@ -88,7 +88,7 @@ describe('connectors mutations gated by writes:cli', () => {
     expect(body.error).toBe('mode_cli_only');
   });
 
-  it("POST /api/connectors returns 204 under writes:'dashboard'", async () => {
+  it("POST /api/connectors returns 202 + correlationId under writes:'dashboard'", async () => {
     const commandRepo = new CommandRepo(db);
     const before = commandRepo.recent(10).length;
     const res = await makeApp(db, 'dashboard').request('/api/connectors', {
@@ -103,7 +103,9 @@ describe('connectors mutations gated by writes:cli', () => {
         secrets: [{ key: 'K', value: 'V' }],
       }),
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as { correlationId: string };
+    expect(body.correlationId).toMatch(/[0-9a-f-]{36}/);
     const after = commandRepo.recent(10);
     expect(after.length).toBeGreaterThan(before);
     expect(after[0]?.type).toBe('connector_create');

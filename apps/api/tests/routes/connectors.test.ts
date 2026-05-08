@@ -302,7 +302,9 @@ describe('POST /api/connectors (catalog) enqueues a command', () => {
         secrets: [{ key: 'LINEAR_API_KEY', value: 'lin_test_xyz' }],
       }),
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(202);
+    const responseBody = (await res.json()) as { correlationId: string };
+    expect(responseBody.correlationId).toMatch(/[0-9a-f-]{36}/);
 
     const rows = opened.raw
       .prepare(
@@ -323,7 +325,7 @@ describe('POST /api/connectors (catalog) enqueues a command', () => {
 });
 
 describe('POST /api/connectors (custom) enqueues a connector_create', () => {
-  it('returns 204 and inserts a command row', async () => {
+  it('returns 202 + correlationId and inserts a command row', async () => {
     const commandRepo = new CommandRepo(db);
     const before = commandRepo.recent(10).length;
     const res = await makeApp(db).request('/api/connectors', {
@@ -338,10 +340,14 @@ describe('POST /api/connectors (custom) enqueues a connector_create', () => {
         secrets: [{ key: 'K', value: 'V' }],
       }),
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as { correlationId: string };
+    expect(body.correlationId).toMatch(/[0-9a-f-]{36}/);
     const after = commandRepo.recent(10);
     expect(after.length).toBeGreaterThan(before);
     expect(after[0]?.type).toBe('connector_create');
+    // The correlationId surfaced to the caller matches the enqueued command row.
+    expect(after[0]?.correlationId).toBe(body.correlationId);
   });
 });
 
@@ -365,8 +371,11 @@ describe('DELETE /api/connectors/:id', () => {
       method: 'DELETE',
       headers: csrfHeaders(),
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as { correlationId: string };
+    expect(body.correlationId).toMatch(/[0-9a-f-]{36}/);
     expect(commandRepo.recent(10)[0]?.type).toBe('connector_uninstall');
+    expect(commandRepo.recent(10)[0]?.correlationId).toBe(body.correlationId);
   });
 });
 

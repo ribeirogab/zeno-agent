@@ -1,5 +1,6 @@
 import { defineCommand } from 'citty';
 import app from './connector-app.js';
+import catalog from './connector-catalog.js';
 import disable from './connector-disable.js';
 import enable from './connector-enable.js';
 import install from './connector-install.js';
@@ -16,6 +17,7 @@ export default defineCommand({
   subCommands: {
     list,
     show,
+    catalog,
     install,
     enable,
     disable,

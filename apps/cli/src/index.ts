@@ -1,4 +1,5 @@
 import { defineCommand, runMain } from 'citty';
+import connector from './commands/connector.js';
 import doctor from './commands/doctor.js';
 import logs from './commands/logs.js';
 import open from './commands/open.js';
@@ -26,6 +27,7 @@ const main = defineCommand({
     doctor,
     upgrade,
     repo,
+    connector,
   },
 });
 

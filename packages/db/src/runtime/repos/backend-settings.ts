@@ -23,9 +23,7 @@ export class BackendSettingsRepo {
     const row = this.db
       .select({ value: backendSettings.value })
       .from(backendSettings)
-      .where(
-        and(eq(backendSettings.profileId, this.profileId), eq(backendSettings.key, key)),
-      )
+      .where(and(eq(backendSettings.profileId, this.profileId), eq(backendSettings.key, key)))
       .get();
     return row?.value ?? null;
   }

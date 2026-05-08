@@ -146,11 +146,7 @@ export class CronRepo {
       conditions.push(eq(crons.source, filter.source));
     }
     const query = this.db.select().from(crons);
-    const rows = (
-      conditions.length > 0
-        ? query.where(and(...conditions))
-        : query
-    )
+    const rows = (conditions.length > 0 ? query.where(and(...conditions)) : query)
       .orderBy(desc(crons.createdAt))
       .all();
     return rows.map((row) => rowToCron(row as unknown as CronRow));

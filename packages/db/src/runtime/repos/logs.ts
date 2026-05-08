@@ -106,11 +106,7 @@ export class LogRepo {
     }
     const limit = Math.min(filter.limit ?? 100, 500);
     const query = this.db.select().from(logs);
-    const rows = (
-      conditions.length > 0
-        ? query.where(and(...conditions))
-        : query
-    )
+    const rows = (conditions.length > 0 ? query.where(and(...conditions)) : query)
       .orderBy(desc(logs.id))
       .limit(limit)
       .all();

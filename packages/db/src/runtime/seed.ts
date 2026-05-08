@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import type { RuntimeDB } from './db.js';
-import { agentCapabilities, connectorToolPermissions, connectors } from './schema.js';
+import { agentCapabilities, connectors, connectorToolPermissions } from './schema.js';
 
 interface DefaultConnector {
   slug: string;

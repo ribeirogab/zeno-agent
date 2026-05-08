@@ -1,26 +1,20 @@
 // Boot helpers
-export type { OpenRuntimeDatabase, RuntimeDB } from './db.js';
-export { openRuntimeDatabase, runRuntimeMigrations } from './db.js';
-
-// Seed helpers
-export { seedDefaultAgentCapabilities, seedDefaultConnectors } from './seed.js';
 
 // Crypto
-export { decrypt, encrypt, type EncryptedBlob } from './crypto.js';
+export { decrypt, type EncryptedBlob, encrypt } from './crypto.js';
+export type { OpenRuntimeDatabase, RuntimeDB } from './db.js';
+export { openRuntimeDatabase, runRuntimeMigrations } from './db.js';
+export type { AgentCapability, AgentCapabilityUpdate } from './repos/agent-capabilities.js';
 
 // Repos
 export { AgentCapabilityRepo } from './repos/agent-capabilities.js';
-export type { AgentCapability, AgentCapabilityUpdate } from './repos/agent-capabilities.js';
-
-export { BackendCredentialsRepo } from './repos/backend-credentials.js';
 export type {
   BackendCredentialStatus,
   BackendStatus,
 } from './repos/backend-credentials.js';
 
+export { BackendCredentialsRepo } from './repos/backend-credentials.js';
 export { BackendSettingsRepo } from './repos/backend-settings.js';
-
-export { CommandRepo } from './repos/commands.js';
 export type {
   Command,
   CommandStatus,
@@ -28,17 +22,17 @@ export type {
   CreateCommandInput,
 } from './repos/commands.js';
 
-export { ConnectorAppRepo } from './repos/connector-apps.js';
+export { CommandRepo } from './repos/commands.js';
 export type {
   ConnectorApp,
   CreateConnectorAppInput,
   UpdateConnectorAppInput,
 } from './repos/connector-apps.js';
 
-export { ConnectorSkillRepo } from './repos/connector-skills.js';
+export { ConnectorAppRepo } from './repos/connector-apps.js';
 export type { ConnectorSkillLink } from './repos/connector-skills.js';
 
-export { ConnectorRepo } from './repos/connectors.js';
+export { ConnectorSkillRepo } from './repos/connector-skills.js';
 export type {
   Connector,
   ConnectorInvocation,
@@ -59,16 +53,16 @@ export type {
   UpdateConnectorInput,
 } from './repos/connectors.js';
 
-export { CronConnectorRepo } from './repos/cron-connectors.js';
+export { ConnectorRepo } from './repos/connectors.js';
 export type { CronConnectorLink } from './repos/cron-connectors.js';
 
-export { CronRunRepo } from './repos/cron-runs.js';
+export { CronConnectorRepo } from './repos/cron-connectors.js';
 export type { CronRun, CronRunStatus } from './repos/cron-runs.js';
 
-export { CronSkillRepo } from './repos/cron-skills.js';
+export { CronRunRepo } from './repos/cron-runs.js';
 export type { CronSkillLink } from './repos/cron-skills.js';
 
-export { CronRepo } from './repos/crons.js';
+export { CronSkillRepo } from './repos/cron-skills.js';
 export type {
   CreateCronInput,
   Cron,
@@ -76,13 +70,13 @@ export type {
   UpdateCronInput,
 } from './repos/crons.js';
 
-export { LogRepo } from './repos/logs.js';
+export { CronRepo } from './repos/crons.js';
 export type { CreateLogInput, Log, LogFilter, LogLevel } from './repos/logs.js';
 
-export { SessionRepo } from './repos/sessions.js';
+export { LogRepo } from './repos/logs.js';
 export type { Session } from './repos/sessions.js';
 
-export { SkillRepo } from './repos/skills.js';
+export { SessionRepo } from './repos/sessions.js';
 export type {
   CreateSkillInput,
   Skill,
@@ -90,3 +84,7 @@ export type {
   SkillSource,
   UpdateSkillInput,
 } from './repos/skills.js';
+
+export { SkillRepo } from './repos/skills.js';
+// Seed helpers
+export { seedDefaultAgentCapabilities, seedDefaultConnectors } from './seed.js';

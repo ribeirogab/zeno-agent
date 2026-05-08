@@ -158,10 +158,7 @@ export const connectors = sqliteTable(
       'connectors_slug_check',
       sql`${table.slug} GLOB '[a-z0-9]*' AND ${table.slug} NOT GLOB '*[^a-z0-9-]*' AND length(${table.slug}) >= 1`,
     ),
-    sourceCheck: check(
-      'connectors_source_check',
-      sql`${table.source} IN ('catalog', 'custom')`,
-    ),
+    sourceCheck: check('connectors_source_check', sql`${table.source} IN ('catalog', 'custom')`),
     transportCheck: check(
       'connectors_transport_check',
       sql`${table.transport} IN ('stdio', 'remote')`,

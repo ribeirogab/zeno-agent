@@ -1,7 +1,10 @@
 import { defineCommand } from 'citty';
+import disable from './connector-disable.js';
+import enable from './connector-enable.js';
 import install from './connector-install.js';
 import list from './connector-list.js';
 import show from './connector-show.js';
+import uninstall from './connector-uninstall.js';
 
 export default defineCommand({
   meta: { name: 'connector', description: 'manage MCP connectors' },
@@ -9,5 +12,8 @@ export default defineCommand({
     list,
     show,
     install,
+    enable,
+    disable,
+    uninstall,
   },
 });

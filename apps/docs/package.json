@@ -20,6 +20,7 @@
     "deploy": "pnpm run cf:build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
+    "@zeno/ui": "workspace:*",
     "fumadocs-core": "^16.8.8",
     "fumadocs-mdx": "^15.0.0",
     "fumadocs-ui": "^16.8.8",

@@ -12,11 +12,11 @@
 @import "fumadocs-ui/css/preset.css";
 
 /*
- * Brand tokens flow from `@zeno/ui/styles/tokens.css` (the canonical Imperial
- * Terminal palette derived from /DESIGN.md). The Fumadocs UI library reads
- * `--color-fd-*` variables; this layer binds Zeno's brand tokens onto them
- * so every Fumadocs surface inherits the dashboard / landing palette
- * without further work.
+ * Brand tokens flow from `packages/ui/src/styles/tokens.css` (the canonical
+ * Imperial Terminal palette derived from /DESIGN.md). The Fumadocs UI
+ * library reads `--color-fd-*` variables; this layer binds Zeno's brand
+ * tokens onto them so every Fumadocs surface inherits the dashboard /
+ * landing palette without further work.
  *
  * Dark-only by upstream design. The site never serves the light palette —
  * matches https://zeno-agent.dev. No theme switcher, no flash.

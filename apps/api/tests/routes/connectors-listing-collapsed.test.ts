@@ -319,9 +319,7 @@ describe('GET /api/connectors — discriminated union', () => {
       catalogId?: string | null;
       installations?: unknown[];
     }>;
-    const group = items.find(
-      (it) => it.kind === 'connector_group' && it.catalogId === 'linear',
-    );
+    const group = items.find((it) => it.kind === 'connector_group' && it.catalogId === 'linear');
     expect(group).toBeDefined();
     expect(group?.installations).toHaveLength(3);
 
@@ -339,9 +337,7 @@ describe('GET /api/connectors — discriminated union', () => {
     });
     const res2 = await makeApp().request('/api/connectors', { headers: csrfHeaders() });
     const items2 = (await res2.json()) as Array<{ kind: string; catalogId?: string | null }>;
-    expect(
-      items2.find((it) => it.kind === 'connector' && it.catalogId === 'sentry'),
-    ).toBeDefined();
+    expect(items2.find((it) => it.kind === 'connector' && it.catalogId === 'sentry')).toBeDefined();
   });
 });
 

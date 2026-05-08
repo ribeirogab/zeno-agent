@@ -1,0 +1,48 @@
+---
+title: Channels
+description: A channel is the I/O boundary — how a request gets to Zeno and how the reply goes back out. Slack today.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+A **channel** is the I/O boundary of a Zeno profile: it is how the operator's request reaches the agent and how the agent's reply gets back out. The channel is **not** a tool the agent calls — it is the conversation itself.
+
+Today there is exactly one channel implementation: Slack via Socket Mode. The abstraction is real — the worker has a generic `Channel` port — but the only adapter that ships is Slack. Anything else (Discord, Telegram, email) is roadmap, not present.
+
+## Slack
+
+The Slack channel uses [`@slack/bolt`](https://github.com/slackapi/bolt-js) in **Socket Mode**, which means an outbound websocket from the container to Slack. No public URL, no inbound tunnel, no Slack event subscription URL to point at the host.
+
+The contract:
+
+- **Trigger.** The agent runs once when the bot is mentioned (`@zeno ...`) or DM'd.
+- **Response.** Every turn produces one Slack message back in the same channel/thread.
+- **Stateless per turn.** No conversation memory between mentions in the MVP.
+
+### App manifest
+
+The Slack app definition lives in the repo at [`infra/slack-app-manifest.json`](https://github.com/ribeirogab/zeno-agent/blob/main/infra/slack-app-manifest.json). Create a Slack app from that manifest, install it to your workspace, and copy the bot token + app-level token into the dashboard's Slack connector flow.
+
+### Credentials
+
+Two tokens go through the dashboard, not the CLI:
+
+| Token | Where it comes from | Stored as |
+| --- | --- | --- |
+| Bot token (`xoxb-…`) | "OAuth & Permissions" page of the Slack app | Connector secret, encrypted with the profile's master key |
+| App-level token (`xapp-…`) | "Basic Information" → App-level tokens, with `connections:write` scope | Same |
+
+You never paste these into a `.env` file by hand. The dashboard puts them in the runtime DB.
+
+### Boot without Slack
+
+<Callout type="info">
+The worker boots **without** Slack credentials. If credentials are missing or incomplete, the worker constructs a `NoopChannel` that quietly drops events, finishes boot, and stays alive. The dashboard becomes reachable, the operator installs the Slack connector, and a `zeno restart <profile>` then promotes the real `SlackChannel`.
+</Callout>
+
+This is the supported first-install flow: there is no chicken-and-egg between "the dashboard is the only place to install Slack" and "the worker needs Slack to boot."
+
+## What channels are not
+
+- **Channels are not connectors.** Slack-as-channel (the I/O boundary) is distinct from Slack-as-connector (an MCP tool surface the agent can call). Today only the channel side ships; if you want the agent to *post* to Slack proactively or read another channel's history, that is a separate connector and is not yet on the roadmap.
+- **Channels are not memory.** The MVP runs each turn fresh. Persisting cross-turn memory is a future concern attached to its own spec, not something to assume.

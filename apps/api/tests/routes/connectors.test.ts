@@ -3,26 +3,28 @@ import {
   ConnectorRepo,
   CronRepo,
   CronRunRepo,
-  type DB,
   LogRepo,
-  openDatabase,
-  runMigrations,
-} from '@zeno/storage';
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '@/server';
 import { csrfHeaders } from '../csrf-helper';
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   // Spec 0066 C: drop the seeded Playwright row so 'empty list' /
   // 'installed counts' assertions in this file behave as before.
-  db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
+  opened.raw.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
 });
 
-function makeApp(database: DB) {
+function makeApp(database: RuntimeDB) {
   return createApp({
     config: {
       logLevel: 'info',
@@ -47,7 +49,7 @@ function makeApp(database: DB) {
 }
 
 describe('GET /api/connectors', () => {
-  it('returns empty list on empty DB', async () => {
+  it('returns empty list on empty RuntimeDB', async () => {
     const res = await makeApp(db).request('/api/connectors', { headers: csrfHeaders() });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([]);

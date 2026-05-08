@@ -1,5 +1,5 @@
+import type { LogRepo } from '@zeno/db/runtime';
 import { createLogger, type Logger } from '@zeno/logger';
-import type { LogRepo } from '@zeno/storage';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const fallbackLogger = createLogger({ service: 'worker' });

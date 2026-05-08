@@ -11,6 +11,15 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { zValidator } from '@hono/zod-validator';
+import type {
+  CommandRepo,
+  Connector,
+  ConnectorAppRepo,
+  ConnectorRepo,
+  ConnectorSecret,
+  ToolCategory,
+  ToolPermission,
+} from '@zeno/db/runtime';
 import {
   computePemSha256,
   fetchAppMetadata,
@@ -20,15 +29,6 @@ import {
   signAppJwt,
 } from '@zeno/github-app';
 import { discoverTools } from '@zeno/mcp-discover';
-import type {
-  CommandRepo,
-  Connector,
-  ConnectorAppRepo,
-  ConnectorRepo,
-  ConnectorSecret,
-  ToolCategory,
-  ToolPermission,
-} from '@zeno/storage';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import {

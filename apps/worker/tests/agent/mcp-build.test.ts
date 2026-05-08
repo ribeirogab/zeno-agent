@@ -1,8 +1,8 @@
 import { mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { ConnectorRepo, openRuntimeDatabase, runRuntimeMigrations } from '@zeno/db/runtime';
 import { createLogger } from '@zeno/logger';
-import { ConnectorRepo, closeDatabase, openDatabase, runMigrations } from '@zeno/storage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildMcpServersMap,
@@ -29,17 +29,17 @@ afterEach(() => {
 });
 
 function makeRepo(): { repo: ConnectorRepo; close: () => void } {
-  const db = openDatabase(':memory:');
-  runMigrations(db);
-  // Spec 0066 C: migration 20 seeds Playwright. mcp-build tests want
-  // a clean slate so they can assert the built-ins-only path.
-  db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
+  const opened = openRuntimeDatabase(':memory:');
+  runRuntimeMigrations(opened.raw);
+  // The new runtime baseline does not auto-seed Playwright; tests that want
+  // a clean slate get one for free. (No-op kept for symmetry with prior
+  // boots that seeded the connector via migration 20.)
   return {
-    repo: new ConnectorRepo(db, {
+    repo: new ConnectorRepo(opened.drizzle, {
       masterKey: Buffer.from('a'.repeat(64), 'hex'),
       profileId: 'test',
     }),
-    close: () => closeDatabase(db),
+    close: opened.close,
   };
 }
 
@@ -219,7 +219,7 @@ describe('toRemoteConfig', () => {
 });
 
 describe('buildMcpServersMap', () => {
-  it('returns built-ins only when DB is empty', () => {
+  it('returns built-ins only when RuntimeDB is empty', () => {
     const { repo, close } = makeRepo();
     const result = buildMcpServersMap({ connectorRepo: repo, logger });
     expect(result).toEqual({});
@@ -305,7 +305,7 @@ describe('buildMcpServersMap', () => {
     close();
   });
 
-  it('logs override when DB connector shadows a built-in', () => {
+  it('logs override when RuntimeDB connector shadows a built-in', () => {
     const { repo, close } = makeRepo();
     // We can't easily fake an agent-layer entry without writing files, but the
     // override path is exercised by the broader integration. This test verifies

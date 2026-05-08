@@ -1,4 +1,4 @@
-import type { BackendCredentialsRepo } from '@zeno/storage';
+import type { BackendCredentialsRepo } from '@zeno/db/runtime';
 
 /**
  * Spec 0071 — credentials accessor for the worker.

@@ -5,25 +5,27 @@ import {
   CommandRepo,
   CronRepo,
   CronRunRepo,
-  type DB,
   LogRepo,
-  openDatabase,
-  runMigrations,
-} from '@zeno/storage';
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '@/server';
 import { csrfHeaders } from '../csrf-helper';
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 let profileDir: string;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   profileDir = mkdtempSync(join(tmpdir(), 'zeno-profile-'));
 });
 
-function makeApp(database: DB) {
+function makeApp(database: RuntimeDB) {
   return createApp({
     config: {
       logLevel: 'info',
@@ -186,7 +188,7 @@ describe('GET /api/settings/profile-files/USER.md', () => {
 });
 
 describe('PUT /api/settings/profile-files/USER.md', () => {
-  function putUserMd(database: DB, content: string) {
+  function putUserMd(database: RuntimeDB, content: string) {
     return makeApp(database).request('/api/settings/profile-files/USER.md', {
       method: 'PUT',
       headers: { ...csrfHeaders(), 'content-type': 'application/json' },

@@ -3,7 +3,6 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { createLogger, type Logger } from '@zeno/logger';
 import {
   AgentCapabilityRepo,
   BackendCredentialsRepo,
@@ -15,14 +14,15 @@ import {
   CronRepo,
   CronRunRepo,
   CronSkillRepo,
-  closeDatabase,
   LogRepo,
-  migrateConnectorSecretsEncryption,
-  openDatabase,
-  runMigrations,
+  openRuntimeDatabase,
+  runRuntimeMigrations,
   SessionRepo,
   SkillRepo,
-} from '@zeno/storage';
+  seedDefaultAgentCapabilities,
+  seedDefaultConnectors,
+} from '@zeno/db/runtime';
+import { createLogger, type Logger } from '@zeno/logger';
 import { ClaudeCodeBackend, type InvocationEvent } from '@/agent/backends/claude-code';
 import { MockBackend } from '@/agent/backends/mock';
 import { loadMockFixtures } from '@/agent/backends/mock-fixtures';
@@ -196,7 +196,8 @@ async function main(): Promise<void> {
   const promptHolder = { value: buildSystemPrompt(initialSoul, initialUser) };
 
   const dbPath = join(config.workspaceDir, 'zeno.db');
-  const db = openDatabase(dbPath);
+  const opened = openRuntimeDatabase(dbPath);
+  const db = opened.drizzle;
   bootLogger.info({ event: 'db_opened', path: dbPath }, 'database opened');
 
   // Spec 0062 boot steps 1 + 2: BEFORE migrations run, clean up any
@@ -215,7 +216,7 @@ async function main(): Promise<void> {
   await mkdir(dashboardSkillsRoot, { recursive: true });
   await cleanupTmpExtractDirs(dashboardSkillsRoot);
   preMigrateBodiesToFs({
-    db,
+    db: opened.raw,
     agentSkillsRoot,
     profileSkillsRoot: profileSkillsRoot ?? '/app/profile/skills',
     dashboardSkillsRoot,
@@ -232,24 +233,17 @@ async function main(): Promise<void> {
     bootLogger.info({ event: 'db_backup_written', path: backupPath }, 'pre-0071 db backup written');
   }
 
-  runMigrations(db);
+  runRuntimeMigrations(opened.raw);
   bootLogger.info({ event: 'migrations_applied' }, 'migrations applied');
 
-  // Spec 0071: encrypt any pre-0071 plaintext rows in connector_secrets that
-  // were carried through migration 21. Idempotent: subsequent boots find no
-  // matching rows and return migrated=0 silently.
+  // Spec 0071 retired: the new runtime schema has no plaintext value column,
+  // so the legacy `migrateConnectorSecretsEncryption` data migration is gone.
   const profileId = process.env.ZENO_PROFILE ?? 'default';
-  const { migrated: secretsMigrated } = migrateConnectorSecretsEncryption(
-    db,
-    config.masterKey,
-    profileId,
-  );
-  if (secretsMigrated > 0) {
-    bootLogger.info(
-      { event: 'connector_secrets_encrypted', count: secretsMigrated },
-      'encrypted legacy plaintext connector_secrets rows',
-    );
-  }
+
+  // Seed defaults for first-boot databases. Both seeders are idempotent:
+  // INSERT OR IGNORE for capabilities, slug-existence-check for connectors.
+  seedDefaultAgentCapabilities(db);
+  seedDefaultConnectors(db);
 
   const sessions = new SessionRepo(db);
   const crons = new CronRepo(db);
@@ -776,7 +770,7 @@ async function main(): Promise<void> {
     }
     try {
       logger.info({ event: 'db_closed' }, 'closing database');
-      closeDatabase(db);
+      opened.close();
     } catch {
       // best effort
     }

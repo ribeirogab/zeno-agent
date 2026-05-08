@@ -1,4 +1,4 @@
-import type { ConnectorAppRepo, ConnectorRepo, CronRepo, CronRunRepo } from '@zeno/storage';
+import type { ConnectorAppRepo, ConnectorRepo, CronRepo, CronRunRepo } from '@zeno/db/runtime';
 import type { HandlerMap } from '@/commands/dispatcher';
 import { buildAppInstallHandler } from '@/commands/handlers/app-install';
 import { buildAppUninstallHandler } from '@/commands/handlers/app-uninstall';

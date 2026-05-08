@@ -16,11 +16,11 @@ import {
   ConnectorRepo,
   CronRepo,
   CronRunRepo,
-  type DB,
   LogRepo,
-  openDatabase,
-  runMigrations,
-} from '@zeno/storage';
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '@/server';
 import { csrfHeaders } from '../csrf-helper';
@@ -34,7 +34,8 @@ function newPem(): string {
   return privateKey;
 }
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 let mockFetch: ReturnType<typeof vi.fn>;
 const originalFetch = globalThis.fetch;
 const originalCwd = process.cwd();
@@ -48,15 +49,16 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   mockFetch = vi.fn();
   globalThis.fetch = mockFetch as unknown as typeof fetch;
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  db.close();
+  opened.close();
 });
 
 function makeApp() {

@@ -25,6 +25,7 @@
  * yaml fallback was removed per spec 0044.
  */
 
+import type { ConnectorAppRepo, ConnectorRepo } from '@zeno/db/runtime';
 import {
   computePemSha256,
   fetchAppMetadata,
@@ -33,7 +34,6 @@ import {
   signAppJwt,
 } from '@zeno/github-app';
 import { createLogger } from '@zeno/logger';
-import type { ConnectorAppRepo, ConnectorRepo } from '@zeno/storage';
 
 const logger = createLogger({ service: 'worker' });
 

@@ -13,7 +13,6 @@ _Nothing currently in flight._
 - [ ] [#8](https://github.com/ribeirogab/zeno-agent/issues/8) — feat(agent): multi-backend toggle + Codex impl
 - [ ] [#9](https://github.com/ribeirogab/zeno-agent/issues/9) — feat(channels): channel inbound files
 - [ ] [#10](https://github.com/ribeirogab/zeno-agent/issues/10) — feat(channels): channel outbound files
-- [ ] [#44](https://github.com/ribeirogab/zeno-agent/issues/44) — feat(db): unify DB stack as drizzle (`unify-db-as-drizzle`)
 - [ ] [#45](https://github.com/ribeirogab/zeno-agent/issues/45) — feat(security): production-grade auth layer for profile dashboards
 - [ ] [#46](https://github.com/ribeirogab/zeno-agent/issues/46) — feat(dashboard): onboarding wizard inside profile dashboard
 - [ ] [#47](https://github.com/ribeirogab/zeno-agent/issues/47) — feat(cli): backup / restore tooling for `~/.zeno/`
@@ -25,6 +24,7 @@ _Nothing currently in flight._
 
 ## Recently shipped
 
+- [x] [#44](https://github.com/ribeirogab/zeno-agent/issues/44) — feat(db): unify DB stack as drizzle ([PR #53](https://github.com/ribeirogab/zeno-agent/pull/53))
 - [x] [PR #32](https://github.com/ribeirogab/zeno-agent/pull/32) — feat(cli): interactive arrow-key picker on `zeno upgrade`
 - [x] [PR #31](https://github.com/ribeirogab/zeno-agent/pull/31) — feat(dashboard): drop password gate, surface real version, reorder first-run checklist (Claude → Slack → cron)
 - [x] [#17](https://github.com/ribeirogab/zeno-agent/issues/17) — feat(cli): multi-profile via CLI + kill `config.yaml` ([PR #18](https://github.com/ribeirogab/zeno-agent/pull/18)) plus follow-up fixes ([PR #20](https://github.com/ribeirogab/zeno-agent/pull/20) docker build CLI spawn, [PR #21](https://github.com/ribeirogab/zeno-agent/pull/21) worker boots without Slack, [PR #22](https://github.com/ribeirogab/zeno-agent/pull/22) install.sh at repo root, [PR #24](https://github.com/ribeirogab/zeno-agent/pull/24) docker build cwd)

@@ -1,8 +1,8 @@
 import { lstat, mkdir, mkdtemp, readdir, readlink, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { openRuntimeDatabase, runRuntimeMigrations, SkillRepo } from '@zeno/db/runtime';
 import { createLogger } from '@zeno/logger';
-import { openDatabase, runMigrations, SkillRepo } from '@zeno/storage';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanupTmpExtractDirs, materializeSkillsToFs } from '@/skills/materialize';
 
@@ -13,7 +13,7 @@ describe('materializeSkillsToFs (spec 0062 — symlink-based)', () => {
   let agentSkillsRoot: string;
   let profileSkillsRoot: string;
   let dashboardSkillsRoot: string;
-  let db: ReturnType<typeof openDatabase>;
+  let opened: ReturnType<typeof openRuntimeDatabase>;
   let skillRepo: SkillRepo;
 
   beforeEach(async () => {
@@ -26,13 +26,17 @@ describe('materializeSkillsToFs (spec 0062 — symlink-based)', () => {
     await mkdir(agentSkillsRoot, { recursive: true });
     await mkdir(profileSkillsRoot, { recursive: true });
     await mkdir(dashboardSkillsRoot, { recursive: true });
-    db = openDatabase(':memory:');
-    runMigrations(db);
-    skillRepo = new SkillRepo(db, { agentSkillsRoot, profileSkillsRoot, dashboardSkillsRoot });
+    opened = openRuntimeDatabase(':memory:');
+    runRuntimeMigrations(opened.raw);
+    skillRepo = new SkillRepo(opened.drizzle, {
+      agentSkillsRoot,
+      profileSkillsRoot,
+      dashboardSkillsRoot,
+    });
   });
 
   afterEach(async () => {
-    db.close();
+    opened.close();
   });
 
   async function seedFsContent(
@@ -50,7 +54,7 @@ describe('materializeSkillsToFs (spec 0062 — symlink-based)', () => {
     );
   }
 
-  it('creates one symlink per DB row pointing at canonicalPath', async () => {
+  it('creates one symlink per RuntimeDB row pointing at canonicalPath', async () => {
     // Dashboard source: canonicalPath = dashboardSkillsRoot/<name>
     skillRepo.create({
       name: 'frontend-design',
@@ -85,7 +89,7 @@ describe('materializeSkillsToFs (spec 0062 — symlink-based)', () => {
     );
   });
 
-  it('deletes orphan symlinks that no longer have a DB row', async () => {
+  it('deletes orphan symlinks that no longer have a RuntimeDB row', async () => {
     const a = skillRepo.create({ name: 'a', description: 'd' });
     skillRepo.create({ name: 'b', description: 'd' });
     await seedFsContent(dashboardSkillsRoot, 'a', 'd', 'b');
@@ -107,7 +111,7 @@ describe('materializeSkillsToFs (spec 0062 — symlink-based)', () => {
   it('cleans up pre-existing legacy directories at the symlink path (post-spec-0052 → spec-0062 upgrade)', async () => {
     // Simulate a worker that booted on the old file-write strategy: it
     // wrote a real directory at ~/.claude/skills/legacy-skill/. After the
-    // spec-0062 upgrade, that dir is no longer in DB (or it is, but as
+    // spec-0062 upgrade, that dir is no longer in RuntimeDB (or it is, but as
     // a different source). The materializer must clean it up.
     const skillsRoot = join(claudeHome, 'skills');
     await mkdir(join(skillsRoot, 'legacy-skill'), { recursive: true });
@@ -137,7 +141,7 @@ describe('materializeSkillsToFs (spec 0062 — symlink-based)', () => {
     expect(entries).toEqual([]);
   });
 
-  it('is idempotent — calling twice with no DB changes recreates the same symlinks', async () => {
+  it('is idempotent — calling twice with no RuntimeDB changes recreates the same symlinks', async () => {
     skillRepo.create({ name: 'a', description: 'd' });
     await seedFsContent(dashboardSkillsRoot, 'a', 'd', 'b');
     const first = await materializeSkillsToFs({ skillRepo, claudeHome, logger });

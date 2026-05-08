@@ -1,4 +1,4 @@
-import type { Connector } from '@zeno/storage';
+import type { Connector } from '@zeno/db/runtime';
 import { describe, expect, it } from 'vitest';
 import {
   RESERVED_AUTHORIZATION_KEY,

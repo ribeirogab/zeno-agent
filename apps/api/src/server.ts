@@ -1,4 +1,3 @@
-import { createLogger } from '@zeno/logger';
 import type {
   AgentCapabilityRepo,
   BackendCredentialsRepo,
@@ -11,11 +10,12 @@ import type {
   CronRepo,
   CronRunRepo,
   CronSkillRepo,
-  DB,
   LogRepo,
+  RuntimeDB,
   SkillRepo,
-} from '@zeno/storage';
-import { SessionRepo } from '@zeno/storage';
+} from '@zeno/db/runtime';
+import { SessionRepo } from '@zeno/db/runtime';
+import { createLogger } from '@zeno/logger';
 import { Hono } from 'hono';
 import type { ApiConfig } from '@/config';
 import { csrf } from '@/csrf/middleware';
@@ -39,7 +39,7 @@ import { buildStatsRoute } from '@/routes/stats';
 
 export interface AppDeps {
   config: ApiConfig;
-  db: DB;
+  db: RuntimeDB;
   cronRepo: CronRepo;
   cronRunRepo: CronRunRepo;
   commandRepo: CommandRepo;

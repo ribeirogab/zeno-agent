@@ -39,7 +39,7 @@
  *     with the connector → DENY
  */
 
-import type { AgentCapabilityRepo, ConnectorRepo } from '@zeno/storage';
+import type { AgentCapabilityRepo, ConnectorRepo } from '@zeno/db/runtime';
 import type { Decision } from '@/guardrails/types';
 
 const TOOL_NAME_REGEX = /^mcp__([a-z0-9][a-z0-9-]*)__(.+)$/;

@@ -1,4 +1,4 @@
-import type { Connector, ConnectorSecret } from '@zeno/storage';
+import type { Connector, ConnectorSecret } from '@zeno/db/runtime';
 
 /**
  * MCP server config shape accepted by both the Claude Agent SDK and the

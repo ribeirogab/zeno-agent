@@ -2,24 +2,26 @@ import {
   CommandRepo,
   CronRepo,
   CronRunRepo,
-  type DB,
   LogRepo,
-  openDatabase,
-  runMigrations,
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
   SessionRepo,
-} from '@zeno/storage';
+} from '@zeno/db/runtime';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '@/server';
 import { csrfHeaders } from '../csrf-helper';
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
 });
 
-function makeApp(database: DB) {
+function makeApp(database: RuntimeDB) {
   return createApp({
     config: {
       logLevel: 'info',
@@ -60,9 +62,11 @@ describe('GET /api/stats', () => {
   it('counts sessions in last 24h via last_used_at', async () => {
     const sessions = new SessionRepo(db);
     sessions.upsert('thread-recent', 'sess-1');
-    db.prepare(
-      "UPDATE sessions SET last_used_at = datetime('now', '-2 days') WHERE thread_id = 'thread-recent'",
-    ).run();
+    opened.raw
+      .prepare(
+        "UPDATE sessions SET last_used_at = datetime('now', '-2 days') WHERE thread_id = 'thread-recent'",
+      )
+      .run();
     sessions.upsert('thread-fresh', 'sess-2');
     const res = await makeApp(db).request('/api/stats', { headers: csrfHeaders() });
     const body = (await res.json()) as { sessions24h: number };

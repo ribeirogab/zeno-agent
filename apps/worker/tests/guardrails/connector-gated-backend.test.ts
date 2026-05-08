@@ -5,12 +5,11 @@ import {
   AgentCapabilityRepo,
   ConnectorRepo,
   ConnectorSkillRepo,
-  closeDatabase,
-  openDatabase,
-  runMigrations,
+  openRuntimeDatabase,
+  runRuntimeMigrations,
   type Skill,
   SkillRepo,
-} from '@zeno/storage';
+} from '@zeno/db/runtime';
 import { describe, expect, it, vi } from 'vitest';
 import type { ClaudeCodeBackend } from '@/agent/backends/claude-code';
 import { ConnectorGatedBackend } from '@/guardrails/connector-gated-backend';
@@ -33,8 +32,9 @@ function makeRepo() {
   mkdirSync(agentSkillsRoot, { recursive: true });
   mkdirSync(profileSkillsRoot, { recursive: true });
   mkdirSync(dashboardSkillsRoot, { recursive: true });
-  const db = openDatabase(':memory:');
-  runMigrations(db);
+  const opened = openRuntimeDatabase(':memory:');
+  const db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   const repo = new ConnectorRepo(db, {
     masterKey: Buffer.from('a'.repeat(64), 'hex'),
     profileId: 'test',
@@ -48,7 +48,7 @@ function makeRepo() {
   const skills = new ConnectorSkillRepo(db);
 
   /**
-   * Seed both the DB row + the FS file so SkillRepo.canonicalPath(skill)
+   * Seed both the RuntimeDB row + the FS file so SkillRepo.canonicalPath(skill)
    * resolves into a real SKILL.md the gated-backend hook can read.
    */
   function seedSkillWithBody(input: { name: string; description: string; body: string }): Skill {
@@ -70,7 +70,7 @@ function makeRepo() {
     skills,
     seedSkillWithBody,
     close: () => {
-      closeDatabase(db);
+      opened.close();
       rmSync(sandbox, { recursive: true, force: true });
     },
   };

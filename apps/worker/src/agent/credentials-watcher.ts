@@ -1,4 +1,4 @@
-import type { BackendCredentialsRepo } from '@zeno/storage';
+import type { BackendCredentialsRepo } from '@zeno/db/runtime';
 import { materializeClaudeCredentials } from './credentials-materializer.js';
 
 /**

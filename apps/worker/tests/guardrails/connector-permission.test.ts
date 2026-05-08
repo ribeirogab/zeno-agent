@@ -1,26 +1,26 @@
 import {
   AgentCapabilityRepo,
   ConnectorRepo,
-  closeDatabase,
-  openDatabase,
-  runMigrations,
-} from '@zeno/storage';
+  openRuntimeDatabase,
+  runRuntimeMigrations,
+  seedDefaultAgentCapabilities,
+} from '@zeno/db/runtime';
 import { describe, expect, it } from 'vitest';
 import { checkConnectorPermission } from '@/guardrails/policies/connector-permission';
 
 function makeRepos() {
-  const db = openDatabase(':memory:');
-  runMigrations(db);
-  // Spec 0066 C: drop the seeded Playwright row — this test exercises
-  // the 'tool not in connector_repo' (built-in MCP) path which the
-  // seed otherwise contaminates.
-  db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
-  const repo = new ConnectorRepo(db, {
+  const opened = openRuntimeDatabase(':memory:');
+  runRuntimeMigrations(opened.raw);
+  // Spec 0053: the test suite relies on the default-on dev capabilities
+  // (Bash/Read/Edit/Write/Glob/Grep + Task/WebFetch off). The new runtime
+  // baseline does not auto-seed via migration, so we run the seeder here.
+  seedDefaultAgentCapabilities(opened.drizzle);
+  const repo = new ConnectorRepo(opened.drizzle, {
     masterKey: Buffer.from('a'.repeat(64), 'hex'),
     profileId: 'test',
   });
-  const caps = new AgentCapabilityRepo(db);
-  return { repo, caps, close: () => closeDatabase(db) };
+  const caps = new AgentCapabilityRepo(opened.drizzle);
+  return { repo, caps, close: opened.close };
 }
 
 describe('checkConnectorPermission (spec 0050 + 0052)', () => {
@@ -81,7 +81,7 @@ describe('checkConnectorPermission (spec 0050 + 0052)', () => {
     close();
   });
 
-  it('denies MCP tool when slug is in DB but tool is NOT registered with the connector', () => {
+  it('denies MCP tool when slug is in RuntimeDB but tool is NOT registered with the connector', () => {
     const { repo, caps, close } = makeRepos();
     repo.create({
       slug: 'echo',

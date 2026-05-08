@@ -1,5 +1,5 @@
+import type { Command, CommandRepo } from '@zeno/db/runtime';
 import { createLogger, type Logger } from '@zeno/logger';
-import type { Command, CommandRepo } from '@zeno/storage';
 import type { HandlerResult } from '@/commands/dispatcher';
 
 const fallbackLogger = createLogger({ service: 'worker' });

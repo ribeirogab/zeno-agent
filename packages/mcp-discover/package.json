@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@zeno/storage": "workspace:*"
+    "@zeno/db": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^6.0.2",

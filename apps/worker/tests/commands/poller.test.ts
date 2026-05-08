@@ -1,13 +1,20 @@
-import { CommandRepo, type DB, openDatabase, runMigrations } from '@zeno/storage';
+import {
+  CommandRepo,
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CommandsPoller } from '@/commands/poller';
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 let repo: CommandRepo;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   repo = new CommandRepo(db);
 });
 

@@ -1,7 +1,11 @@
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { BackendCredentialsRepo, openDatabase, runMigrations } from '@zeno/storage';
+import {
+  BackendCredentialsRepo,
+  openRuntimeDatabase,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CredentialsWatcher } from '@/agent/credentials-watcher';
 
@@ -18,16 +22,19 @@ describe('CredentialsWatcher', () => {
 
   beforeEach(() => {
     claudeHome = mkdtempSync(join(tmpdir(), 'claude-home-'));
-    const db = openDatabase(':memory:');
-    runMigrations(db);
-    repo = new BackendCredentialsRepo(db, { masterKey: MASTER_KEY, profileId: 'default' });
+    const opened = openRuntimeDatabase(':memory:');
+    runRuntimeMigrations(opened.raw);
+    repo = new BackendCredentialsRepo(opened.drizzle, {
+      masterKey: MASTER_KEY,
+      profileId: 'default',
+    });
   });
 
   afterEach(() => {
     watcher?.stop();
   });
 
-  it('materializes the credentials file when the DB row updates', async () => {
+  it('materializes the credentials file when the RuntimeDB row updates', async () => {
     repo.upsert({ backendId: 'claude-code', fieldName: 'oauth_token', value: 'sk-ant-1' });
     watcher = new CredentialsWatcher({
       repo,

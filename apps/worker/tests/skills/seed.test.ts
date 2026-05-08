@@ -7,7 +7,12 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { closeDatabase, type DB, openDatabase, runMigrations, SkillRepo } from '@zeno/storage';
+import {
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+  SkillRepo,
+} from '@zeno/db/runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { bootSkillsReconcile } from '@/skills/seed';
 
@@ -25,7 +30,8 @@ describe('bootSkillsReconcile (spec 0053 + 0062)', () => {
   let agentRoot: string;
   let profileRoot: string;
   let dashboardRoot: string;
-  let db: DB;
+  let opened: ReturnType<typeof openRuntimeDatabase>;
+  let db: RuntimeDB;
   let skills: SkillRepo;
   // Cast to a Logger-shaped mock; we only assert on `info` / `warn`.
   // biome-ignore lint/suspicious/noExplicitAny: vitest mock
@@ -46,8 +52,9 @@ describe('bootSkillsReconcile (spec 0053 + 0062)', () => {
     mkdirSync(agentRoot, { recursive: true });
     mkdirSync(profileRoot, { recursive: true });
     mkdirSync(dashboardRoot, { recursive: true });
-    db = openDatabase(':memory:');
-    runMigrations(db);
+    opened = openRuntimeDatabase(':memory:');
+    db = opened.drizzle;
+    runRuntimeMigrations(opened.raw);
     skills = new SkillRepo(db, {
       agentSkillsRoot: agentRoot,
       profileSkillsRoot: profileRoot,
@@ -58,7 +65,7 @@ describe('bootSkillsReconcile (spec 0053 + 0062)', () => {
   });
 
   afterEach(() => {
-    closeDatabase(db);
+    opened.close();
     rmSync(tmp, { recursive: true, force: true });
   });
 
@@ -262,7 +269,7 @@ describe('bootSkillsReconcile (spec 0053 + 0062)', () => {
 
   // Spec 0053 defense in depth — malicious or buggy SKILL.md whose
   // frontmatter `name` would path-traverse must be rejected before reaching
-  // the DB (the materializer would then escape ~/.claude/skills/).
+  // the RuntimeDB (the materializer would then escape ~/.claude/skills/).
   it.each([
     ['../escape', 'parent dir traversal'],
     ['foo/bar', 'nested path'],
@@ -298,14 +305,15 @@ describe('bootSkillsReconcile (spec 0053 + 0062)', () => {
     });
     const skill = skills.list()[0];
     if (!skill) throw new Error('seeded row missing');
-    db.prepare(
-      `INSERT INTO connectors (id, slug, display_name, source, transport)
+    opened.raw
+      .prepare(
+        `INSERT INTO connectors (id, slug, display_name, source, transport)
        VALUES (?, ?, ?, ?, ?)`,
-    ).run('cid', 'echo', 'Echo', 'custom', 'stdio');
-    db.prepare(`INSERT INTO connector_skills (connector_id, skill_id) VALUES (?, ?)`).run(
-      'cid',
-      skill.id,
-    );
+      )
+      .run('cid', 'echo', 'Echo', 'custom', 'stdio');
+    opened.raw
+      .prepare(`INSERT INTO connector_skills (connector_id, skill_id) VALUES (?, ?)`)
+      .run('cid', skill.id);
     rmSync(join(agentRoot, 'zeno-a'), { recursive: true });
     const report = bootSkillsReconcile({
       skills,

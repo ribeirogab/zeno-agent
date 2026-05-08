@@ -14,7 +14,8 @@ type DiagramFlowProps = {
 
 // Renders a row of <DiagramNode> with mono "→" glyphs between them.
 // The container itself has a panel background + subtle border so the
-// diagram reads as a single unit on the page.
+// diagram reads as a single unit — two-tone (panel envelope -> canvas
+// cards) echoes the install terminal's layering.
 export function DiagramFlow({ nodes }: DiagramFlowProps) {
   return (
     <div
@@ -23,7 +24,7 @@ export function DiagramFlow({ nodes }: DiagramFlowProps) {
         display: 'flex',
         alignItems: 'stretch',
         gap: '12px',
-        padding: '32px',
+        padding: '20px',
         border: '1px solid var(--color-border-subtle)',
         backgroundColor: 'var(--color-panel)',
         borderRadius: '6px',
@@ -42,8 +43,9 @@ export function DiagramFlow({ nodes }: DiagramFlowProps) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontFamily: 'var(--font-mono)',
-                fontSize: '18px',
-                color: 'var(--color-text-tertiary)',
+                fontSize: '22px',
+                fontWeight: 300,
+                color: 'var(--color-gold-deep)',
                 padding: '0 4px',
               }}
             >

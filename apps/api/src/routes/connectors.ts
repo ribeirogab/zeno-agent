@@ -105,6 +105,8 @@ function buildListItem(
     id: connector.id,
     slug: connector.slug,
     displayName: connector.displayName,
+    // Spec 2026-05-08: detail pages render the operator-set label.
+    instanceLabel: connector.instanceLabel,
     description: connector.description,
     source: connector.source,
     catalogId: connector.catalogId,
@@ -822,12 +824,60 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       }
     }
 
-    // Build standalone ConnectorListItems.
-    const items: Array<Record<string, unknown>> = standalone.map((connector) => {
-      const tools = deps.connectors.getTools(connector.id);
-      const invocations = deps.connectors.countInvocationsSince(connector.id, cutoff);
-      return buildListItem(connector, tools.length, invocations, iconUrlForConnector(connector));
-    });
+    // Spec 2026-05-08 Q2 + Q5: standalone catalog rows are bucketed by
+    // catalog_id. Multiple instances of the same plain catalog (e.g., 3 Linear
+    // workspaces) collapse into a single `connector_group` with nested
+    // installations; single-instance catalogs continue to emit `kind:'connector'`.
+    // Custom rows (no catalogId) NEVER collapse — operators name customs explicitly.
+    const standaloneByCatalog = new Map<string, Connector[]>();
+    for (const connector of standalone) {
+      const key =
+        connector.source === 'catalog' && connector.catalogId
+          ? connector.catalogId
+          : `__custom__:${connector.id}`;
+      const existing = standaloneByCatalog.get(key) ?? [];
+      existing.push(connector);
+      standaloneByCatalog.set(key, existing);
+    }
+
+    const items: Array<Record<string, unknown>> = [];
+    for (const [key, group] of standaloneByCatalog.entries()) {
+      const isCustomBucket = key.startsWith('__custom__:');
+      if (isCustomBucket || group.length === 1) {
+        // Single-instance catalog OR a custom row: emit standalone connector.
+        for (const connector of group) {
+          const tools = deps.connectors.getTools(connector.id);
+          const invocations = deps.connectors.countInvocationsSince(connector.id, cutoff);
+          items.push(
+            buildListItem(connector, tools.length, invocations, iconUrlForConnector(connector)),
+          );
+        }
+        continue;
+      }
+      // Multi-instance plain catalog → connector_group.
+      const sample = group[0]!;
+      const catalogId = key;
+      const iconUrl = iconUrlForConnector(sample);
+      items.push({
+        kind: 'connector_group',
+        catalogId,
+        name: findCatalogEntry(catalogId)?.name ?? sample.displayName,
+        iconUrl,
+        installationCount: group.length,
+        statusAggregate: computeStatusAggregate(group),
+        lastVerifiedAt: pickLatestVerified(group),
+        installations: group.map((cn) => ({
+          connectorId: cn.id,
+          slug: cn.slug,
+          displayName: cn.displayName,
+          instanceLabel: cn.instanceLabel,
+          status: cn.status,
+          lastVerifiedAt: cn.lastVerifiedAt,
+          lastError: cn.lastError,
+          lastErrorAt: cn.lastErrorAt,
+        })),
+      });
+    }
 
     // Build AppListItems by joining connector_apps + nested connectors.
     if (deps.connectorApps) {

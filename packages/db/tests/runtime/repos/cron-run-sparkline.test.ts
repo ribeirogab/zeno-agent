@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { openRuntimeDatabase, type RuntimeDB, runRuntimeMigrations } from '../../../src/runtime/db.js';
+import {
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '../../../src/runtime/db.js';
 import { CronRunRepo } from '../../../src/runtime/repos/cron-runs.js';
 import { CronRepo } from '../../../src/runtime/repos/crons.js';
 import { cronRuns } from '../../../src/runtime/schema.js';

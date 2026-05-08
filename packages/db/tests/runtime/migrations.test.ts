@@ -27,13 +27,13 @@ describe('runRuntimeMigrations', () => {
     const { raw, close } = openRuntimeDatabase(':memory:');
     try {
       runRuntimeMigrations(raw);
-      const before = raw
-        .prepare('SELECT COUNT(*) as c FROM schema_migrations')
-        .get() as { c: number };
+      const before = raw.prepare('SELECT COUNT(*) as c FROM schema_migrations').get() as {
+        c: number;
+      };
       runRuntimeMigrations(raw);
-      const after = raw
-        .prepare('SELECT COUNT(*) as c FROM schema_migrations')
-        .get() as { c: number };
+      const after = raw.prepare('SELECT COUNT(*) as c FROM schema_migrations').get() as {
+        c: number;
+      };
       expect(after.c).toBe(before.c);
     } finally {
       close();

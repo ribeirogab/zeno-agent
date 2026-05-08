@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { openRuntimeDatabase, type RuntimeDB, runRuntimeMigrations } from '../../../src/runtime/db.js';
+import {
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '../../../src/runtime/db.js';
 import { SessionRepo } from '../../../src/runtime/repos/sessions.js';
 import { sessions } from '../../../src/runtime/schema.js';
 

@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { openRuntimeDatabase, runRuntimeMigrations } from '../../src/runtime/db.js';
-import { connectorToolPermissions, connectors } from '../../src/runtime/schema.js';
+import { connectors, connectorToolPermissions } from '../../src/runtime/schema.js';
 import { seedDefaultConnectors } from '../../src/runtime/seed.js';
 
 describe('seedDefaultConnectors', () => {

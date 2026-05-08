@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { openRuntimeDatabase, type RuntimeDB, runRuntimeMigrations } from '../../../src/runtime/db.js';
+import {
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '../../../src/runtime/db.js';
 import { BackendSettingsRepo } from '../../../src/runtime/repos/backend-settings.js';
 
 describe('BackendSettingsRepo', () => {

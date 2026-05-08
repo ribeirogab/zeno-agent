@@ -33,9 +33,7 @@ beforeEach(() => {
   db = opened.drizzle;
   close = opened.close;
   for (const row of SEED) {
-    db.insert(agentCapabilities)
-      .values({ toolName: row.toolName, enabled: row.enabled })
-      .run();
+    db.insert(agentCapabilities).values({ toolName: row.toolName, enabled: row.enabled }).run();
   }
   repo = new AgentCapabilityRepo(db);
 });

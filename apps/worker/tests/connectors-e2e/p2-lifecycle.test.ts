@@ -228,6 +228,27 @@ describe('P2 — connector lifecycle', () => {
     expect(testDb.connectorRepo.getTools(slack.id)).toHaveLength(0);
   });
 
+  it('P2.6: connector_create persists instanceLabel from the catalog payload', async () => {
+    const handler = buildConnectorCreateHandler(testDb.connectorRepo);
+    const result = await handler(
+      stubCommand('connector_create', {
+        source: 'catalog',
+        catalogId: 'linear',
+        slug: 'linear-acme',
+        displayName: 'Linear',
+        instanceLabel: 'Acme workspace',
+        transport: 'remote',
+        secrets: [],
+        tools: [],
+        kind: 'mcp',
+      }),
+    );
+    expect(result.ok).toBe(true);
+
+    const created = testDb.connectorRepo.getBySlug('linear-acme');
+    expect(created?.instanceLabel).toBe('Acme workspace');
+  });
+
   it('P2.5 (spec 0057): connector_create without explicit kind defaults to mcp', async () => {
     fixture = bootFixture();
     const handler = buildConnectorCreateHandler(testDb.connectorRepo);

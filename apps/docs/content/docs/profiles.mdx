@@ -1,0 +1,55 @@
+---
+title: Profiles
+description: One Zeno install runs N isolated profiles, each with its own container, dashboard, and credentials.
+---
+
+A **profile** is one Zeno instance. The profile is the unit of isolation: each one has its own container, its own dashboard port, its own master key, its own USER.md, its own connector credentials, and its own runtime database.
+
+You can run as many profiles as you want side by side. The maintainer's typical setup is `personal` and `work`; nothing stops you from adding `experiments` or `client-acme` next to them.
+
+## What lives where
+
+| Path | Owner | Contents |
+| --- | --- | --- |
+| `~/.zeno/zeno-agent/` | The repo, cloned by the installer | source code, Dockerfile, templates |
+| `~/.zeno/state.db` | The CLI (host SQLite, `chmod 600`) | one row per profile: name, owner, port, master-key fingerprint, sticky-default flag |
+| `~/.zeno/profiles/<name>/` | The CLI | per-profile `USER.md`, `.env`, master key |
+| Docker volume `zeno-<name>-workspace` | The container | the agent's writable workspace |
+| Docker volume `zeno-<name>-claude-home` | The container | the Claude SDK's `~/.claude/` (skills, sessions) |
+| Container `zeno-<name>` | Docker | the runtime: api + worker + dashboard processes |
+
+Profiles never share a container, never share a volume, never share credentials.
+
+## Port allocation
+
+Profile dashboards bind `127.0.0.1` at ports `6101–6200`. The CLI allocates the next free port on `zeno profile create` and stores it in `state.db`. To move a profile to a different port:
+
+```bash
+zeno profile edit personal --port 6105
+```
+
+If the chosen port is taken, the CLI rejects the move. Bind is `127.0.0.1` only — profile dashboards are never exposed beyond the loopback interface.
+
+## Sticky default
+
+Most subcommands take an optional `<profile>` argument. Omit it and the CLI uses the **sticky** profile, which is whatever you last set with:
+
+```bash
+zeno profile use personal
+```
+
+The sticky profile is what `zeno start`, `zeno stop`, `zeno logs`, `zeno open`, etc. act on when no name is given.
+
+## Tear-down
+
+```bash
+zeno profile delete personal
+```
+
+The CLI prompts for confirmation, then removes the container, both volumes, the `~/.zeno/profiles/personal/` directory, and the `state.db` row. There is no undo.
+
+## What profiles don't give you
+
+- **Multi-user.** Profiles isolate **contexts** (one per project / role / client), not people. There is one operator per host. Multi-user is constitution-level out of scope.
+- **Shared connectors.** Each profile's `/connectors` install is per-profile. Re-install the same connector in each profile that needs it; the credentials stay separate.
+- **Cross-profile messaging.** Profiles don't talk to each other. If you want one Zeno to drive another, the right shape is two channels (one for each), not a shared bus.

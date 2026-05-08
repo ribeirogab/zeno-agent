@@ -1,0 +1,48 @@
+---
+title: Connectors
+description: Connectors are the heart of the product — every external capability flows through one.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+A **connector** is an MCP server the operator installs through the dashboard. Each connector exposes typed tools (`mcp__github-app__merge_pull_request`, `mcp__sentry__list_issues`, `mcp__linear__create_issue`, etc.) the agent composes to deliver an outcome. **Without connectors, Zeno is a talking statue.**
+
+Connectors are the only way the agent gets external capabilities. The agent has no shell, no filesystem of its own, no general web access. If a capability is missing, the answer is to install or build a connector for it — not to script around it.
+
+## How they work
+
+1. The operator opens `/connectors` in their profile dashboard, picks a connector from the catalogue, and clicks **Install**.
+2. The connector flow asks for any required secrets (a PAT, an OAuth token, an API key). Secrets are encrypted at rest with the profile's master key.
+3. The dashboard writes the install record to the runtime DB. The worker spawns the MCP subprocess with the right env vars on the next turn.
+4. The agent's tool list now includes that connector's tools (`mcp__<connector-id>__<tool-name>`). The agent calls them when the operator's request matches.
+
+Each connector ships with a list of tools it exposes; the operator can disable individual tools per connector under `/connectors/<id>` to shrink the agent's surface area.
+
+## Per-tool capability gating
+
+Every tool a connector exposes can be toggled on/off, and given a default permission of `allow` or `ask`:
+
+- `allow` — the agent calls the tool without prompting.
+- `ask` — the agent stops and asks the operator before calling.
+
+The defaults ship with the catalogue (most read-only tools default to `allow`; mutating tools default to `ask`). The operator can override either way per profile.
+
+## Auth flow per connector
+
+Connectors ship one of two auth shapes:
+
+- **Secret-based.** The operator pastes a token into the dashboard. Examples: GitHub Personal (PAT), Linear, Klaviyo, Sentry, Swarmia, Playwright.
+- **GitHub App.** A GitHub App installation flow handles auth via short-lived installation tokens that the worker rotates on its own. One installation per connector entry, supporting multi-installation use cases (personal account + work org).
+
+<Callout type="info">
+Token rotation, masking, and revocation are dashboard concerns. The CLI never touches connector credentials.
+</Callout>
+
+## What ships today
+
+See the [connector catalogue](/connector-catalogue) for the full list of installable connectors with logos and descriptions. The catalogue page is generated at docs build time from `agent/connectors-catalog.json`, so it is always in lockstep with what the dashboard shows.
+
+## What connectors are not
+
+- **Connectors are not channels.** The Slack adapter that brings messages into Zeno is a [channel](/channels). A hypothetical "post to Slack" tool that the agent would call is a connector. Today, Zeno ships only the Slack channel; there is no Slack connector.
+- **Connectors are not skills.** A [skill](/skills) is a markdown playbook that tells the agent **how** to do something. A connector is the **capability** that lets the agent do it at all.

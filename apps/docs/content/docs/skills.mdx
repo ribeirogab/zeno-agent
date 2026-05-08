@@ -1,0 +1,66 @@
+---
+title: Skills
+description: Markdown playbooks the operator installs via the dashboard. The agent reads them when the description matches a request.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+A **skill** is a markdown playbook (`SKILL.md`) the operator installs through the dashboard. Each skill carries a **name**, a **one-line description**, and a body of instructions and templates. The Claude Agent SDK lists every installed skill in the system prompt as a `<name>: <description>` line, and when a description matches what the user is asking for, the agent reads the SKILL.md body and follows its instructions literally — including any output-format templates, forbidden phrases, or pre-submit lints the skill defines.
+
+Skills override the agent's prose instincts. The templates exist precisely because the LLM default would otherwise drift.
+
+## How they work
+
+1. The operator opens `/skills` in the dashboard and uploads a SKILL.md.
+2. The dashboard writes the skill to the runtime DB.
+3. The worker materializes installed skills to `~/.claude/skills/<name>/SKILL.md` inside the container's `claude-home` volume.
+4. The Claude Agent SDK auto-discovers each one and surfaces it in the system prompt as `<name>: <description>`.
+5. On the next turn, when the user's request matches a skill description, the agent uses its `Read` tool to load the SKILL.md body and follows it.
+
+Skills carry **content** (instructions + templates). They do not carry **capabilities** — see below.
+
+## Capabilities are gated globally
+
+A skill cannot grant the agent the right to read a file, run a shell command, or write to disk. Those capabilities (Read, Edit, Write, Bash, etc.) are gated **globally** under `/settings/agent-capabilities`, not per skill.
+
+This is a deliberate inversion of the agent-skills.io default. In Zeno:
+
+- The operator decides at the **profile** level which capabilities the agent has at all.
+- Each skill assumes only those capabilities; it cannot expand them.
+- A skill that needs `Bash` and the operator has `Bash` disabled simply cannot run that step. The skill's templates should be written defensively.
+
+## Authoring a SKILL.md
+
+A skill file is plain markdown with YAML frontmatter:
+
+```markdown
+---
+name: deploy-summary
+description: When the user asks for a deploy summary, produce a one-line verdict + counts + URL.
+---
+
+# Deploy summary
+
+When invoked:
+
+1. Use the GitHub connector to read the latest workflow run for the repo.
+2. Count successful jobs vs failed jobs.
+3. Reply with this exact shape, no praise adjectives, no markdown headers:
+   `<verdict> · <successful>/<total> · <run-url>`
+   where `<verdict>` is one of `green`, `partial`, `red`.
+```
+
+The description field is what the SDK will match against. Keep it specific enough to fire only on the intended user requests.
+
+<Callout type="warn">
+A skill's output-format contract is **inviolable**. If the skill says "no praise adjectives," the agent must not add any. Treat skill contracts the same way you treat the safety rules — the templates exist because the LLM default would drift otherwise.
+</Callout>
+
+## Where skills run
+
+Skills run **inside the container**, on the operator's machine, with whatever capabilities the operator has enabled at the profile level. They never run on a server, never call out to a hosted skill registry, and never carry credentials of their own — credentials belong to connectors.
+
+## What skills are not
+
+- **Skills are not connectors.** A skill tells the agent *how* to use existing capabilities. A connector adds new capabilities.
+- **Skills are not crons.** A skill is invoked when the operator's message description matches. A [cron](/crons) is invoked on a schedule.

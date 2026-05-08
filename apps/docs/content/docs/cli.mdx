@@ -1,0 +1,185 @@
+---
+title: CLI reference
+description: Every zeno subcommand with its flag table.
+---
+
+import DoctorFlags from '@/generated/cli-flags/doctor.mdx';
+import LogsFlags from '@/generated/cli-flags/logs.mdx';
+import OpenFlags from '@/generated/cli-flags/open.mdx';
+import ProfileFlags from '@/generated/cli-flags/profile.mdx';
+import ProfileCreateFlags from '@/generated/cli-flags/profile-create.mdx';
+import ProfileDeleteFlags from '@/generated/cli-flags/profile-delete.mdx';
+import ProfileEditFlags from '@/generated/cli-flags/profile-edit.mdx';
+import ProfileListFlags from '@/generated/cli-flags/profile-list.mdx';
+import ProfileShowFlags from '@/generated/cli-flags/profile-show.mdx';
+import ProfileUseFlags from '@/generated/cli-flags/profile-use.mdx';
+import RepoFlags from '@/generated/cli-flags/repo.mdx';
+import RestartFlags from '@/generated/cli-flags/restart.mdx';
+import StartFlags from '@/generated/cli-flags/start.mdx';
+import StopFlags from '@/generated/cli-flags/stop.mdx';
+import UpgradeFlags from '@/generated/cli-flags/upgrade.mdx';
+
+The `zeno` CLI is the operator's entry point for daily ops. It talks directly to the Docker socket via `dockerode` and stores profile metadata in `~/.zeno/state.db`.
+
+The flag tables below are generated at docs build time from the citty `args` schemas in `apps/cli/src/commands/<cmd>.ts` — when a flag is added or renamed, the next `zeno-docs` deploy carries it without anyone touching this page.
+
+## Profile management
+
+### `zeno profile create`
+
+Creates a new profile, allocates a host port, generates a master key, and scaffolds `~/.zeno/profiles/<name>/USER.md` and `.env` from the templates under `templates/profile/`.
+
+```bash
+zeno profile create personal --owner "Alice"
+```
+
+<ProfileCreateFlags />
+
+### `zeno profile list`
+
+Inventory of every profile in `state.db`, with live container status and dashboard port.
+
+```bash
+zeno profile list
+```
+
+<ProfileListFlags />
+
+### `zeno profile show`
+
+Full detail block for a single profile.
+
+```bash
+zeno profile show personal
+```
+
+<ProfileShowFlags />
+
+### `zeno profile edit`
+
+Move a profile's host port. Useful when a port is already taken.
+
+```bash
+zeno profile edit personal --port 6105
+```
+
+<ProfileEditFlags />
+
+### `zeno profile use`
+
+Set the **sticky** profile that subcommands act on when no profile argument is given.
+
+```bash
+zeno profile use personal
+```
+
+<ProfileUseFlags />
+
+### `zeno profile delete`
+
+Remove a profile: container, both volumes, the `~/.zeno/profiles/<name>/` directory, and the `state.db` row. Prompts before destroying anything.
+
+```bash
+zeno profile delete personal
+```
+
+<ProfileDeleteFlags />
+
+### `zeno profile`
+
+The umbrella subcommand. Running it with no further arg prints the available verbs.
+
+<ProfileFlags />
+
+## Lifecycle
+
+### `zeno start`
+
+Start a profile container. Auto-builds the `zeno-agent:dev` image if it's missing.
+
+```bash
+zeno start personal
+zeno start --all
+zeno start personal --build
+```
+
+<StartFlags />
+
+### `zeno stop`
+
+Stop a profile container without removing it.
+
+```bash
+zeno stop personal
+zeno stop --all
+```
+
+<StopFlags />
+
+### `zeno restart`
+
+Stop + start. Cheapest way to pick up an env change.
+
+```bash
+zeno restart personal
+```
+
+<RestartFlags />
+
+## Inspect
+
+### `zeno logs`
+
+Tail container logs. SIGINT (Ctrl-C) to abort.
+
+```bash
+zeno logs personal --tail 100
+```
+
+<LogsFlags />
+
+### `zeno open`
+
+Open the profile's dashboard in the system browser.
+
+```bash
+zeno open personal
+```
+
+<OpenFlags />
+
+### `zeno doctor`
+
+Preflight diagnostics: docker reachable, drift between `state.db` and the running Docker world, etc. Reports findings; does not heal.
+
+```bash
+zeno doctor
+```
+
+<DoctorFlags />
+
+## Updates
+
+### `zeno upgrade`
+
+Switch the local clone to a different release. With no flags, drops into a TTY arrow-key picker over the available stable releases. With `--list`, prints a table and exits. With `--to`, pins to a specific tag. With `--prerelease` or `--edge`, opens the picker over the alternate channels.
+
+```bash
+zeno upgrade
+zeno upgrade --list
+zeno upgrade --to v2026.5.7-7
+```
+
+<UpgradeFlags />
+
+## Misc
+
+### `zeno repo`
+
+Print the canonical repo path. Useful in shell scripts that need to `cd` into the source tree.
+
+```bash
+cd "$(zeno repo)"
+```
+
+<RepoFlags />

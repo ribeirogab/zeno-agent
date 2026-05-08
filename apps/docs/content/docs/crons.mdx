@@ -1,0 +1,36 @@
+---
+title: Crons
+description: Schedule recurring agent runs from the dashboard. Persistent across restarts; run history visible per cron.
+---
+
+A **cron** is a scheduled run of the agent. The operator writes a prompt + a cron expression in the dashboard at `/crons`, and from that point on the worker fires the prompt against the agent on the schedule. Replies land where the cron points — most commonly back into the configured Slack channel, but the cron's prompt is a normal agent turn so it can call any installed connector.
+
+## How they work
+
+1. The operator opens `/crons` in their profile dashboard and clicks **New cron**.
+2. They give it a name, a cron expression (UTC), a prompt, and pick a channel for the reply.
+3. The dashboard writes the cron to the runtime DB.
+4. The worker's cron loop fires the prompt at the scheduled time, using the same agent the channel uses.
+5. Each run produces a row in the cron's history — start time, end time, success / failure, and a link to the full session log.
+
+## What the operator does
+
+- **Schedule** — `0 9 * * 1-5` for "weekday mornings at 09:00 UTC". The dashboard validates the expression up front; invalid expressions can't be saved.
+- **Pause / resume** — toggle a cron without losing its history. A paused cron isn't fired but its rows stay in place.
+- **Edit** — change the prompt, the schedule, or the target channel. The history is preserved across edits.
+- **Inspect history** — every fire shows up in the cron's run table. Click into a run to see the full session log: which tools the agent called, what they returned, what it replied.
+
+## What the operator doesn't do
+
+- **CLI surface.** The CLI does not expose cron CRUD. There is no `zeno cron create`. Crons live entirely in the dashboard.
+- **Static cron files.** The previous `config.yaml` `cron:` section is gone. Crons exist only as DB rows; the source of truth is the runtime database, persisted in the profile's volume.
+- **Cross-profile crons.** Each profile has its own cron table; profiles do not share scheduled work.
+
+## Persistence
+
+Crons live in the profile's runtime DB inside the container's volume. They survive `zeno restart`, `zeno stop` + `zeno start`, container rebuilds, and `zeno upgrade`. They do not survive `zeno profile delete <name>` — the volume goes with the profile.
+
+## What crons are not
+
+- **Crons are not skills.** A [skill](/skills) is a playbook that runs when the agent's request description matches. A cron is a fired prompt on a schedule.
+- **Crons are not background workers.** Each cron run is a single agent turn — request in, reply out. There is no long-running process the cron creates.

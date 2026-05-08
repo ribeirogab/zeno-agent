@@ -1,14 +1,23 @@
 ---
-title: Welcome
-description: Zeno docs — under construction.
+title: What is Zeno
+description: A personal agent that operates across the apps you already use, by composing the connectors you install.
 ---
 
-This is a placeholder; real content lands in a future spec.
+Zeno is a personal agent that **acts** inside the apps you already work in — opens a pull request after you fix a Sentry error, triages your inbox, lists the issues blocking a sprint, comments on a PR with a code-review summary. The mission is action across systems, not chat.
 
-`apps/docs` ships only the structural scaffold — Fumadocs, Pagefind search, Imperial Terminal tokens, and AI-friendly endpoints. The official documentation will replace these placeholder pages.
+## Mental model
 
-## Where to look meanwhile
+Zeno has four moving parts. Once you understand the layering, everything else in these docs falls into place.
 
-- Repo root `README.md` — install and first run.
-- `ROADMAP.md` — what is in flight.
-- `vault/` (in the repo) — maintainer-facing project memory.
+- **The agent.** A reasoning loop that takes a request from a channel, decides which tools to call, and produces a reply. The agent has no shell, no filesystem of its own, and no general web access — every external capability flows through a connector.
+- **Connectors.** Small MCP servers the operator installs through the dashboard. Each connector exposes typed tools (`mcp__github-app__merge_pull_request`, `mcp__sentry__list_issues`, etc.) the agent composes. **Connectors are the heart of the product** — without them, Zeno is a talking statue.
+- **Channels.** The I/O boundary. A channel is how a request gets to Zeno and how the reply goes back out. Slack today.
+- **The backend.** The reasoning engine — Claude Code via the OAuth-authenticated SDK. The backend talks to connectors through the agent.
+
+## Who it is for
+
+- **Single operator.** One person per Zeno install. Multi-user (teams, allowlists, billing) is explicitly out of scope.
+- **Self-hosted.** Zeno runs in Docker on your machine. There is no hosted SaaS.
+- **Experimental.** Personal project, no SLA. Breaking changes are expected; the release line uses CalVer.
+
+If that fits, [install Zeno](/install). Otherwise, the project's [GitHub repo](https://github.com/ribeirogab/zeno-agent) carries the code and the public roadmap.

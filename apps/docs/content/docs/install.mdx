@@ -1,0 +1,55 @@
+---
+title: Install
+description: Curl one line, get the zeno CLI on your PATH.
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+Zeno's runtime is Docker-only. The host needs the CLI (`zeno`), Docker, and a recent Node — that's it.
+
+## Prerequisites
+
+- `git`
+- `docker` (Engine running; the CLI talks to the Docker socket directly)
+- Node.js 24 LTS
+- pnpm 10
+- macOS or Linux. WSL2 on Windows works; native Windows does not.
+
+## Run the installer
+
+<Callout type="info">
+The installer clones the repo to `~/.zeno/zeno-agent/` and symlinks the `zeno` binary into `~/.local/bin/zeno`. The clone path is fixed — there is no `ZENO_HOME` override.
+</Callout>
+
+```bash
+curl -fsSL https://zeno-agent.dev/install.sh | sh
+```
+
+That writes three things:
+
+- `~/.zeno/zeno-agent/` — the cloned repo, checked out at the latest stable tag
+- `~/.zeno/state.db` — host-side SQLite holding profile metadata (`chmod 600`, owner-only)
+- `~/.local/bin/zeno` — symlink to the built CLI
+
+Make sure `~/.local/bin` is on your `PATH`. Most distros ship that already; if not, add it to your shell rc.
+
+### Beta channel (track `main`)
+
+<Callout type="warn">
+The beta channel installs straight from `main`. It may be broken; breaking changes are expected. Use only if you need an unreleased fix.
+</Callout>
+
+```bash
+curl -fsSL https://zeno-agent.dev/install.sh | sh -s -- --beta
+```
+
+Once installed, you can move between channels at any time with `zeno upgrade` (interactive picker) — see [Daily ops](/daily-ops).
+
+## Verify
+
+```bash
+zeno --help
+```
+
+If you see the subcommand list, you're done. Next up: [create your first profile](/profile).

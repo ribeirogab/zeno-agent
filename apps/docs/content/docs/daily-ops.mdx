@@ -1,0 +1,49 @@
+---
+title: Daily ops
+description: The commands you run every day to keep a profile alive.
+---
+
+Once a profile is created, day-to-day work happens through a small handful of `zeno` subcommands and the per-profile dashboard at `http://localhost:6101+`.
+
+This page lists the commands you actually run. The full flag table for each one lives in the [CLI reference](/cli).
+
+## Lifecycle
+
+```bash
+zeno start personal          # start a stopped container
+zeno stop personal           # stop without removing the container
+zeno restart personal        # stop + start; cheapest way to pick up an env change
+zeno start --all             # start every profile in state.db
+```
+
+Omit the profile argument to act on the **sticky** default (set with `zeno profile use <name>`).
+
+## Inspect
+
+```bash
+zeno profile list            # all profiles + live container status + ports
+zeno profile show personal   # full detail for one profile
+zeno logs personal --tail 100  # tail container logs (Ctrl-C to stop)
+zeno open personal           # open the dashboard in your browser
+```
+
+## Health and updates
+
+```bash
+zeno doctor                  # preflight: docker reachable, DB ↔ Docker drift, etc.
+zeno upgrade                 # interactive picker: stable / pre-release / edge
+zeno upgrade --list          # list every available release
+zeno upgrade --to v2026.5.7-7  # pin to a specific release
+```
+
+`zeno doctor` reports drift between `~/.zeno/state.db` and the running Docker world; it does not heal automatically. If something is wrong, the report tells you which command to run.
+
+## Dashboard URLs
+
+Each profile binds the dashboard on `127.0.0.1` at a port allocated from the range `6101–6200`. The first profile gets `:6101`, the second `:6102`, and so on. `zeno profile list` shows the assignment; `zeno open <name>` is the easy way in.
+
+## What you don't do at the CLI
+
+- **Connectors and skills.** Installed via the dashboard, not the CLI. See [Connectors](/connectors) and [Skills](/skills).
+- **Crons.** Scheduled and edited in the dashboard at `/crons`. See [Crons](/crons).
+- **Container shell.** Use `docker exec` directly — `zeno shell` was intentionally removed when the multi-profile CLI landed.

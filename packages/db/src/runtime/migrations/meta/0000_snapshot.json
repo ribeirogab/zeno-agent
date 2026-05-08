@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "c4e38118-ccc6-478c-86d7-442ccdc62128",
+  "id": "a309ecf0-d8cd-4578-9db9-9ea473889a1b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_capabilities": {
@@ -146,7 +146,12 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "backend_credentials_status_check": {
+          "name": "backend_credentials_status_check",
+          "value": "\"backend_credentials\".\"status\" IN ('untested', 'active', 'expired', 'failed')"
+        }
+      }
     },
     "backend_settings": {
       "name": "backend_settings",
@@ -493,7 +498,12 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "connector_invocations_result_check": {
+          "name": "connector_invocations_result_check",
+          "value": "\"connector_invocations\".\"result\" IN ('ok', 'error')"
+        }
+      }
     },
     "connector_secrets": {
       "name": "connector_secrets",
@@ -711,7 +721,16 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "connector_tool_permissions_category_check": {
+          "name": "connector_tool_permissions_category_check",
+          "value": "\"connector_tool_permissions\".\"category\" IN ('read', 'write', 'interactive')"
+        },
+        "connector_tool_permissions_permission_check": {
+          "name": "connector_tool_permissions_permission_check",
+          "value": "\"connector_tool_permissions\".\"permission\" IN ('always_allow', 'ask', 'never')"
+        }
+      }
     },
     "connectors": {
       "name": "connectors",
@@ -885,6 +904,22 @@
         "connectors_slug_check": {
           "name": "connectors_slug_check",
           "value": "\"connectors\".\"slug\" GLOB '[a-z0-9]*' AND \"connectors\".\"slug\" NOT GLOB '*[^a-z0-9-]*' AND length(\"connectors\".\"slug\") >= 1"
+        },
+        "connectors_source_check": {
+          "name": "connectors_source_check",
+          "value": "\"connectors\".\"source\" IN ('catalog', 'custom')"
+        },
+        "connectors_transport_check": {
+          "name": "connectors_transport_check",
+          "value": "\"connectors\".\"transport\" IN ('stdio', 'remote')"
+        },
+        "connectors_status_check": {
+          "name": "connectors_status_check",
+          "value": "\"connectors\".\"status\" IN ('enabled', 'disabled', 'pending')"
+        },
+        "connectors_kind_check": {
+          "name": "connectors_kind_check",
+          "value": "\"connectors\".\"kind\" IN ('mcp', 'channel')"
         }
       }
     },
@@ -1451,7 +1486,12 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "skills_source_check": {
+          "name": "skills_source_check",
+          "value": "\"skills\".\"source\" IN ('zeno_default', 'profile', 'dashboard')"
+        }
+      }
     }
   },
   "views": {},

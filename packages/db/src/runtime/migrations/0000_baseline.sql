@@ -16,7 +16,8 @@ CREATE TABLE `backend_credentials` (
 	`last_tested_at` integer,
 	`last_auth_alert_at` integer,
 	`created_at` integer NOT NULL,
-	`updated_at` integer NOT NULL
+	`updated_at` integer NOT NULL,
+	CONSTRAINT "backend_credentials_status_check" CHECK("backend_credentials"."status" IN ('untested', 'active', 'expired', 'failed'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `backend_credentials_profile_backend_field_unique` ON `backend_credentials` (`profile_id`,`backend_id`,`field_name`);--> statement-breakpoint
@@ -69,7 +70,8 @@ CREATE TABLE `connector_invocations` (
 	`duration_ms` integer NOT NULL,
 	`error_message` text,
 	`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,
-	FOREIGN KEY (`connector_id`) REFERENCES `connectors`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`connector_id`) REFERENCES `connectors`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "connector_invocations_result_check" CHECK("connector_invocations"."result" IN ('ok', 'error'))
 );
 --> statement-breakpoint
 CREATE INDEX `idx_connector_invocations_connector_created` ON `connector_invocations` (`connector_id`,"created_at" DESC);--> statement-breakpoint
@@ -101,7 +103,9 @@ CREATE TABLE `connector_tool_permissions` (
 	`category` text NOT NULL,
 	`permission` text NOT NULL,
 	PRIMARY KEY(`connector_id`, `tool_name`),
-	FOREIGN KEY (`connector_id`) REFERENCES `connectors`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`connector_id`) REFERENCES `connectors`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "connector_tool_permissions_category_check" CHECK("connector_tool_permissions"."category" IN ('read', 'write', 'interactive')),
+	CONSTRAINT "connector_tool_permissions_permission_check" CHECK("connector_tool_permissions"."permission" IN ('always_allow', 'ask', 'never'))
 );
 --> statement-breakpoint
 CREATE INDEX `idx_connector_tool_permissions_connector` ON `connector_tool_permissions` (`connector_id`);--> statement-breakpoint
@@ -125,7 +129,11 @@ CREATE TABLE `connectors` (
 	`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,
 	`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,
 	FOREIGN KEY (`app_id`) REFERENCES `connector_apps`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "connectors_slug_check" CHECK("connectors"."slug" GLOB '[a-z0-9]*' AND "connectors"."slug" NOT GLOB '*[^a-z0-9-]*' AND length("connectors"."slug") >= 1)
+	CONSTRAINT "connectors_slug_check" CHECK("connectors"."slug" GLOB '[a-z0-9]*' AND "connectors"."slug" NOT GLOB '*[^a-z0-9-]*' AND length("connectors"."slug") >= 1),
+	CONSTRAINT "connectors_source_check" CHECK("connectors"."source" IN ('catalog', 'custom')),
+	CONSTRAINT "connectors_transport_check" CHECK("connectors"."transport" IN ('stdio', 'remote')),
+	CONSTRAINT "connectors_status_check" CHECK("connectors"."status" IN ('enabled', 'disabled', 'pending')),
+	CONSTRAINT "connectors_kind_check" CHECK("connectors"."kind" IN ('mcp', 'channel'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `connectors_slug_unique` ON `connectors` (`slug`);--> statement-breakpoint
@@ -208,7 +216,8 @@ CREATE TABLE `skills` (
 	`description` text NOT NULL,
 	`source` text DEFAULT 'dashboard' NOT NULL,
 	`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,
-	`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL
+	`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,
+	CONSTRAINT "skills_source_check" CHECK("skills"."source" IN ('zeno_default', 'profile', 'dashboard'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `skills_name_unique` ON `skills` (`name`);--> statement-breakpoint

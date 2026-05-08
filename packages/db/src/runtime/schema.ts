@@ -158,6 +158,19 @@ export const connectors = sqliteTable(
       'connectors_slug_check',
       sql`${table.slug} GLOB '[a-z0-9]*' AND ${table.slug} NOT GLOB '*[^a-z0-9-]*' AND length(${table.slug}) >= 1`,
     ),
+    sourceCheck: check(
+      'connectors_source_check',
+      sql`${table.source} IN ('catalog', 'custom')`,
+    ),
+    transportCheck: check(
+      'connectors_transport_check',
+      sql`${table.transport} IN ('stdio', 'remote')`,
+    ),
+    statusCheck: check(
+      'connectors_status_check',
+      sql`${table.status} IN ('enabled', 'disabled', 'pending')`,
+    ),
+    kindCheck: check('connectors_kind_check', sql`${table.kind} IN ('mcp', 'channel')`),
   }),
 );
 
@@ -191,6 +204,14 @@ export const connectorToolPermissions = sqliteTable(
   (table) => ({
     pk: primaryKey({ columns: [table.connectorId, table.toolName] }),
     idxConnector: index('idx_connector_tool_permissions_connector').on(table.connectorId),
+    categoryCheck: check(
+      'connector_tool_permissions_category_check',
+      sql`${table.category} IN ('read', 'write', 'interactive')`,
+    ),
+    permissionCheck: check(
+      'connector_tool_permissions_permission_check',
+      sql`${table.permission} IN ('always_allow', 'ask', 'never')`,
+    ),
   }),
 );
 
@@ -215,6 +236,10 @@ export const connectorInvocations = sqliteTable(
       sql`${table.createdAt} DESC`,
     ),
     idxThread: index('idx_connector_invocations_thread').on(table.threadId),
+    resultCheck: check(
+      'connector_invocations_result_check',
+      sql`${table.result} IN ('ok', 'error')`,
+    ),
   }),
 );
 
@@ -233,6 +258,10 @@ export const skills = sqliteTable(
   (table) => ({
     idxName: index('idx_skills_name').on(table.name),
     idxSource: index('idx_skills_source').on(table.source),
+    sourceCheck: check(
+      'skills_source_check',
+      sql`${table.source} IN ('zeno_default', 'profile', 'dashboard')`,
+    ),
   }),
 );
 
@@ -325,6 +354,10 @@ export const backendCredentials = sqliteTable(
     idxProfileBackend: index('idx_backend_credentials_profile_backend').on(
       table.profileId,
       table.backendId,
+    ),
+    statusCheck: check(
+      'backend_credentials_status_check',
+      sql`${table.status} IN ('untested', 'active', 'expired', 'failed')`,
     ),
   }),
 );

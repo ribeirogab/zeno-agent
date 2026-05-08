@@ -132,6 +132,7 @@ export const connectors = sqliteTable(
     id: text('id').primaryKey(),
     slug: text('slug').notNull().unique(),
     displayName: text('display_name').notNull(),
+    instanceLabel: text('instance_label'),
     description: text('description'),
     source: text('source', { enum: ['catalog', 'custom'] }).notNull(),
     catalogId: text('catalog_id'),
@@ -154,6 +155,7 @@ export const connectors = sqliteTable(
   },
   (table) => ({
     idxStatusSlug: index('idx_connectors_status_slug').on(table.status, table.slug),
+    idxCatalogId: index('idx_connectors_catalog_id').on(table.catalogId),
     slugCheck: check(
       'connectors_slug_check',
       sql`${table.slug} GLOB '[a-z0-9]*' AND ${table.slug} NOT GLOB '*[^a-z0-9-]*' AND length(${table.slug}) >= 1`,

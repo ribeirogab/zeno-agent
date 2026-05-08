@@ -32,6 +32,8 @@ export interface Connector {
   id: string;
   slug: string;
   displayName: string;
+  /** Spec 2026-05-08: operator-supplied label, null for legacy/custom rows. */
+  instanceLabel: string | null;
   description: string | null;
   source: ConnectorSource;
   catalogId: string | null;
@@ -87,6 +89,8 @@ export interface CreateConnectorInput {
   id?: string;
   slug: string;
   displayName: string;
+  /** Spec 2026-05-08: optional operator-supplied label. */
+  instanceLabel?: string | null;
   description?: string | null;
   source: ConnectorSource;
   catalogId?: string | null;
@@ -105,6 +109,8 @@ export interface CreateConnectorInput {
 
 export interface UpdateConnectorInput {
   displayName?: string;
+  /** Spec 2026-05-08: optional operator-supplied label. */
+  instanceLabel?: string | null;
   description?: string | null;
   command?: string | null;
   args?: string[] | null;
@@ -165,6 +171,7 @@ function rowToConnector(row: ConnectorRow): Connector {
     id: row.id,
     slug: row.slug,
     displayName: row.displayName,
+    instanceLabel: row.instanceLabel,
     description: row.description,
     source: row.source,
     catalogId: row.catalogId,
@@ -325,6 +332,7 @@ export class ConnectorRepo {
           id,
           slug: input.slug,
           displayName: input.displayName,
+          instanceLabel: input.instanceLabel ?? null,
           description: input.description ?? null,
           source: input.source,
           catalogId: input.catalogId ?? null,
@@ -373,6 +381,7 @@ export class ConnectorRepo {
     const set: Record<string, unknown> = {};
 
     if (patch.displayName !== undefined) set.displayName = patch.displayName;
+    if (patch.instanceLabel !== undefined) set.instanceLabel = patch.instanceLabel;
     if (patch.description !== undefined) set.description = patch.description;
     if (patch.command !== undefined) set.command = patch.command;
     if (patch.args !== undefined) set.args = patch.args ? JSON.stringify(patch.args) : null;

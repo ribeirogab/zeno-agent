@@ -1,4 +1,5 @@
 import { defineCommand } from 'citty';
+import app from './connector-app.js';
 import disable from './connector-disable.js';
 import enable from './connector-enable.js';
 import install from './connector-install.js';
@@ -23,5 +24,6 @@ export default defineCommand({
     'refresh-tools': refreshTools,
     tool,
     secret,
+    app,
   },
 });

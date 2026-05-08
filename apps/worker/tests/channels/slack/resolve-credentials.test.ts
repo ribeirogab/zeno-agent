@@ -1,11 +1,11 @@
+import { ConnectorRepo, openRuntimeDatabase, runRuntimeMigrations } from '@zeno/db/runtime';
 import { createLogger } from '@zeno/logger';
-import { ConnectorRepo, openDatabase, runMigrations } from '@zeno/storage';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resolveSlackCredentials } from '@/channels/slack/resolve-credentials';
 
 /**
- * Resolves Slack credentials from the connector DB. The .env fallback path is
- * gone (DB-only since spec 0058). After multi-profile-cli, missing/incomplete
+ * Resolves Slack credentials from the connector RuntimeDB. The .env fallback path is
+ * gone (RuntimeDB-only since spec 0058). After multi-profile-cli, missing/incomplete
  * Slack returns null instead of throwing — the worker boots with a NoopChannel
  * so the dashboard at apps/api stays reachable for the operator to install
  * Slack via /connectors. Tests use REAL ConnectorRepo against in-memory SQLite.
@@ -13,12 +13,14 @@ import { resolveSlackCredentials } from '@/channels/slack/resolve-credentials';
 
 const logger = createLogger({ service: 'test' });
 
-let db: ReturnType<typeof openDatabase>;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: ReturnType<typeof openRuntimeDatabase>['drizzle'];
 let connectors: ConnectorRepo;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   connectors = new ConnectorRepo(db, {
     masterKey: Buffer.from('a'.repeat(64), 'hex'),
     profileId: 'test',
@@ -26,7 +28,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  db.close();
+  opened.close();
 });
 
 const SLACK_BASE = {
@@ -43,7 +45,7 @@ const SLACK_BASE = {
 };
 
 describe('resolveSlackCredentials — resolution table', () => {
-  it('1. enabled DB row + both secrets → returns creds', () => {
+  it('1. enabled RuntimeDB row + both secrets → returns creds', () => {
     connectors.create({
       ...SLACK_BASE,
       status: 'enabled',
@@ -58,7 +60,7 @@ describe('resolveSlackCredentials — resolution table', () => {
     expect(result?.botToken).toBe('xoxb-fromdb');
   });
 
-  it('2. enabled DB row + missing secret → returns null (worker boots with NoopChannel)', () => {
+  it('2. enabled RuntimeDB row + missing secret → returns null (worker boots with NoopChannel)', () => {
     connectors.create({
       ...SLACK_BASE,
       status: 'enabled',
@@ -80,7 +82,7 @@ describe('resolveSlackCredentials — resolution table', () => {
     expect(resolveSlackCredentials({ connectors, logger })).toBeNull();
   });
 
-  it('4. no DB row → returns null (Slack channel not installed)', () => {
+  it('4. no RuntimeDB row → returns null (Slack channel not installed)', () => {
     expect(resolveSlackCredentials({ connectors, logger })).toBeNull();
   });
 });

@@ -20,6 +20,7 @@
  * (`mcp__zeno__list_skills` / `read_skill`) are needed.
  */
 
+import type { ConnectorRepo, ConnectorSecret } from '@zeno/db/runtime';
 import type { Logger } from '@zeno/logger';
 import {
   RESERVED_AUTHORIZATION_KEY,
@@ -27,7 +28,6 @@ import {
   toRemoteConfig,
   toStdioConfig,
 } from '@zeno/mcp-discover';
-import type { ConnectorRepo, ConnectorSecret } from '@zeno/storage';
 import type { McpServerConfig } from '@/agent/mcp';
 import { loadAgentMcpConfig } from '@/agent/mcp';
 import { GITHUB_APP_RESERVED_KEYS, type GitHubAppAuth } from '@/github/app-auth';

@@ -18,23 +18,25 @@
  * socket-mode connection opens).
  *
  * Spec 0058 simplified the resolver — the env_fallback path was removed.
- * Only the DB-credentials wire-up remains testable here.
+ * Only the RuntimeDB-credentials wire-up remains testable here.
  */
 
+import { ConnectorRepo, openRuntimeDatabase, runRuntimeMigrations } from '@zeno/db/runtime';
 import { createLogger } from '@zeno/logger';
-import { ConnectorRepo, openDatabase, runMigrations } from '@zeno/storage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SlackChannel } from '@/channels/slack/adapter';
 import { resolveSlackCredentials } from '@/channels/slack/resolve-credentials';
 
 const logger = createLogger({ service: 'test' });
 
-let db: ReturnType<typeof openDatabase>;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: ReturnType<typeof openRuntimeDatabase>['drizzle'];
 let connectors: ConnectorRepo;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   connectors = new ConnectorRepo(db, {
     masterKey: Buffer.from('a'.repeat(64), 'hex'),
     profileId: 'test',
@@ -42,7 +44,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  db.close();
+  opened.close();
 });
 
 /** Minimal stub of `@slack/bolt`'s App that satisfies SlackChannel's `start()`. */
@@ -76,7 +78,7 @@ function makeMockApp(opts: { botUserId?: string } = {}): {
 describe('SlackChannel + resolver wire-up (spec 0058)', () => {
   it('resolver tokens flow into SlackChannel via _appOverride; start() dispatches auth test', async () => {
     // Seed an installed Slack channel with both secrets — resolver picks this
-    // up from DB.
+    // up from RuntimeDB.
     connectors.create({
       slug: 'slack',
       displayName: 'Slack',
@@ -95,7 +97,7 @@ describe('SlackChannel + resolver wire-up (spec 0058)', () => {
       tools: [],
     });
 
-    // 1. Resolver returns the DB-stored tokens.
+    // 1. Resolver returns the RuntimeDB-stored tokens.
     const creds = resolveSlackCredentials({ connectors, logger });
     expect(creds.appToken).toBe('xapp-resolver-test');
     expect(creds.botToken).toBe('xoxb-resolver-test');

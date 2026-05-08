@@ -1,6 +1,11 @@
+import type {
+  ConnectorRepo,
+  ConnectorSecret,
+  ToolCategory,
+  ToolPermission,
+} from '@zeno/db/runtime';
 import { createLogger } from '@zeno/logger';
 import { discoverTools } from '@zeno/mcp-discover';
-import type { ConnectorRepo, ConnectorSecret, ToolCategory, ToolPermission } from '@zeno/storage';
 import { z } from 'zod';
 import type { Handler } from '@/commands/dispatcher';
 import { GITHUB_APP_RESERVED_KEYS, type GitHubAppAuth } from '@/github/app-auth';

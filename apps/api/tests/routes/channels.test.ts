@@ -4,11 +4,11 @@ import {
   ConnectorRepo,
   CronRepo,
   CronRunRepo,
-  type DB,
   LogRepo,
-  openDatabase,
-  runMigrations,
-} from '@zeno/storage';
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { _resetChannelsCatalogCache, loadChannelsCatalog } from '@/lib/channels-catalog-loader';
 import { createApp } from '@/server';
@@ -22,18 +22,20 @@ const WORKTREE_ROOT = resolve(__dirname, '../../../..');
 beforeAll(() => process.chdir(WORKTREE_ROOT));
 afterAll(() => process.chdir(ORIGINAL_CWD));
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
 });
 
 afterEach(() => {
   _resetChannelsCatalogCache();
 });
 
-function makeApp(database: DB) {
+function makeApp(database: RuntimeDB) {
   return createApp({
     config: {
       logLevel: 'info',
@@ -197,7 +199,7 @@ describe('POST /api/connectors with kind=channel (spec 0057)', () => {
     // Spec 0057: API enqueues a connector_create command; worker processes it.
     // For this test assert the command was enqueued (worker handler tested
     // separately in apps/worker/tests/connectors-e2e/p2-lifecycle.test.ts).
-    const rows = db
+    const rows = opened.raw
       .prepare("SELECT type, payload FROM commands WHERE type = 'connector_create'")
       .all() as Array<{ type: string; payload: string }>;
     expect(rows.length).toBe(1);

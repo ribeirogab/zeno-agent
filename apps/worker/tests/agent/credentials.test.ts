@@ -1,4 +1,8 @@
-import { BackendCredentialsRepo, openDatabase, runMigrations } from '@zeno/storage';
+import {
+  BackendCredentialsRepo,
+  openRuntimeDatabase,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { CredentialsService, NoBackendConfiguredError } from '@/agent/credentials';
 
@@ -9,9 +13,12 @@ describe('CredentialsService', () => {
   let repo: BackendCredentialsRepo;
 
   beforeEach(() => {
-    const db = openDatabase(':memory:');
-    runMigrations(db);
-    repo = new BackendCredentialsRepo(db, { masterKey: MASTER_KEY, profileId: 'default' });
+    const opened = openRuntimeDatabase(':memory:');
+    runRuntimeMigrations(opened.raw);
+    repo = new BackendCredentialsRepo(opened.drizzle, {
+      masterKey: MASTER_KEY,
+      profileId: 'default',
+    });
     svc = new CredentialsService({ repo });
   });
 

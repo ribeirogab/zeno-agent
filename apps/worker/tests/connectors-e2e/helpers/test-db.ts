@@ -10,14 +10,19 @@ import {
   AgentCapabilityRepo,
   CommandRepo,
   ConnectorRepo,
-  closeDatabase,
-  type DB,
-  openDatabase,
-  runMigrations,
-} from '@zeno/storage';
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
+import type Database from 'better-sqlite3';
 
 export interface TestDb {
-  db: DB;
+  db: RuntimeDB;
+  /**
+   * Raw better-sqlite3 handle for tests that need to issue ad-hoc SQL
+   * (counts, seeds, asserts) against the same connection.
+   */
+  raw: Database.Database;
   connectorRepo: ConnectorRepo;
   commandRepo: CommandRepo;
   agentCapabilityRepo: AgentCapabilityRepo;
@@ -25,21 +30,20 @@ export interface TestDb {
 }
 
 export function makeTestDb(): TestDb {
-  const db = openDatabase(':memory:');
-  runMigrations(db);
-  // Spec 0066 C: migration 20 seeds the Playwright connector. The
-  // E2E lifecycle suite asserts a clean baseline (no rows / specific
-  // counts) so we wipe the seed for these helpers. Production boots
-  // keep the seed; these tests just want the empty-table guarantee.
-  db.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
+  const opened = openRuntimeDatabase(':memory:');
+  runRuntimeMigrations(opened.raw);
+  // The runtime baseline does not auto-seed (per spec 0066 successor),
+  // so the connectors table is already empty for tests that assert a
+  // clean baseline.
   return {
-    db,
-    connectorRepo: new ConnectorRepo(db, {
+    db: opened.drizzle,
+    raw: opened.raw,
+    connectorRepo: new ConnectorRepo(opened.drizzle, {
       masterKey: Buffer.from('a'.repeat(64), 'hex'),
       profileId: 'test',
     }),
-    commandRepo: new CommandRepo(db),
-    agentCapabilityRepo: new AgentCapabilityRepo(db),
-    close: () => closeDatabase(db),
+    commandRepo: new CommandRepo(opened.drizzle),
+    agentCapabilityRepo: new AgentCapabilityRepo(opened.drizzle),
+    close: opened.close,
   };
 }

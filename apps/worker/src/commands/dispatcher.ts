@@ -1,4 +1,4 @@
-import type { Command } from '@zeno/storage';
+import type { Command } from '@zeno/db/runtime';
 
 export type HandlerResult = { ok: true; data?: unknown } | { ok: false; error: string };
 

@@ -16,7 +16,7 @@
  */
 
 import { zValidator } from '@hono/zod-validator';
-import type { AgentCapabilityRepo } from '@zeno/storage';
+import type { AgentCapabilityRepo } from '@zeno/db/runtime';
 import { Hono } from 'hono';
 import { z } from 'zod';
 

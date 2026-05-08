@@ -1,13 +1,20 @@
-import { type DB, LogRepo, openDatabase, runMigrations } from '@zeno/storage';
+import {
+  LogRepo,
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LogsRetention } from '@/logs/retention';
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 let repo: LogRepo;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   repo = new LogRepo(db);
 });
 

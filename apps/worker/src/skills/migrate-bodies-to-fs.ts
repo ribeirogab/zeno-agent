@@ -37,7 +37,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Logger } from '@zeno/logger';
-import type { DB } from '@zeno/storage';
+import type Database from 'better-sqlite3';
 
 interface PreMigrateRow {
   id: string;
@@ -48,7 +48,7 @@ interface PreMigrateRow {
 }
 
 export interface PreMigrateBodiesToFsDeps {
-  db: DB;
+  db: Database.Database;
   agentSkillsRoot: string;
   profileSkillsRoot: string;
   dashboardSkillsRoot: string;

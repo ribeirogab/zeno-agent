@@ -22,7 +22,7 @@
  */
 
 import { zValidator } from '@hono/zod-validator';
-import type { ConnectorRepo } from '@zeno/storage';
+import type { ConnectorRepo } from '@zeno/db/runtime';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { getChannelSetupHelper } from '@/lib/channel-setup-helpers';

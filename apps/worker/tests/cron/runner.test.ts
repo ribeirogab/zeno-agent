@@ -1,4 +1,10 @@
-import { CronRepo, CronRunRepo, type DB, openDatabase, runMigrations } from '@zeno/storage';
+import {
+  CronRepo,
+  CronRunRepo,
+  openRuntimeDatabase,
+  type RuntimeDB,
+  runRuntimeMigrations,
+} from '@zeno/db/runtime';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentBackend } from '@/agent/types';
 import type { Channel, MessageHandler, MessageTarget, ReactionEvent } from '@/channels/types';
@@ -38,14 +44,16 @@ function fakeBackend(reply: string): AgentBackend {
   };
 }
 
-let db: DB;
+let opened: ReturnType<typeof openRuntimeDatabase>;
+let db: RuntimeDB;
 let crons: CronRepo;
 let cronRuns: CronRunRepo;
 let channel: StubChannel;
 
 beforeEach(() => {
-  db = openDatabase(':memory:');
-  runMigrations(db);
+  opened = openRuntimeDatabase(':memory:');
+  db = opened.drizzle;
+  runRuntimeMigrations(opened.raw);
   crons = new CronRepo(db);
   cronRuns = new CronRunRepo(db);
   channel = new StubChannel();

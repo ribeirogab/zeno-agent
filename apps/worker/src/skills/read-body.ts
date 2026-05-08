@@ -19,7 +19,7 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Skill, SkillRepo } from '@zeno/storage';
+import type { Skill, SkillRepo } from '@zeno/db/runtime';
 
 export function readSkillBody(skill: Skill, skillRepo: SkillRepo): string {
   const skillPath = join(skillRepo.canonicalPath(skill), 'SKILL.md');

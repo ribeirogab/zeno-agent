@@ -3,7 +3,7 @@
  * Caller controls fail-mode + extra fields via `overrides`.
  */
 
-import type { Connector, ConnectorRepo, CreateConnectorInput } from '@zeno/storage';
+import type { Connector, ConnectorRepo, CreateConnectorInput } from '@zeno/db/runtime';
 import type { Fixture } from './echo-fixture.js';
 
 interface MakeFixtureConnectorOpts {

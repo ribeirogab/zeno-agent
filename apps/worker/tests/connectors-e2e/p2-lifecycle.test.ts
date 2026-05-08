@@ -6,7 +6,7 @@
  * produces the expected DB state.
  */
 
-import type { Command } from '@zeno/storage';
+import type { Command } from '@zeno/db/runtime';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildConnectorCreateHandler } from '@/commands/handlers/connector-create';
 import { buildConnectorRefreshToolsHandler } from '@/commands/handlers/connector-refresh-tools';
@@ -175,7 +175,7 @@ describe('P2 — connector lifecycle', () => {
 
     expect(testDb.connectorRepo.get(created.id)).toBeNull();
     // Direct DB read to confirm cascade purged the child rows
-    const sql = (q: string) => testDb.db.prepare(q).get(created.id) as { c: number };
+    const sql = (q: string) => testDb.raw.prepare(q).get(created.id) as { c: number };
     expect(sql(`SELECT COUNT(*) AS c FROM connector_secrets WHERE connector_id = ?`).c).toBe(0);
     expect(
       sql(`SELECT COUNT(*) AS c FROM connector_tool_permissions WHERE connector_id = ?`).c,

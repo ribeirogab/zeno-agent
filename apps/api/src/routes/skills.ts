@@ -33,8 +33,8 @@ import { mkdir, readdir, readFile, rename, rm, stat, unlink, writeFile } from 'n
 import { dirname, join, relative, resolve } from 'node:path';
 import { Readable } from 'node:stream';
 import { zValidator } from '@hono/zod-validator';
+import type { ConnectorSkillRepo, CronSkillRepo, Skill, SkillRepo } from '@zeno/db/runtime';
 import type { Logger } from '@zeno/logger';
-import type { ConnectorSkillRepo, CronSkillRepo, Skill, SkillRepo } from '@zeno/storage';
 import archiver from 'archiver';
 import { Hono } from 'hono';
 import { z } from 'zod';

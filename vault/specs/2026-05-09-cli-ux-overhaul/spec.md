@@ -95,7 +95,9 @@ export function compareSemver(a: string, b: string): number  // for downgrade gu
 
 **Module boundary:** `version-meta.ts` is the single source of truth for the `.installed-from` format and semver comparison. `upgradeSteps.writeMeta(meta)` in `lib/upgrade.ts` is a one-line wrapper that imports and calls `versionMeta.writeMeta(meta)`; it exists only so that `writeMeta` can be one of the seven enumerated steps in `upgradeSteps` (uniform pipeline iteration in `--dry-run` and the auto-revert handler). `readMeta`, `formatDisplay`, and `compareSemver` are NOT members of `upgradeSteps` — callers (auto-revert handler, `zeno --version`, downgrade guard) import them directly from `version-meta.ts`.
 
-**Internal constant rename:** `EDGE_TAG = 'edge'` in `lib/upgrade.ts:15` is removed. The `kind` discriminator on `VersionMeta` (`'tag' | 'branch' | 'pr' | 'unstable'`) replaces it. The legacy `EDGE` export is removed; any callers of `EDGE` are updated to compare `meta.kind === 'unstable'`.
+**Internal constant rename:** `EDGE_TAG = 'edge'` in `lib/upgrade.ts:15` is removed. The `kind` discriminator on `VersionMeta` (`'tag' | 'branch' | 'pr' | 'unstable'`) replaces it. The legacy `EDGE` export is removed; any callers of `EDGE` are updated to compare `meta.kind === 'unstable'`. The downgrade guard in `commands/upgrade.ts:82` resolves the candidate `kind` from the chosen target before applying `compareSemver`; if `kind !== 'tag'`, the semver comparison is skipped (no downgrade check for branch/pr/unstable).
+
+**Empty-releases fallback:** when `listReleases()` returns an empty array (no tags in the repo at all), both `pickLatestStable` (in `commands/upgrade.ts`, used in non-TTY upgrade default) and `install.sh`'s fallback chain return `unstable` (main HEAD). This single behavior keeps upgrader and installer aligned per B5.
 
 `install.sh` writes the same line format directly via shell (no shared library).
 

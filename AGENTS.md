@@ -46,7 +46,7 @@ The `zeno` CLI is the documented entry point for daily ops. The CLI talks direct
 | `zeno logs [profile] [--tail N]` | Follow container logs (SIGINT to abort). |
 | `zeno open [profile]` | Open the profile's dashboard in the system browser. |
 | `zeno doctor` | Preflight diagnostics (docker reachable, DB ↔ Docker drift, etc.). |
-| `zeno upgrade [--list / --to / --prerelease / --edge]` | Version pin via `gh release list` + `git checkout` + rebuild. |
+| `zeno upgrade [--list / --to / --prerelease / --unstable / --branch / --pr / --dry-run / --notes]` | Version pin via `gh release list` + `git checkout` + rebuild. Auto-reverts on failure. |
 | `zeno repo` | Print the canonical repo path. |
 
 Each profile's dashboard binds `127.0.0.1` on a port allocated from `[6101, 6200]` and shown in `zeno profile list`.

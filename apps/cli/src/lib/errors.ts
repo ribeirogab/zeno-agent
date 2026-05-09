@@ -25,21 +25,19 @@ const map: Record<string, MapEntry> = {
   },
   auth_failed: (e) => {
     const body = (e.body ?? {}) as { detail?: string; slug?: string; key?: string };
-    const hint =
-      body.slug && body.key
-        ? `rotate token: zeno connector secret set ${body.slug} ${body.key}`
-        : undefined;
-    return {
+    const result: Hint = {
       msg: `auth failed (${body.detail ?? 'upstream rejected token'})`,
-      hint,
     };
+    if (body.slug && body.key) {
+      result.hint = `rotate token: zeno connector secret set ${body.slug} ${body.key}`;
+    }
+    return result;
   },
   rate_limited: (e) => {
     const body = (e.body ?? {}) as { retryAfter?: number };
-    return {
-      msg: 'rate limited',
-      hint: body.retryAfter ? `retry after ${body.retryAfter}s` : undefined,
-    };
+    const result: Hint = { msg: 'rate limited' };
+    if (body.retryAfter) result.hint = `retry after ${body.retryAfter}s`;
+    return result;
   },
   mode_cli_only: () => ({
     msg: 'mutations are CLI-only on this profile (ZENO_API_WRITES=cli)',

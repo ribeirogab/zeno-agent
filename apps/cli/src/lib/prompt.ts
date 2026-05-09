@@ -9,7 +9,7 @@ interface IO {
   };
   stdout?: NodeJS.WritableStream;
   stderr?: NodeJS.WritableStream;
-  exit?: (code: number) => void;
+  exit?: (code: number) => unknown;
 }
 
 function defaults(): Required<IO> {

@@ -7,14 +7,17 @@ interface FakeStdin extends PassThrough {
   setRawMode: (v: boolean) => void;
 }
 
-function fakeIO(opts: { tty?: boolean } = {}): {
+type IO = Parameters<typeof promptHidden>[2];
+
+interface FakeIO {
+  io: IO;
   stdin: FakeStdin;
-  stdout: PassThrough;
-  stderr: PassThrough;
   reads: string[];
   errs: string[];
   exit: ReturnType<typeof vi.fn>;
-} {
+}
+
+function fakeIO(opts: { tty?: boolean } = {}): FakeIO {
   const stdin = new PassThrough() as unknown as FakeStdin;
   stdin.isTTY = opts.tty ?? true;
   stdin.setRawMode = vi.fn();
@@ -24,46 +27,54 @@ function fakeIO(opts: { tty?: boolean } = {}): {
   const errs: string[] = [];
   stdout.on('data', (b: Buffer) => reads.push(b.toString()));
   stderr.on('data', (b: Buffer) => errs.push(b.toString()));
-  return { stdin, stdout, stderr, reads, errs, exit: vi.fn() };
+  const exit = vi.fn();
+  const io: IO = {
+    stdin,
+    stdout,
+    stderr,
+    exit: exit as unknown as (code: number) => unknown,
+  };
+  return { io, stdin, reads, errs, exit };
 }
 
 describe('promptHidden', () => {
   it('emits only the label to stdout (no echo)', async () => {
-    const io = fakeIO();
-    const p = promptHidden('secret', undefined, io);
-    setImmediate(() => io.stdin.write('hello\n'));
+    const f = fakeIO();
+    const p = promptHidden('secret', undefined, f.io);
+    setImmediate(() => f.stdin.write('hello\n'));
     expect(await p).toBe('hello');
-    expect(io.reads.join('')).toBe('secret: \n');
+    expect(f.reads.join('')).toBe('secret: \n');
   });
 
   it('handles a 64-char paste in a single buffer write', async () => {
-    const io = fakeIO();
+    const f = fakeIO();
     const value = 'a'.repeat(64);
-    const p = promptHidden('s', undefined, io);
-    setImmediate(() => io.stdin.write(`${value}\n`));
+    const p = promptHidden('s', undefined, f.io);
+    setImmediate(() => f.stdin.write(`${value}\n`));
     expect(await p).toBe(value);
   });
 
   it('handles backspace characters', async () => {
-    const io = fakeIO();
-    const p = promptHidden('s', undefined, io);
-    setImmediate(() => io.stdin.write(`abcX\n`));
-    expect(await p).toBe('aX');
+    const f = fakeIO();
+    const p = promptHidden('s', undefined, f.io);
+    // 'a','b','c', backspace (\x7f), 'X' → buffer becomes 'abX'
+    setImmediate(() => f.stdin.write(`abc\x7fX\n`));
+    expect(await p).toBe('abX');
   });
 
   it('exits 1 + writes error to stderr in non-TTY', async () => {
-    const io = fakeIO({ tty: false });
-    await promptHidden('s', undefined, io);
-    expect(io.exit).toHaveBeenCalledWith(1);
-    expect(io.errs.join('')).toMatch(/not a TTY/);
+    const f = fakeIO({ tty: false });
+    await promptHidden('s', undefined, f.io);
+    expect(f.exit).toHaveBeenCalledWith(1);
+    expect(f.errs.join('')).toMatch(/not a TTY/);
   });
 
   it('writes help text before label when provided', async () => {
-    const io = fakeIO();
-    const p = promptHidden('s', 'this is help', io);
-    setImmediate(() => io.stdin.write('x\n'));
+    const f = fakeIO();
+    const p = promptHidden('s', 'this is help', f.io);
+    setImmediate(() => f.stdin.write('x\n'));
     await p;
-    expect(io.reads.join('')).toContain('this is help');
+    expect(f.reads.join('')).toContain('this is help');
   });
 });
 
@@ -78,30 +89,30 @@ describe('confirm', () => {
     ['\n', false],
     ['anything\n', false],
   ])('parses %s as %s', async (input, expected) => {
-    const io = fakeIO();
-    const p = confirm('?', io);
-    setImmediate(() => io.stdin.write(input));
+    const f = fakeIO();
+    const p = confirm('?', f.io);
+    setImmediate(() => f.stdin.write(input));
     expect(await p).toBe(expected);
   });
 });
 
 describe('confirmDestructive', () => {
   it('returns true when --yes is set (no prompt)', async () => {
-    const io = fakeIO();
-    expect(await confirmDestructive('do it?', { yes: true }, io)).toBe(true);
-    expect(io.reads.join('')).toBe('');
+    const f = fakeIO();
+    expect(await confirmDestructive('do it?', { yes: true }, f.io)).toBe(true);
+    expect(f.reads.join('')).toBe('');
   });
 
   it('returns false in non-TTY without --yes', async () => {
-    const io = fakeIO({ tty: false });
-    expect(await confirmDestructive('do it?', { yes: false }, io)).toBe(false);
-    expect(io.errs.join('')).toMatch(/--yes in non-interactive/);
+    const f = fakeIO({ tty: false });
+    expect(await confirmDestructive('do it?', { yes: false }, f.io)).toBe(false);
+    expect(f.errs.join('')).toMatch(/--yes in non-interactive/);
   });
 
   it('delegates to confirm() in TTY without --yes', async () => {
-    const io = fakeIO();
-    const p = confirmDestructive('do it?', { yes: false }, io);
-    setImmediate(() => io.stdin.write('y\n'));
+    const f = fakeIO();
+    const p = confirmDestructive('do it?', { yes: false }, f.io);
+    setImmediate(() => f.stdin.write('y\n'));
     expect(await p).toBe(true);
   });
 });

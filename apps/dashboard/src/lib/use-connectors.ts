@@ -37,8 +37,9 @@ export interface ConnectorListItem {
   invocationCount24h: number;
   /**
    * Spec 0044/0045: FK to connector_apps.id. Null for standalone connectors.
-   * Sent by backend on every list item (R1-restart-2 F2). Used by detail
-   * page's InheritedAppCallout via `c.appId != null`.
+   * Sent by backend on every list item (R1-restart-2 F2). Used by the
+   * instance-detail layout to surface "inherits credentials from App"
+   * (artboards A6a/A6b) via `c.appId != null`.
    */
   appId: string | null;
 }

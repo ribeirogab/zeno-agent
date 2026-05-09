@@ -81,6 +81,7 @@ function ConnectorLeavesScreen(): JSX.Element {
             onInstallAnother={() => setCommand({ kind: 'install', catalogId })}
           />
           <InstancesSection
+            catalogId={catalogId}
             instances={instances}
             loading={connectors.isLoading}
             counts={counts}
@@ -130,11 +131,13 @@ function Header({
 }
 
 function InstancesSection({
+  catalogId,
   instances,
   loading,
   counts,
   onCommand,
 }: {
+  catalogId: string;
   instances: ConnectorListItem[];
   loading: boolean;
   counts: { active: number; error: number; off: number; pending: number };
@@ -168,6 +171,7 @@ function InstancesSection({
           {instances.map((c, i) => (
             <InstanceRow
               key={c.id}
+              catalogId={catalogId}
               connector={c}
               last={i === instances.length - 1}
               onCommand={onCommand}
@@ -191,10 +195,12 @@ function EmptyState(): JSX.Element {
 }
 
 function InstanceRow({
+  catalogId,
   connector,
   last,
   onCommand,
 }: {
+  catalogId: string;
   connector: ConnectorListItem;
   last: boolean;
   onCommand: (cmd: CommandKind) => void;
@@ -214,8 +220,8 @@ function InstanceRow({
       } min-w-[640px]`}
     >
       <Link
-        to="/connectors/$id"
-        params={{ id: connector.id }}
+        to="/connectors/$catalogId/$id"
+        params={{ catalogId, id: connector.id }}
         className={`flex flex-1 min-w-0 items-center gap-3 transition-colors duration-[120ms] ${
           muted ? 'opacity-60' : ''
         } hover:text-gold`}

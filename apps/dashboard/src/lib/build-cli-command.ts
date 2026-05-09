@@ -56,7 +56,7 @@ export function buildCliCommand(spec: CommandKind): CliCommand {
       return {
         title: `Install ${spec.catalogId}`,
         command,
-        docsAnchor: 'install',
+        docsAnchor: 'zeno-connector-install',
         destructive: false,
       };
     }
@@ -64,91 +64,91 @@ export function buildCliCommand(spec: CommandKind): CliCommand {
       return {
         title: `Enable ${spec.slug}`,
         command: `zeno connector enable ${spec.slug}`,
-        docsAnchor: 'enable',
+        docsAnchor: 'zeno-connector-enable--zeno-connector-disable',
         destructive: false,
       };
     case 'disable':
       return {
         title: `Disable ${spec.slug}`,
         command: `zeno connector disable ${spec.slug}`,
-        docsAnchor: 'disable',
+        docsAnchor: 'zeno-connector-enable--zeno-connector-disable',
         destructive: false,
       };
     case 'uninstall':
       return {
         title: `Uninstall ${spec.slug}`,
         command: `zeno connector uninstall ${spec.slug} --yes`,
-        docsAnchor: 'uninstall',
+        docsAnchor: 'zeno-connector-uninstall',
         destructive: true,
       };
     case 'test':
       return {
         title: `Test ${spec.slug}`,
         command: `zeno connector test ${spec.slug}`,
-        docsAnchor: 'test',
+        docsAnchor: 'zeno-connector-test',
         destructive: false,
       };
     case 'refresh-tools':
       return {
         title: `Refresh tools ${spec.slug}`,
         command: `zeno connector refresh-tools ${spec.slug}`,
-        docsAnchor: 'refresh-tools',
+        docsAnchor: 'zeno-connector-refresh-tools',
         destructive: false,
       };
     case 'reveal-secret':
       return {
         title: 'Reveal secret',
         command: `zeno connector secret reveal ${spec.slug} ${spec.key}`,
-        docsAnchor: 'secret-reveal',
+        docsAnchor: 'zeno-connector-secret-reveal',
         destructive: false,
       };
     case 'set-secret':
       return {
         title: 'Set secret',
         command: `zeno connector secret set ${spec.slug} ${spec.key}`,
-        docsAnchor: 'secret-set',
+        docsAnchor: 'zeno-connector-secret-set',
         destructive: false,
       };
     case 'tool-set':
       return {
         title: 'Set permission',
         command: `zeno connector tool set ${spec.slug} ${spec.tool} ${spec.permission}`,
-        docsAnchor: 'tool-set',
+        docsAnchor: 'zeno-connector-tool-set',
         destructive: false,
       };
     case 'tool-bulk':
       return {
         title: 'Bulk set permission',
         command: `zeno connector tool bulk ${spec.slug} --category ${spec.category} --permission ${spec.permission}`,
-        docsAnchor: 'tool-bulk',
+        docsAnchor: 'zeno-connector-tool-bulk',
         destructive: false,
       };
     case 'app-install':
       return {
         title: 'Install GitHub App',
         command: `zeno connector app install --catalog github-app --app-id ${spec.appId} --pem-file ${spec.pemPath}`,
-        docsAnchor: 'app-install',
+        docsAnchor: 'zeno-connector-app-install',
         destructive: false,
       };
     case 'app-installations-discover':
       return {
         title: 'Discover installations',
         command: 'zeno connector app installations discover',
-        docsAnchor: 'app-discover',
+        docsAnchor: 'zeno-connector-app-installations-discover',
         destructive: false,
       };
     case 'app-installations-add':
       return {
         title: 'Add installation',
         command: `zeno connector app installations add --installation-id ${spec.installationId} --label "${spec.label}"`,
-        docsAnchor: 'app-add-installation',
+        docsAnchor: 'zeno-connector-app-installations-add',
         destructive: false,
       };
     case 'app-uninstall':
       return {
         title: 'Uninstall App',
         command: `zeno connector app uninstall --confirm "${spec.appName}"`,
-        docsAnchor: 'app-uninstall',
+        docsAnchor: 'zeno-connector-app-uninstall',
         destructive: true,
       };
     default: {

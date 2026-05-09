@@ -73,7 +73,36 @@ export interface AppListItem {
   installations: AppNestedInstallation[];
 }
 
-export type ConnectorListEntry = ConnectorListItem | AppListItem;
+/**
+ * Spec 2026-05-08-connectors-cli-first-design Q2: when a plain catalog has
+ * 2+ installations (e.g. 3 Linear workspaces), the `/api/connectors` endpoint
+ * collapses them into a single `connector_group` entry. Single-instance plain
+ * catalogs continue to surface as `kind:'connector'`.
+ */
+export interface ConnectorGroupNestedInstallation {
+  connectorId: string;
+  slug: string;
+  displayName: string;
+  instanceLabel: string | null;
+  status: ConnectorStatus;
+  lastVerifiedAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+}
+
+export interface ConnectorGroupListItem {
+  kind: 'connector_group';
+  catalogId: string;
+  /** Catalog entry name, e.g. "Linear". Falls back to the first instance's `displayName`. */
+  name: string;
+  iconUrl: string | null;
+  installationCount: number;
+  statusAggregate: 'active' | 'mixed' | 'error' | 'degraded';
+  lastVerifiedAt: string | null;
+  installations: ConnectorGroupNestedInstallation[];
+}
+
+export type ConnectorListEntry = ConnectorListItem | ConnectorGroupListItem | AppListItem;
 
 export interface MaskedSecret {
   key: string;

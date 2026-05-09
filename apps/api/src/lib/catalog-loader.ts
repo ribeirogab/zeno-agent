@@ -71,6 +71,15 @@ export const catalogEntrySchema = z.object({
    * the default `classifyToolCategory` heuristic.
    */
   categoryPrefixMap: z.record(z.string(), z.enum(['read', 'write', 'interactive'])).optional(),
+  /**
+   * Spec 2026-05-08-connectors-cli-first-design Q5: explicit single/multi-instance
+   * marker. Default `true` (most catalog entries support multiple installations);
+   * set to `false` for catalogs whose underlying tooling cannot run more than once
+   * concurrently (e.g. the playwright MCP, which holds an exclusive Chromium
+   * session). Surfaced through `/api/connectors/catalog` so the CatalogModal can
+   * disable the `+` button when an instance already exists.
+   */
+  multiInstance: z.boolean().optional(),
   tags: z.array(z.string()).optional(),
 });
 

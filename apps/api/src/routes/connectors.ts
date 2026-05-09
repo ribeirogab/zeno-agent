@@ -329,6 +329,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         ? installedAppCatalogIds.has(entry.id)
         : installedCatalogIds.has(entry.id),
       customInstallComponent: entry.customInstallComponent ?? null,
+      // Spec 2026-05-08 Q5: surface single/multi-instance marker. Default `true`
+      // when the catalog entry doesn't declare it explicitly.
+      multiInstance: entry.multiInstance ?? true,
     }));
     return c.json(out);
   });

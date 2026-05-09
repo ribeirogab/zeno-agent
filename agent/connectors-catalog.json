@@ -1019,6 +1019,7 @@
       "icon": "playwright.svg",
       "docsUrl": "https://github.com/microsoft/playwright-mcp",
       "transport": "stdio",
+      "multiInstance": false,
       "transportConfig": {
         "command": "npx",
         "args": [

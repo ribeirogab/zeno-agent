@@ -3,6 +3,7 @@ import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
 import { ok } from '../lib/output.js';
+import { resolveConnector, resolveProfile } from '../lib/resolvers.js';
 
 const CATEGORIES = ['read', 'write', 'interactive'] as const;
 const PERMISSIONS = ['always_allow', 'ask', 'never'] as const;
@@ -52,7 +53,7 @@ export async function runConnectorToolBulk(
 export default defineCommand({
   meta: { name: 'bulk', description: 'set permission for all tools in a category' },
   args: {
-    target: { type: 'positional', description: 'slug or id', required: true },
+    target: { type: 'positional', description: 'slug or id', required: false },
     category: {
       type: 'string',
       description: 'read | write | interactive',
@@ -66,14 +67,16 @@ export default defineCommand({
     profile: { type: 'string', description: 'profile name', required: false },
   },
   async run({ args }) {
-    const profile =
-      typeof args.profile === 'string' && args.profile.length > 0 ? args.profile : 'default';
+    const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });
+    const target = await resolveConnector(args.target as string | undefined, {
+      listConnectors: () => client.get('/api/connectors'),
+    });
     await runConnectorToolBulk(
       client,
       {
-        target: args.target as string,
+        target,
         category: args.category as string,
         permission: args.permission as string,
       },

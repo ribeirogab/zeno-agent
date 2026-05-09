@@ -153,11 +153,16 @@ function StatusPill({ status }: { status: RowVisualStatus }): JSX.Element {
 // ── variant: single connector ─────────────────────────────────────────────
 
 function SingleCard({ connector }: { connector: ConnectorListItem }): JSX.Element {
+  // Spec 2026-05-08-connectors-cli-first-design: a count=1 row does NOT mean
+  // the catalog is single-instance — multi-instance catalogs simply might
+  // have just one row installed. The catalog's actual `multiInstance` field
+  // is not surfaced on ConnectorListItem here, so we omit any tag that would
+  // mislabel multi-instance catalogs as single-instance. The CatalogModal
+  // owns the disabled "+" indicator for actual single-instance catalogs.
   const meta = formatMeta({
     description: connector.description,
     source: connector.source,
     transport: connector.transport,
-    extraTags: ['single-instance'],
   });
   const counter = '1 instance';
   return (
@@ -435,12 +440,12 @@ function formatMeta({
   description,
   source,
   transport,
-  extraTags,
+  extraTags = [],
 }: {
   description: string | null;
   source: string;
   transport: string | null;
-  extraTags: string[];
+  extraTags?: string[];
 }): string {
   const parts: string[] = [];
   if (description) parts.push(description);

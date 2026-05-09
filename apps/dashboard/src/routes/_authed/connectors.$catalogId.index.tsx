@@ -231,7 +231,7 @@ function InstanceRow({
             muted ? 'text-text-secondary' : 'text-text-primary'
           }`}
         >
-          {connector.displayName}
+          {connector.instanceLabel ?? connector.displayName}
         </span>
       </Link>
       <span className="w-[100px] shrink-0 inline-flex">

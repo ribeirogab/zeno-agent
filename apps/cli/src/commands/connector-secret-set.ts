@@ -4,6 +4,7 @@ import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
 import { ok } from '../lib/output.js';
 import { promptHidden } from '../lib/prompt.js';
+import { resolveConnector, resolveProfile, resolveSecretKey } from '../lib/resolvers.js';
 import { waitForCommand } from '../lib/wait-command.js';
 
 export type SecretPrompter = (label: string) => Promise<string>;
@@ -66,19 +67,25 @@ export async function defaultNoEchoPrompter(label: string): Promise<string> {
 export default defineCommand({
   meta: { name: 'set', description: 'set or replace a single secret value' },
   args: {
-    target: { type: 'positional', description: 'slug or id', required: true },
-    key: { type: 'positional', description: 'secret key', required: true },
+    target: { type: 'positional', description: 'slug or id', required: false },
+    key: { type: 'positional', description: 'secret key', required: false },
     profile: { type: 'string', description: 'profile name', required: false },
   },
   async run({ args }) {
-    const profile =
-      typeof args.profile === 'string' && args.profile.length > 0 ? args.profile : 'default';
+    const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });
-    await runConnectorSecretSet(
-      client,
-      { target: args.target as string, key: args.key as string },
-      (line) => console.log(line),
-    );
+    const target = await resolveConnector(args.target as string | undefined, {
+      listConnectors: () => client.get('/api/connectors'),
+    });
+    const key = await resolveSecretKey(args.key as string | undefined, {
+      listSecrets: async () => {
+        const detail = await client.get<{ secrets?: { key: string }[] }>(
+          `/api/connectors/${encodeURIComponent(target)}`,
+        );
+        return detail.secrets ?? [];
+      },
+    });
+    await runConnectorSecretSet(client, { target, key }, (line) => console.log(line));
   },
 });

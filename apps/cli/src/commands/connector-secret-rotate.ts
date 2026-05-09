@@ -3,6 +3,7 @@ import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
 import { ok } from '../lib/output.js';
+import { resolveConnector, resolveProfile } from '../lib/resolvers.js';
 import { waitForCommand } from '../lib/wait-command.js';
 import { defaultNoEchoPrompter, type SecretPrompter } from './connector-secret-set.js';
 
@@ -86,16 +87,16 @@ export async function runConnectorSecretRotate(
 export default defineCommand({
   meta: { name: 'rotate', description: 'rotate all required secrets in one round-trip' },
   args: {
-    target: { type: 'positional', description: 'slug or id', required: true },
+    target: { type: 'positional', description: 'slug or id', required: false },
     profile: { type: 'string', description: 'profile name', required: false },
   },
   async run({ args }) {
-    const profile =
-      typeof args.profile === 'string' && args.profile.length > 0 ? args.profile : 'default';
+    const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });
-    await runConnectorSecretRotate(client, { target: args.target as string }, (line) =>
-      console.log(line),
-    );
+    const target = await resolveConnector(args.target as string | undefined, {
+      listConnectors: () => client.get('/api/connectors'),
+    });
+    await runConnectorSecretRotate(client, { target }, (line) => console.log(line));
   },
 });

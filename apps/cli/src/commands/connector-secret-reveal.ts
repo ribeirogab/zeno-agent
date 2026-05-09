@@ -2,6 +2,7 @@ import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl, ApiError } from '../lib/api-client.js';
+import { resolveConnector, resolveProfile, resolveSecretKey } from '../lib/resolvers.js';
 
 interface SecretRevealArgs {
   target: string;
@@ -70,19 +71,25 @@ function readRetryAfter(body: unknown): number | null {
 export default defineCommand({
   meta: { name: 'reveal', description: 'reveal a single secret value (rate-limited, audited)' },
   args: {
-    target: { type: 'positional', description: 'slug or id', required: true },
-    key: { type: 'positional', description: 'secret key', required: true },
+    target: { type: 'positional', description: 'slug or id', required: false },
+    key: { type: 'positional', description: 'secret key', required: false },
     profile: { type: 'string', description: 'profile name', required: false },
   },
   async run({ args }) {
-    const profile =
-      typeof args.profile === 'string' && args.profile.length > 0 ? args.profile : 'default';
+    const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });
-    await runConnectorSecretReveal(
-      client,
-      { target: args.target as string, key: args.key as string },
-      (line) => console.log(line),
-    );
+    const target = await resolveConnector(args.target as string | undefined, {
+      listConnectors: () => client.get('/api/connectors'),
+    });
+    const key = await resolveSecretKey(args.key as string | undefined, {
+      listSecrets: async () => {
+        const detail = await client.get<{ secrets?: { key: string }[] }>(
+          `/api/connectors/${encodeURIComponent(target)}`,
+        );
+        return detail.secrets ?? [];
+      },
+    });
+    await runConnectorSecretReveal(client, { target, key }, (line) => console.log(line));
   },
 });

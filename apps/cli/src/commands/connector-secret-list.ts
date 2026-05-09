@@ -3,6 +3,7 @@ import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
 import { c } from '../lib/output.js';
+import { resolveConnector, resolveProfile } from '../lib/resolvers.js';
 
 interface SecretListArgs {
   target: string;
@@ -45,16 +46,16 @@ export async function runConnectorSecretList(
 export default defineCommand({
   meta: { name: 'list', description: 'list secrets for a connector (always masked)' },
   args: {
-    target: { type: 'positional', description: 'slug or id', required: true },
+    target: { type: 'positional', description: 'slug or id', required: false },
     profile: { type: 'string', description: 'profile name', required: false },
   },
   async run({ args }) {
-    const profile =
-      typeof args.profile === 'string' && args.profile.length > 0 ? args.profile : 'default';
+    const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });
-    await runConnectorSecretList(client, { target: args.target as string }, (line) =>
-      console.log(line),
-    );
+    const target = await resolveConnector(args.target as string | undefined, {
+      listConnectors: () => client.get('/api/connectors'),
+    });
+    await runConnectorSecretList(client, { target }, (line) => console.log(line));
   },
 });

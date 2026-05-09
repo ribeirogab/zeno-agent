@@ -363,8 +363,8 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     if (!knownIcons.has(filename)) return c.json({ error: 'not_found' }, 404);
     const path = resolveIconPath(filename);
     if (!path) return c.json({ error: 'not_found' }, 404);
-    // Spec 0066 D: catalog now mixes SVG (slack/github/playwright/linear/
-    // sentry) and PNG (klaviyo/swarmia — official brands don't publish
+    // Spec 0066 D: catalog now mixes SVG (slack/github/linear/sentry) and
+    // PNG (klaviyo/swarmia — official brands don't publish
     // public-domain SVG marks). Read raw bytes (not UTF-8) so PNG isn't
     // corrupted, and pick MIME from the extension.
     const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();

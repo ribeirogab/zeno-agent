@@ -78,11 +78,8 @@ function Header({ onBrowse }: { onBrowse: () => void }): JSX.Element {
       <button
         type="button"
         onClick={onBrowse}
-        className="inline-flex items-center gap-2 px-4 py-2 border border-border-strong bg-panel-2 font-mono text-[11px] font-medium tracking-[0.12em] leading-3 uppercase text-text-primary transition-colors duration-[120ms] hover:border-gold-line hover:bg-panel"
+        className="inline-flex items-center px-4 py-2 border border-border-strong bg-panel-2 font-mono text-[11px] font-medium tracking-[0.12em] leading-3 uppercase text-text-primary transition-colors duration-[120ms] hover:border-gold-line hover:bg-panel"
       >
-        <span aria-hidden className="text-gold">
-          ⊞
-        </span>
         browse catalog
       </button>
     </header>

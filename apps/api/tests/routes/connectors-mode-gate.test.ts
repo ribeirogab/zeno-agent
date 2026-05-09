@@ -20,8 +20,6 @@ beforeEach(() => {
   opened = openRuntimeDatabase(':memory:');
   db = opened.drizzle;
   runRuntimeMigrations(opened.raw);
-  // Mirror connectors.test.ts: drop the seeded Playwright row so list assertions are stable.
-  opened.raw.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
 });
 
 function makeApp(database: RuntimeDB, writes: ApiWriteMode) {

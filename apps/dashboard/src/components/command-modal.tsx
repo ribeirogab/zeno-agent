@@ -60,7 +60,14 @@ export function CommandModal({ spec, onClose }: CommandModalProps): JSX.Element 
 
   return (
     <Dialog open onOpenChange={handleOpenChange}>
-      <DialogContent aria-label={title} className={panelOverride}>
+      <DialogContent
+        aria-label={title}
+        // Bump z-index above the default DialogOverlay/Content (z-40/z-50) so
+        // when CommandModal opens nested over CatalogModal, the backdrop dims
+        // *both* the page chrome and the catalog modal — see spec A2/A3.
+        className={`${panelOverride} z-[70]`}
+        overlayClassName="z-[60]"
+      >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <div className="flex items-center justify-between border-b border-border-subtle px-4 py-2.5">
           <span

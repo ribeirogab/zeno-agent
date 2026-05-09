@@ -7,10 +7,10 @@
  *   - The card body opens `docsUrl` in a new tab.
  *   - The `+` button opens a nested `CommandModal` with the install command.
  *
- * Per spec Q5, catalogs that declare `multiInstance: false` (e.g. playwright)
- * disable the `+` button + show a single-instance banner once at least one
- * instance exists. Filter/Sort controls are present visually but not yet
- * wired — their behavior lands later in Phase 4.
+ * Per spec Q5, catalogs that declare `multiInstance: false` disable the `+`
+ * button + show a single-instance banner once at least one instance exists.
+ * (Filter/Sort placeholders were dropped — search alone covers the curated
+ * catalog and the spec never wired up filter shapes.)
  *
  * The modal uses `Dialog` + `DialogContent` from `@zeno/ui`, which already
  * portals via Radix and handles outside-click + Escape close.
@@ -136,24 +136,7 @@ function SearchBar({
           aria-label="search catalog"
         />
       </label>
-      <PlaceholderControl label="filter by" />
-      <PlaceholderControl label="sort by" />
     </div>
-  );
-}
-
-function PlaceholderControl({ label }: { label: string }): JSX.Element {
-  return (
-    <button
-      type="button"
-      // Filter/Sort are visual placeholders until the catalog endpoint
-      // exposes the filter shape — disable to avoid surprising clicks.
-      disabled
-      className="shrink-0 inline-flex items-center gap-2 px-3 py-2 bg-canvas border border-border-subtle font-mono text-[11px] tracking-[0.04em] leading-3 text-text-tertiary cursor-not-allowed"
-    >
-      {label}
-      <span aria-hidden>▾</span>
-    </button>
   );
 }
 

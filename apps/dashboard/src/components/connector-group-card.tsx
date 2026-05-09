@@ -9,9 +9,11 @@
  *   - `AppListItem` (`kind: 'app'`) — App pattern (e.g. github-app). Header +
  *     an identity slot (App / App ID / PEM fingerprint) + N installation rows.
  *
- * Mutating actions are out of scope here — every clickable row navigates to
- * the appropriate detail route. Per-row kebabs are visual only at this layer
- * (the leaves list at `/connectors/:catalogId` owns the destructive surface).
+ * Mutating actions are out of scope here. The card *header* navigates to the
+ * leaves list (`/connectors/:catalogId`) and each drill row navigates to the
+ * corresponding instance / installation detail. The leaves list owns the
+ * destructive surface (kebab → `<CommandModal>`); on the index we deliberately
+ * don't render decorative kebabs — only the navigation affordances are real.
  *
  * Spec: vault/specs/2026-05-08-connectors-cli-first-design (Phase 4 / Task 22).
  */
@@ -49,12 +51,15 @@ function CardShell({ children }: { children: React.ReactNode }): JSX.Element {
 }
 
 function CardHeader({
+  to,
   iconUrl,
   iconFallback,
   title,
   meta,
   counter,
 }: {
+  /** TanStack Router target — clicking the card body navigates here. */
+  to: { to: string; params: Record<string, string> };
   iconUrl: string | null;
   iconFallback: string;
   title: React.ReactNode;
@@ -62,7 +67,17 @@ function CardHeader({
   counter: string;
 }): JSX.Element {
   return (
-    <header className="flex items-center gap-4 px-5 py-4 border-b border-border-subtle">
+    // The whole header is one big anchor so the operator can click anywhere
+    // on the catalog name / meta / counter — not just the drill rows. This
+    // matches A1 affordance (the entire card top is interactive).
+    <Link
+      // biome-ignore lint/suspicious/noExplicitAny: TanStack `to` is typed against
+      // the generated route tree which doesn't see polymorphic targets.
+      to={to.to as any}
+      // biome-ignore lint/suspicious/noExplicitAny: see above.
+      params={to.params as any}
+      className="flex items-center gap-4 px-5 py-4 border-b border-border-subtle transition-colors duration-[120ms] hover:bg-panel-2"
+    >
       <CardIcon iconUrl={iconUrl} fallback={iconFallback} />
       <div className="flex flex-col flex-1 min-w-0 gap-1">
         {/* A1: catalog name in lowercase Space Grotesk medium, catalog id-style */}
@@ -78,8 +93,7 @@ function CardHeader({
       <span className="shrink-0 font-mono text-[11px] tracking-[0.04em] leading-3 text-text-secondary">
         {counter}
       </span>
-      <Kebab label={typeof title === 'string' ? title : 'item'} />
-    </header>
+    </Link>
   );
 }
 
@@ -91,32 +105,23 @@ function CardIcon({
   fallback: string;
 }): JSX.Element {
   if (iconUrl) {
+    // Real catalog icons (PNG/SVG) often render as dark glyphs on transparent
+    // backgrounds — github's mark in particular disappears on the dark `panel-2`
+    // tile. Use the off-white text-primary token as the tile background so any
+    // logo (light or dark, color or mono) reads with full contrast. The 4px
+    // inner padding keeps the logo from hugging the rounded corners.
     return (
-      <span className="shrink-0 w-10 h-10 inline-flex items-center justify-center bg-panel-2 border border-gold-line rounded-[6px]">
-        <img src={iconUrl} alt="" width={22} height={22} />
+      <span className="shrink-0 w-10 h-10 inline-flex items-center justify-center bg-text-primary rounded-[6px] p-1">
+        <img src={iconUrl} alt="" className="max-w-full max-h-full" />
       </span>
     );
   }
+  // Initials fallback keeps the dark tile + gold accent — used for connectors
+  // without an icon URL (e.g. Klaviyo "K" tile in the artboard).
   return (
     <span className="shrink-0 w-10 h-10 inline-flex items-center justify-center bg-panel-2 border border-gold-line rounded-[6px] font-mono text-base font-semibold leading-[18px] text-gold">
       {fallback.slice(0, 1).toUpperCase()}
     </span>
-  );
-}
-
-function Kebab({ label }: { label: string }): JSX.Element {
-  return (
-    <button
-      type="button"
-      aria-label={`Actions for ${label}`}
-      // The card-level kebab is visual-only on the index — drill rows route
-      // to the catalog page where the per-instance menu lives. We render the
-      // glyph so the component matches A1 exactly.
-      onClick={(e) => e.preventDefault()}
-      className="shrink-0 w-6 h-6 inline-flex items-center justify-center font-mono text-xs leading-4 text-text-tertiary hover:text-text-primary"
-    >
-      ⋯
-    </button>
   );
 }
 
@@ -156,6 +161,10 @@ function SingleCard({ connector }: { connector: ConnectorListItem }): JSX.Elemen
   return (
     <CardShell>
       <CardHeader
+        to={{
+          to: '/connectors/$catalogId',
+          params: { catalogId: connector.catalogId ?? connector.slug },
+        }}
         iconUrl={connector.iconUrl}
         iconFallback={connector.displayName}
         title={connector.displayName}
@@ -183,6 +192,7 @@ function GroupCard({ group }: { group: ConnectorGroupListItem }): JSX.Element {
   return (
     <CardShell>
       <CardHeader
+        to={{ to: '/connectors/$catalogId', params: { catalogId: group.catalogId } }}
         iconUrl={group.iconUrl}
         iconFallback={group.name}
         title={group.name}
@@ -220,6 +230,12 @@ function AppCard({ app }: { app: AppListItem }): JSX.Element {
   return (
     <CardShell>
       <CardHeader
+        // App card header drills to the App detail (A6a — `/connectors/<catalogId>/<appUuid>`),
+        // not the catalog leaves list — apps don't have a plain leaves view.
+        to={{
+          to: '/connectors/$catalogId/$id',
+          params: { catalogId: app.catalogId, id: app.appUuid },
+        }}
         iconUrl={app.iconUrl}
         iconFallback={app.appName}
         title={app.catalogId}
@@ -341,7 +357,6 @@ function PlainInstanceRow({
       <span className="w-[80px] shrink-0 text-right font-mono text-[11px] leading-[14px] text-text-tertiary">
         {lastVerifiedLabel}
       </span>
-      <Kebab label={label} />
     </Link>
   );
 }
@@ -383,7 +398,6 @@ function GroupInstanceRow({
       <span className="w-[80px] shrink-0 text-right font-mono text-[11px] leading-[14px] text-text-tertiary">
         {lastVerifiedLabel}
       </span>
-      <Kebab label={label} />
     </Link>
   );
 }
@@ -426,7 +440,6 @@ function AppInstallationRow({
       <span className="w-[80px] shrink-0 text-right font-mono text-[11px] leading-[14px] text-text-tertiary">
         {lastVerifiedLabel}
       </span>
-      <Kebab label={installation.displayName} />
     </Link>
   );
 }
@@ -468,7 +481,12 @@ function visualStatusFromInstallation(
 }
 
 function formatLastVerified(iso: string | null, pending: boolean): string {
-  if (!iso) return pending ? 'never tested' : '—';
+  // A1 keeps the timestamp column even on rows that don't have one yet —
+  // we used to render an em-dash placeholder, but the operator complained it
+  // looked like a non-functional UI affordance, so we now leave it blank when
+  // there's nothing to show. Pending installs still surface "never tested" so
+  // the operator can tell the row hasn't been health-checked yet.
+  if (!iso) return pending ? 'never tested' : '';
   return formatRelative(iso);
 }
 

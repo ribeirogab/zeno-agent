@@ -1,10 +1,4 @@
 {
   "_doc": "Built-in MCP servers that ship with Zeno. No secrets here — servers with credentials belong in profile/mcp.json.",
-  "mcpServers": {
-    "playwright": {
-      "_comment": "Browser automation. No credential needed. Docs: https://github.com/microsoft/playwright-mcp",
-      "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest"]
-    }
-  }
+  "mcpServers": {}
 }

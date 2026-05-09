@@ -23,11 +23,20 @@ export const DialogOverlay = forwardRef<
 
 export const DialogContent = forwardRef<
   ElementRef<typeof DialogPrimitive.Content>,
-  ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { children: ReactNode; width?: string }
->(function DialogContent({ className, children, width, ...props }, ref) {
+  ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    children: ReactNode;
+    width?: string;
+    /**
+     * Optional override for the underlying `DialogOverlay` class — useful when
+     * you need to bump z-index for nested dialogs (e.g. `<CommandModal>` over
+     * `<CatalogModal>` should dim the catalog backdrop, not sit beside it).
+     */
+    overlayClassName?: string;
+  }
+>(function DialogContent({ className, children, width, overlayClassName, ...props }, ref) {
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         ref={ref}
         className={cn(

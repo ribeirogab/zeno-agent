@@ -29,9 +29,6 @@ beforeEach(() => {
   opened = openRuntimeDatabase(':memory:');
   db = opened.drizzle;
   runRuntimeMigrations(opened.raw);
-  // Spec 0066 C: drop the seeded Playwright row so 'empty list' /
-  // 'installed counts' assertions in this file behave as before.
-  opened.raw.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
 });
 
 function makeApp(database: RuntimeDB) {

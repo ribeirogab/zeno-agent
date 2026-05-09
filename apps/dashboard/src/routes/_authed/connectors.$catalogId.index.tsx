@@ -22,7 +22,7 @@ import { CommandModal } from '@/components/command-modal';
 import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
 import type { CommandKind } from '@/lib/build-cli-command';
 import { useCatalog } from '@/lib/use-catalog';
-import { type ConnectorListItem, useConnectors } from '@/lib/use-connectors';
+import { type AppListItem, type ConnectorListItem, useConnectors } from '@/lib/use-connectors';
 
 export const Route = createFileRoute('/_authed/connectors/$catalogId/')({
   component: ConnectorLeavesScreen,
@@ -37,12 +37,19 @@ function ConnectorLeavesScreen(): JSX.Element {
   const [command, setCommand] = useState<CommandKind | null>(null);
 
   const allEntries = connectors.data ?? [];
-  // A4 is plain-pattern only — App rows have their own layout (A6a/A6b).
-  // Multi-instance plain catalogs emit `connector_group` from the API
-  // (spec Task 7 Q2). Flatten its `installations` so the leaves list shows
-  // every row regardless of count. Single-row catalogs still emit
-  // `kind:'connector'` and pass through unchanged.
+  // The leaves list serves *both* plain catalogs and app catalogs:
+  //
+  //   - plain (`kind:'connector'` or `kind:'connector_group'`): list of
+  //     `ConnectorListItem` rows that link to A5 instance detail.
+  //   - app (`kind:'app'`): list of installed Apps (one row per app), each
+  //     linking to the App detail (A6a). The app's nested installations live
+  //     under that page, not here.
+  //
+  // We compute both lists upfront and pick which to render based on what the
+  // catalog entry contains — for github-app the API only ever emits
+  // `kind:'app'` so `instances` will be empty.
   const instances: ConnectorListItem[] = [];
+  const apps: AppListItem[] = [];
   for (const entry of allEntries) {
     if (entry.kind === 'connector' && entry.catalogId === catalogId) {
       instances.push(entry);
@@ -72,9 +79,12 @@ function ConnectorLeavesScreen(): JSX.Element {
           appId: null,
         });
       }
+    } else if (entry.kind === 'app' && entry.catalogId === catalogId) {
+      apps.push(entry);
     }
   }
   const catalogEntry = (catalog.data ?? []).find((c) => c.id === catalogId);
+  const isAppPattern = apps.length > 0 || catalogEntry?.customInstallComponent === 'github-app';
 
   const counts = instances.reduce(
     (acc, c) => {
@@ -88,15 +98,30 @@ function ConnectorLeavesScreen(): JSX.Element {
     { active: 0, error: 0, off: 0, pending: 0 },
   );
 
+  const appCounts = apps.reduce(
+    (acc, app) => {
+      // app.statusAggregate is `'active' | 'mixed' | 'error' | 'degraded'`;
+      // collapse to the same buckets the section header uses for plain.
+      if (app.statusAggregate === 'active') acc.active += 1;
+      else if (app.statusAggregate === 'error' || app.statusAggregate === 'degraded')
+        acc.error += 1;
+      else acc.mixed += 1;
+      return acc;
+    },
+    { active: 0, error: 0, mixed: 0 },
+  );
+
   // Page title/description: catalog entry is the source of truth. Fallback to
-  // the first instance's displayName / description when the catalog hasn't
-  // resolved yet so the page degrades gracefully on slow networks.
+  // the first instance's / first app's name when the catalog hasn't resolved
+  // yet so the page degrades gracefully on slow networks.
   const fallback = instances[0];
-  const title = catalogEntry?.name ?? fallback?.displayName ?? catalogId;
+  const fallbackApp = apps[0];
+  const title = catalogEntry?.name ?? fallback?.displayName ?? fallbackApp?.appName ?? catalogId;
   const description =
     catalogEntry?.description ??
     fallback?.description ??
     'No description available for this catalog entry.';
+  const headerLabel = isAppPattern ? 'connector · app' : 'connector · plain';
 
   return (
     <div className="flex min-h-screen bg-canvas">
@@ -111,15 +136,26 @@ function ConnectorLeavesScreen(): JSX.Element {
           <Header
             title={title}
             description={description}
+            label={headerLabel}
+            installLabel={isAppPattern ? 'install another app' : 'install another'}
             onInstallAnother={() => setCommand({ kind: 'install', catalogId })}
           />
-          <InstancesSection
-            catalogId={catalogId}
-            instances={instances}
-            loading={connectors.isLoading}
-            counts={counts}
-            onCommand={setCommand}
-          />
+          {isAppPattern ? (
+            <AppsSection
+              catalogId={catalogId}
+              apps={apps}
+              loading={connectors.isLoading}
+              counts={appCounts}
+            />
+          ) : (
+            <InstancesSection
+              catalogId={catalogId}
+              instances={instances}
+              loading={connectors.isLoading}
+              counts={counts}
+              onCommand={setCommand}
+            />
+          )}
         </div>
       </main>
       {command && <CommandModal spec={command} onClose={() => setCommand(null)} />}
@@ -130,17 +166,21 @@ function ConnectorLeavesScreen(): JSX.Element {
 function Header({
   title,
   description,
+  label,
+  installLabel,
   onInstallAnother,
 }: {
   title: string;
   description: string;
+  label: string;
+  installLabel: string;
   onInstallAnother: () => void;
 }): JSX.Element {
   return (
     <header className="flex items-end justify-between gap-6 border-b border-border-subtle pb-6">
       <div className="flex flex-col flex-1">
         <span className="font-mono text-[11px] font-medium tracking-[0.18em] leading-[14px] uppercase text-gold">
-          connector · plain
+          {label}
         </span>
         <h1 className="font-sans text-[32px] font-medium tracking-[-0.015em] leading-10 text-text-primary mt-2 m-0">
           {title}
@@ -152,12 +192,9 @@ function Header({
       <button
         type="button"
         onClick={onInstallAnother}
-        className="inline-flex items-center gap-2 px-4 py-2 border border-border-strong bg-panel-2 font-mono text-[11px] font-medium tracking-[0.12em] leading-3 uppercase text-text-primary transition-colors duration-[120ms] hover:border-gold-line hover:bg-panel"
+        className="inline-flex items-center px-4 py-2 border border-border-strong bg-panel-2 font-mono text-[11px] font-medium tracking-[0.12em] leading-3 uppercase text-text-primary transition-colors duration-[120ms] hover:border-gold-line hover:bg-panel"
       >
-        <span aria-hidden className="text-gold">
-          ⊞
-        </span>
-        install another
+        {installLabel}
       </button>
     </header>
   );
@@ -225,6 +262,114 @@ function EmptyState(): JSX.Element {
       </span>
     </div>
   );
+}
+
+// ── app-pattern catalog (e.g. github-app) ────────────────────────────────
+
+function AppsSection({
+  catalogId,
+  apps,
+  loading,
+  counts,
+}: {
+  catalogId: string;
+  apps: AppListItem[];
+  loading: boolean;
+  counts: { active: number; error: number; mixed: number };
+}): JSX.Element {
+  const total = apps.length;
+  const summary = (() => {
+    if (loading) return 'loading…';
+    if (total === 0) return 'no apps installed';
+    const parts: string[] = [`${total} ${total === 1 ? 'app' : 'apps'}`];
+    if (counts.active > 0) parts.push(`${counts.active} active`);
+    if (counts.error > 0) parts.push(`${counts.error} error`);
+    if (counts.mixed > 0) parts.push(`${counts.mixed} mixed`);
+    return parts.join(' · ');
+  })();
+  return (
+    <section className="flex flex-col gap-4">
+      <div className="flex items-baseline justify-between border-b border-dashed border-border-subtle pb-2.5">
+        <h2 className="m-0 font-sans text-lg font-medium tracking-[-0.005em] leading-[22px] text-text-primary">
+          apps
+        </h2>
+        <span className="font-mono text-[10px] tracking-[0.2em] leading-3 uppercase text-text-tertiary">
+          {summary}
+        </span>
+      </div>
+      {total === 0 && !loading ? (
+        <EmptyAppsState />
+      ) : (
+        <div className="bg-panel border border-border-subtle flex flex-col min-w-0 overflow-x-auto">
+          {apps.map((app, i) => (
+            <AppRow
+              key={app.appUuid}
+              catalogId={catalogId}
+              app={app}
+              last={i === apps.length - 1}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function EmptyAppsState(): JSX.Element {
+  return (
+    <div className="bg-panel border border-border-subtle px-6 py-8 flex flex-col items-center gap-1 text-center">
+      <span className="font-sans text-[13px] leading-[1.6] text-text-secondary">
+        No apps installed yet. Click{' '}
+        <span className="font-mono text-gold">install another app</span> to get started.
+      </span>
+    </div>
+  );
+}
+
+function AppRow({
+  catalogId,
+  app,
+  last,
+}: {
+  catalogId: string;
+  app: AppListItem;
+  last: boolean;
+}): JSX.Element {
+  const status = visualStatusFromAggregate(app.statusAggregate);
+  const installations = app.installationCount;
+  return (
+    <Link
+      to="/connectors/$catalogId/$id"
+      params={{ catalogId, id: app.appUuid }}
+      className={`flex items-center gap-4 px-5 py-3.5 ${
+        last ? '' : 'border-b border-border-subtle'
+      } min-w-[640px] transition-colors duration-[120ms] hover:bg-panel-2`}
+    >
+      <span className="flex flex-1 min-w-0 flex-col gap-1">
+        <span className="font-sans text-[14px] leading-5 text-text-primary truncate">
+          {app.appName}
+        </span>
+        <span className="font-mono text-[11px] tracking-[0.04em] leading-3 text-text-secondary truncate">
+          app id {app.appId} · {installations}{' '}
+          {installations === 1 ? 'installation' : 'installations'}
+        </span>
+      </span>
+      <span className="w-[100px] shrink-0 inline-flex">
+        <StatusPill status={status} />
+      </span>
+      <span className="w-[80px] shrink-0 text-right font-mono text-[11px] leading-[14px] text-text-tertiary">
+        {app.lastVerifiedAt ? formatRelative(app.lastVerifiedAt) : ''}
+      </span>
+    </Link>
+  );
+}
+
+function visualStatusFromAggregate(
+  agg: 'active' | 'mixed' | 'error' | 'degraded',
+): RowVisualStatus {
+  if (agg === 'active') return 'active';
+  if (agg === 'error' || agg === 'degraded') return 'error';
+  return 'pending';
 }
 
 function InstanceRow({

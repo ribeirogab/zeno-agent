@@ -35,11 +35,14 @@ const baseCatalog: CatalogEntryApi[] = [
     multiInstance: true,
   },
   {
-    id: 'playwright',
-    name: 'playwright',
-    description: 'browser automation',
-    iconUrl: '/icons/playwright.svg',
-    docsUrl: 'https://playwright.example/mcp',
+    // Single-instance fixture — stands in for any `multiInstance: false`
+    // catalog (we used to ship Playwright; the dashboard never depended on it
+    // semantically, just on the flag).
+    id: 'single-instance-fixture',
+    name: 'single-instance-fixture',
+    description: 'fixture for single-instance behaviour',
+    iconUrl: '/icons/test.svg',
+    docsUrl: 'https://example/mcp',
     transport: 'stdio',
     secrets: [],
     toolCount: 25,
@@ -62,13 +65,13 @@ const installed: ConnectorListEntry[] = [
   },
   {
     kind: 'connector',
-    id: 'pw-1',
-    slug: 'playwright-default',
-    displayName: 'Playwright',
+    id: 'sif-1',
+    slug: 'single-instance-fixture-default',
+    displayName: 'single-instance-fixture',
     instanceLabel: null,
     description: null,
     source: 'catalog',
-    catalogId: 'playwright',
+    catalogId: 'single-instance-fixture',
     iconUrl: null,
     transport: 'stdio',
     status: 'enabled',
@@ -82,11 +85,13 @@ const installed: ConnectorListEntry[] = [
 ];
 
 describe('<CatalogModal>', () => {
-  it('renders the search input + filter/sort placeholders', () => {
+  it('renders the search input', () => {
+    // Filter/Sort placeholders were removed (spec follow-up): they were
+    // disabled stubs and the operator complained about non-functional UI.
     render(<CatalogModal catalog={baseCatalog} installed={[]} onClose={() => {}} />);
     expect(screen.getByLabelText('search catalog')).toBeDefined();
-    expect(screen.getByText(/filter by/i)).toBeDefined();
-    expect(screen.getByText(/sort by/i)).toBeDefined();
+    expect(screen.queryByText(/filter by/i)).toBeNull();
+    expect(screen.queryByText(/sort by/i)).toBeNull();
   });
 
   it('lists at least one catalog card', () => {
@@ -110,7 +115,9 @@ describe('<CatalogModal>', () => {
 
   it('disables the + button for single-instance catalogs that are already installed', () => {
     render(<CatalogModal catalog={baseCatalog} installed={installed} onClose={() => {}} />);
-    const plusButtons = screen.getAllByRole('button', { name: /Install playwright/i });
+    const plusButtons = screen.getAllByRole('button', {
+      name: /Install single-instance-fixture/i,
+    });
     expect(plusButtons[0]).toBeDefined();
     expect((plusButtons[0] as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/single-instance catalog · already installed/i)).toBeDefined();

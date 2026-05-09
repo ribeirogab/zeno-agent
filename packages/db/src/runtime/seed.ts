@@ -20,50 +20,11 @@ interface DefaultConnector {
   }>;
 }
 
-const DEFAULTS: DefaultConnector[] = [
-  {
-    slug: 'playwright',
-    displayName: 'Playwright',
-    description: 'Browser automation. Navigate, snapshot, click, type, screenshot.',
-    source: 'catalog',
-    catalogId: 'playwright',
-    transport: 'stdio',
-    command: 'npx',
-    args: JSON.stringify(['-y', '@playwright/mcp@latest']),
-    tools: [
-      {
-        toolName: 'browser_navigate',
-        description: 'Navigate to a URL in the browser.',
-        category: 'read',
-        permission: 'always_allow',
-      },
-      {
-        toolName: 'browser_snapshot',
-        description: 'Capture an accessibility snapshot of the current page.',
-        category: 'read',
-        permission: 'always_allow',
-      },
-      {
-        toolName: 'browser_take_screenshot',
-        description: 'Take a screenshot of the current page or an element.',
-        category: 'read',
-        permission: 'always_allow',
-      },
-      {
-        toolName: 'browser_click',
-        description: 'Click on a web page element.',
-        category: 'interactive',
-        permission: 'ask',
-      },
-      {
-        toolName: 'browser_type',
-        description: 'Type text into an editable element.',
-        category: 'interactive',
-        permission: 'ask',
-      },
-    ],
-  },
-];
+// Spec 2026-05-08-connectors-cli-first-design: no connectors are auto-seeded.
+// The catalog is the directory; the operator opts in by running
+// `zeno connector install <catalog-id>` (or via the dashboard catalog modal,
+// which proxies to the same CLI command).
+const DEFAULTS: DefaultConnector[] = [];
 
 interface DefaultCapability {
   toolName: string;

@@ -62,6 +62,8 @@ export interface AppListItem {
   catalogId: string;
   appName: string;
   appSlug: string;
+  /** Spec 2026-05-08 A1: surfaced for the App identity slot's PEM fingerprint. */
+  pemSha256: string;
   iconUrl: string | null;
   installationCount: number;
   /** Spec 0048 Q2: `degraded` (amber) when refresh failed in the last 1h. */

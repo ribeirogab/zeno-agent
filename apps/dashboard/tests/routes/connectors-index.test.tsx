@@ -194,6 +194,7 @@ describe('<ConnectorsIndexScreen> — populated state (A1)', () => {
   it('shows the section summary with the total instance count', () => {
     render(<Component />);
     // 1 (sentry) + 3 (linear group) + 2 (app) = 6
-    expect(screen.getByText('6 instances')).toBeDefined();
+    // Summary now interleaves status counts: "6 instances · N active · …"
+    expect(screen.getByText(/6 instances/)).toBeDefined();
   });
 });

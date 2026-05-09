@@ -111,9 +111,7 @@ function InstalledSection({
           installed
         </h2>
         <span className="font-mono text-[10px] tracking-[0.2em] leading-3 uppercase text-text-tertiary">
-          {loading
-            ? 'loading…'
-            : `${totalInstances} ${totalInstances === 1 ? 'instance' : 'instances'}`}
+          {loading ? 'loading…' : formatInstalledSummary(items, totalInstances)}
         </span>
       </div>
       {empty ? (
@@ -133,6 +131,46 @@ function InstalledSection({
       )}
     </section>
   );
+}
+
+/**
+ * Aggregate breakdown of installed instance status counts. Matches A1's
+ * section header format: "10 instances · 8 active · 1 error · 1 off".
+ * Counts every leaf row (single connectors, group installations, app
+ * installations); zero buckets are omitted.
+ */
+function formatInstalledSummary(items: ReadonlyArray<unknown>, totalInstances: number): string {
+  type Row = { status: 'enabled' | 'disabled' | 'pending'; lastError: string | null };
+  type Entry =
+    | (Row & { kind: 'connector' })
+    | { kind: 'connector_group'; installations: Row[] }
+    | { kind: 'app'; installations: Row[] };
+  const typed = items as ReadonlyArray<Entry>;
+  let active = 0;
+  let error = 0;
+  let off = 0;
+  let pending = 0;
+  for (const entry of typed) {
+    if (entry.kind === 'connector') {
+      if (entry.status === 'pending') pending++;
+      else if (entry.status === 'disabled') off++;
+      else if (entry.lastError) error++;
+      else active++;
+    } else {
+      for (const i of entry.installations) {
+        if (i.status === 'pending') pending++;
+        else if (i.status === 'disabled') off++;
+        else if (i.lastError) error++;
+        else active++;
+      }
+    }
+  }
+  const parts: string[] = [`${totalInstances} ${totalInstances === 1 ? 'instance' : 'instances'}`];
+  if (active) parts.push(`${active} active`);
+  if (error) parts.push(`${error} error`);
+  if (off) parts.push(`${off} off`);
+  if (pending) parts.push(`${pending} pending`);
+  return parts.join(' · ');
 }
 
 function EmptyState(): JSX.Element {

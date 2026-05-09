@@ -903,6 +903,12 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
           catalogId: app.catalogId,
           appName: app.appName,
           appSlug: app.appSlug,
+          // Spec 2026-05-08-connectors-cli-first-design A1: the App
+          // identity slot on the index ConnectorGroupCard renders the PEM
+          // fingerprint inline (e.g. `sha256:a3f9·c4b2·9f8d`). Surface
+          // pem_sha256 here so the dashboard doesn't have to round-trip
+          // GET /api/connectors/apps/:id just to display it.
+          pemSha256: app.pemSha256,
           iconUrl,
           installationCount: installations.length,
           statusAggregate: computeStatusAggregate(installations, app.lastRefreshErrorAt),

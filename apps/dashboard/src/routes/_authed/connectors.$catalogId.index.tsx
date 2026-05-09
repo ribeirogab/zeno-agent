@@ -38,9 +38,42 @@ function ConnectorLeavesScreen(): JSX.Element {
 
   const allEntries = connectors.data ?? [];
   // A4 is plain-pattern only — App rows have their own layout (A6a/A6b).
-  const instances = allEntries.flatMap((entry) =>
-    entry.kind === 'connector' && entry.catalogId === catalogId ? [entry] : [],
-  );
+  // Multi-instance plain catalogs emit `connector_group` from the API
+  // (spec Task 7 Q2). Flatten its `installations` so the leaves list shows
+  // every row regardless of count. Single-row catalogs still emit
+  // `kind:'connector'` and pass through unchanged.
+  const instances: ConnectorListItem[] = [];
+  for (const entry of allEntries) {
+    if (entry.kind === 'connector' && entry.catalogId === catalogId) {
+      instances.push(entry);
+    } else if (entry.kind === 'connector_group' && entry.catalogId === catalogId) {
+      for (const inst of entry.installations) {
+        instances.push({
+          kind: 'connector',
+          id: inst.connectorId,
+          slug: inst.slug,
+          displayName: inst.displayName,
+          instanceLabel: inst.instanceLabel,
+          description: null,
+          source: 'catalog',
+          catalogId: entry.catalogId,
+          iconUrl: entry.iconUrl,
+          // synthesized row: transport not propagated by connector_group;
+          // default to 'stdio' (only used by hover meta on the parent card,
+          // not the leaves table). The detail page (A5) re-fetches and shows
+          // the real transport.
+          transport: 'stdio',
+          status: inst.status,
+          lastError: inst.lastError,
+          lastErrorAt: inst.lastErrorAt,
+          lastVerifiedAt: inst.lastVerifiedAt,
+          toolCount: 0,
+          invocationCount24h: 0,
+          appId: null,
+        });
+      }
+    }
+  }
   const catalogEntry = (catalog.data ?? []).find((c) => c.id === catalogId);
 
   const counts = instances.reduce(

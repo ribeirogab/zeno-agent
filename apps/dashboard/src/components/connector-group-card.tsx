@@ -65,14 +65,17 @@ function CardHeader({
     <header className="flex items-center gap-4 px-5 py-4 border-b border-border-subtle">
       <CardIcon iconUrl={iconUrl} fallback={iconFallback} />
       <div className="flex flex-col flex-1 min-w-0 gap-1">
-        <span className="font-sans text-[18px] font-medium tracking-[-0.005em] leading-5 text-text-primary truncate">
+        {/* A1: catalog name in lowercase Space Grotesk medium, catalog id-style */}
+        <span className="font-sans text-[18px] font-medium tracking-[-0.005em] leading-5 text-text-primary truncate lowercase">
           {title}
         </span>
-        <span className="font-mono text-[11px] tracking-[0.08em] leading-3 uppercase text-gold truncate">
+        {/* A1: meta line in lowercase mono with light tracking, text-secondary */}
+        <span className="font-mono text-[11px] tracking-[0.04em] leading-3 text-text-secondary truncate">
           {meta}
         </span>
       </div>
-      <span className="shrink-0 font-mono text-[11px] tracking-[0.08em] leading-3 uppercase text-text-tertiary">
+      {/* A1: counter in lowercase mono small caps tracking, text-secondary */}
+      <span className="shrink-0 font-mono text-[11px] tracking-[0.04em] leading-3 text-text-secondary">
         {counter}
       </span>
       <Kebab label={typeof title === 'string' ? title : 'item'} />
@@ -118,31 +121,16 @@ function Kebab({ label }: { label: string }): JSX.Element {
 }
 
 function StatusPill({ status }: { status: RowVisualStatus }): JSX.Element {
+  // A1: minimal dot + lowercase label, no chip background or border.
   const config = {
-    active: {
-      cls: 'bg-status-active/[0.06] border border-status-active/30 text-status-active',
-      dot: 'bg-status-active',
-      label: 'active',
-    },
-    error: {
-      cls: 'bg-status-failed/[0.06] border border-status-failed/30 text-status-failed',
-      dot: 'bg-status-failed',
-      label: 'error',
-    },
-    off: {
-      cls: 'bg-panel-2 border border-border-subtle text-text-tertiary',
-      dot: 'bg-text-tertiary',
-      label: 'off',
-    },
-    pending: {
-      cls: 'bg-gold/10 border border-gold-line text-gold',
-      dot: 'bg-gold',
-      label: 'pending',
-    },
+    active: { dot: 'bg-status-active', text: 'text-text-primary', label: 'active' },
+    error: { dot: 'bg-status-failed', text: 'text-status-failed', label: 'error' },
+    off: { dot: 'bg-gold', text: 'text-text-secondary', label: 'off' },
+    pending: { dot: 'bg-gold', text: 'text-gold', label: 'pending' },
   }[status];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] font-mono text-[10px] tracking-[0.1em] leading-3 uppercase ${config.cls}`}
+      className={`inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.04em] leading-3 ${config.text}`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
       {config.label}
@@ -223,6 +211,8 @@ function GroupCard({ group }: { group: ConnectorGroupListItem }): JSX.Element {
 // ── variant: app ──────────────────────────────────────────────────────────
 
 function AppCard({ app }: { app: AppListItem }): JSX.Element {
+  // A1 — App card title is the catalog id alone (lowercase). The App name
+  // (e.g. "Acme Corp App") shows in the identity slot below as a gold accent.
   const meta = `multi-installation ${app.catalogId} access · catalog · stdio`;
   const counter = `${app.installationCount} ${
     app.installationCount === 1 ? 'installation' : 'installations'
@@ -232,13 +222,7 @@ function AppCard({ app }: { app: AppListItem }): JSX.Element {
       <CardHeader
         iconUrl={app.iconUrl}
         iconFallback={app.appName}
-        title={
-          <>
-            {app.catalogId === 'github-app' ? 'github-app' : app.catalogId}{' '}
-            <span className="text-text-tertiary">·</span>{' '}
-            <span className="text-gold">{app.appName}</span>
-          </>
-        }
+        title={app.catalogId}
         meta={meta}
         counter={counter}
       />
@@ -259,24 +243,37 @@ function AppCard({ app }: { app: AppListItem }): JSX.Element {
 }
 
 function AppIdentitySlot({ app }: { app: AppListItem }): JSX.Element {
-  // Compact PEM fingerprint placeholder. The list endpoint doesn't carry the
-  // PEM SHA today (it lives on the App detail), so render a stable masked
-  // ellipsis here — the App detail (A6a) shows the real value. Same pattern
-  // for App ID: surface what we have, omit what we don't.
+  // Spec A1: identity slot inside the App card (only present on app-pattern,
+  // not on plain connector cards). Renders the App identity (name in gold,
+  // app_id, PEM fingerprint) plus a "view app →" link to the full detail.
   return (
     <div className="bg-canvas border-b border-border-subtle px-5 py-3 flex items-center gap-8">
       <IdentityCol label="app" value={app.appName} valueClass="text-gold" />
       <IdentityCol label="app id" value={app.appId || '—'} />
-      <IdentityCol label="pem fingerprint" value="—" />
+      <IdentityCol label="pem fingerprint" value={formatPemFingerprint(app.pemSha256)} />
       <Link
         to="/connectors/$catalogId/$id"
         params={{ catalogId: app.catalogId, id: app.appUuid }}
-        className="ml-auto shrink-0 font-mono text-[10px] tracking-[0.1em] leading-3 uppercase text-text-secondary hover:text-text-primary transition-colors duration-[120ms]"
+        className="ml-auto shrink-0 font-mono text-[11px] tracking-[0.04em] leading-3 text-text-secondary hover:text-text-primary transition-colors duration-[120ms]"
       >
         view app →
       </Link>
     </div>
   );
+}
+
+/**
+ * A1 visual: render `pemSha256` (64-char hex) as `sha256:a3f9·c4b2·9f8d` —
+ * three groups of four hex chars from the head, joined by middle-dots so the
+ * fingerprint reads at a glance without overflowing the slot.
+ */
+function formatPemFingerprint(sha256?: string | null): string {
+  if (!sha256) return '—';
+  const head = sha256.slice(0, 12);
+  const a = head.slice(0, 4);
+  const b = head.slice(4, 8);
+  const c = head.slice(8, 12);
+  return `sha256:${a}·${b}·${c}`;
 }
 
 function IdentityCol({
@@ -327,7 +324,7 @@ function PlainInstanceRow({
       } transition-colors duration-[120ms] hover:bg-panel-2`}
     >
       <span
-        className={`flex-1 min-w-0 font-mono text-[13px] leading-4 truncate ${
+        className={`flex-1 min-w-0 font-sans text-[14px] leading-5 truncate ${
           muted ? 'text-text-secondary opacity-60' : 'text-text-primary'
         }`}
       >
@@ -374,7 +371,7 @@ function GroupInstanceRow({
       } transition-colors duration-[120ms] hover:bg-panel-2`}
     >
       <span
-        className={`flex-1 min-w-0 font-mono text-[13px] leading-4 truncate ${
+        className={`flex-1 min-w-0 font-sans text-[14px] leading-5 truncate ${
           muted ? 'text-text-secondary opacity-60' : 'text-text-primary'
         }`}
       >
@@ -417,7 +414,7 @@ function AppInstallationRow({
       } transition-colors duration-[120ms] hover:bg-panel-2`}
     >
       <span
-        className={`flex-1 min-w-0 font-mono text-[13px] leading-4 truncate ${
+        className={`flex-1 min-w-0 font-sans text-[14px] leading-5 truncate ${
           muted ? 'text-text-secondary opacity-60' : 'text-text-primary'
         }`}
       >

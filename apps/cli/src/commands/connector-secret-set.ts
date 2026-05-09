@@ -2,6 +2,7 @@ import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
+import { runCommand } from '../lib/errors.js';
 import { ok } from '../lib/output.js';
 import { promptHidden } from '../lib/prompt.js';
 import { resolveConnector, resolveProfile, resolveSecretKey } from '../lib/resolvers.js';
@@ -86,6 +87,8 @@ export default defineCommand({
         return detail.secrets ?? [];
       },
     });
-    await runConnectorSecretSet(client, { target, key }, (line) => console.log(line));
+    await runCommand(() =>
+      runConnectorSecretSet(client, { target, key }, (line) => console.log(line)),
+    );
   },
 });

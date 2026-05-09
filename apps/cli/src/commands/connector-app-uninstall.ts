@@ -2,6 +2,7 @@ import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
+import { runCommand } from '../lib/errors.js';
 import { c, ok } from '../lib/output.js';
 import { confirmDestructive } from '../lib/prompt.js';
 import { resolveProfile } from '../lib/resolvers.js';
@@ -91,6 +92,6 @@ export default defineCommand({
       return;
     }
 
-    await runConnectorAppUninstall(client, (line) => console.log(line));
+    await runCommand(() => runConnectorAppUninstall(client, (line) => console.log(line)));
   },
 });

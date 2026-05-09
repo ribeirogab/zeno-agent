@@ -2,6 +2,7 @@ import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
+import { runCommand } from '../lib/errors.js';
 import { ok } from '../lib/output.js';
 import {
   resolveConnector,
@@ -78,6 +79,8 @@ export default defineCommand({
       },
     });
     const permission = await resolvePermission(args.permission as string | undefined);
-    await runConnectorToolSet(client, { target, tool, permission }, (line) => console.log(line));
+    await runCommand(() =>
+      runConnectorToolSet(client, { target, tool, permission }, (line) => console.log(line)),
+    );
   },
 });

@@ -2,6 +2,7 @@ import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
+import { runCommand } from '../lib/errors.js';
 import { ok } from '../lib/output.js';
 import { resolveConnector, resolveProfile } from '../lib/resolvers.js';
 
@@ -52,6 +53,6 @@ export default defineCommand({
     const target = await resolveConnector(args.target as string | undefined, {
       listConnectors: () => client.get('/api/connectors'),
     });
-    await runConnectorEnable(client, { target }, (line) => console.log(line));
+    await runCommand(() => runConnectorEnable(client, { target }, (line) => console.log(line)));
   },
 });

@@ -2,6 +2,7 @@ import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
+import { runCommand } from '../lib/errors.js';
 import { ok } from '../lib/output.js';
 import { resolveProfile } from '../lib/resolvers.js';
 import { waitForCommand } from '../lib/wait-command.js';
@@ -67,13 +68,15 @@ export default defineCommand({
     const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });
-    await runConnectorAppInstallationsAdd(
-      client,
-      {
-        installationId: args.installationId as string,
-        label: args.label as string,
-      },
-      (line) => console.log(line),
+    await runCommand(() =>
+      runConnectorAppInstallationsAdd(
+        client,
+        {
+          installationId: args.installationId as string,
+          label: args.label as string,
+        },
+        (line) => console.log(line),
+      ),
     );
   },
 });

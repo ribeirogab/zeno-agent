@@ -2,6 +2,7 @@ import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
+import { runCommand } from '../lib/errors.js';
 import { ok } from '../lib/output.js';
 import { promptHidden } from '../lib/prompt.js';
 import { resolveCatalog, resolveProfile } from '../lib/resolvers.js';
@@ -133,6 +134,8 @@ export default defineCommand({
     if (typeof args.label === 'string' && args.label.length > 0) {
       installArgs.label = args.label;
     }
-    await runConnectorInstall(client, installArgs, (line) => console.log(line));
+    await runCommand(() =>
+      runConnectorInstall(client, installArgs, (line) => console.log(line)),
+    );
   },
 });

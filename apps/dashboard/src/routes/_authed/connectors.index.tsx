@@ -205,8 +205,8 @@ function Row({ c, last }: { c: ConnectorListItem; last: boolean }): JSX.Element 
   );
 }
 
-// Spec 0045: collapsed App row in C7. Links to /connectors/github-app
-// (App detail page) instead of a per-installation route.
+// Spec 0045 → 2026-05-08: collapsed App row in C7. Links to the unified
+// `/connectors/:catalogId/:id` route (App detail layout, artboard A6a).
 function AppRow({ app, last }: { app: AppListItem; last: boolean }): JSX.Element {
   const baseClasses = `flex items-center gap-4 px-5 py-3.5 ${
     last ? '' : 'border-b border-border-subtle'
@@ -234,7 +234,11 @@ function AppRow({ app, last }: { app: AppListItem; last: boolean }): JSX.Element
     return `${enabledCount}/${app.installationCount} active`;
   })();
   return (
-    <Link to="/connectors/github-app" className={baseClasses}>
+    <Link
+      to="/connectors/$catalogId/$id"
+      params={{ catalogId: app.catalogId, id: app.appUuid }}
+      className={baseClasses}
+    >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <AppIcon iconUrl={app.iconUrl} count={app.installationCount} appName={app.appName} />
         <div className="flex flex-col gap-[2px] min-w-0">

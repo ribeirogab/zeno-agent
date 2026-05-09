@@ -21,7 +21,7 @@ export function InheritedAppCallout(): JSX.Element {
         <span className="font-sans text-[13px] leading-5 text-text-primary">
           The App ID and PEM are shared across all installations and live on the parent App row. To
           uninstall the App, open the{' '}
-          <Link to="/connectors/github-app" className="text-gold underline">
+          <Link to="/connectors" className="text-gold underline">
             GitHub App detail page ↗
           </Link>
           .

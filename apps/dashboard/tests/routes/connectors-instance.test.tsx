@@ -5,11 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // Tanstack Router stubs — same trick as connectors-leaves.test.tsx so the
 // file-based route can be rendered standalone. `vi.hoisted` is required
 // because `vi.mock` factories are hoisted above plain `const` declarations.
-const { useParamsMock, useConnectorMock, useConnectorActivityMock } = vi.hoisted(() => ({
-  useParamsMock: vi.fn(() => ({ catalogId: 'linear', id: 'c1' })),
-  useConnectorMock: vi.fn(),
-  useConnectorActivityMock: vi.fn(),
-}));
+const { useParamsMock, useConnectorMock, useConnectorActivityMock, useConnectorsMock } = vi.hoisted(
+  () => ({
+    useParamsMock: vi.fn(() => ({ catalogId: 'linear', id: 'c1' })),
+    useConnectorMock: vi.fn(),
+    useConnectorActivityMock: vi.fn(),
+    useConnectorsMock: vi.fn(),
+  }),
+);
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
@@ -22,6 +25,14 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('@/lib/use-connectors', () => ({
   useConnector: () => useConnectorMock(),
   useConnectorActivity: () => useConnectorActivityMock(),
+  useConnectors: () => useConnectorsMock(),
+}));
+
+// Spec 2026-05-08 Task 21: the unified route also imports `useAppDetail` for
+// the App-detection branch. Plain-instance tests don't exercise that branch,
+// but the mock is still required so the module resolves at import time.
+vi.mock('@/lib/use-app-detail', () => ({
+  useAppDetail: () => ({ data: undefined, error: null, isLoading: false }),
 }));
 
 import { Route } from '@/routes/_authed/connectors.$catalogId.$id';
@@ -101,12 +112,16 @@ describe('<ConnectorInstanceDetailScreen> (A5 plain instance detail)', () => {
       data: [],
       isLoading: false,
     });
+    // List doesn't contain an app entry matching :id, so the branch falls
+    // through to the plain-instance view.
+    useConnectorsMock.mockReturnValue({ data: [], isLoading: false });
   });
 
   afterEach(() => {
     cleanup();
     useConnectorMock.mockReset();
     useConnectorActivityMock.mockReset();
+    useConnectorsMock.mockReset();
   });
 
   it('renders the page title from instance_label', () => {

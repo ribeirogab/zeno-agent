@@ -108,11 +108,12 @@ function ConnectorDetailScreen(): JSX.Element {
       { id: c.id },
       {
         onSuccess: () => {
-          // Spec 0051 finding #2: github-app installations live under
-          // `/connectors/github-app`, not `/connectors`. Route by appId
-          // (not slug prefix) so a custom connector named "github-app-foo"
-          // doesn't trigger the wrong destination.
-          navigate({ to: c.appId ? '/connectors/github-app' : '/connectors' });
+          // Spec 2026-05-08: legacy `/connectors/github-app` route was
+          // unified into `/connectors/:catalogId/:id` (artboard A6a). For
+          // post-uninstall navigation we send everyone back to the index
+          // — the legacy `/connectors/$id` route survives only until
+          // Task 23 cleans up the old mutation flows.
+          navigate({ to: '/connectors' });
         },
       },
     );

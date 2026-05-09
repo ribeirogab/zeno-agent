@@ -95,7 +95,7 @@ export function GitHubAppInstallModal({
         await queryClient.invalidateQueries({ queryKey: ['connectors'] });
         await queryClient.invalidateQueries({ queryKey: ['app'] });
         onClose();
-        navigate({ to: '/connectors/github-app' });
+        navigate({ to: '/connectors' });
         return;
       }
       // 200 with ok=false is the validation-error path (auth/network/etc.).
@@ -293,7 +293,7 @@ function ErrorStrip({
         <span className="font-mono text-xs leading-4 text-gold">!</span>
         <span className="flex-1 font-mono text-xs leading-4 text-text-primary">
           GitHub App already installed ·{' '}
-          <a href="/connectors/github-app" className="text-gold underline">
+          <a href="/connectors" className="text-gold underline">
             view details ↗
           </a>
         </span>

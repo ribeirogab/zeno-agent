@@ -11,12 +11,56 @@ Connectors are the only way the agent gets external capabilities. The agent has 
 
 ## How they work
 
-1. The operator opens `/connectors` in their profile dashboard, picks a connector from the catalogue, and clicks **Install**.
-2. The connector flow asks for any required secrets (a PAT, an OAuth token, an API key). Secrets are encrypted at rest with the profile's master key.
-3. The dashboard writes the install record to the runtime DB. The worker spawns the MCP subprocess with the right env vars on the next turn.
+1. The operator opens `/connectors` in their profile dashboard. The page is **read-only** — every action button there opens a small modal showing the equivalent `zeno connector` command. Copy and run it in your terminal.
+2. The CLI install flow (`zeno connector install <catalog-id>`) prompts for any required secrets (a PAT, an OAuth token, an API key) and POSTs the encrypted payload to the local API. Secrets are encrypted at rest with the profile's master key (AES-256-GCM).
+3. The API enqueues a `connector_create` command. The worker picks it up, persists the row, and spawns the MCP subprocess with the right env vars on the next turn.
 4. The agent's tool list now includes that connector's tools (`mcp__<connector-id>__<tool-name>`). The agent calls them when the operator's request matches.
 
-Each connector ships with a list of tools it exposes; the operator can disable individual tools per connector under `/connectors/<id>` to shrink the agent's surface area.
+Each connector ships with a list of tools it exposes; the operator can disable individual tools per connector with `zeno connector tool set <slug> <tool> ask|never|always_allow` to shrink the agent's surface area.
+
+<Callout type="info">
+The dashboard's read-only mode is governed by `ZENO_API_WRITES` (default `cli`). Set it to `dashboard` in `~/.zeno/profiles/<name>/.env` and restart the profile to re-enable in-dashboard mutations. The CLI itself bypasses the gate via an `X-Zeno-Origin: cli` header — the API binds 127.0.0.1 single-user, so trust is by binding.
+</Callout>
+
+## Multi-instance and the App pattern
+
+Most connectors are **plain**: each install is its own row, independent. Operators with two Linear workspaces install Linear twice with `--label "Acme"` and `--label "Personal"`; the dashboard collapses them into a single `connector_group` card with both rows nested. Slugs are derived as `linear-acme` / `linear-personal`.
+
+A few catalogs declare `multiInstance: false` (today only `playwright`, which holds an exclusive Chromium session). Trying to install a second one returns `409 single_instance_catalog_already_installed`; the dashboard's `+` button is disabled with a tooltip.
+
+`github-app` is the **App pattern**: one App entity (one PEM, one app_id) with N installations underneath (one per GitHub org/user the App is installed on). Future apps with similar shapes will follow the same pattern. The CLI exposes `zeno connector app install`, `zeno connector app installations discover`, `zeno connector app installations add`, and `zeno connector app uninstall` for this flow.
+
+## CLI reference
+
+Every connector mutation lives in [`zeno connector`](/cli#connector-management). The dashboard's `<CommandModal>` always shows you the exact command for the action you clicked, including any flags or confirmation tokens needed. Common flows:
+
+```bash
+# Install a plain catalog with a label (multi-instance) or no label (single-instance)
+zeno connector install linear --label "Acme workspace" --secret '__MCP_AUTHORIZATION__=Bearer lin_api_xxx'
+zeno connector install playwright
+
+# Manage tool permissions
+zeno connector tool list linear-acme
+zeno connector tool set linear-acme delete_issue never
+zeno connector tool bulk linear-acme --category read --permission always_allow
+
+# Rotate or reveal a secret (rate-limited, audit-logged)
+zeno connector secret rotate linear-acme
+zeno connector secret reveal linear-acme __MCP_AUTHORIZATION__
+
+# App-pattern (github-app)
+zeno connector app install --catalog github-app --app-id 123456 --pem-file ~/keys/app.pem
+zeno connector app installations discover
+zeno connector app installations add --installation-id 125887887 --label "FNLivros"
+zeno connector app uninstall --confirm "Zeno Agent App"
+
+# Lifecycle
+zeno connector enable linear-acme
+zeno connector disable linear-acme
+zeno connector test linear-acme
+zeno connector refresh-tools linear-acme
+zeno connector uninstall linear-acme --yes
+```
 
 ## Per-tool capability gating
 

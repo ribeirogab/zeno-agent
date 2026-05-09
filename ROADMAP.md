@@ -16,6 +16,7 @@ _Nothing currently in flight._
 - [ ] [#45](https://github.com/ribeirogab/zeno-agent/issues/45) — feat(security): production-grade auth layer for profile dashboards
 - [ ] [#46](https://github.com/ribeirogab/zeno-agent/issues/46) — feat(dashboard): onboarding wizard inside profile dashboard
 - [ ] [#47](https://github.com/ribeirogab/zeno-agent/issues/47) — feat(cli): backup / restore tooling for `~/.zeno/`
+- [ ] [#60](https://github.com/ribeirogab/zeno-agent/issues/60) — feat(cli): UX overhaul — pickers, install.sh/upgrade parity, security fixes
 
 ## Later (no commitment)
 

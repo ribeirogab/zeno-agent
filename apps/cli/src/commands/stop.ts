@@ -3,7 +3,8 @@ import { defineCommand } from 'citty';
 import { orchestrator } from '../lib/orchestrator/singleton.js';
 import { c, info } from '../lib/output.js';
 import { containerName } from '../lib/paths.js';
-import { requireProfile, resolveName } from '../lib/profile.js';
+import { requireProfile } from '../lib/profile.js';
+import { resolveProfile } from '../lib/resolvers.js';
 import { spin } from '../lib/spinner.js';
 import { db } from '../lib/state.js';
 
@@ -21,7 +22,7 @@ export default defineCommand({
     const conn = db();
     const targets: string[] = args.all
       ? queries.listProfiles(conn).map((p) => p.name)
-      : [resolveName(conn, args.profile as string | undefined)];
+      : [(await resolveProfile(args.profile as string | undefined)).name];
     if (targets.length === 0) {
       console.log(c.gray('no profiles to stop.'));
       return;

@@ -29,8 +29,9 @@ import {
   signAppJwt,
 } from '@zeno/github-app';
 import { discoverTools } from '@zeno/mcp-discover';
-import { Hono } from 'hono';
+import { type Context, Hono } from 'hono';
 import { z } from 'zod';
+import type { ApiWriteMode } from '@/lib/api-mode';
 import {
   type CatalogEntry,
   CatalogReadError,
@@ -104,6 +105,8 @@ function buildListItem(
     id: connector.id,
     slug: connector.slug,
     displayName: connector.displayName,
+    // Spec 2026-05-08: detail pages render the operator-set label.
+    instanceLabel: connector.instanceLabel,
     description: connector.description,
     source: connector.source,
     catalogId: connector.catalogId,
@@ -202,6 +205,10 @@ const createCatalogSchema = z.object({
   source: z.literal('catalog'),
   catalogId: z.string(),
   secrets: z.array(apiSecretSchema),
+  /** Spec 2026-05-08-connectors-cli-first-design Q4: optional operator-supplied
+   * label distinguishing instances of the same catalog entry (e.g. multiple Linear
+   * workspaces). Drives slug derivation when present. */
+  instanceLabel: z.string().min(1).optional(),
   /** Spec 0057: optional discriminator. Defaults to 'mcp'. When 'channel', the install handler resolves the catalog entry from channels-catalog.json (NOT connectors-catalog.json) and synthesizes channel-specific defaults (transport='remote', tools=[]) into the enqueued payload. */
   kind: z.enum(['mcp', 'channel']).optional().default('mcp'),
 });
@@ -224,6 +231,9 @@ const createCustomSchema = z.object({
       }),
     )
     .optional(),
+  /** Spec 2026-05-08-connectors-cli-first-design Q4: optional operator-supplied
+   * label distinguishing instances. Drives slug derivation when present. */
+  instanceLabel: z.string().min(1).optional(),
   /** Spec 0057: included for symmetry, but channels only support source='catalog'. The install handler returns 400 channel_must_be_catalog_source if a custom + channel combo is requested. */
   kind: z.enum(['mcp', 'channel']).optional().default('mcp'),
 });
@@ -237,6 +247,9 @@ const patchSchema = z.object({
   args: z.array(z.string()).nullable().optional(),
   url: z.string().nullable().optional(),
   secrets: z.array(apiSecretSchema).optional(),
+  /** Spec 2026-05-08-connectors-cli-first-design Q4: operators can rename or
+   * clear the per-instance label after install. */
+  instanceLabel: z.string().min(1).nullable().optional(),
   // Spec 0051: M11's `envVar` field removed (operator-picked envVar customization dropped).
 });
 
@@ -257,11 +270,20 @@ export interface ConnectorsRouteDeps {
   /** Spec 0044: optional ConnectorApp repo enables /catalog/github-app/* endpoints. */
   connectorApps?: ConnectorAppRepo;
   rateLimiter?: SecretRateLimiter;
+  /** Spec 2026-05-08-connectors-cli-first-design: gates all mutating endpoints.
+   *  When 'cli', mutations return 403 mode_cli_only with the equivalent
+   *  `zeno connector ...` command. GET reads stay open in either mode. */
+  writes: ApiWriteMode;
 }
 
 export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   const route = new Hono();
   const rateLimiter = deps.rateLimiter ?? new SecretRateLimiter();
+
+  // Mutation gate. Returns 403 with the equivalent CLI command when the API
+  // is in CLI-only mode. Each route checks this before any DB work.
+  const blockIfCli = (action: string, cli: string) => (c: Context) =>
+    c.json({ error: 'mode_cli_only', action, cli }, 403);
 
   // ── STATIC PATHS FIRST (avoid :id collisions) ──
 
@@ -307,6 +329,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         ? installedAppCatalogIds.has(entry.id)
         : installedCatalogIds.has(entry.id),
       customInstallComponent: entry.customInstallComponent ?? null,
+      // Spec 2026-05-08 Q5: surface single/multi-instance marker. Default `true`
+      // when the catalog entry doesn't declare it explicitly.
+      multiInstance: entry.multiInstance ?? true,
     }));
     return c.json(out);
   });
@@ -338,8 +363,8 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     if (!knownIcons.has(filename)) return c.json({ error: 'not_found' }, 404);
     const path = resolveIconPath(filename);
     if (!path) return c.json({ error: 'not_found' }, 404);
-    // Spec 0066 D: catalog now mixes SVG (slack/github/playwright/linear/
-    // sentry) and PNG (klaviyo/swarmia — official brands don't publish
+    // Spec 0066 D: catalog now mixes SVG (slack/github/linear/sentry) and
+    // PNG (klaviyo/swarmia — official brands don't publish
     // public-domain SVG marks). Read raw bytes (not UTF-8) so PNG isn't
     // corrupted, and pick MIME from the extension.
     const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();
@@ -435,6 +460,12 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   });
 
   route.post('/catalog/github-app/install', zValidator('json', githubAppTestSchema), async (c) => {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      return blockIfCli(
+        'app_install',
+        'zeno connector app install --catalog github-app --app-id <id> --pem-file <path>',
+      )(c);
+    }
     if (!deps.connectorApps) {
       return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
     }
@@ -565,6 +596,12 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     '/catalog/github-app/installations',
     zValidator('json', addInstallationSchema),
     (c) => {
+      if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+        return blockIfCli(
+          'app_installation_add',
+          'zeno connector app installations add --installation-id <id> --label "<label>"',
+        )(c);
+      }
       if (!deps.connectorApps) {
         return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
       }
@@ -616,12 +653,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         })),
         appId: app.id,
       };
+      const correlationId = randomUUID();
       deps.commands.enqueue({
         type: 'connector_create',
         payload,
-        correlationId: randomUUID(),
+        correlationId,
       });
-      return c.json({ ok: true, slug });
+      return c.json({ correlationId, slug }, 202);
     },
   );
 
@@ -635,6 +673,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // the type-to-confirm gesture, not the numeric App ID.
   const uninstallAppSchema = z.object({ confirmAppName: z.string().min(1) });
   route.post('/catalog/github-app/uninstall-app', zValidator('json', uninstallAppSchema), (c) => {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      return blockIfCli('app_uninstall', 'zeno connector app uninstall --confirm "<app-name>"')(c);
+    }
     if (!deps.connectorApps) {
       return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
     }
@@ -645,12 +686,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       return c.json({ error: 'confirm_app_name_mismatch' }, 400);
     }
     deps.connectorApps.delete(app.id);
+    const correlationId = randomUUID();
     deps.commands.enqueue({
       type: 'app_uninstall',
       payload: { appUuid: app.id },
-      correlationId: randomUUID(),
+      correlationId,
     });
-    return c.json({ ok: true });
+    return c.json({ correlationId }, 202);
   });
 
   route.get('/catalog/github-app/app', (c) => {
@@ -673,6 +715,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // POST /catalog/:id/test (resolves transportConfig server-side; for catalog installs)
   // MUST be registered AFTER the github-app static routes above.
   route.post('/catalog/:id/test', async (c) => {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      return blockIfCli('test_transient', 'zeno connector test <catalog-id>')(c);
+    }
     const id = c.req.param('id');
     const entry = findCatalogEntry(id);
     if (!entry) return c.json({ error: 'catalog_entry_not_found' }, 404);
@@ -683,6 +728,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       id: 'transient',
       slug: id,
       displayName: entry.name,
+      instanceLabel: null,
       description: entry.description,
       source: 'catalog',
       catalogId: id,
@@ -721,11 +767,15 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // POST /test (transient — not yet saved)
   route.post('/test', zValidator('json', testConnectionSchema), async (c) => {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      return blockIfCli('test_transient', 'zeno connector test <catalog-id>')(c);
+    }
     const body = c.req.valid('json');
     const transient: Connector = {
       id: 'transient',
       slug: 'transient',
       displayName: 'Transient',
+      instanceLabel: null,
       description: null,
       source: 'custom',
       catalogId: null,
@@ -779,12 +829,60 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       }
     }
 
-    // Build standalone ConnectorListItems.
-    const items: Array<Record<string, unknown>> = standalone.map((connector) => {
-      const tools = deps.connectors.getTools(connector.id);
-      const invocations = deps.connectors.countInvocationsSince(connector.id, cutoff);
-      return buildListItem(connector, tools.length, invocations, iconUrlForConnector(connector));
-    });
+    // Spec 2026-05-08 Q2 + Q5: standalone catalog rows are bucketed by
+    // catalog_id. Multiple instances of the same plain catalog (e.g., 3 Linear
+    // workspaces) collapse into a single `connector_group` with nested
+    // installations; single-instance catalogs continue to emit `kind:'connector'`.
+    // Custom rows (no catalogId) NEVER collapse — operators name customs explicitly.
+    const standaloneByCatalog = new Map<string, Connector[]>();
+    for (const connector of standalone) {
+      const key =
+        connector.source === 'catalog' && connector.catalogId
+          ? connector.catalogId
+          : `__custom__:${connector.id}`;
+      const existing = standaloneByCatalog.get(key) ?? [];
+      existing.push(connector);
+      standaloneByCatalog.set(key, existing);
+    }
+
+    const items: Array<Record<string, unknown>> = [];
+    for (const [key, group] of standaloneByCatalog.entries()) {
+      const isCustomBucket = key.startsWith('__custom__:');
+      if (isCustomBucket || group.length === 1) {
+        // Single-instance catalog OR a custom row: emit standalone connector.
+        for (const connector of group) {
+          const tools = deps.connectors.getTools(connector.id);
+          const invocations = deps.connectors.countInvocationsSince(connector.id, cutoff);
+          items.push(
+            buildListItem(connector, tools.length, invocations, iconUrlForConnector(connector)),
+          );
+        }
+        continue;
+      }
+      // Multi-instance plain catalog → connector_group.
+      const sample = group[0]!;
+      const catalogId = key;
+      const iconUrl = iconUrlForConnector(sample);
+      items.push({
+        kind: 'connector_group',
+        catalogId,
+        name: findCatalogEntry(catalogId)?.name ?? sample.displayName,
+        iconUrl,
+        installationCount: group.length,
+        statusAggregate: computeStatusAggregate(group),
+        lastVerifiedAt: pickLatestVerified(group),
+        installations: group.map((cn) => ({
+          connectorId: cn.id,
+          slug: cn.slug,
+          displayName: cn.displayName,
+          instanceLabel: cn.instanceLabel,
+          status: cn.status,
+          lastVerifiedAt: cn.lastVerifiedAt,
+          lastError: cn.lastError,
+          lastErrorAt: cn.lastErrorAt,
+        })),
+      });
+    }
 
     // Build AppListItems by joining connector_apps + nested connectors.
     if (deps.connectorApps) {
@@ -805,6 +903,12 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
           catalogId: app.catalogId,
           appName: app.appName,
           appSlug: app.appSlug,
+          // Spec 2026-05-08-connectors-cli-first-design A1: the App
+          // identity slot on the index ConnectorGroupCard renders the PEM
+          // fingerprint inline (e.g. `sha256:a3f9·c4b2·9f8d`). Surface
+          // pem_sha256 here so the dashboard doesn't have to round-trip
+          // GET /api/connectors/apps/:id just to display it.
+          pemSha256: app.pemSha256,
           iconUrl,
           installationCount: installations.length,
           statusAggregate: computeStatusAggregate(installations, app.lastRefreshErrorAt),
@@ -830,6 +934,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // POST / (create — enqueues command)
   route.post('/', zValidator('json', createSchema), (c) => {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      return blockIfCli('install', 'zeno connector install <catalog-id> --label "<label>"')(c);
+    }
     const body = c.req.valid('json');
 
     // Spec 0057: validate kind+source combination upfront. Channels are
@@ -869,12 +976,16 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
             return c.json({ error: 'missing_required_secret', key: sec.key }, 400);
           }
         }
+        // Spec 2026-05-08-connectors-cli-first-design: channels are stricter —
+        // ignore any operator-supplied instanceLabel and force null so DB rows
+        // for slack/etc. don't carry per-instance labels.
         const slug = resolveSlugCollision(deps.connectors, channelEntry.id);
         payload = {
           source: 'catalog',
           catalogId: channelEntry.id,
           slug,
           displayName: channelEntry.name,
+          instanceLabel: null,
           description: channelEntry.description,
           transport: 'remote', // placeholder per spec 0057 (channel rows don't spawn MCP servers)
           command: null,
@@ -887,15 +998,41 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       } else {
         const entry = findCatalogEntry(body.catalogId);
         if (!entry) return c.json({ error: 'catalog_entry_not_found' }, 404);
+        // Spec 2026-05-08-connectors-cli-first-design Risks: when a catalog
+        // entry declares `multiInstance: false` and at least one row already
+        // exists for that catalog_id, reject the install. The dashboard's
+        // disabled `+` is a UX courtesy; this is the canonical gate.
+        if (entry.multiInstance === false) {
+          const existing = deps.connectors
+            .list({ kind: 'mcp' })
+            .filter((c2) => c2.catalogId === entry.id);
+          if (existing.length >= 1) {
+            return c.json(
+              {
+                error: 'single_instance_catalog_already_installed',
+                catalogId: entry.id,
+                existingSlug: existing[0]?.slug ?? null,
+                message: `${entry.name} is a single-instance catalog. Uninstall the existing row before reinstalling.`,
+              },
+              409,
+            );
+          }
+        }
         // Use the catalog id as the slug; it's already kebab-case + unique within the catalog.
-        // If the operator already installed this catalog entry (or a custom connector grabbed the slug),
-        // resolve a collision suffix.
-        const slug = resolveSlugCollision(deps.connectors, entry.id);
+        // Spec 2026-05-08-connectors-cli-first-design Q4: when the operator
+        // supplies an instanceLabel (multiple Linear workspaces, etc.), kebab
+        // it onto the slug base BEFORE collision resolution so the resulting
+        // slug is human-readable (e.g. linear-acme-workspace) and only falls
+        // back to numeric -2/-3 suffixes when two installs share a label.
+        const slug = body.instanceLabel
+          ? resolveSlugCollision(deps.connectors, `${entry.id}-${kebabLower(body.instanceLabel)}`)
+          : resolveSlugCollision(deps.connectors, entry.id);
         payload = {
           source: 'catalog',
           catalogId: entry.id,
           slug,
           displayName: entry.name,
+          instanceLabel: body.instanceLabel ?? null,
           description: entry.description,
           transport: entry.transport,
           command: entry.transportConfig.command ?? null,
@@ -912,11 +1049,19 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         };
       }
     } else {
-      const slug = resolveSlugCollision(deps.connectors, slugify(body.displayName));
+      // Spec 2026-05-08-connectors-cli-first-design Q4: custom connectors also
+      // accept an optional label; when provided, append the kebab-cased label
+      // to the slug base so two custom connectors with the same displayName
+      // but different labels get distinguishable slugs without numeric suffixes.
+      const slugBase = body.instanceLabel
+        ? `${slugify(body.displayName)}-${kebabLower(body.instanceLabel)}`
+        : slugify(body.displayName);
+      const slug = resolveSlugCollision(deps.connectors, slugBase);
       payload = {
         source: 'custom',
         slug,
         displayName: body.displayName,
+        instanceLabel: body.instanceLabel ?? null,
         transport: body.transport,
         command: body.command ?? null,
         args: body.args ?? null,
@@ -926,12 +1071,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         kind: 'mcp',
       };
     }
+    const correlationId = randomUUID();
     deps.commands.enqueue({
       type: 'connector_create',
       payload,
-      correlationId: randomUUID(),
+      correlationId,
     });
-    return c.body(null, 204);
+    return c.json({ correlationId }, 202);
   });
 
   // GET /apps/:appUuid — Spec 0045: rich App detail for the dashboard's
@@ -982,12 +1128,22 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   });
 
   // ── DYNAMIC :id PATHS (after all statics) ──
+  //
+  // Spec 2026-05-08-connectors-cli-first-design: dynamic `:id` accepts EITHER
+  // a UUID or a slug. The CLI typically passes a human-readable slug
+  // (`linear-acme`); the dashboard passes UUIDs. Try get(id) first, fall
+  // back to getBySlug(id). This applies to every dynamic `:id` route below
+  // (detail, activity, test, patch, toggle, refresh-tools, delete, secrets,
+  // tools/permissions). The helper centralises that lookup.
+  function resolveConnector(idOrSlug: string) {
+    return deps.connectors.get(idOrSlug) ?? deps.connectors.getBySlug(idOrSlug);
+  }
 
   // GET /:id
   route.get('/:id', (c) => {
-    const id = c.req.param('id');
-    const connector = deps.connectors.get(id);
+    const connector = resolveConnector(c.req.param('id'));
     if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const secrets = deps.connectors.getSecrets(id);
     const tools = deps.connectors.getTools(id);
@@ -1009,9 +1165,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // GET /:id/activity
   route.get('/:id/activity', (c) => {
-    const id = c.req.param('id');
-    const connector = deps.connectors.get(id);
+    const connector = resolveConnector(c.req.param('id'));
     if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const limit = Math.min(Number(c.req.query('limit') ?? '20') || 20, 100);
     const recent = deps.connectors.recentInvocations(id, limit);
     return c.json(recent);
@@ -1019,9 +1175,12 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // POST /:id/test (installed connector — persists outcome)
   route.post('/:id/test', async (c) => {
-    const id = c.req.param('id');
-    const connector = deps.connectors.get(id);
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      return blockIfCli('test', 'zeno connector test <slug>')(c);
+    }
+    const connector = resolveConnector(c.req.param('id'));
     if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const secrets = deps.connectors.getSecrets(id);
     // Spec 0038 F#2: pass authCheckTool from the catalog entry if this
     // connector was installed from one. Custom connectors get no auth probe.
@@ -1057,23 +1216,30 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // Spec 0051: M11 envVar translation block + R3 F1 collision check removed
   // alongside the operator-picked envVar field.
   route.patch('/:id', zValidator('json', patchSchema), (c) => {
-    const id = c.req.param('id');
-    const connector = deps.connectors.get(id);
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      return blockIfCli('update', 'zeno connector secret set <slug> <key>')(c);
+    }
+    const connector = resolveConnector(c.req.param('id'));
     if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const body = c.req.valid('json');
+    const correlationId = randomUUID();
     deps.commands.enqueue({
       type: 'connector_update',
       payload: { id, patch: body, secrets: body.secrets },
-      correlationId: randomUUID(),
+      correlationId,
     });
-    return c.body(null, 204);
+    return c.json({ correlationId }, 202);
   });
 
   // PATCH /:id/toggle (direct write)
   route.patch('/:id/toggle', (c) => {
-    const id = c.req.param('id');
-    const connector = deps.connectors.get(id);
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      return blockIfCli('enable_disable', 'zeno connector enable <slug>')(c);
+    }
+    const connector = resolveConnector(c.req.param('id'));
     if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     if (connector.status === 'pending') {
       return c.json({ error: 'cannot_toggle_pending' }, 409);
     }
@@ -1084,8 +1250,15 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // PATCH /:id/tools/permissions/bulk (BEFORE /:id/tools/:toolName/permission)
   route.patch('/:id/tools/permissions/bulk', zValidator('json', bulkPermissionSchema), (c) => {
-    const id = c.req.param('id');
-    if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      return blockIfCli(
+        'tool_permission_bulk',
+        'zeno connector tool bulk <slug> --category <cat> --permission <perm>',
+      )(c);
+    }
+    const connector = resolveConnector(c.req.param('id'));
+    if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const { category, permission } = c.req.valid('json');
     const rowsAffected = deps.connectors.setBulkPermission(
       id,
@@ -1097,9 +1270,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // PATCH /:id/tools/:toolName/permission
   route.patch('/:id/tools/:toolName/permission', zValidator('json', permissionSchema), (c) => {
-    const id = c.req.param('id');
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      return blockIfCli('tool_permission', 'zeno connector tool set <slug> <tool> <permission>')(c);
+    }
+    const connector = resolveConnector(c.req.param('id'));
+    if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const toolName = c.req.param('toolName');
-    if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
     const { permission } = c.req.valid('json');
     const ok = deps.connectors.setToolPermission(id, toolName, permission as ToolPermission);
     if (!ok) return c.json({ error: 'tool_not_found' }, 404);
@@ -1108,33 +1285,49 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // POST /:id/refresh-tools (enqueues command)
   route.post('/:id/refresh-tools', (c) => {
-    const id = c.req.param('id');
-    if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      return blockIfCli('refresh_tools', 'zeno connector refresh-tools <slug>')(c);
+    }
+    const connector = resolveConnector(c.req.param('id'));
+    if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
+    const correlationId = randomUUID();
     deps.commands.enqueue({
       type: 'connector_refresh_tools',
       payload: { id },
-      correlationId: randomUUID(),
+      correlationId,
     });
-    return c.body(null, 204);
+    return c.json({ correlationId }, 202);
   });
 
   // DELETE /:id (enqueues uninstall)
   route.delete('/:id', (c) => {
-    const id = c.req.param('id');
-    if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      return blockIfCli('uninstall', 'zeno connector uninstall <slug> --yes')(c);
+    }
+    const connector = resolveConnector(c.req.param('id'));
+    if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
+    const correlationId = randomUUID();
     deps.commands.enqueue({
       type: 'connector_uninstall',
       payload: { id },
-      correlationId: randomUUID(),
+      correlationId,
     });
-    return c.body(null, 204);
+    return c.json({ correlationId }, 202);
   });
 
   // GET /:id/secrets/:key/reveal (rate-limited + audited)
+  // Although HTTP-method GET, this endpoint has side effects (rate-limit
+  // counter + audit log) and exposes plaintext, so it is gated as a mutation.
   route.get('/:id/secrets/:key/reveal', (c) => {
-    const id = c.req.param('id');
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      return blockIfCli('reveal_secret', 'zeno connector secret reveal <slug> <key>')(c);
+    }
+    const connector = resolveConnector(c.req.param('id'));
+    if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const key = c.req.param('key');
-    if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
     const secrets = deps.connectors.getSecrets(id);
     const secret = secrets.find((s) => s.key === key);
     if (!secret) return c.json({ error: 'secret_not_found' }, 404);

@@ -57,6 +57,7 @@ function makeApp(database: RuntimeDB) {
     claudeHome: '/tmp',
     profileDir: '/tmp',
     channelsCatalog: loadChannelsCatalog(),
+    writes: 'dashboard',
   });
 }
 
@@ -194,7 +195,9 @@ describe('POST /api/connectors with kind=channel (spec 0057)', () => {
         ],
       }),
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(202);
+    const responseBody = (await res.json()) as { correlationId: string };
+    expect(responseBody.correlationId).toMatch(/[0-9a-f-]{36}/);
 
     // Spec 0057: API enqueues a connector_create command; worker processes it.
     // For this test assert the command was enqueued (worker handler tested

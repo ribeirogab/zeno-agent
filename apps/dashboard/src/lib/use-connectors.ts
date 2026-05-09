@@ -17,6 +17,13 @@ export interface ConnectorListItem {
   id: string;
   slug: string;
   displayName: string;
+  /**
+   * Spec 2026-05-08-connectors-cli-first-design Q4: optional operator-supplied
+   * label distinguishing instances of the same catalog entry (e.g. multiple
+   * Linear workspaces). Detail pages prefer this over `displayName` for the
+   * page title.
+   */
+  instanceLabel: string | null;
   description: string | null;
   source: ConnectorSource;
   catalogId: string | null;
@@ -30,8 +37,9 @@ export interface ConnectorListItem {
   invocationCount24h: number;
   /**
    * Spec 0044/0045: FK to connector_apps.id. Null for standalone connectors.
-   * Sent by backend on every list item (R1-restart-2 F2). Used by detail
-   * page's InheritedAppCallout via `c.appId != null`.
+   * Sent by backend on every list item (R1-restart-2 F2). Used by the
+   * instance-detail layout to surface "inherits credentials from App"
+   * (artboards A6a/A6b) via `c.appId != null`.
    */
   appId: string | null;
 }
@@ -54,6 +62,8 @@ export interface AppListItem {
   catalogId: string;
   appName: string;
   appSlug: string;
+  /** Spec 2026-05-08 A1: surfaced for the App identity slot's PEM fingerprint. */
+  pemSha256: string;
   iconUrl: string | null;
   installationCount: number;
   /** Spec 0048 Q2: `degraded` (amber) when refresh failed in the last 1h. */
@@ -66,7 +76,36 @@ export interface AppListItem {
   installations: AppNestedInstallation[];
 }
 
-export type ConnectorListEntry = ConnectorListItem | AppListItem;
+/**
+ * Spec 2026-05-08-connectors-cli-first-design Q2: when a plain catalog has
+ * 2+ installations (e.g. 3 Linear workspaces), the `/api/connectors` endpoint
+ * collapses them into a single `connector_group` entry. Single-instance plain
+ * catalogs continue to surface as `kind:'connector'`.
+ */
+export interface ConnectorGroupNestedInstallation {
+  connectorId: string;
+  slug: string;
+  displayName: string;
+  instanceLabel: string | null;
+  status: ConnectorStatus;
+  lastVerifiedAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+}
+
+export interface ConnectorGroupListItem {
+  kind: 'connector_group';
+  catalogId: string;
+  /** Catalog entry name, e.g. "Linear". Falls back to the first instance's `displayName`. */
+  name: string;
+  iconUrl: string | null;
+  installationCount: number;
+  statusAggregate: 'active' | 'mixed' | 'error' | 'degraded';
+  lastVerifiedAt: string | null;
+  installations: ConnectorGroupNestedInstallation[];
+}
+
+export type ConnectorListEntry = ConnectorListItem | ConnectorGroupListItem | AppListItem;
 
 export interface MaskedSecret {
   key: string;

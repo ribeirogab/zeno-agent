@@ -25,6 +25,7 @@ const catalogSchema = z.object({
   catalogId: z.string(),
   slug: z.string(),
   displayName: z.string(),
+  instanceLabel: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   transport: z.enum(['stdio', 'remote']),
   command: z.string().nullable().optional(),
@@ -42,6 +43,7 @@ const customSchema = z.object({
   source: z.literal('custom'),
   slug: z.string(),
   displayName: z.string(),
+  instanceLabel: z.string().nullable().optional(),
   transport: z.enum(['stdio', 'remote']),
   command: z.string().nullable().optional(),
   args: z.array(z.string()).nullable().optional(),
@@ -75,6 +77,7 @@ export function buildConnectorCreateHandler(arg: Deps | ConnectorRepo): Handler 
       const created = deps.connectors.create({
         slug: data.slug,
         displayName: data.displayName,
+        instanceLabel: data.instanceLabel ?? null,
         description: 'description' in data ? (data.description ?? null) : null,
         source: data.source,
         catalogId: data.source === 'catalog' ? data.catalogId : null,

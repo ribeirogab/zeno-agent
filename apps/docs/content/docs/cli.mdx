@@ -3,6 +3,31 @@ title: CLI reference
 description: Every zeno subcommand with its flag table.
 ---
 
+import ConnectorFlags from '@/generated/cli-flags/connector.mdx';
+import ConnectorListFlags from '@/generated/cli-flags/connector-list.mdx';
+import ConnectorShowFlags from '@/generated/cli-flags/connector-show.mdx';
+import ConnectorCatalogFlags from '@/generated/cli-flags/connector-catalog.mdx';
+import ConnectorInstallFlags from '@/generated/cli-flags/connector-install.mdx';
+import ConnectorEnableFlags from '@/generated/cli-flags/connector-enable.mdx';
+import ConnectorDisableFlags from '@/generated/cli-flags/connector-disable.mdx';
+import ConnectorUninstallFlags from '@/generated/cli-flags/connector-uninstall.mdx';
+import ConnectorTestFlags from '@/generated/cli-flags/connector-test.mdx';
+import ConnectorRefreshToolsFlags from '@/generated/cli-flags/connector-refresh-tools.mdx';
+import ConnectorToolFlags from '@/generated/cli-flags/connector-tool.mdx';
+import ConnectorToolListFlags from '@/generated/cli-flags/connector-tool-list.mdx';
+import ConnectorToolSetFlags from '@/generated/cli-flags/connector-tool-set.mdx';
+import ConnectorToolBulkFlags from '@/generated/cli-flags/connector-tool-bulk.mdx';
+import ConnectorSecretFlags from '@/generated/cli-flags/connector-secret.mdx';
+import ConnectorSecretListFlags from '@/generated/cli-flags/connector-secret-list.mdx';
+import ConnectorSecretSetFlags from '@/generated/cli-flags/connector-secret-set.mdx';
+import ConnectorSecretRotateFlags from '@/generated/cli-flags/connector-secret-rotate.mdx';
+import ConnectorSecretRevealFlags from '@/generated/cli-flags/connector-secret-reveal.mdx';
+import ConnectorAppFlags from '@/generated/cli-flags/connector-app.mdx';
+import ConnectorAppInstallFlags from '@/generated/cli-flags/connector-app-install.mdx';
+import ConnectorAppInstallationsFlags from '@/generated/cli-flags/connector-app-installations.mdx';
+import ConnectorAppInstallationsDiscoverFlags from '@/generated/cli-flags/connector-app-installations-discover.mdx';
+import ConnectorAppInstallationsAddFlags from '@/generated/cli-flags/connector-app-installations-add.mdx';
+import ConnectorAppUninstallFlags from '@/generated/cli-flags/connector-app-uninstall.mdx';
 import DoctorFlags from '@/generated/cli-flags/doctor.mdx';
 import LogsFlags from '@/generated/cli-flags/logs.mdx';
 import OpenFlags from '@/generated/cli-flags/open.mdx';
@@ -171,6 +196,251 @@ zeno upgrade --to v2026.5.7-7
 ```
 
 <UpgradeFlags />
+
+## Connector management
+
+`zeno connector` is the **only** path to mutate connector configuration. The dashboard at `/connectors` is read-only by default — every action button there opens a modal showing the equivalent `zeno connector` command, which you copy and run here. The dashboard reads `GET /api/mode` once at load to know which UI variant to render.
+
+The behaviour is controlled by the `ZENO_API_WRITES` env var on the worker container (default `cli`). To re-enable dashboard mutations temporarily, set `ZENO_API_WRITES=dashboard` in `~/.zeno/profiles/<name>/.env` and restart the profile. Even when set to `cli`, the CLI itself bypasses the gate by sending a `X-Zeno-Origin: cli` header — trust-based, since the API binds 127.0.0.1 on a single-user host.
+
+The CLI talks to the profile's API over HTTP (`http://127.0.0.1:<port>`). All mutations are queued through a `commands` table; the CLI polls `/api/commands/:correlationId` until the worker reports terminal status (`success` or `failed`). Synchronous endpoints (`/test`, `/secrets/:key/reveal`) skip the queue.
+
+### `zeno connector list`
+
+Lists every installed connector. Multi-instance plain catalogs (e.g. Linear with several workspaces) collapse into a `connector_group` heading with drill rows; single-instance rows render flat. App-pattern catalogs (`github-app`) appear as `app:<catalog-id>` with their installations nested.
+
+```bash
+zeno connector list
+zeno connector list --profile work
+zeno connector list --json
+```
+
+<ConnectorListFlags />
+
+### `zeno connector show`
+
+Read a single connector's full record (status, secrets masked, tools with permissions, recent activity).
+
+```bash
+zeno connector show linear-acme
+zeno connector show 9a5ee0d1-5a5d-4353-b2d2-81b09f3a4255
+```
+
+Both slug and UUID are accepted on every dynamic `:id` route.
+
+<ConnectorShowFlags />
+
+### `zeno connector catalog`
+
+Lists the curated catalog. Each entry shows whether it's currently installed and (via `--json`) whether it's `multiInstance: false` (e.g. `playwright`).
+
+```bash
+zeno connector catalog
+zeno connector catalog --json
+```
+
+<ConnectorCatalogFlags />
+
+### `zeno connector install`
+
+Install a catalog connector. Pass `--label` to give the installation a human-readable name (used as `instance_label` in the DB; the slug is derived from the catalog id plus a kebab-cased label, e.g. `linear-acme`). Required secrets can come from `--secret KEY=VALUE` flags or be prompted interactively.
+
+```bash
+zeno connector install linear --label "Acme workspace" --secret '__MCP_AUTHORIZATION__=Bearer lin_api_xxx'
+zeno connector install sentry --secret SENTRY_ACCESS_TOKEN=sntryu_xxx
+zeno connector install playwright   # no secrets, single-instance
+```
+
+A second `install` of a `multiInstance: false` catalog returns `409 single_instance_catalog_already_installed`.
+
+<ConnectorInstallFlags />
+
+### `zeno connector enable` / `zeno connector disable`
+
+Toggle a connector's `status` between `enabled` and `disabled`. No-op when the connector is already in the requested state.
+
+```bash
+zeno connector enable linear-acme
+zeno connector disable linear-acme
+```
+
+<ConnectorEnableFlags />
+
+<ConnectorDisableFlags />
+
+### `zeno connector uninstall`
+
+Permanently remove a connector. Requires `--yes` (the dashboard's destructive `<CommandModal>` always pre-fills it).
+
+```bash
+zeno connector uninstall linear-acme --yes
+```
+
+<ConnectorUninstallFlags />
+
+### `zeno connector test`
+
+Probe the MCP server with the configured secrets. Returns `passed · N tools · Xms` or surfaces the upstream error (e.g. `auth_failed`, `timeout`).
+
+```bash
+zeno connector test linear-acme
+```
+
+<ConnectorTestFlags />
+
+### `zeno connector refresh-tools`
+
+Re-discover the connector's tool list. Updates `connector_tool_permissions` rows; never alters existing per-tool permission overrides (only adds new tools as `defaultPermission`).
+
+```bash
+zeno connector refresh-tools linear-acme
+```
+
+<ConnectorRefreshToolsFlags />
+
+### `zeno connector tool`
+
+Inspect or change per-tool permissions. Three subcommands.
+
+<ConnectorToolFlags />
+
+#### `zeno connector tool list`
+
+```bash
+zeno connector tool list linear-acme
+```
+
+<ConnectorToolListFlags />
+
+#### `zeno connector tool set`
+
+Set the permission for one tool.
+
+```bash
+zeno connector tool set linear-acme create_issue ask
+zeno connector tool set linear-acme delete_issue never
+```
+
+Permissions: `always_allow`, `ask`, `never`. The `connector-permission` guardrail in the worker reads these on every tool call.
+
+<ConnectorToolSetFlags />
+
+#### `zeno connector tool bulk`
+
+Set the permission for every tool in a category. Categories: `read`, `write`, `interactive`.
+
+```bash
+zeno connector tool bulk linear-acme --category read --permission always_allow
+zeno connector tool bulk linear-acme --category write --permission ask
+```
+
+<ConnectorToolBulkFlags />
+
+### `zeno connector secret`
+
+Inspect or update a connector's encrypted secrets. Values are encrypted with the profile's master key (AES-256-GCM) at rest; reveals are rate-limited (5 reveals per key per minute) and audit-logged.
+
+<ConnectorSecretFlags />
+
+#### `zeno connector secret list`
+
+Masked listing.
+
+```bash
+zeno connector secret list linear-acme
+```
+
+<ConnectorSecretListFlags />
+
+#### `zeno connector secret set`
+
+Update a single secret. The CLI prompts for the value with no echo (TTY only); pipe-friendly fallback echoes the prompt.
+
+```bash
+zeno connector secret set linear-acme __MCP_AUTHORIZATION__
+```
+
+<ConnectorSecretSetFlags />
+
+#### `zeno connector secret rotate`
+
+Walk every required secret declared in the catalog entry, prompt for each value, PATCH them all atomically. Catalog connectors only — custom rows error with `rotate not supported for custom connectors; use 'secret set' per key`.
+
+```bash
+zeno connector secret rotate linear-acme
+```
+
+<ConnectorSecretRotateFlags />
+
+#### `zeno connector secret reveal`
+
+Print the plaintext value of one secret. Returns `429 retryAfter` when the rate limit fires (5 per key per minute).
+
+```bash
+zeno connector secret reveal linear-acme __MCP_AUTHORIZATION__
+```
+
+<ConnectorSecretRevealFlags />
+
+### `zeno connector app`
+
+Manage app-pattern catalogs (`github-app` today; future apps share the same shape — one App entity with N installations underneath). Three top-level verbs.
+
+<ConnectorAppFlags />
+
+#### `zeno connector app install`
+
+Install the App entity. Accepts the App ID and a path to the PEM private key. Validates by signing a JWT and calling GitHub's `GET /app` before persisting.
+
+```bash
+zeno connector app install --catalog github-app --app-id 123456 --pem-file ~/keys/zeno-agent-app.pem
+```
+
+A second install of the same App catalog returns `409 app_already_installed` — uninstall before reinstalling.
+
+<ConnectorAppInstallFlags />
+
+#### `zeno connector app installations`
+
+Manage the installations under the App. Two subcommands.
+
+<ConnectorAppInstallationsFlags />
+
+##### `zeno connector app installations discover`
+
+Calls GitHub's `GET /app/installations` and prints a table: installation id, account name, account type (Organization/User), repo count, whether the installation is already wired into Zeno.
+
+```bash
+zeno connector app installations discover
+```
+
+<ConnectorAppInstallationsDiscoverFlags />
+
+##### `zeno connector app installations add`
+
+Wire one installation into Zeno. Creates a connector row with slug `github-app-<kebab-label>` that inherits the App's PEM at runtime.
+
+```bash
+zeno connector app installations add --installation-id 125887887 --label "FNLivros"
+```
+
+<ConnectorAppInstallationsAddFlags />
+
+#### `zeno connector app uninstall`
+
+Tear down the App entity and cascade-delete every installation row underneath. Requires `--confirm "<App Name>"` (case-sensitive) — outsiders to the operator's tab name don't accidentally wipe it. Returns `400 confirm_app_name_mismatch` on a bad confirm.
+
+```bash
+zeno connector app uninstall --confirm "Zeno Agent App"
+```
+
+<ConnectorAppUninstallFlags />
+
+### `zeno connector` (parent)
+
+The umbrella verb. Running `zeno connector --help` lists every subcommand above.
+
+<ConnectorFlags />
 
 ## Misc
 

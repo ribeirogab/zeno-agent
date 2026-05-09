@@ -36,9 +36,6 @@ beforeEach(() => {
   opened = openRuntimeDatabase(':memory:');
   db = opened.drizzle;
   runRuntimeMigrations(opened.raw);
-  // Spec 0066 C: drop the seeded Playwright row so listing assertions
-  // here ('standalone connectors', 'empty list') behave as before.
-  opened.raw.prepare("DELETE FROM connectors WHERE slug = 'playwright'").run();
 });
 
 function makeApp() {
@@ -63,6 +60,7 @@ function makeApp() {
     connectorAppRepo: new ConnectorAppRepo(db),
     claudeHome: '/tmp',
     profileDir: '/tmp',
+    writes: 'dashboard',
   });
 }
 
@@ -289,6 +287,54 @@ describe('GET /api/connectors — discriminated union', () => {
     const items = (await res.json()) as ListEntry[];
     const appItem = items.find((i) => i.kind === 'app') as AppListItem | undefined;
     expect(appItem?.statusAggregate).not.toBe('error');
+  });
+
+  it('groups standalone catalog rows into connector_group when count>1', async () => {
+    // Spec 2026-05-08 Q2 + Q5: multi-instance plain catalogs collapse into a
+    // single connector_group; single-instance catalogs stay flat.
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
+    for (const label of ['Acme', 'Personal', 'Side-project']) {
+      repo.create({
+        slug: `linear-${label.toLowerCase()}`,
+        displayName: 'Linear',
+        instanceLabel: label,
+        source: 'catalog',
+        catalogId: 'linear',
+        transport: 'remote',
+        url: 'https://x',
+        secrets: [],
+        tools: [],
+      });
+    }
+    const res = await makeApp().request('/api/connectors', { headers: csrfHeaders() });
+    expect(res.status).toBe(200);
+    const items = (await res.json()) as Array<{
+      kind: string;
+      catalogId?: string | null;
+      installations?: unknown[];
+    }>;
+    const group = items.find((it) => it.kind === 'connector_group' && it.catalogId === 'linear');
+    expect(group).toBeDefined();
+    expect(group?.installations).toHaveLength(3);
+
+    // Single-instance catalogs stay flat (no collapse).
+    repo.create({
+      slug: 'sentry',
+      displayName: 'Sentry',
+      source: 'catalog',
+      catalogId: 'sentry',
+      transport: 'stdio',
+      command: 'sentry-mcp',
+      args: [],
+      secrets: [],
+      tools: [],
+    });
+    const res2 = await makeApp().request('/api/connectors', { headers: csrfHeaders() });
+    const items2 = (await res2.json()) as Array<{ kind: string; catalogId?: string | null }>;
+    expect(items2.find((it) => it.kind === 'connector' && it.catalogId === 'sentry')).toBeDefined();
   });
 });
 

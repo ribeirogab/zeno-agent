@@ -432,6 +432,49 @@ describe('ConnectorRepo — getEnabledWithRelations', () => {
 
 // Spec 0057: kind discriminator support — channels share storage with MCP
 // connectors via the new 'kind' column.
+// Spec 2026-05-08-connectors-cli-first-design Q4: operator-supplied label.
+describe('ConnectorRepo — instance_label (spec 2026-05-08)', () => {
+  beforeEach(() => {
+    db = freshDb();
+  });
+
+  it('persists instance_label on create and surfaces it on read', () => {
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
+    const created = repo.create({
+      ...baseInput,
+      slug: 'linear-acme',
+      displayName: 'Linear',
+      instanceLabel: 'Acme workspace',
+      source: 'catalog',
+      catalogId: 'linear',
+      transport: 'remote',
+      command: null,
+      args: null,
+    });
+    expect(created.instanceLabel).toBe('Acme workspace');
+    const fetched = repo.get(created.id);
+    expect(fetched?.instanceLabel).toBe('Acme workspace');
+  });
+
+  it('returns null instance_label for legacy rows that did not set it', () => {
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
+    const created = repo.create({
+      ...baseInput,
+      slug: 'sentry',
+      displayName: 'Sentry',
+      source: 'catalog',
+      catalogId: 'sentry',
+    });
+    expect(created.instanceLabel).toBeNull();
+  });
+});
+
 describe('ConnectorRepo — kind discriminator (spec 0057)', () => {
   beforeEach(() => {
     db = freshDb();

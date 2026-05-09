@@ -19,11 +19,13 @@ import { createLogger } from '@zeno/logger';
 import { Hono } from 'hono';
 import type { ApiConfig } from '@/config';
 import { csrf } from '@/csrf/middleware';
+import { type ApiWriteMode, parseApiWriteMode } from '@/lib/api-mode';
 import type { ChannelsCatalog } from '@/lib/channels-catalog-loader';
 import { buildActivityRoute } from '@/routes/activity';
 import { buildAgentCapabilitiesRoute } from '@/routes/agent-capabilities';
 import { buildBackendsRoute } from '@/routes/backends';
 import { buildChannelsRoute } from '@/routes/channels';
+import { buildCommandsRoute } from '@/routes/commands';
 import { buildConnectorSkillsRoute } from '@/routes/connector-skills';
 import { buildConnectorsRoute } from '@/routes/connectors';
 import { buildCronConnectorsRoute } from '@/routes/cron-connectors';
@@ -31,6 +33,7 @@ import { buildCronSkillsRoute } from '@/routes/cron-skills';
 import { buildCronsRoute } from '@/routes/crons';
 import { buildHealthRoute } from '@/routes/health';
 import { buildLogsRoute } from '@/routes/logs';
+import { buildModeRoute } from '@/routes/mode';
 import { buildSessionsRoute } from '@/routes/sessions';
 import { buildSettingsRoute } from '@/routes/settings';
 import { buildSkillsRoute } from '@/routes/skills';
@@ -81,6 +84,10 @@ export interface AppDeps {
   /** Spec 0071: optional fetch override for tests of /api/backends/* routes
    *  that need to mock the Anthropic verification handshake. */
   fetchImpl?: typeof fetch;
+  /** Spec 2026-05-08-connectors-cli-first-design: gates mutating endpoints.
+   *  Defaults to 'cli' (read-only dashboard). When omitted, falls back to
+   *  parsing `process.env.ZENO_API_WRITES`. */
+  writes?: ApiWriteMode;
 }
 
 export function createApp(deps: AppDeps): Hono {
@@ -91,6 +98,9 @@ export function createApp(deps: AppDeps): Hono {
   // dashboard-cleanup spec: no auth. Single-user, bind 127.0.0.1. CSRF token
   // (double-submit cookie) covers mutating routes; reads are open.
   app.use('*', csrf({ secure }));
+
+  // Resolve the write-mode once so all routes see the same value.
+  const writes = deps.writes ?? parseApiWriteMode(process.env.ZENO_API_WRITES);
 
   app.route('/api/health', buildHealthRoute(deps.db));
   app.route(
@@ -148,6 +158,7 @@ export function createApp(deps: AppDeps): Hono {
         connectors: deps.connectorRepo,
         commands: deps.commandRepo,
         ...(deps.connectorAppRepo ? { connectorApps: deps.connectorAppRepo } : {}),
+        writes,
       }),
     );
   }
@@ -203,6 +214,8 @@ export function createApp(deps: AppDeps): Hono {
       }),
     );
   }
+  app.route('/api/mode', buildModeRoute({ writes }));
+  app.route('/api/commands', buildCommandsRoute({ commands: deps.commandRepo }));
   if (deps.spaDir) {
     app.get('*', serveStaticSpa(deps.spaDir));
   }

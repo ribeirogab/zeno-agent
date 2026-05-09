@@ -21,6 +21,13 @@ export interface CatalogEntryApi {
   isInstalled: boolean;
   /** Spec 0042/0045: catalog entry's customInstallComponent id (e.g. 'github-app'). */
   customInstallComponent: string | null;
+  /**
+   * Spec 2026-05-08-connectors-cli-first-design Q5: false when the catalog
+   * entry only supports a single concurrent installation (e.g. playwright).
+   * The CatalogModal disables the `+` button + shows a tooltip-banner when
+   * `multiInstance === false` and at least one instance already exists.
+   */
+  multiInstance: boolean;
 }
 
 export function useCatalog() {

@@ -1011,58 +1011,6 @@
         "observability",
         "errors"
       ]
-    },
-    {
-      "id": "playwright",
-      "name": "Playwright",
-      "description": "Browser automation. Navigate, snapshot, click, type, screenshot.",
-      "icon": "playwright.svg",
-      "docsUrl": "https://github.com/microsoft/playwright-mcp",
-      "transport": "stdio",
-      "transportConfig": {
-        "command": "npx",
-        "args": [
-          "-y",
-          "@playwright/mcp@latest"
-        ]
-      },
-      "secrets": [],
-      "tools": [
-        {
-          "name": "browser_navigate",
-          "description": "Navigate to a URL in the browser.",
-          "category": "read",
-          "defaultPermission": "always_allow"
-        },
-        {
-          "name": "browser_snapshot",
-          "description": "Capture an accessibility snapshot of the current page.",
-          "category": "read",
-          "defaultPermission": "always_allow"
-        },
-        {
-          "name": "browser_take_screenshot",
-          "description": "Take a screenshot of the current page or an element.",
-          "category": "read",
-          "defaultPermission": "always_allow"
-        },
-        {
-          "name": "browser_click",
-          "description": "Click on a web page element.",
-          "category": "interactive",
-          "defaultPermission": "ask"
-        },
-        {
-          "name": "browser_type",
-          "description": "Type text into an editable element.",
-          "category": "interactive",
-          "defaultPermission": "ask"
-        }
-      ],
-      "tags": [
-        "browser",
-        "automation"
-      ]
     }
   ]
 }

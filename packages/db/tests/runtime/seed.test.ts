@@ -1,31 +1,22 @@
-import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { openRuntimeDatabase, runRuntimeMigrations } from '../../src/runtime/db.js';
-import { connectors, connectorToolPermissions } from '../../src/runtime/schema.js';
+import { connectors } from '../../src/runtime/schema.js';
 import { seedDefaultConnectors } from '../../src/runtime/seed.js';
 
 describe('seedDefaultConnectors', () => {
-  it('upserts default connectors on a fresh DB', () => {
+  it('seeds zero connectors on a fresh DB (CLI-first model)', () => {
+    // Spec 2026-05-08-connectors-cli-first-design: no connectors are
+    // auto-seeded — the catalog is a directory the operator opts into via
+    // `zeno connector install`. The seed function still runs (for forward
+    // compatibility) but its `DEFAULTS` list is empty.
     const { raw, drizzle: db, close } = openRuntimeDatabase(':memory:');
     try {
       runRuntimeMigrations(raw);
       const result = seedDefaultConnectors(db);
-      expect(result.seeded).toBeGreaterThan(0);
+      expect(result.seeded).toBe(0);
 
-      const playwright = db
-        .select()
-        .from(connectors)
-        .where(eq(connectors.slug, 'playwright'))
-        .get();
-      expect(playwright).toBeDefined();
-      expect(playwright?.displayName).toBe('Playwright');
-
-      const tools = db
-        .select()
-        .from(connectorToolPermissions)
-        .where(eq(connectorToolPermissions.connectorId, playwright!.id))
-        .all();
-      expect(tools).toHaveLength(5);
+      const allConnectors = db.select().from(connectors).all();
+      expect(allConnectors).toHaveLength(0);
     } finally {
       close();
     }
@@ -40,7 +31,7 @@ describe('seedDefaultConnectors', () => {
       expect(second.seeded).toBe(0);
 
       const allConnectors = db.select().from(connectors).all();
-      expect(allConnectors).toHaveLength(1);
+      expect(allConnectors).toHaveLength(0);
     } finally {
       close();
     }

@@ -13,6 +13,9 @@ const payloadSchema = z.object({
       command: z.string().nullable().optional(),
       args: z.array(z.string()).nullable().optional(),
       url: z.string().nullable().optional(),
+      // Spec 2026-05-08-connectors-cli-first-design Q4: per-instance operator
+      // label. `null` clears it, omitted leaves it untouched.
+      instanceLabel: z.string().nullable().optional(),
     })
     .optional(),
   secrets: z

@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { openRuntimeDatabase, runRuntimeMigrations } from '../../src/runtime/db.js';
 
 describe('runRuntimeMigrations', () => {
-  it('creates the schema_migrations table and applies the baseline once', () => {
+  it('creates the schema_migrations table and applies the baseline + 0001 once', () => {
     const { raw, close } = openRuntimeDatabase(':memory:');
     try {
       runRuntimeMigrations(raw);
       const versions = raw
         .prepare('SELECT version FROM schema_migrations ORDER BY version')
         .all() as { version: number }[];
-      expect(versions.map((v) => v.version)).toEqual([0]);
+      expect(versions.map((v) => v.version)).toEqual([0, 1]);
 
       const tables = raw
         .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
@@ -18,6 +18,12 @@ describe('runRuntimeMigrations', () => {
         .map((t) => t.name)
         .filter((n) => !n.startsWith('sqlite_') && n !== 'schema_migrations');
       expect(userTables).toHaveLength(17);
+
+      // Spec 2026-05-08: 0001 adds instance_label column + idx_connectors_catalog_id index.
+      const cols = raw.prepare('PRAGMA table_info(connectors)').all() as { name: string }[];
+      expect(cols.map((c) => c.name)).toContain('instance_label');
+      const indexes = raw.prepare('PRAGMA index_list(connectors)').all() as { name: string }[];
+      expect(indexes.map((i) => i.name)).toContain('idx_connectors_catalog_id');
     } finally {
       close();
     }

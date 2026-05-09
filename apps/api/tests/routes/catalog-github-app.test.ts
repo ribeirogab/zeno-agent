@@ -82,6 +82,7 @@ function makeApp() {
     connectorAppRepo: new ConnectorAppRepo(db),
     claudeHome: '/tmp',
     profileDir: '/tmp',
+    writes: 'dashboard',
   });
 }
 
@@ -385,7 +386,10 @@ describe('POST /api/connectors/catalog/github-app/installations', () => {
       }),
       headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
+    const responseBody = (await res.json()) as { correlationId: string; slug: string };
+    expect(responseBody.correlationId).toMatch(/[0-9a-f-]{36}/);
+    expect(responseBody.slug).toBe('github-app-acme-corp');
 
     const cmds = new CommandRepo(db).recent(100);
     const create = cmds.find((c) => c.type === 'connector_create');
@@ -464,7 +468,9 @@ describe('POST /api/connectors/catalog/github-app/uninstall-app', () => {
       body: JSON.stringify({ confirmAppName: 'Zen' }),
       headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as { correlationId: string };
+    expect(body.correlationId).toMatch(/[0-9a-f-]{36}/);
 
     expect(appRepo.getOneByCatalog('github-app')).toBeNull();
     expect(connRepo.getBySlug('github-app-acme')).toBeNull();

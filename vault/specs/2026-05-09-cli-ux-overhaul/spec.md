@@ -65,6 +65,36 @@ unstable:@a1b2c3d
 
 **Trade-off accepted:** `zeno upgrade` becomes responsible for its own cleanup. Acceptable: the work is bounded and the alternative (let the operator manually reset) violates the "fail noisily and as soon as possible" rule.
 
+#### New pipeline structure
+
+The current `apps/cli/src/lib/upgrade.ts` exports `upgradeSteps` with 5 methods (`fetchTags`, `checkoutTag`, `installDeps`, `buildCli`, `buildImage`). This spec promotes `setVersion` and `writeMeta` from post-build side-effects in `commands/upgrade.ts` into named members of the same `upgradeSteps` object, yielding **seven enumerated steps** in execution order:
+
+```
+1. fetchTags()
+2. checkoutRef(target, kind)        // renamed from checkoutTag — supports tag/branch/pr/unstable
+3. setVersion(display)              // promoted from post-build side-effect
+4. writeMeta(meta)                  // NEW — moved out of inline call
+5. installDeps()
+6. buildCli()
+7. buildImage()
+```
+
+#### `writeMeta` helper (new)
+
+Lives in `apps/cli/src/lib/version-meta.ts`. Signature:
+
+```ts
+export type VersionKind = 'tag' | 'branch' | 'pr' | 'unstable';
+export interface VersionMeta { kind: VersionKind; value: string; sha: string }
+
+export function writeMeta(meta: VersionMeta): void  // writes ~/.zeno/zeno-agent/.installed-from
+export function readMeta(): VersionMeta | null      // null if file absent
+export function formatDisplay(meta: VersionMeta): string  // for `zeno --version`
+export function compareSemver(a: string, b: string): number  // for downgrade guard
+```
+
+`install.sh` writes the same line format directly via shell (no shared library).
+
 ### Q6 — Location of the friendly-error mapping table
 
 **Decision: B — separate `apps/cli/src/lib/errors.ts`.** A typed table `Record<string, (e: ApiError) => Hint>` maps known upstream codes to `{ msg, hint? }`. `ApiClient` continues to throw the raw `ApiError`; callers (or a `runCommand(fn)` wrapper) call `friendly(e)` before printing.
@@ -157,7 +187,7 @@ Plus the secret-prompt security regression and the semver string-compare bug.
 - [ ] **B2** `install.sh --version v2026.5.7` validates the tag exists via REST (`GET /releases/tags/v2026.5.7`), then clones it (depth 1, `--branch v2026.5.7`), writes `tag:v2026.5.7@<sha>`. Invalid tag → `error: version v0.0.0 not found` and exit 1.
 - [ ] **B3** `install.sh --branch feat/foo` clones depth 1 with `--branch feat/foo`, writes `branch:feat/foo@<sha>`.
 - [ ] **B4** `install.sh --pr 123` clones `main` depth 1, fetches `pull/123/head:pr-123`, checks out `pr-123`, writes `pr:123@<sha>`. Works for fork PRs (verified manually with a PR from a fork).
-- [ ] **B5** Default (no flag) tries `releases/latest` → falls back to `releases?per_page=1` → falls back to `main`. Each fallback is reachable in tests by mocking the REST endpoint to return 404.
+- [ ] **B5** Default (no flag) tries `releases/latest` → falls back to `releases?per_page=1` (most recent prerelease) → falls back to `main`. Each fallback is reachable in tests by mocking the REST endpoint to return 404. **`zeno upgrade` (no flags, non-TTY) follows the same fallback chain via `pickLatestStable` in `lib/upgrade.ts` so installer and upgrader behave identically when both lack TTY.**
 - [ ] **B6** Two target flags together (`install.sh --unstable --branch foo`) prints `error: --unstable and --branch are mutually exclusive` and exits 1.
 - [ ] **B7** All flag paths run `pnpm install --frozen-lockfile` after clone (no relaxation).
 - [ ] **B8** `.installed-from` content matches the format `(tag|branch|pr|unstable):<value>@<short-sha>` after every successful run.
@@ -170,13 +200,13 @@ Plus the secret-prompt security regression and the semver string-compare bug.
 - [ ] **C3** `zeno upgrade --pr 123` runs `gh pr checkout 123`, writes `pr:123@<sha>`. Fails with a clear message if `gh` is missing or the user is unauthenticated.
 - [ ] **C4** `zeno --version` displays `v2026.5.7`, `branch:feat/foo (a1b2c3d)`, `pr:#123 (a1b2c3d)`, or `unstable (a1b2c3d)` according to current `.installed-from`.
 - [ ] **C5** Two target flags together (`--unstable --branch foo`) → `error: --unstable and --branch are mutually exclusive`, exit 1.
-- [ ] **C6** `zeno upgrade --unstable` in TTY shows `unstable target may break. continue? (y/N)`. Adding `--yes` skips the prompt. In non-TTY without `--yes` → exits 1 with `error: --unstable requires --yes in non-interactive mode`.
-- [ ] **C7** `zeno upgrade --branch foo --dry-run` prints the resolved target and the seven pipeline steps without running any of them; exits 0 without touching git, DB, `.installed-from`, or building anything.
+- [ ] **C6** `zeno upgrade --unstable`, `zeno upgrade --branch <name>`, and `zeno upgrade --pr <number>` in TTY each show a confirmation prompt of the form `<kind> target may break. continue? (y/N)`. Adding `--yes` skips the prompt. In non-TTY without `--yes` → exits 1 with `error: --<kind> requires --yes in non-interactive mode`.
+- [ ] **C7** `zeno upgrade --branch foo --dry-run` prints the resolved target and the seven pipeline steps (`fetchTags`, `checkoutRef`, `setVersion`, `writeMeta`, `installDeps`, `buildCli`, `buildImage`) without running any of them; exits 0 without touching git, DB, `.installed-from`, or building anything. The seven steps match the new `upgradeSteps` structure described in Q5.
 - [ ] **C8** `zeno upgrade --list` returns 30 releases by default; `--limit 10` returns 10. `apps/cli/src/lib/upgrade.ts:32` no longer hardcodes `--limit 10`.
 - [ ] **C9** `zeno upgrade` (no flags) opens the picker with the cursor on the latest stable release row, not on `current`. Current is marked with `*` in the row.
 - [ ] **C10** The picker displays an `unstable` row separated from releases by a horizontal rule; the `unstable` label is colored to stand out (e.g. yellow).
 - [ ] **C11** `zeno upgrade --notes <tag>` prints the release body via `gh release view <tag>` and exits 0 without performing any upgrade. The picker also shows a key hint `n: notes` when on a release row.
-- [ ] **C12** `zeno upgrade --help` lists all targets: `--to`, `--latest`, `--prerelease`, `--unstable`, `--branch`, `--pr`.
+- [ ] **C12** `zeno upgrade --help` lists every flag: `--to`, `--latest`, `--prerelease`, `--unstable`, `--branch`, `--pr`, `--list`, `--force`, `--dry-run`, `--yes`, `--limit`, `--notes`.
 
 ### D — Picker fallback
 
@@ -195,9 +225,9 @@ Plus the secret-prompt security regression and the semver string-compare bug.
 
 - [ ] **E1** `zeno status` exists as a top-level subcommand. Default output renders profiles + container state + connector count + last cron + last error in a single screen. Stopped profiles render `stopped` for their HTTP-derived fields. A profile whose API does not respond within 1s renders `?`.
 - [ ] **E1** `zeno status --json` returns a JSON array, one object per profile, with fields `name`, `port`, `state`, `uptimeMs`, `connectorCount`, `lastCron`, `lastError`. Schema documented in `apps/docs/content/docs/cli.mdx`.
-- [ ] **E2** `zeno profile delete <name>` (TTY, no `--yes`) prompts `delete profile '<name>'? this destroys volumes and data. (y/N)`. With `--yes`, no prompt.
+- [ ] **E2** `zeno profile delete <name>` (TTY, no `--yes`) prompts `delete profile '<name>'? this destroys volumes and data. (y/N)`. With `--yes`, no prompt. **The current type-name-to-confirm pattern in `apps/cli/src/commands/profile-delete.ts` (`Type '<name>' to confirm:`) is replaced by this `(y/N)` pattern; the old prompt and its parsing logic are removed.**
 - [ ] **E2** `zeno connector uninstall <slug>` (TTY, no `--yes`) prompts `uninstall connector '<slug>'? (y/N)`. With `--yes`, no prompt.
-- [ ] **E2** `zeno connector app uninstall` (TTY, no `--yes`) prompts `uninstall app '<App Name>'? this cascades to N installations. (y/N)`. The `--confirm "<App Name>"` flag no longer exists.
+- [ ] **E2** `zeno connector app uninstall` (TTY, no `--yes`) prompts `uninstall app '<App Name>'? this cascades to N installations. (y/N)`. With `--yes`, no prompt. **The current `--confirm "<App Name>"` flag and its case-sensitive verification (currently in `apps/cli/src/commands/connector-app-uninstall.ts`) are removed; `400 confirm_app_name_mismatch` no longer needs to be returned by the API.**
 - [ ] **E2** Any destructive op without `--yes` in non-TTY exits 1 with `error: destructive operation requires --yes in non-interactive mode`.
 - [ ] **E3** When the API returns `409 single_instance_catalog_already_installed`, the CLI prints `<catalog> already installed (single-instance)` and a `→ uninstall first: zeno connector uninstall <slug>` hint, exiting 1. Verified by mocking the API response in unit test.
 - [ ] **E3** `apps/cli/src/lib/errors.ts` exports `friendly(e: ApiError): { msg: string; hint?: string }` and a `runCommand(fn)` helper that wraps the print + exit logic.

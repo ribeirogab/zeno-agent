@@ -3,7 +3,10 @@
 // pnpm install + pnpm build + docker build.
 
 import { spawnSync } from 'node:child_process';
+import type { DB } from '@zeno/db/host';
+import { queries } from '@zeno/db/host';
 import { ZENO_HOME } from './paths.js';
+import { type VersionKind, type VersionMeta, writeMeta as writeMetaImpl } from './version-meta.js';
 
 export interface Release {
   tag: string;
@@ -11,8 +14,14 @@ export interface Release {
   publishedAt: string;
 }
 
+export interface ResolvedTarget {
+  kind: VersionKind;
+  value: string;
+}
+
 const REPO = 'ribeirogab/zeno-agent';
-const EDGE_TAG = 'edge';
+const DEFAULT_LIMIT = 30;
+const API_BASE = process.env.ZENO_INSTALL_API_BASE ?? 'https://api.github.com';
 
 function ghAvailable(): boolean {
   const which = spawnSync('which', ['gh'], { encoding: 'utf8' });
@@ -21,7 +30,7 @@ function ghAvailable(): boolean {
   return auth.status === 0;
 }
 
-async function listReleasesViaGh(): Promise<Release[]> {
+async function listReleasesViaGh(limit: number): Promise<Release[]> {
   const r = spawnSync(
     'gh',
     [
@@ -30,7 +39,7 @@ async function listReleasesViaGh(): Promise<Release[]> {
       '--repo',
       REPO,
       '--limit',
-      '10',
+      String(limit),
       '--json',
       'tagName,isPrerelease,publishedAt,name',
     ],
@@ -49,8 +58,8 @@ async function listReleasesViaGh(): Promise<Release[]> {
   }));
 }
 
-async function listReleasesViaRest(): Promise<Release[]> {
-  const url = `https://api.github.com/repos/${REPO}/releases?per_page=10`;
+async function listReleasesViaRest(limit: number): Promise<Release[]> {
+  const url = `${API_BASE}/repos/${REPO}/releases?per_page=${limit}`;
   const res = await fetch(url, { headers: { 'User-Agent': 'zeno-cli' } });
   if (!res.ok) throw new Error(`GitHub REST returned ${res.status}`);
   const raw = (await res.json()) as Array<{
@@ -65,12 +74,12 @@ async function listReleasesViaRest(): Promise<Release[]> {
   }));
 }
 
-export async function listReleases(): Promise<Release[]> {
+export async function listReleases(limit = DEFAULT_LIMIT): Promise<Release[]> {
   if (ghAvailable()) {
-    return listReleasesViaGh();
+    return listReleasesViaGh(limit);
   }
   try {
-    return await listReleasesViaRest();
+    return await listReleasesViaRest(limit);
   } catch (e) {
     throw new Error(`cannot fetch releases: ${(e as Error).message}`);
   }
@@ -79,18 +88,27 @@ export async function listReleases(): Promise<Release[]> {
 export interface PickArgs {
   to?: string | undefined;
   prerelease?: boolean | undefined;
-  edge?: boolean | undefined;
+  unstable?: boolean | undefined;
+  branch?: string | undefined;
+  pr?: string | undefined;
 }
 
-export function pickTarget(args: PickArgs, releases: Release[]): string | { error: string } {
-  if (args.edge) return EDGE_TAG;
+export function pickTarget(
+  args: PickArgs,
+  releases: Release[],
+): ResolvedTarget | { error: string } {
+  if (args.unstable) return { kind: 'unstable', value: '' };
+  if (args.branch) return { kind: 'branch', value: args.branch };
+  if (args.pr) return { kind: 'pr', value: args.pr };
   if (args.to) {
     const found = releases.find((r) => r.tag === args.to);
     if (!found) return { error: `version ${args.to} not found. see: zeno upgrade --list` };
-    return found.tag;
+    return { kind: 'tag', value: found.tag };
   }
   const filtered = args.prerelease ? releases : releases.filter((r) => !r.prerelease);
-  return filtered[0]?.tag ?? releases[0]?.tag ?? EDGE_TAG;
+  const tag = filtered[0]?.tag ?? releases[0]?.tag;
+  if (tag) return { kind: 'tag', value: tag };
+  return { kind: 'unstable', value: '' };
 }
 
 function run(cmd: string, args: string[]): void {
@@ -98,18 +116,37 @@ function run(cmd: string, args: string[]): void {
   if (r.status !== 0) throw new Error(`${cmd} ${args.join(' ')} exited ${r.status}`);
 }
 
+export function shortSha(): string {
+  const r = spawnSync('git', ['-C', ZENO_HOME, 'rev-parse', '--short', 'HEAD'], {
+    encoding: 'utf8',
+  });
+  return (r.stdout ?? '').trim() || 'unknown';
+}
+
 /** Run the upgrade pipeline against ZENO_HOME. Caller wraps each step in spinners. */
 export const upgradeSteps = {
   fetchTags(): void {
     run('git', ['fetch', '--tags']);
   },
-  checkoutTag(tag: string): void {
-    if (tag === EDGE_TAG) {
+  checkoutRef(target: string, kind: VersionKind): void {
+    if (kind === 'unstable') {
       run('git', ['checkout', 'main']);
       run('git', ['pull', '--ff-only']);
+    } else if (kind === 'branch') {
+      run('git', ['fetch', '--depth', '1', 'origin', target]);
+      run('git', ['checkout', target]);
+    } else if (kind === 'pr') {
+      run('gh', ['pr', 'checkout', target]);
     } else {
-      run('git', ['checkout', tag]);
+      // tag
+      run('git', ['checkout', target]);
     }
+  },
+  setVersion(db: DB, display: string): void {
+    queries.setVersion(db, display);
+  },
+  writeMeta(meta: VersionMeta): void {
+    writeMetaImpl(meta);
   },
   installDeps(): void {
     run('pnpm', ['install', '--frozen-lockfile']);
@@ -121,5 +158,3 @@ export const upgradeSteps = {
     run('docker', ['build', '-t', 'zeno-agent:dev', '-f', 'infra/Dockerfile', '.']);
   },
 };
-
-export const EDGE = EDGE_TAG;

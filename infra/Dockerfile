@@ -32,7 +32,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.js
 COPY apps/worker/package.json ./apps/worker/
 COPY apps/api/package.json ./apps/api/
 COPY apps/dashboard/package.json ./apps/dashboard/
-COPY packages/storage/package.json ./packages/storage/
+COPY packages/db/package.json ./packages/db/
 COPY packages/logger/package.json ./packages/logger/
 COPY packages/mcp-discover/package.json ./packages/mcp-discover/
 COPY packages/github-app/package.json ./packages/github-app/
@@ -57,9 +57,9 @@ ENV NODE_ENV=production
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/storage/dist ./packages/storage/dist
-COPY --from=builder /app/packages/storage/package.json ./packages/storage/
-COPY --from=builder /app/packages/storage/node_modules ./packages/storage/node_modules
+COPY --from=builder /app/packages/db/dist ./packages/db/dist
+COPY --from=builder /app/packages/db/package.json ./packages/db/
+COPY --from=builder /app/packages/db/node_modules ./packages/db/node_modules
 COPY --from=builder /app/packages/logger/dist ./packages/logger/dist
 COPY --from=builder /app/packages/logger/package.json ./packages/logger/
 COPY --from=builder /app/packages/logger/node_modules ./packages/logger/node_modules

@@ -78,10 +78,6 @@ export default defineCommand({
       },
     });
     const permission = await resolvePermission(args.permission as string | undefined);
-    await runConnectorToolSet(
-      client,
-      { target, tool, permission },
-      (line) => console.log(line),
-    );
+    await runConnectorToolSet(client, { target, tool, permission }, (line) => console.log(line));
   },
 });

@@ -2,7 +2,8 @@ import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
-import { ok } from '../lib/output.js';
+import { c, ok } from '../lib/output.js';
+import { confirmDestructive } from '../lib/prompt.js';
 import { resolveConnector, resolveProfile } from '../lib/resolvers.js';
 import { waitForCommand } from '../lib/wait-command.js';
 
@@ -65,6 +66,13 @@ export default defineCommand({
     const target = await resolveConnector(args.target as string | undefined, {
       listConnectors: () => client.get('/api/connectors'),
     });
-    await runConnectorUninstall(client, { target, yes: !!args.yes }, (line) => console.log(line));
+    const confirmed = await confirmDestructive(`uninstall connector '${target}'? (y/N)`, {
+      yes: !!args.yes,
+    });
+    if (!confirmed) {
+      console.log(c.gray('aborted.'));
+      return;
+    }
+    await runConnectorUninstall(client, { target, yes: true }, (line) => console.log(line));
   },
 });

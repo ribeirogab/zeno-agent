@@ -133,7 +133,7 @@ describe('POST /api/connectors/catalog/github-app/uninstall-app cascade', () => 
 
     const res = await makeApp().request('/api/connectors/catalog/github-app/uninstall-app', {
       method: 'POST',
-      body: JSON.stringify({ confirmAppName: 'Zen' }),
+      body: JSON.stringify({}),
       headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(202);

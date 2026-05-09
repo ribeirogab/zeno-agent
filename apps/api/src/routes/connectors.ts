@@ -668,23 +668,20 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // rare event; the cost of re-creating per-tool permissions is acceptable
   // given the maintenance burden of a separate rotation flow).
 
-  // Spec 0046 supersedes spec 0044 §API-Endpoints body shape: confirmAppName
-  // (not confirmAppId) — the dashboard M12 modal uses italic-gold app NAME for
-  // the type-to-confirm gesture, not the numeric App ID.
-  const uninstallAppSchema = z.object({ confirmAppName: z.string().min(1) });
-  route.post('/catalog/github-app/uninstall-app', zValidator('json', uninstallAppSchema), (c) => {
+  // Spec 2026-05-09-cli-ux-overhaul Task 25 (E2): the case-sensitive
+  // `confirmAppName` body field was retired in favor of CLI-side
+  // `confirmDestructive` (with `--yes` to bypass). The endpoint now accepts an
+  // empty body — the destructive-confirm gesture is owned by the operator
+  // surface (CLI prompt or dashboard modal), not the API.
+  route.post('/catalog/github-app/uninstall-app', (c) => {
     if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
-      return blockIfCli('app_uninstall', 'zeno connector app uninstall --confirm "<app-name>"')(c);
+      return blockIfCli('app_uninstall', 'zeno connector app uninstall')(c);
     }
     if (!deps.connectorApps) {
       return c.json({ error: 'connector_apps_repo_not_wired' }, 500);
     }
-    const body = c.req.valid('json');
     const app = deps.connectorApps.getOneByCatalog('github-app');
     if (!app) return c.json({ error: 'app_not_installed' }, 404);
-    if (body.confirmAppName !== app.appName) {
-      return c.json({ error: 'confirm_app_name_mismatch' }, 400);
-    }
     deps.connectorApps.delete(app.id);
     const correlationId = randomUUID();
     deps.commands.enqueue({

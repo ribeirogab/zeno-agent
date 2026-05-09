@@ -418,23 +418,10 @@ describe('POST /api/connectors/catalog/github-app/installations', () => {
 // Spec 0051: rotate-PEM endpoint removed. Tests deleted alongside the route.
 
 describe('POST /api/connectors/catalog/github-app/uninstall-app', () => {
-  it('rejects mismatched confirmAppName', async () => {
-    const appRepo = new ConnectorAppRepo(db);
-    appRepo.create({
-      catalogId: 'github-app',
-      appId: '7777',
-      appSlug: 'zen',
-      appName: 'Zen',
-      pem: newPem(),
-      pemSha256: 'sha',
-    });
-    const res = await makeApp().request('/api/connectors/catalog/github-app/uninstall-app', {
-      method: 'POST',
-      body: JSON.stringify({ confirmAppName: 'Wrong' }),
-      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
-    });
-    expect(res.status).toBe(400);
-  });
+  // Spec 2026-05-09-cli-ux-overhaul Task 25 (E2): the case-sensitive
+  // `confirmAppName` body field was retired in favor of CLI-side
+  // `confirmDestructive` (with `--yes` to bypass). The "rejects mismatched"
+  // test was dropped alongside the validation.
 
   it('deletes the connector_apps row and cascades to connectors', async () => {
     const appRepo = new ConnectorAppRepo(db);
@@ -465,7 +452,7 @@ describe('POST /api/connectors/catalog/github-app/uninstall-app', () => {
 
     const res = await makeApp().request('/api/connectors/catalog/github-app/uninstall-app', {
       method: 'POST',
-      body: JSON.stringify({ confirmAppName: 'Zen' }),
+      body: JSON.stringify({}),
       headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     });
     expect(res.status).toBe(202);

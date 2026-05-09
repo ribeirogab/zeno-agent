@@ -17,6 +17,13 @@ export interface ConnectorListItem {
   id: string;
   slug: string;
   displayName: string;
+  /**
+   * Spec 2026-05-08-connectors-cli-first-design Q4: optional operator-supplied
+   * label distinguishing instances of the same catalog entry (e.g. multiple
+   * Linear workspaces). Detail pages prefer this over `displayName` for the
+   * page title.
+   */
+  instanceLabel: string | null;
   description: string | null;
   source: ConnectorSource;
   catalogId: string | null;

@@ -37,6 +37,7 @@ const Component = Route.options.component as () => JSX.Element;
 const baseConnector = {
   kind: 'connector' as const,
   slug: 'linear-acme',
+  instanceLabel: null,
   description: 'Acme workspace',
   source: 'catalog' as const,
   catalogId: 'linear',

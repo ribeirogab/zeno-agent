@@ -460,7 +460,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   });
 
   route.post('/catalog/github-app/install', zValidator('json', githubAppTestSchema), async (c) => {
-    if (deps.writes === 'cli') {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli(
         'app_install',
         'zeno connector app install --catalog github-app --app-id <id> --pem-file <path>',
@@ -596,7 +596,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     '/catalog/github-app/installations',
     zValidator('json', addInstallationSchema),
     (c) => {
-      if (deps.writes === 'cli') {
+      if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
         return blockIfCli(
           'app_installation_add',
           'zeno connector app installations add --installation-id <id> --label "<label>"',
@@ -673,7 +673,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // the type-to-confirm gesture, not the numeric App ID.
   const uninstallAppSchema = z.object({ confirmAppName: z.string().min(1) });
   route.post('/catalog/github-app/uninstall-app', zValidator('json', uninstallAppSchema), (c) => {
-    if (deps.writes === 'cli') {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('app_uninstall', 'zeno connector app uninstall --confirm "<app-name>"')(c);
     }
     if (!deps.connectorApps) {
@@ -715,7 +715,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // POST /catalog/:id/test (resolves transportConfig server-side; for catalog installs)
   // MUST be registered AFTER the github-app static routes above.
   route.post('/catalog/:id/test', async (c) => {
-    if (deps.writes === 'cli') {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('test_transient', 'zeno connector test <catalog-id>')(c);
     }
     const id = c.req.param('id');
@@ -767,7 +767,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // POST /test (transient — not yet saved)
   route.post('/test', zValidator('json', testConnectionSchema), async (c) => {
-    if (deps.writes === 'cli') {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('test_transient', 'zeno connector test <catalog-id>')(c);
     }
     const body = c.req.valid('json');
@@ -928,7 +928,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // POST / (create — enqueues command)
   route.post('/', zValidator('json', createSchema), (c) => {
-    if (deps.writes === 'cli') {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('install', 'zeno connector install <catalog-id> --label "<label>"')(c);
     }
     const body = c.req.valid('json');
@@ -1139,7 +1139,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // POST /:id/test (installed connector — persists outcome)
   route.post('/:id/test', async (c) => {
-    if (deps.writes === 'cli') {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('test', 'zeno connector test <slug>')(c);
     }
     const id = c.req.param('id');
@@ -1180,7 +1180,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // Spec 0051: M11 envVar translation block + R3 F1 collision check removed
   // alongside the operator-picked envVar field.
   route.patch('/:id', zValidator('json', patchSchema), (c) => {
-    if (deps.writes === 'cli') {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('update', 'zeno connector secret set <slug> <key>')(c);
     }
     const id = c.req.param('id');
@@ -1198,7 +1198,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // PATCH /:id/toggle (direct write)
   route.patch('/:id/toggle', (c) => {
-    if (deps.writes === 'cli') {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('enable_disable', 'zeno connector enable <slug>')(c);
     }
     const id = c.req.param('id');
@@ -1214,7 +1214,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // PATCH /:id/tools/permissions/bulk (BEFORE /:id/tools/:toolName/permission)
   route.patch('/:id/tools/permissions/bulk', zValidator('json', bulkPermissionSchema), (c) => {
-    if (deps.writes === 'cli') {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli(
         'tool_permission_bulk',
         'zeno connector tool bulk <slug> --category <cat> --permission <perm>',
@@ -1233,7 +1233,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // PATCH /:id/tools/:toolName/permission
   route.patch('/:id/tools/:toolName/permission', zValidator('json', permissionSchema), (c) => {
-    if (deps.writes === 'cli') {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('tool_permission', 'zeno connector tool set <slug> <tool> <permission>')(c);
     }
     const id = c.req.param('id');
@@ -1247,7 +1247,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // POST /:id/refresh-tools (enqueues command)
   route.post('/:id/refresh-tools', (c) => {
-    if (deps.writes === 'cli') {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('refresh_tools', 'zeno connector refresh-tools <slug>')(c);
     }
     const id = c.req.param('id');
@@ -1263,7 +1263,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // DELETE /:id (enqueues uninstall)
   route.delete('/:id', (c) => {
-    if (deps.writes === 'cli') {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('uninstall', 'zeno connector uninstall <slug> --yes')(c);
     }
     const id = c.req.param('id');
@@ -1281,7 +1281,7 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // Although HTTP-method GET, this endpoint has side effects (rate-limit
   // counter + audit log) and exposes plaintext, so it is gated as a mutation.
   route.get('/:id/secrets/:key/reveal', (c) => {
-    if (deps.writes === 'cli') {
+    if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('reveal_secret', 'zeno connector secret reveal <slug> <key>')(c);
     }
     const id = c.req.param('id');

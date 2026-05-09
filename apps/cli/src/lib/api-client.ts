@@ -13,6 +13,16 @@ export interface ApiClientOpts {
   fetchImpl?: typeof fetch;
 }
 
+/**
+ * Header sent on every CLI request. The API gate (`ZENO_API_WRITES=cli`)
+ * blocks dashboard mutations with HTTP 403 `mode_cli_only`, but bypasses
+ * the gate when this header is present on the request — that's how the
+ * CLI itself can mutate while the dashboard stays read-only. Trust-based
+ * because the API binds 127.0.0.1 (single-user, no cross-origin reach).
+ */
+export const CLI_ORIGIN_HEADER = 'x-zeno-origin';
+export const CLI_ORIGIN_VALUE = 'cli';
+
 export class ApiClient {
   private csrfToken: string | null = null;
   private readonly fetchImpl: typeof fetch;
@@ -22,7 +32,10 @@ export class ApiClient {
   }
 
   async get<T>(path: string): Promise<T> {
-    const res = await this.fetchImpl(this.opts.baseUrl + path, { method: 'GET' });
+    const res = await this.fetchImpl(this.opts.baseUrl + path, {
+      method: 'GET',
+      headers: { [CLI_ORIGIN_HEADER]: CLI_ORIGIN_VALUE },
+    });
     if (!res.ok)
       throw new ApiError(res.status, await this.tryJson(res), `GET ${path} -> ${res.status}`);
     return res.json() as Promise<T>;
@@ -45,6 +58,7 @@ export class ApiClient {
     const headers: Record<string, string> = {
       'x-csrf-token': token,
       cookie: `zeno_csrf=${token}`,
+      [CLI_ORIGIN_HEADER]: CLI_ORIGIN_VALUE,
     };
     const init: RequestInit = { method, headers };
     if (body !== undefined) {
@@ -59,7 +73,10 @@ export class ApiClient {
   }
 
   private async acquireCsrf(): Promise<string> {
-    const res = await this.fetchImpl(`${this.opts.baseUrl}/api/health`, { method: 'GET' });
+    const res = await this.fetchImpl(`${this.opts.baseUrl}/api/health`, {
+      method: 'GET',
+      headers: { [CLI_ORIGIN_HEADER]: CLI_ORIGIN_VALUE },
+    });
     const setCookie = res.headers.get('set-cookie') ?? '';
     const match = /zeno_csrf=([^;]+)/.exec(setCookie);
     const token = match?.[1];

@@ -118,4 +118,74 @@ describe('connectors mutations gated by writes:cli', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([]);
   });
+
+  it("CLI origin header bypasses the gate under writes:'cli'", async () => {
+    // The CLI sends `x-zeno-origin: cli` on every request; under cli-mode the
+    // gate must let CLI mutations through (otherwise the rework breaks itself —
+    // CLI couldn't install connectors). Trust-based: API binds 127.0.0.1 only.
+    const res = await makeApp(db, 'cli').request('/api/connectors', {
+      method: 'POST',
+      headers: {
+        ...csrfHeaders(),
+        'Content-Type': 'application/json',
+        'x-zeno-origin': 'cli',
+      },
+      body: JSON.stringify({
+        source: 'custom',
+        displayName: 'CLI install',
+        transport: 'stdio',
+        command: 'echo',
+        secrets: [],
+      }),
+    });
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as { correlationId: string };
+    expect(body.correlationId).toMatch(/[0-9a-f-]{36}/);
+  });
+
+  it("CLI origin header bypasses gate on PATCH /:id/toggle under writes:'cli'", async () => {
+    // Seed an enabled connector so the toggle has something to flip
+    const connectorRepo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
+    const created = connectorRepo.create({
+      slug: 'sample',
+      displayName: 'Sample',
+      source: 'custom',
+      transport: 'stdio',
+      command: 'echo',
+      secrets: [],
+      tools: [],
+    });
+    const res = await makeApp(db, 'cli').request(`/api/connectors/${created.id}/toggle`, {
+      method: 'PATCH',
+      headers: { ...csrfHeaders(), 'x-zeno-origin': 'cli' },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { status: string };
+    expect(body.status).toBe('disabled');
+  });
+
+  it('a fake origin header value does NOT bypass the gate', async () => {
+    // Defense-in-depth: only the literal value 'cli' bypasses; everything else
+    // (e.g. a typo, an attempt to spoof) still gets blocked. Trust is by binding,
+    // but the value-equality check guards against accidental allows.
+    const res = await makeApp(db, 'cli').request('/api/connectors', {
+      method: 'POST',
+      headers: {
+        ...csrfHeaders(),
+        'Content-Type': 'application/json',
+        'x-zeno-origin': 'dashboard',
+      },
+      body: JSON.stringify({
+        source: 'custom',
+        displayName: 'X',
+        transport: 'stdio',
+        command: 'echo',
+        secrets: [],
+      }),
+    });
+    expect(res.status).toBe(403);
+  });
 });

@@ -5,6 +5,7 @@ import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
 import { ok } from '../lib/output.js';
+import { resolveProfile } from '../lib/resolvers.js';
 import { waitForCommand } from '../lib/wait-command.js';
 
 export type AppNamePrompter = (label: string) => Promise<string>;
@@ -78,8 +79,7 @@ export default defineCommand({
     profile: { type: 'string', description: 'profile name', required: false },
   },
   async run({ args }) {
-    const profile =
-      typeof args.profile === 'string' && args.profile.length > 0 ? args.profile : 'default';
+    const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });
     const runArgs: AppUninstallArgs = {};

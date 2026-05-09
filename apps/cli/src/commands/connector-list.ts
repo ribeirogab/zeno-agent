@@ -2,6 +2,7 @@ import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import { ApiClient } from '../lib/api-client.js';
 import { c } from '../lib/output.js';
+import { resolveProfile } from '../lib/resolvers.js';
 
 interface ListItem {
   kind: 'connector' | 'connector_group' | 'app';
@@ -62,7 +63,7 @@ export default defineCommand({
     json: { type: 'boolean', description: 'emit raw JSON', default: false },
   },
   async run({ args }) {
-    const profile = args.profile ?? 'default';
+    const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClient({ baseUrl });
     await runConnectorList(client, { profile, json: !!args.json }, (line) => console.log(line));

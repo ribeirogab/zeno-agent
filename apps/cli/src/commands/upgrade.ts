@@ -49,10 +49,20 @@ export default defineCommand({
     },
     quiet: { type: 'boolean', description: 'minimal output' },
   },
-  async run({ args }) {
+  async run({ args, rawArgs }) {
     if (args.quiet) setQuiet(true);
     const conn = db();
     const current = getCurrentVersion(conn);
+
+    // Reject removed flags explicitly (citty silently drops unknown flags).
+    const REMOVED = new Set(['--edge', '--beta']);
+    for (const raw of rawArgs ?? []) {
+      const flag = raw.split('=')[0];
+      if (flag && REMOVED.has(flag)) {
+        console.error(err(`Unknown flag: ${flag}. Use --unstable instead.`));
+        process.exit(1);
+      }
+    }
 
     // --notes <tag>: print release body via gh and exit.
     if (args.notes) {

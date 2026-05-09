@@ -130,15 +130,22 @@ export const upgradeSteps = {
   },
   checkoutRef(target: string, kind: VersionKind): void {
     if (kind === 'unstable') {
-      run('git', ['checkout', 'main']);
-      run('git', ['pull', '--ff-only']);
+      // Force-update local main to origin/main so checkout lands on the
+      // current remote tip even if the local main ref is stale.
+      run('git', ['fetch', 'origin', 'main']);
+      run('git', ['checkout', '-B', 'main', 'origin/main']);
     } else if (kind === 'branch') {
-      run('git', ['fetch', '--depth', '1', 'origin', target]);
-      run('git', ['checkout', target]);
+      // Same fast-forward semantics as unstable: fetch the remote ref then
+      // reset the local branch to it. Without this, `git checkout <branch>`
+      // would land on a stale local pointer when the local branch already
+      // existed before the fetch.
+      run('git', ['fetch', 'origin', target]);
+      run('git', ['checkout', '-B', target, `origin/${target}`]);
     } else if (kind === 'pr') {
       run('gh', ['pr', 'checkout', target]);
     } else {
       // tag
+      run('git', ['fetch', '--tags']);
       run('git', ['checkout', target]);
     }
   },

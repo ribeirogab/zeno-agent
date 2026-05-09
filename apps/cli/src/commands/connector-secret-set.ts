@@ -1,10 +1,9 @@
-import { stdin as input, stdout as output } from 'node:process';
-import { createInterface } from 'node:readline/promises';
 import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
 import { ok } from '../lib/output.js';
+import { promptHidden } from '../lib/prompt.js';
 import { waitForCommand } from '../lib/wait-command.js';
 
 export type SecretPrompter = (label: string) => Promise<string>;
@@ -28,9 +27,7 @@ type SecretSetClient = Pick<ApiClient, 'get' | 'patch'>;
  * poll via `waitForCommand` until terminal.
  *
  * The `prompter` parameter is injected for testability — production wiring uses
- * a no-echo readline prompt; tests pass a deterministic mock.
- *
- * Spec 2026-05-08-connectors-cli-first-design Task 14.
+ * `lib/prompt.ts:promptHidden`; tests pass a deterministic mock.
  */
 export async function runConnectorSecretSet(
   client: SecretSetClient,
@@ -58,63 +55,12 @@ export async function runConnectorSecretSet(
 }
 
 /**
- * Default prompter: read a line with stdin echo disabled so the secret never
- * lands on the terminal. Falls back to a normal echoed prompt if stdin is not
- * a TTY (e.g., piped input in CI), since `setRawMode` would throw there.
- *
- * Exported so sibling commands (e.g. `rotate`) can share the same default
- * without duplicating the no-echo plumbing.
+ * Default prompter: delegates to `lib/prompt.ts:promptHidden`, which uses raw
+ * stdin mode so the typed value never echoes to the terminal. Exported so
+ * sibling commands (e.g. `rotate`) can share the same default.
  */
 export async function defaultNoEchoPrompter(label: string): Promise<string> {
-  if (input.isTTY && typeof input.setRawMode === 'function') {
-    return readLineNoEcho(label);
-  }
-  const rl = createInterface({ input, output });
-  try {
-    return await rl.question(label);
-  } finally {
-    rl.close();
-  }
-}
-
-const ETX = '\u0003'; // Ctrl+C
-const DEL = '\u007f';
-const BS = '\b';
-
-function readLineNoEcho(label: string): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    output.write(label);
-    input.setRawMode(true);
-    input.resume();
-    input.setEncoding('utf8');
-    let buf = '';
-    const onData = (chunk: string) => {
-      for (const ch of chunk) {
-        if (ch === '\r' || ch === '\n') {
-          cleanup();
-          output.write('\n');
-          resolve(buf);
-          return;
-        }
-        if (ch === ETX) {
-          cleanup();
-          reject(new Error('aborted'));
-          return;
-        }
-        if (ch === DEL || ch === BS) {
-          buf = buf.slice(0, -1);
-          continue;
-        }
-        buf += ch;
-      }
-    };
-    const cleanup = () => {
-      input.setRawMode(false);
-      input.pause();
-      input.removeListener('data', onData);
-    };
-    input.on('data', onData);
-  });
+  return promptHidden(label);
 }
 
 export default defineCommand({

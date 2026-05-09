@@ -1,10 +1,9 @@
-import { stdin as input, stdout as output } from 'node:process';
-import { createInterface } from 'node:readline/promises';
 import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
-import { c, ok } from '../lib/output.js';
+import { ok } from '../lib/output.js';
+import { promptHidden } from '../lib/prompt.js';
 import { waitForCommand } from '../lib/wait-command.js';
 
 interface CatalogSecretSpec {
@@ -51,7 +50,7 @@ export async function runConnectorInstall(
   const submitted: Array<{ key: string; value: string }> = [];
   const required = (entry.secrets ?? []).filter((s) => s.required === true);
   for (const sec of required) {
-    const value = provided[sec.key] ?? (await promptSecret(sec.label ?? sec.key, sec.help));
+    const value = provided[sec.key] ?? (await promptHidden(sec.label ?? sec.key, sec.help));
     submitted.push({ key: sec.key, value });
   }
   // Also forward any non-required secrets the operator explicitly provided.
@@ -76,17 +75,6 @@ export async function runConnectorInstall(
     return;
   }
   throw new Error(`install failed: ${status.result ?? 'unknown'}`);
-}
-
-async function promptSecret(label: string, help?: string): Promise<string> {
-  const rl = createInterface({ input, output });
-  try {
-    if (help) console.log(c.dim(help));
-    const value = await rl.question(`${label}: `);
-    return value.trim();
-  } finally {
-    rl.close();
-  }
 }
 
 function parseSecretFlags(flag: unknown): Record<string, string> {

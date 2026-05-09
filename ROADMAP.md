@@ -24,6 +24,7 @@ _Nothing currently in flight._
 
 ## Recently shipped
 
+- [x] [PR #54](https://github.com/ribeirogab/zeno-agent/pull/54) — feat(connectors): CLI-first rework — N instances per catalog, dashboard goes read-only, install/uninstall/test/refresh-tools/enable/disable all via `zeno connector …`
 - [x] [#44](https://github.com/ribeirogab/zeno-agent/issues/44) — feat(db): unify DB stack as drizzle ([PR #53](https://github.com/ribeirogab/zeno-agent/pull/53))
 - [x] [PR #32](https://github.com/ribeirogab/zeno-agent/pull/32) — feat(cli): interactive arrow-key picker on `zeno upgrade`
 - [x] [PR #31](https://github.com/ribeirogab/zeno-agent/pull/31) — feat(dashboard): drop password gate, surface real version, reorder first-run checklist (Claude → Slack → cron)

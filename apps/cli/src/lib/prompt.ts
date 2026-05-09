@@ -27,7 +27,9 @@ const BACKSPACE = '';
 export async function promptHidden(label: string, help?: string, io: IO = {}): Promise<string> {
   const { stdin, stdout, stderr, exit } = { ...defaults(), ...io };
   if (!stdin.isTTY) {
-    stderr.write(`${err('secret value required but stdin is not a TTY. pass via --secret KEY=VALUE')}\n`);
+    stderr.write(
+      `${err('secret value required but stdin is not a TTY. pass via --secret KEY=VALUE')}\n`,
+    );
     exit(1);
     return '';
   }
@@ -72,7 +74,9 @@ export async function confirm(prompt: string, io: IO = {}): Promise<boolean> {
   stdin.resume?.();
   return new Promise<boolean>((resolve) => {
     const onData = (chunk: Buffer | string) => {
-      const reply = (typeof chunk === 'string' ? chunk : chunk.toString('utf8')).trim().toLowerCase();
+      const reply = (typeof chunk === 'string' ? chunk : chunk.toString('utf8'))
+        .trim()
+        .toLowerCase();
       stdin.removeListener('data', onData);
       stdin.pause?.();
       resolve(reply === 'y' || reply === 'yes');

@@ -1,6 +1,6 @@
 import type { ProfileRow } from '@zeno/db/host';
 import { queries } from '@zeno/db/host';
-import { c, err, isQuiet, statusLabel, type Status } from './output.js';
+import { c, err, isQuiet, type Status, statusLabel } from './output.js';
 import { pick } from './picker.js';
 import { db } from './state.js';
 
@@ -99,10 +99,7 @@ export interface CatalogSource {
   listCatalog: () => Promise<CatalogEntry[]>;
 }
 
-export async function resolveCatalog(
-  arg: string | undefined,
-  src: CatalogSource,
-): Promise<string> {
+export async function resolveCatalog(arg: string | undefined, src: CatalogSource): Promise<string> {
   if (arg) return arg;
   if (!isInteractive()) {
     fail('no catalog id specified. pass <id>');

@@ -164,10 +164,7 @@ describe('resolveCatalog', () => {
 
   it('opens picker when missing in TTY', async () => {
     setTTY(true);
-    src.listCatalog.mockResolvedValue([
-      { id: 'linear', displayName: 'Linear' },
-      { id: 'sentry' },
-    ]);
+    src.listCatalog.mockResolvedValue([{ id: 'linear', displayName: 'Linear' }, { id: 'sentry' }]);
     pickMock.pick.mockResolvedValue(1);
     expect(await resolveCatalog(undefined, src)).toBe('sentry');
   });

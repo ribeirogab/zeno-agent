@@ -4,6 +4,7 @@ import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
 import { ok } from '../lib/output.js';
 import { promptHidden } from '../lib/prompt.js';
+import { resolveCatalog, resolveProfile } from '../lib/resolvers.js';
 import { waitForCommand } from '../lib/wait-command.js';
 
 interface CatalogSecretSpec {
@@ -100,7 +101,7 @@ export default defineCommand({
     catalogId: {
       type: 'positional',
       description: 'catalog entry id (e.g. "linear", "sentry")',
-      required: true,
+      required: false,
     },
     label: {
       type: 'string',
@@ -118,13 +119,15 @@ export default defineCommand({
     },
   },
   async run({ args }) {
-    const profile =
-      typeof args.profile === 'string' && args.profile.length > 0 ? args.profile : 'default';
+    const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });
+    const catalogId = await resolveCatalog(args.catalogId as string | undefined, {
+      listCatalog: () => client.get('/api/connectors/catalog'),
+    });
     const secrets = parseSecretFlags(args.secret);
     const installArgs: InstallArgs = {
-      catalogId: args.catalogId as string,
+      catalogId,
       secrets,
     };
     if (typeof args.label === 'string' && args.label.length > 0) {

@@ -10,6 +10,9 @@ _Nothing currently in flight._
 
 ## Next (committed, soon)
 
+- [ ] [#56](https://github.com/ribeirogab/zeno-agent/issues/56) — feat(backend): manage agent backend (Claude) only via CLI + dedicated dashboard menu + onboarding gate
+- [ ] [#57](https://github.com/ribeirogab/zeno-agent/issues/57) — feat(channels): manage channels (Slack only for now) via CLI
+- [ ] [#58](https://github.com/ribeirogab/zeno-agent/issues/58) — feat(crons): manage scheduled tasks via CLI
 - [ ] [#8](https://github.com/ribeirogab/zeno-agent/issues/8) — feat(agent): multi-backend toggle + Codex impl
 - [ ] [#9](https://github.com/ribeirogab/zeno-agent/issues/9) — feat(channels): channel inbound files
 - [ ] [#10](https://github.com/ribeirogab/zeno-agent/issues/10) — feat(channels): channel outbound files

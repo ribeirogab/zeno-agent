@@ -222,8 +222,11 @@ function CatalogCard({
           aria-label={`Open ${entry.name} docs`}
           className="flex items-start gap-3 flex-1 min-w-0 text-left bg-transparent border-0 p-0 cursor-pointer"
         >
-          <span className="shrink-0 w-9 h-9 inline-flex items-center justify-center bg-panel-2 border border-gold-line rounded-[6px]">
-            <img src={entry.iconUrl} alt="" width={20} height={20} />
+          {/* Match `<ConnectorGroupCard>` icon tile (off-white text-primary bg)
+              so dark logos like github stay legible — using `panel-2` made
+              them disappear on the modal's slightly-lighter card surface. */}
+          <span className="shrink-0 w-9 h-9 inline-flex items-center justify-center bg-text-primary rounded-[6px] p-1">
+            <img src={entry.iconUrl} alt="" className="max-w-full max-h-full" />
           </span>
           <div className="flex flex-col min-w-0 gap-1">
             <span className="flex items-center gap-2 min-w-0">

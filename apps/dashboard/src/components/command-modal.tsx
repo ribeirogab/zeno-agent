@@ -3,11 +3,13 @@
  * command an operator must run to perform a mutating action. Visual reference:
  * vault/specs/2026-05-08-connectors-cli-first-design/artboards/A3-command-modal.png.
  *
- * Anatomy (matches A3):
+ * Anatomy (revised — operator feedback 2026-05-09):
  *   - Single panel (~80px tall), 8px corners, panel background.
  *   - Header bar: action label (uppercase mono — gold for normal, carmine for
- *     destructive), Copy button, Docs ↗ link, close X.
- *   - Command line below in canvas-darker background.
+ *     destructive), Docs ↗ link, close X.
+ *   - Command row below in canvas-darker background. The whole row is one
+ *     button — clicking anywhere on the line copies the command. The right
+ *     edge surfaces a `COPY` / `COPIED` label so the affordance is explicit.
  *   - Destructive variant adds a 1px carmine border to the panel.
  *
  * Interaction: portaled via the `@zeno/ui` `Dialog`, click outside / Escape
@@ -76,13 +78,6 @@ export function CommandModal({ spec, onClose }: CommandModalProps): JSX.Element 
             {headerLabel}
           </span>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 rounded border border-border-strong bg-panel-2 px-2.5 py-1 font-mono text-[10px] font-medium tracking-[0.08em] uppercase text-text-primary transition-colors duration-[120ms] hover:bg-panel"
-            >
-              {copied ? 'COPIED' : 'COPY'}
-            </button>
             <a
               href={`${DOCS_BASE}#${docsAnchor}`}
               target="_blank"
@@ -101,11 +96,27 @@ export function CommandModal({ spec, onClose }: CommandModalProps): JSX.Element 
             </button>
           </div>
         </div>
-        <div className="bg-canvas px-[18px] py-3.5">
-          <pre className="m-0 whitespace-pre-wrap break-all font-mono text-[13px] leading-[1.4] text-text-primary">
+        {/* The entire command row is one button — clicking anywhere on the line
+            copies the command (operator feedback: a separate header button
+            felt redundant + the cursor was already over the command). */}
+        <button
+          type="button"
+          onClick={handleCopy}
+          aria-label={copied ? 'copied' : 'copy command'}
+          className="group/copy flex w-full items-center justify-between gap-3 bg-canvas px-[18px] py-3.5 text-left transition-colors duration-[120ms] hover:bg-panel-2"
+        >
+          <pre className="m-0 flex-1 whitespace-pre-wrap break-all font-mono text-[13px] leading-[1.4] text-text-primary">
             {`$ ${command}`}
           </pre>
-        </div>
+          <span
+            aria-hidden
+            className={`shrink-0 font-mono text-[10px] font-medium tracking-[0.08em] uppercase transition-colors duration-[120ms] ${
+              copied ? 'text-status-active' : 'text-text-tertiary group-hover/copy:text-gold'
+            }`}
+          >
+            {copied ? 'copied' : 'copy'}
+          </span>
+        </button>
       </DialogContent>
     </Dialog>
   );

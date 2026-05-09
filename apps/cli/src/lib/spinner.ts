@@ -1,7 +1,7 @@
 // Async spinner. Wraps a long op with a frame animation; falls back to plain text when not a TTY.
 
 import { stdout } from 'node:process';
-import { c, err as errLine, ok } from './output.js';
+import { c, err as errLine, isQuiet, ok } from './output.js';
 
 const FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
@@ -24,6 +24,15 @@ export async function spin<T>(
   fn: () => Promise<T>,
   opts: SpinOptions = {},
 ): Promise<T> {
+  if (isQuiet()) {
+    try {
+      return await fn();
+    } catch (e) {
+      stdout.write(`${errLine(text)}\n`);
+      throw e;
+    }
+  }
+
   const isTTY = stdout.isTTY;
   const symbol = opts.symbol ?? 'ok';
   const finalText = opts.successText ?? text;

@@ -93,6 +93,10 @@ export function formatDisplay(meta: VersionMeta): string  // for `zeno --version
 export function compareSemver(a: string, b: string): number  // for downgrade guard
 ```
 
+**Module boundary:** `version-meta.ts` is the single source of truth for the `.installed-from` format and semver comparison. `upgradeSteps.writeMeta(meta)` in `lib/upgrade.ts` is a one-line wrapper that imports and calls `versionMeta.writeMeta(meta)`; it exists only so that `writeMeta` can be one of the seven enumerated steps in `upgradeSteps` (uniform pipeline iteration in `--dry-run` and the auto-revert handler). `readMeta`, `formatDisplay`, and `compareSemver` are NOT members of `upgradeSteps` — callers (auto-revert handler, `zeno --version`, downgrade guard) import them directly from `version-meta.ts`.
+
+**Internal constant rename:** `EDGE_TAG = 'edge'` in `lib/upgrade.ts:15` is removed. The `kind` discriminator on `VersionMeta` (`'tag' | 'branch' | 'pr' | 'unstable'`) replaces it. The legacy `EDGE` export is removed; any callers of `EDGE` are updated to compare `meta.kind === 'unstable'`.
+
 `install.sh` writes the same line format directly via shell (no shared library).
 
 ### Q6 — Location of the friendly-error mapping table

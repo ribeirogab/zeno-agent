@@ -1,6 +1,6 @@
 import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
-import { c, err, ok } from '../lib/output.js';
+import { c, err, ok, setQuiet } from '../lib/output.js';
 import { pick } from '../lib/picker.js';
 import { requireProfile } from '../lib/profile.js';
 import { db } from '../lib/state.js';
@@ -12,8 +12,10 @@ export default defineCommand({
   },
   args: {
     name: { type: 'positional', description: 'profile identifier', required: false },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
+    if (args.quiet) setQuiet(true);
     const conn = db();
     let name = args.name as string | undefined;
     if (!name) {

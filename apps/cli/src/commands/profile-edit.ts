@@ -1,6 +1,6 @@
 import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
-import { c, err, ok, warn } from '../lib/output.js';
+import { c, err, ok, setQuiet, warn } from '../lib/output.js';
 import { isPortTaken, PORT_MAX, PORT_MIN, requireProfile } from '../lib/profile.js';
 import { db } from '../lib/state.js';
 
@@ -13,8 +13,10 @@ export default defineCommand({
       description: `new host port (${PORT_MIN}-${PORT_MAX})`,
       required: true,
     },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   run({ args }) {
+    if (args.quiet) setQuiet(true);
     const conn = db();
     const name = args.profile;
     const p = requireProfile(conn, name);

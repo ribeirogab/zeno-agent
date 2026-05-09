@@ -3,7 +3,7 @@ import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
 import { runCommand } from '../lib/errors.js';
-import { c, ok } from '../lib/output.js';
+import { c, ok, setQuiet } from '../lib/output.js';
 import { confirmDestructive } from '../lib/prompt.js';
 import { resolveConnector, resolveProfile } from '../lib/resolvers.js';
 import { waitForCommand } from '../lib/wait-command.js';
@@ -59,8 +59,10 @@ export default defineCommand({
       description: 'confirm destructive uninstall',
       default: false,
     },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
+    if (args.quiet) setQuiet(true);
     const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });

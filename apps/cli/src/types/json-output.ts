@@ -47,3 +47,28 @@ export interface StatusJson {
   lastCron: unknown | null;
   lastError: unknown | null;
 }
+
+export interface ProfileShowJson {
+  name: string;
+  port: number;
+  status: Status;
+  createdAt: number | null;
+  lastStartedAt: number | null;
+  lastStoppedAt: number | null;
+  uptimeMs: number | null;
+  dashboardUrl: string;
+  containerName: string;
+  image: string;
+  workspaceVolume: string;
+  claudeHomeVolume: string;
+  profileDir: string;
+}
+
+export interface DiscoveredInstallationJson {
+  id: string;
+  name: string;
+  accountType: string;
+  repoCount: number;
+  permissions?: Record<string, string>;
+  alreadyWired: boolean;
+}

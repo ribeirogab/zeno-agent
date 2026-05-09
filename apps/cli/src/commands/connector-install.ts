@@ -3,7 +3,7 @@ import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
 import { runCommand } from '../lib/errors.js';
-import { ok } from '../lib/output.js';
+import { ok, setQuiet } from '../lib/output.js';
 import { promptHidden } from '../lib/prompt.js';
 import { resolveCatalog, resolveProfile } from '../lib/resolvers.js';
 import { waitForCommand } from '../lib/wait-command.js';
@@ -118,8 +118,10 @@ export default defineCommand({
       valueHint: 'KEY=VALUE',
       description: 'secret to set (repeatable, e.g. --secret LINEAR_API_KEY=xyz)',
     },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
+    if (args.quiet) setQuiet(true);
     const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });
@@ -134,8 +136,6 @@ export default defineCommand({
     if (typeof args.label === 'string' && args.label.length > 0) {
       installArgs.label = args.label;
     }
-    await runCommand(() =>
-      runConnectorInstall(client, installArgs, (line) => console.log(line)),
-    );
+    await runCommand(() => runConnectorInstall(client, installArgs, (line) => console.log(line)));
   },
 });

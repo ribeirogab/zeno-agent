@@ -2,14 +2,18 @@ import { existsSync } from 'node:fs';
 import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
 import { orchestrator } from '../lib/orchestrator/singleton.js';
-import { c, err, info, ok, rule, warn } from '../lib/output.js';
+import { c, err, info, ok, rule, setQuiet, warn } from '../lib/output.js';
 import { containerName, STATE_DB_PATH, ZENO_HOME } from '../lib/paths.js';
 import { db } from '../lib/state.js';
 import { getCurrentVersion } from '../lib/version.js';
 
 export default defineCommand({
   meta: { name: 'doctor', description: 'preflight diagnostics' },
-  async run() {
+  args: {
+    quiet: { type: 'boolean', description: 'minimal output' },
+  },
+  async run({ args }) {
+    if (args.quiet) setQuiet(true);
     const conn = db();
     const orch = orchestrator();
 

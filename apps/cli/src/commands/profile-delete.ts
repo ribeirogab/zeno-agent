@@ -2,7 +2,7 @@ import { rmSync } from 'node:fs';
 import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
 import { orchestrator } from '../lib/orchestrator/singleton.js';
-import { c, ok, warn } from '../lib/output.js';
+import { c, ok, setQuiet, warn } from '../lib/output.js';
 import {
   claudeHomeVolumeName,
   containerName,
@@ -18,8 +18,10 @@ export default defineCommand({
   args: {
     profile: { type: 'positional', description: 'profile identifier', required: true },
     yes: { type: 'boolean', description: 'skip confirmation' },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
+    if (args.quiet) setQuiet(true);
     const conn = db();
     const name = args.profile;
     requireProfile(conn, name);

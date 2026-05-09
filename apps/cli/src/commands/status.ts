@@ -7,8 +7,8 @@ import {
   formatUptime,
   isQuiet,
   rule,
-  setQuiet,
   type Status,
+  setQuiet,
   statusDot,
   statusLabel,
 } from '../lib/output.js';
@@ -119,7 +119,8 @@ export default defineCommand({
     for (const row of rows) {
       const stickyMark = sticky === row.name ? c.gold('*') : ' ';
       const conns = row.connectorCount === null ? '?' : `${row.connectorCount} connectors`;
-      const uptime = row.state === 'running' && row.uptimeMs > 0 ? formatUptime(Date.now() - row.uptimeMs) : '-';
+      const uptime =
+        row.state === 'running' && row.uptimeMs > 0 ? formatUptime(Date.now() - row.uptimeMs) : '-';
       console.log(
         `${stickyMark} ${statusDot(row.state)} ${row.name.padEnd(14)} :${String(row.port).padEnd(5)} ${conns.padEnd(15)} ${statusLabel(row.state).padEnd(20)} ${uptime}`,
       );
@@ -130,7 +131,10 @@ export default defineCommand({
       .map((r) => ({ profile: r.name, err: r.lastError as { message?: string; ts?: number } }));
     const crons = rows
       .filter((r) => r.lastCron !== null)
-      .map((r) => ({ profile: r.name, run: r.lastCron as { name?: string; ts?: number; status?: string } }));
+      .map((r) => ({
+        profile: r.name,
+        run: r.lastCron as { name?: string; ts?: number; status?: string },
+      }));
 
     if (!isQuiet()) {
       if (crons.length > 0) {
@@ -145,9 +149,7 @@ export default defineCommand({
       if (errors.length > 0) {
         const last = errors[0];
         if (last) {
-          console.log(
-            `  ${c.gray('last error:')}    ${last.profile} · ${last.err.message ?? '?'}`,
-          );
+          console.log(`  ${c.gray('last error:')}    ${last.profile} · ${last.err.message ?? '?'}`);
         }
       }
       console.log('');

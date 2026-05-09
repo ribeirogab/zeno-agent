@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty';
 import { orchestrator } from '../lib/orchestrator/singleton.js';
-import { c, err } from '../lib/output.js';
+import { c, err, setQuiet } from '../lib/output.js';
 import { containerName } from '../lib/paths.js';
 import { resolveProfile } from '../lib/resolvers.js';
 
@@ -13,8 +13,10 @@ export default defineCommand({
       required: false,
     },
     tail: { type: 'string', description: 'last N lines (default 50)' },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
+    if (args.quiet) setQuiet(true);
     const p = await resolveProfile(args.profile as string | undefined);
     const name = p.name;
     const tail = args.tail ? Number(args.tail) : 50;

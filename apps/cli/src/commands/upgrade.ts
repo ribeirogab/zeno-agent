@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
-import { c, err, info, ok, rule } from '../lib/output.js';
+import { c, err, info, ok, rule, setQuiet } from '../lib/output.js';
 import { type PickerItem, pick } from '../lib/picker.js';
 import { confirm } from '../lib/prompt.js';
 import { spin } from '../lib/spinner.js';
@@ -47,8 +47,10 @@ export default defineCommand({
       type: 'string',
       description: 'pagination limit for --list / picker (default 30)',
     },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
+    if (args.quiet) setQuiet(true);
     const conn = db();
     const current = getCurrentVersion(conn);
 

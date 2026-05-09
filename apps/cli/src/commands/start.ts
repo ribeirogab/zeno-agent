@@ -2,7 +2,7 @@ import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
 import { rewriteMasterKey } from '../lib/env-file.js';
 import { orchestrator } from '../lib/orchestrator/singleton.js';
-import { c, info } from '../lib/output.js';
+import { c, info, setQuiet } from '../lib/output.js';
 import {
   agentMountSource,
   claudeHomeVolumeName,
@@ -35,8 +35,10 @@ export default defineCommand({
       type: 'boolean',
       description: 'force rebuild of zeno-agent:dev image before start',
     },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
+    if (args.quiet) setQuiet(true);
     const conn = db();
     const targets: string[] = args.all
       ? queries.listProfiles(conn).map((p) => p.name)

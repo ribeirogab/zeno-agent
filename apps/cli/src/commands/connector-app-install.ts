@@ -4,7 +4,7 @@ import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
 import { runCommand } from '../lib/errors.js';
-import { ok } from '../lib/output.js';
+import { ok, setQuiet } from '../lib/output.js';
 import { resolveProfile } from '../lib/resolvers.js';
 
 export type PemReader = (path: string) => string;
@@ -92,8 +92,10 @@ export default defineCommand({
       description: 'profile name',
       required: false,
     },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
+    if (args.quiet) setQuiet(true);
     const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });

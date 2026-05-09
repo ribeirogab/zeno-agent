@@ -992,6 +992,26 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
       } else {
         const entry = findCatalogEntry(body.catalogId);
         if (!entry) return c.json({ error: 'catalog_entry_not_found' }, 404);
+        // Spec 2026-05-08-connectors-cli-first-design Risks: when a catalog
+        // entry declares `multiInstance: false` and at least one row already
+        // exists for that catalog_id, reject the install. The dashboard's
+        // disabled `+` is a UX courtesy; this is the canonical gate.
+        if (entry.multiInstance === false) {
+          const existing = deps.connectors
+            .list({ kind: 'mcp' })
+            .filter((c2) => c2.catalogId === entry.id);
+          if (existing.length >= 1) {
+            return c.json(
+              {
+                error: 'single_instance_catalog_already_installed',
+                catalogId: entry.id,
+                existingSlug: existing[0]?.slug ?? null,
+                message: `${entry.name} is a single-instance catalog. Uninstall the existing row before reinstalling.`,
+              },
+              409,
+            );
+          }
+        }
         // Use the catalog id as the slug; it's already kebab-case + unique within the catalog.
         // Spec 2026-05-08-connectors-cli-first-design Q4: when the operator
         // supplies an instanceLabel (multiple Linear workspaces, etc.), kebab
@@ -1102,11 +1122,21 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   });
 
   // ── DYNAMIC :id PATHS (after all statics) ──
+  //
+  // Spec 2026-05-08-connectors-cli-first-design: dynamic `:id` accepts EITHER
+  // a UUID or a slug. The CLI typically passes a human-readable slug
+  // (`linear-acme`); the dashboard passes UUIDs. Try get(id) first, fall
+  // back to getBySlug(id). This applies to every dynamic `:id` route below
+  // (detail, activity, test, patch, toggle, refresh-tools, delete, secrets,
+  // tools/permissions). The helper centralises that lookup.
+  function resolveConnector(idOrSlug: string) {
+    return deps.connectors.get(idOrSlug) ?? deps.connectors.getBySlug(idOrSlug);
+  }
 
   // GET /:id
   route.get('/:id', (c) => {
     const id = c.req.param('id');
-    const connector = deps.connectors.get(id);
+    const connector = resolveConnector(id);
     if (!connector) return c.json({ error: 'not_found' }, 404);
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const secrets = deps.connectors.getSecrets(id);
@@ -1129,9 +1159,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // GET /:id/activity
   route.get('/:id/activity', (c) => {
-    const id = c.req.param('id');
-    const connector = deps.connectors.get(id);
+    const connector = resolveConnector(c.req.param('id'));
     if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const limit = Math.min(Number(c.req.query('limit') ?? '20') || 20, 100);
     const recent = deps.connectors.recentInvocations(id, limit);
     return c.json(recent);
@@ -1142,9 +1172,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('test', 'zeno connector test <slug>')(c);
     }
-    const id = c.req.param('id');
-    const connector = deps.connectors.get(id);
+    const connector = resolveConnector(c.req.param('id'));
     if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const secrets = deps.connectors.getSecrets(id);
     // Spec 0038 F#2: pass authCheckTool from the catalog entry if this
     // connector was installed from one. Custom connectors get no auth probe.
@@ -1183,9 +1213,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('update', 'zeno connector secret set <slug> <key>')(c);
     }
-    const id = c.req.param('id');
-    const connector = deps.connectors.get(id);
+    const connector = resolveConnector(c.req.param('id'));
     if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const body = c.req.valid('json');
     const correlationId = randomUUID();
     deps.commands.enqueue({
@@ -1201,9 +1231,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('enable_disable', 'zeno connector enable <slug>')(c);
     }
-    const id = c.req.param('id');
-    const connector = deps.connectors.get(id);
+    const connector = resolveConnector(c.req.param('id'));
     if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     if (connector.status === 'pending') {
       return c.json({ error: 'cannot_toggle_pending' }, 409);
     }
@@ -1220,8 +1250,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         'zeno connector tool bulk <slug> --category <cat> --permission <perm>',
       )(c);
     }
-    const id = c.req.param('id');
-    if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
+    const connector = resolveConnector(c.req.param('id'));
+    if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const { category, permission } = c.req.valid('json');
     const rowsAffected = deps.connectors.setBulkPermission(
       id,
@@ -1236,9 +1267,10 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('tool_permission', 'zeno connector tool set <slug> <tool> <permission>')(c);
     }
-    const id = c.req.param('id');
+    const connector = resolveConnector(c.req.param('id'));
+    if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const toolName = c.req.param('toolName');
-    if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
     const { permission } = c.req.valid('json');
     const ok = deps.connectors.setToolPermission(id, toolName, permission as ToolPermission);
     if (!ok) return c.json({ error: 'tool_not_found' }, 404);
@@ -1250,8 +1282,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('refresh_tools', 'zeno connector refresh-tools <slug>')(c);
     }
-    const id = c.req.param('id');
-    if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
+    const connector = resolveConnector(c.req.param('id'));
+    if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const correlationId = randomUUID();
     deps.commands.enqueue({
       type: 'connector_refresh_tools',
@@ -1266,8 +1299,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('uninstall', 'zeno connector uninstall <slug> --yes')(c);
     }
-    const id = c.req.param('id');
-    if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
+    const connector = resolveConnector(c.req.param('id'));
+    if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const correlationId = randomUUID();
     deps.commands.enqueue({
       type: 'connector_uninstall',
@@ -1284,9 +1318,10 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
     if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
       return blockIfCli('reveal_secret', 'zeno connector secret reveal <slug> <key>')(c);
     }
-    const id = c.req.param('id');
+    const connector = resolveConnector(c.req.param('id'));
+    if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const key = c.req.param('key');
-    if (!deps.connectors.get(id)) return c.json({ error: 'not_found' }, 404);
     const secrets = deps.connectors.getSecrets(id);
     const secret = secrets.find((s) => s.key === key);
     if (!secret) return c.json({ error: 'secret_not_found' }, 404);

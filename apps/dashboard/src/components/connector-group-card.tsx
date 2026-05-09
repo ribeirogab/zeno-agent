@@ -79,13 +79,16 @@ function CardHeader({
       className="flex items-center gap-4 px-5 py-4 border-b border-border-subtle transition-colors duration-[120ms] hover:bg-panel-2"
     >
       <CardIcon iconUrl={iconUrl} fallback={iconFallback} />
-      <div className="flex flex-col flex-1 min-w-0 gap-1">
-        {/* A1: catalog name in lowercase Space Grotesk medium, catalog id-style */}
-        <span className="font-sans text-[18px] font-medium tracking-[-0.005em] leading-5 text-text-primary truncate lowercase">
+      <div className="flex flex-col flex-1 min-w-0 gap-1.5">
+        {/* A1: catalog name in lowercase Space Grotesk medium, catalog id-style.
+            `leading-6` + small bottom padding gives descenders (p/y/g/q) room
+            to render — `leading-5` was clipping them inside the truncate
+            box. */}
+        <span className="font-sans text-[18px] font-medium tracking-[-0.005em] leading-6 text-text-primary truncate lowercase pb-0.5">
           {title}
         </span>
         {/* A1: meta line in lowercase mono with light tracking, text-secondary */}
-        <span className="font-mono text-[11px] tracking-[0.04em] leading-3 text-text-secondary truncate">
+        <span className="font-mono text-[11px] tracking-[0.04em] leading-4 text-text-secondary truncate">
           {meta}
         </span>
       </div>

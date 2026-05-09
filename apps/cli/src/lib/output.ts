@@ -1,9 +1,19 @@
 // ANSI helpers + formatting utilities for the CLI.
 
-const enabled = process.stdout.isTTY && process.env.NO_COLOR !== '1';
+let quietMode = false;
+let colorEnabled = process.stdout.isTTY && process.env.NO_COLOR !== '1';
+
+export function setQuiet(v: boolean): void {
+  quietMode = v;
+  if (v) colorEnabled = false;
+}
+
+export function isQuiet(): boolean {
+  return quietMode;
+}
 
 const code = (open: string, close: string) =>
-  enabled ? (s: string) => `\x1b[${open}m${s}\x1b[${close}m` : (s: string) => s;
+  colorEnabled ? (s: string) => `\x1b[${open}m${s}\x1b[${close}m` : (s: string) => s;
 
 export const c = {
   reset: code('0', '0'),
@@ -18,10 +28,10 @@ export const c = {
   gold: code('38;5;220', '39'),
 };
 
-export const ok = (s: string) => `${c.green('✓')} ${s}`;
-export const warn = (s: string) => `${c.yellow('!')} ${s}`;
+export const ok = (s: string) => (quietMode ? '' : `${c.green('✓')} ${s}`);
+export const warn = (s: string) => (quietMode ? '' : `${c.yellow('!')} ${s}`);
 export const err = (s: string) => `${c.red('✗')} ${s}`;
-export const info = (s: string) => `${c.blue('i')} ${s}`;
+export const info = (s: string) => (quietMode ? '' : `${c.blue('i')} ${s}`);
 
 export type Status = 'running' | 'stopped' | 'failed';
 

@@ -1,10 +1,11 @@
-import { stdin as input, stdout as output } from 'node:process';
-import { createInterface } from 'node:readline/promises';
 import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
-import { ok } from '../lib/output.js';
+import { runCommand } from '../lib/errors.js';
+import { ok, setQuiet } from '../lib/output.js';
+import { promptHidden } from '../lib/prompt.js';
+import { resolveConnector, resolveProfile, resolveSecretKey } from '../lib/resolvers.js';
 import { waitForCommand } from '../lib/wait-command.js';
 
 export type SecretPrompter = (label: string) => Promise<string>;
@@ -28,9 +29,7 @@ type SecretSetClient = Pick<ApiClient, 'get' | 'patch'>;
  * poll via `waitForCommand` until terminal.
  *
  * The `prompter` parameter is injected for testability — production wiring uses
- * a no-echo readline prompt; tests pass a deterministic mock.
- *
- * Spec 2026-05-08-connectors-cli-first-design Task 14.
+ * `lib/prompt.ts:promptHidden`; tests pass a deterministic mock.
  */
 export async function runConnectorSecretSet(
   client: SecretSetClient,
@@ -58,81 +57,40 @@ export async function runConnectorSecretSet(
 }
 
 /**
- * Default prompter: read a line with stdin echo disabled so the secret never
- * lands on the terminal. Falls back to a normal echoed prompt if stdin is not
- * a TTY (e.g., piped input in CI), since `setRawMode` would throw there.
- *
- * Exported so sibling commands (e.g. `rotate`) can share the same default
- * without duplicating the no-echo plumbing.
+ * Default prompter: delegates to `lib/prompt.ts:promptHidden`, which uses raw
+ * stdin mode so the typed value never echoes to the terminal. Exported so
+ * sibling commands (e.g. `rotate`) can share the same default.
  */
 export async function defaultNoEchoPrompter(label: string): Promise<string> {
-  if (input.isTTY && typeof input.setRawMode === 'function') {
-    return readLineNoEcho(label);
-  }
-  const rl = createInterface({ input, output });
-  try {
-    return await rl.question(label);
-  } finally {
-    rl.close();
-  }
-}
-
-const ETX = '\u0003'; // Ctrl+C
-const DEL = '\u007f';
-const BS = '\b';
-
-function readLineNoEcho(label: string): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    output.write(label);
-    input.setRawMode(true);
-    input.resume();
-    input.setEncoding('utf8');
-    let buf = '';
-    const onData = (chunk: string) => {
-      for (const ch of chunk) {
-        if (ch === '\r' || ch === '\n') {
-          cleanup();
-          output.write('\n');
-          resolve(buf);
-          return;
-        }
-        if (ch === ETX) {
-          cleanup();
-          reject(new Error('aborted'));
-          return;
-        }
-        if (ch === DEL || ch === BS) {
-          buf = buf.slice(0, -1);
-          continue;
-        }
-        buf += ch;
-      }
-    };
-    const cleanup = () => {
-      input.setRawMode(false);
-      input.pause();
-      input.removeListener('data', onData);
-    };
-    input.on('data', onData);
-  });
+  return promptHidden(label);
 }
 
 export default defineCommand({
   meta: { name: 'set', description: 'set or replace a single secret value' },
   args: {
-    target: { type: 'positional', description: 'slug or id', required: true },
-    key: { type: 'positional', description: 'secret key', required: true },
+    target: { type: 'positional', description: 'slug or id', required: false },
+    key: { type: 'positional', description: 'secret key', required: false },
     profile: { type: 'string', description: 'profile name', required: false },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
-    const profile =
-      typeof args.profile === 'string' && args.profile.length > 0 ? args.profile : 'default';
+    if (args.quiet) setQuiet(true);
+    const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });
-    await runConnectorSecretSet(
-      client,
-      { target: args.target as string, key: args.key as string },
-      (line) => console.log(line),
+    const target = await resolveConnector(args.target as string | undefined, {
+      listConnectors: () => client.get('/api/connectors'),
+    });
+    const key = await resolveSecretKey(args.key as string | undefined, {
+      listSecrets: async () => {
+        const detail = await client.get<{ secrets?: { key: string }[] }>(
+          `/api/connectors/${encodeURIComponent(target)}`,
+        );
+        return detail.secrets ?? [];
+      },
+    });
+    await runCommand(() =>
+      runConnectorSecretSet(client, { target, key }, (line) => console.log(line)),
     );
   },
 });

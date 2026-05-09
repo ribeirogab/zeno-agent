@@ -7,6 +7,7 @@ import profile from './commands/profile.js';
 import repo from './commands/repo.js';
 import restart from './commands/restart.js';
 import start from './commands/start.js';
+import status from './commands/status.js';
 import stop from './commands/stop.js';
 import upgrade from './commands/upgrade.js';
 import { readVersionFromPackage } from './lib/version.js';
@@ -19,6 +20,7 @@ const main = defineCommand({
   },
   subCommands: {
     profile,
+    status,
     start,
     stop,
     restart,

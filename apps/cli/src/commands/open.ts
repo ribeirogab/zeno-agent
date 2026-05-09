@@ -1,8 +1,7 @@
 import { spawn } from 'node:child_process';
 import { defineCommand } from 'citty';
-import { c, err } from '../lib/output.js';
-import { requireProfile, resolveName } from '../lib/profile.js';
-import { db } from '../lib/state.js';
+import { c, err, setQuiet } from '../lib/output.js';
+import { resolveProfile } from '../lib/resolvers.js';
 
 function platformOpener(): string {
   if (process.env.WSL_DISTRO_NAME) return 'wslview';
@@ -19,11 +18,11 @@ export default defineCommand({
       description: 'profile identifier (omit for sticky)',
       required: false,
     },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
-  run({ args }) {
-    const conn = db();
-    const name = resolveName(conn, args.profile as string | undefined);
-    const p = requireProfile(conn, name);
+  async run({ args }) {
+    if (args.quiet) setQuiet(true);
+    const p = await resolveProfile(args.profile as string | undefined);
     const url = `http://localhost:${p.port}`;
     const child = spawn(platformOpener(), [url], { stdio: 'inherit' });
     child.on('exit', (code) => process.exit(code ?? 1));

@@ -1,6 +1,7 @@
 import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
-import { c, ok } from '../lib/output.js';
+import { c, err, ok, setQuiet } from '../lib/output.js';
+import { pick } from '../lib/picker.js';
 import { requireProfile } from '../lib/profile.js';
 import { db } from '../lib/state.js';
 
@@ -10,11 +11,40 @@ export default defineCommand({
     description: 'set sticky default profile',
   },
   args: {
-    profile: { type: 'positional', description: 'profile identifier', required: true },
+    name: { type: 'positional', description: 'profile identifier', required: false },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
-  run({ args }) {
+  async run({ args }) {
+    if (args.quiet) setQuiet(true);
     const conn = db();
-    const name = args.profile;
+    let name = args.name as string | undefined;
+    if (!name) {
+      if (!process.stdin.isTTY) {
+        process.stderr.write(`${err('usage: zeno profile use <name>')}\n`);
+        process.exit(1);
+      }
+      const profiles = queries.listProfiles(conn);
+      if (profiles.length === 0) {
+        process.stderr.write(`${err('no profiles. create one: zeno profile create <name>')}\n`);
+        process.exit(1);
+      }
+      const sticky = queries.getSticky(conn);
+      const items = profiles.map((p) => ({
+        label: p.name,
+        hint: sticky === p.name ? 'current *' : '',
+      }));
+      const idx = await pick(items, { title: `${c.bold('select sticky profile')}` });
+      if (idx === null) {
+        process.stderr.write(`${err('aborted')}\n`);
+        process.exit(1);
+      }
+      const chosen = profiles[idx];
+      if (!chosen) {
+        process.stderr.write(`${err('invalid selection')}\n`);
+        process.exit(1);
+      }
+      name = chosen.name;
+    }
     requireProfile(conn, name);
     queries.setSticky(conn, name);
     queries.appendAudit(conn, { action: 'profile.use', target: name });

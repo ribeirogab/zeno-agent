@@ -3,8 +3,11 @@ import { join } from 'node:path';
 import type { DB } from '@zeno/db/host';
 import { queries } from '@zeno/db/host';
 import { ZENO_HOME } from './paths.js';
+import { formatDisplay, readMeta } from './version-meta.js';
 
 export function readVersionFromPackage(): string {
+  const meta = readMeta();
+  if (meta) return formatDisplay(meta);
   const path = join(ZENO_HOME, 'package.json');
   if (!existsSync(path)) return '0.0.0-dev';
   try {
@@ -16,5 +19,5 @@ export function readVersionFromPackage(): string {
 }
 
 export function getCurrentVersion(db: DB): string {
-  return queries.getVersion(db) ?? `v${readVersionFromPackage()}`;
+  return queries.getVersion(db) ?? readVersionFromPackage();
 }

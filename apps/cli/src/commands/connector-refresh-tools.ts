@@ -2,7 +2,9 @@ import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
-import { ok } from '../lib/output.js';
+import { runCommand } from '../lib/errors.js';
+import { ok, setQuiet } from '../lib/output.js';
+import { resolveConnector, resolveProfile } from '../lib/resolvers.js';
 import { waitForCommand } from '../lib/wait-command.js';
 
 interface RefreshArgs {
@@ -45,16 +47,20 @@ export async function runConnectorRefreshTools(
 export default defineCommand({
   meta: { name: 'refresh-tools', description: 're-discover tools for a connector' },
   args: {
-    target: { type: 'positional', description: 'slug or id', required: true },
+    target: { type: 'positional', description: 'slug or id', required: false },
     profile: { type: 'string', description: 'profile name', required: false },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
-    const profile =
-      typeof args.profile === 'string' && args.profile.length > 0 ? args.profile : 'default';
+    if (args.quiet) setQuiet(true);
+    const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });
-    await runConnectorRefreshTools(client, { target: args.target as string }, (line) =>
-      console.log(line),
+    const target = await resolveConnector(args.target as string | undefined, {
+      listConnectors: () => client.get('/api/connectors'),
+    });
+    await runCommand(() =>
+      runConnectorRefreshTools(client, { target }, (line) => console.log(line)),
     );
   },
 });

@@ -2,7 +2,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import { createInterface } from 'node:readline/promises';
 import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
-import { c, err, ok } from '../lib/output.js';
+import { c, err, ok, setQuiet } from '../lib/output.js';
 import {
   generateMasterKey,
   isPortTaken,
@@ -45,8 +45,10 @@ export default defineCommand({
       alias: 'y',
       description: 'skip prompts, use placeholder for missing fields',
     },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
+    if (args.quiet) setQuiet(true);
     const conn = db();
     const name = args.profile;
     const validation = validateName(name);

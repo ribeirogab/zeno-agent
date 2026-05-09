@@ -2,7 +2,14 @@ import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
-import { ok } from '../lib/output.js';
+import { runCommand } from '../lib/errors.js';
+import { ok, setQuiet } from '../lib/output.js';
+import {
+  resolveConnector,
+  resolvePermission,
+  resolveProfile,
+  resolveTool,
+} from '../lib/resolvers.js';
 
 const PERMISSIONS = ['always_allow', 'ask', 'never'] as const;
 type Permission = (typeof PERMISSIONS)[number];
@@ -47,28 +54,35 @@ export async function runConnectorToolSet(
 export default defineCommand({
   meta: { name: 'set', description: 'set permission for a single tool' },
   args: {
-    target: { type: 'positional', description: 'slug or id', required: true },
-    tool: { type: 'positional', description: 'tool name', required: true },
+    target: { type: 'positional', description: 'slug or id', required: false },
+    tool: { type: 'positional', description: 'tool name', required: false },
     permission: {
       type: 'positional',
       description: 'always_allow | ask | never',
-      required: true,
+      required: false,
     },
     profile: { type: 'string', description: 'profile name', required: false },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
-    const profile =
-      typeof args.profile === 'string' && args.profile.length > 0 ? args.profile : 'default';
+    if (args.quiet) setQuiet(true);
+    const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });
-    await runConnectorToolSet(
-      client,
-      {
-        target: args.target as string,
-        tool: args.tool as string,
-        permission: args.permission as string,
+    const target = await resolveConnector(args.target as string | undefined, {
+      listConnectors: () => client.get('/api/connectors'),
+    });
+    const tool = await resolveTool(args.tool as string | undefined, {
+      listTools: async () => {
+        const detail = await client.get<{ tools?: { toolName: string }[] }>(
+          `/api/connectors/${encodeURIComponent(target)}`,
+        );
+        return (detail.tools ?? []).map((t) => ({ name: t.toolName }));
       },
-      (line) => console.log(line),
+    });
+    const permission = await resolvePermission(args.permission as string | undefined);
+    await runCommand(() =>
+      runConnectorToolSet(client, { target, tool, permission }, (line) => console.log(line)),
     );
   },
 });

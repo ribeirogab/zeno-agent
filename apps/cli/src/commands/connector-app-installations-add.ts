@@ -2,7 +2,9 @@ import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
-import { ok } from '../lib/output.js';
+import { runCommand } from '../lib/errors.js';
+import { ok, setQuiet } from '../lib/output.js';
+import { resolveProfile } from '../lib/resolvers.js';
 import { waitForCommand } from '../lib/wait-command.js';
 
 interface AddInstallationArgs {
@@ -61,19 +63,22 @@ export default defineCommand({
       required: true,
     },
     profile: { type: 'string', description: 'profile name', required: false },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
-    const profile =
-      typeof args.profile === 'string' && args.profile.length > 0 ? args.profile : 'default';
+    if (args.quiet) setQuiet(true);
+    const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });
-    await runConnectorAppInstallationsAdd(
-      client,
-      {
-        installationId: args.installationId as string,
-        label: args.label as string,
-      },
-      (line) => console.log(line),
+    await runCommand(() =>
+      runConnectorAppInstallationsAdd(
+        client,
+        {
+          installationId: args.installationId as string,
+          label: args.label as string,
+        },
+        (line) => console.log(line),
+      ),
     );
   },
 });

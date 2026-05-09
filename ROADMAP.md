@@ -19,7 +19,6 @@ _Nothing currently in flight._
 - [ ] [#45](https://github.com/ribeirogab/zeno-agent/issues/45) — feat(security): production-grade auth layer for profile dashboards
 - [ ] [#46](https://github.com/ribeirogab/zeno-agent/issues/46) — feat(dashboard): onboarding wizard inside profile dashboard
 - [ ] [#47](https://github.com/ribeirogab/zeno-agent/issues/47) — feat(cli): backup / restore tooling for `~/.zeno/`
-- [ ] [#60](https://github.com/ribeirogab/zeno-agent/issues/60) — feat(cli): UX overhaul — pickers, install.sh/upgrade parity, security fixes
 
 ## Later (no commitment)
 
@@ -28,6 +27,7 @@ _Nothing currently in flight._
 
 ## Recently shipped
 
+- [x] [#60](https://github.com/ribeirogab/zeno-agent/issues/60) — feat(cli): UX overhaul — pickers, install.sh/upgrade parity, security fixes ([PR #62](https://github.com/ribeirogab/zeno-agent/pull/62))
 - [x] [PR #54](https://github.com/ribeirogab/zeno-agent/pull/54) — feat(connectors): CLI-first rework — N instances per catalog, dashboard goes read-only, install/uninstall/test/refresh-tools/enable/disable all via `zeno connector …`
 - [x] [#44](https://github.com/ribeirogab/zeno-agent/issues/44) — feat(db): unify DB stack as drizzle ([PR #53](https://github.com/ribeirogab/zeno-agent/pull/53))
 - [x] [PR #32](https://github.com/ribeirogab/zeno-agent/pull/32) — feat(cli): interactive arrow-key picker on `zeno upgrade`

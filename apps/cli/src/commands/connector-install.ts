@@ -1,10 +1,11 @@
-import { stdin as input, stdout as output } from 'node:process';
-import { createInterface } from 'node:readline/promises';
 import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
 import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
-import { c, ok } from '../lib/output.js';
+import { runCommand } from '../lib/errors.js';
+import { ok, setQuiet } from '../lib/output.js';
+import { promptHidden } from '../lib/prompt.js';
+import { resolveCatalog, resolveProfile } from '../lib/resolvers.js';
 import { waitForCommand } from '../lib/wait-command.js';
 
 interface CatalogSecretSpec {
@@ -51,7 +52,7 @@ export async function runConnectorInstall(
   const submitted: Array<{ key: string; value: string }> = [];
   const required = (entry.secrets ?? []).filter((s) => s.required === true);
   for (const sec of required) {
-    const value = provided[sec.key] ?? (await promptSecret(sec.label ?? sec.key, sec.help));
+    const value = provided[sec.key] ?? (await promptHidden(sec.label ?? sec.key, sec.help));
     submitted.push({ key: sec.key, value });
   }
   // Also forward any non-required secrets the operator explicitly provided.
@@ -78,17 +79,6 @@ export async function runConnectorInstall(
   throw new Error(`install failed: ${status.result ?? 'unknown'}`);
 }
 
-async function promptSecret(label: string, help?: string): Promise<string> {
-  const rl = createInterface({ input, output });
-  try {
-    if (help) console.log(c.dim(help));
-    const value = await rl.question(`${label}: `);
-    return value.trim();
-  } finally {
-    rl.close();
-  }
-}
-
 function parseSecretFlags(flag: unknown): Record<string, string> {
   const flat: string[] = Array.isArray(flag)
     ? (flag.filter((v): v is string => typeof v === 'string') as string[])
@@ -112,7 +102,7 @@ export default defineCommand({
     catalogId: {
       type: 'positional',
       description: 'catalog entry id (e.g. "linear", "sentry")',
-      required: true,
+      required: false,
     },
     label: {
       type: 'string',
@@ -128,20 +118,24 @@ export default defineCommand({
       valueHint: 'KEY=VALUE',
       description: 'secret to set (repeatable, e.g. --secret LINEAR_API_KEY=xyz)',
     },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
-    const profile =
-      typeof args.profile === 'string' && args.profile.length > 0 ? args.profile : 'default';
+    if (args.quiet) setQuiet(true);
+    const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClientImpl({ baseUrl });
+    const catalogId = await resolveCatalog(args.catalogId as string | undefined, {
+      listCatalog: () => client.get('/api/connectors/catalog'),
+    });
     const secrets = parseSecretFlags(args.secret);
     const installArgs: InstallArgs = {
-      catalogId: args.catalogId as string,
+      catalogId,
       secrets,
     };
     if (typeof args.label === 'string' && args.label.length > 0) {
       installArgs.label = args.label;
     }
-    await runConnectorInstall(client, installArgs, (line) => console.log(line));
+    await runCommand(() => runConnectorInstall(client, installArgs, (line) => console.log(line)));
   },
 });

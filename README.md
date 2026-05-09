@@ -19,7 +19,7 @@ Zeno acts on your behalf inside the apps you already work in. Open a pull reques
 curl -fsSL https://zeno-agent.dev/install.sh | sh
 ```
 
-The wrapper at `zeno-agent.dev/install.sh` forwards to the [`install.sh`](./install.sh) shipped at the most recent release tag; pass `| sh -s -- --beta` to install from `main` instead. Full walkthrough — prerequisites, profile creation, first `@zeno hello` in Slack — at <https://docs.zeno-agent.dev/install>. Daily commands at <https://docs.zeno-agent.dev/daily-ops>.
+The wrapper at `zeno-agent.dev/install.sh` forwards to the [`install.sh`](./install.sh) shipped at the most recent release tag; pass `| sh -s -- --unstable` to install from `main` instead. Full walkthrough — prerequisites, profile creation, first `@zeno hello` in Slack — at <https://docs.zeno-agent.dev/install>. Daily commands at <https://docs.zeno-agent.dev/daily-ops>.
 
 ## What works today
 

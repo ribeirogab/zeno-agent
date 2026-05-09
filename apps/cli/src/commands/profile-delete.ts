@@ -1,10 +1,8 @@
 import { rmSync } from 'node:fs';
-import { stdin as input, stdout as output } from 'node:process';
-import { createInterface } from 'node:readline/promises';
 import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
 import { orchestrator } from '../lib/orchestrator/singleton.js';
-import { c, ok, warn } from '../lib/output.js';
+import { c, ok, setQuiet, warn } from '../lib/output.js';
 import {
   claudeHomeVolumeName,
   containerName,
@@ -12,14 +10,18 @@ import {
   workspaceVolumeName,
 } from '../lib/paths.js';
 import { requireProfile } from '../lib/profile.js';
+import { confirmDestructive } from '../lib/prompt.js';
 import { db } from '../lib/state.js';
 
 export default defineCommand({
   meta: { name: 'delete', description: 'permanently delete a profile (confirms)' },
   args: {
     profile: { type: 'positional', description: 'profile identifier', required: true },
+    yes: { type: 'boolean', description: 'skip confirmation' },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
+    if (args.quiet) setQuiet(true);
     const conn = db();
     const name = args.profile;
     requireProfile(conn, name);
@@ -33,12 +35,13 @@ export default defineCommand({
     console.log(`  - DB row`);
     console.log('');
 
-    const rl = createInterface({ input, output });
-    const answer = await rl.question(`Type ${c.bold(`'${name}'`)} to confirm: `);
-    rl.close();
-    if (answer.trim() !== name) {
+    const confirmed = await confirmDestructive(
+      `delete profile '${name}'? this destroys volumes and data. (y/N)`,
+      { yes: !!args.yes },
+    );
+    if (!confirmed) {
       console.log(c.gray('aborted.'));
-      process.exit(1);
+      return;
     }
 
     const orch = orchestrator();

@@ -165,7 +165,7 @@ describe('zeno connector app', () => {
   });
 
   describe('uninstall', () => {
-    it('POSTs /catalog/github-app/uninstall-app with confirmAppName and waits', async () => {
+    it('POSTs /catalog/github-app/uninstall-app with empty body and waits', async () => {
       const client = {
         get: vi.fn().mockResolvedValue({ status: 'success', result: null }),
         post: vi.fn().mockResolvedValue({ correlationId: 'corr-un' }),
@@ -174,48 +174,16 @@ describe('zeno connector app', () => {
       await runConnectorAppUninstall(
         // biome-ignore lint/suspicious/noExplicitAny: mocked client narrows to ApiClient subset
         client as any,
-        { confirm: 'Acme Corp App' },
         (line) => out.push(line),
       );
-      expect(client.post).toHaveBeenCalledWith('/api/connectors/catalog/github-app/uninstall-app', {
-        confirmAppName: 'Acme Corp App',
-      });
+      expect(client.post).toHaveBeenCalledWith(
+        '/api/connectors/catalog/github-app/uninstall-app',
+        {},
+      );
       expect(client.get).toHaveBeenCalledWith('/api/commands/corr-un');
       const text = out.join('\n');
       expect(text).toContain('corr-un');
       expect(text).toMatch(/uninstalled/);
-    });
-
-    it('uses the prompter when --confirm is not provided', async () => {
-      const client = {
-        get: vi.fn().mockResolvedValue({ status: 'success', result: null }),
-        post: vi.fn().mockResolvedValue({ correlationId: 'corr-prompt' }),
-      };
-      const prompter = vi.fn().mockResolvedValue('Acme Corp App');
-      await runConnectorAppUninstall(
-        // biome-ignore lint/suspicious/noExplicitAny: mocked client narrows to ApiClient subset
-        client as any,
-        { prompter },
-        () => {},
-      );
-      expect(prompter).toHaveBeenCalledTimes(1);
-      expect(client.post).toHaveBeenCalledWith('/api/connectors/catalog/github-app/uninstall-app', {
-        confirmAppName: 'Acme Corp App',
-      });
-    });
-
-    it('rejects an empty confirmation value', async () => {
-      const client = { get: vi.fn(), post: vi.fn() };
-      const prompter = vi.fn().mockResolvedValue('');
-      await expect(
-        runConnectorAppUninstall(
-          // biome-ignore lint/suspicious/noExplicitAny: mocked client narrows to ApiClient subset
-          client as any,
-          { prompter },
-          () => {},
-        ),
-      ).rejects.toThrow(/empty/i);
-      expect(client.post).not.toHaveBeenCalled();
     });
 
     it('throws when waitForCommand reports failure', async () => {
@@ -227,7 +195,6 @@ describe('zeno connector app', () => {
         runConnectorAppUninstall(
           // biome-ignore lint/suspicious/noExplicitAny: mocked client narrows to ApiClient subset
           client as any,
-          { confirm: 'Acme Corp App' },
           () => {},
         ),
       ).rejects.toThrow(/cleanup_failed/);

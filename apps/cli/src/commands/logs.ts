@@ -1,9 +1,8 @@
 import { defineCommand } from 'citty';
 import { orchestrator } from '../lib/orchestrator/singleton.js';
-import { c, err } from '../lib/output.js';
+import { c, err, setQuiet } from '../lib/output.js';
 import { containerName } from '../lib/paths.js';
-import { requireProfile, resolveName } from '../lib/profile.js';
-import { db } from '../lib/state.js';
+import { resolveProfile } from '../lib/resolvers.js';
 
 export default defineCommand({
   meta: { name: 'logs', description: 'tail container logs' },
@@ -14,11 +13,12 @@ export default defineCommand({
       required: false,
     },
     tail: { type: 'string', description: 'last N lines (default 50)' },
+    quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
-    const conn = db();
-    const name = resolveName(conn, args.profile as string | undefined);
-    requireProfile(conn, name);
+    if (args.quiet) setQuiet(true);
+    const p = await resolveProfile(args.profile as string | undefined);
+    const name = p.name;
     const tail = args.tail ? Number(args.tail) : 50;
     if (!Number.isInteger(tail) || tail < 0) {
       console.error(err('--tail must be a non-negative integer'));

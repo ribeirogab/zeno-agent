@@ -41,6 +41,7 @@ import ProfileUseFlags from '@/generated/cli-flags/profile-use.mdx';
 import RepoFlags from '@/generated/cli-flags/repo.mdx';
 import RestartFlags from '@/generated/cli-flags/restart.mdx';
 import StartFlags from '@/generated/cli-flags/start.mdx';
+import StatusFlags from '@/generated/cli-flags/status.mdx';
 import StopFlags from '@/generated/cli-flags/stop.mdx';
 import UpgradeFlags from '@/generated/cli-flags/upgrade.mdx';
 
@@ -98,14 +99,17 @@ Set the **sticky** profile that subcommands act on when no profile argument is g
 zeno profile use personal
 ```
 
+Omitting the positional in TTY opens a picker over every profile in `state.db` (the current sticky is marked with `*`). In non-TTY without an argument it exits 1 with `usage: zeno profile use <name>`.
+
 <ProfileUseFlags />
 
 ### `zeno profile delete`
 
-Remove a profile: container, both volumes, the `~/.zeno/profiles/<name>/` directory, and the `state.db` row. Prompts before destroying anything.
+Remove a profile: container, both volumes, the `~/.zeno/profiles/<name>/` directory, and the `state.db` row. In TTY, prompts `delete profile '<name>'? this destroys volumes and data. (y/N)`; pass `--yes` to skip. In non-TTY without `--yes`, exits 1 with `error: destructive operation requires --yes in non-interactive mode`.
 
 ```bash
-zeno profile delete personal
+zeno profile delete personal           # interactive prompt
+zeno profile delete personal --yes     # skip prompt (scripted)
 ```
 
 <ProfileDeleteFlags />
@@ -117,6 +121,8 @@ The umbrella subcommand. Running it with no further arg prints the available ver
 <ProfileFlags />
 
 ## Lifecycle
+
+`zeno start`, `stop`, `restart`, `logs`, and `open` resolve their target profile in this order: explicit positional → sticky (`zeno profile use`) → picker over running containers (TTY only) → exit 1 with `no profile specified. use --profile <name>` (non-TTY). Passing `--all` skips the picker and acts on every profile.
 
 ### `zeno start`
 
@@ -153,6 +159,46 @@ zeno restart personal
 
 ## Inspect
 
+### `zeno status`
+
+One-screen overview of every profile: container state (running / stopped / error), connector count, last cron run, and last error. Resolves the inventory from `state.db` and then fans out one HTTP call per running profile to its worker API in parallel; stopped profiles skip the HTTP calls and render `stopped`.
+
+```bash
+zeno status
+zeno status --json
+zeno status --quiet
+```
+
+The per-profile HTTP timeout is 1 second. When a call times out, the affected field renders `?` rather than blocking the table. `zeno status` is a humanly-driven status check, not a real-time monitor — for production observability hook the worker's `/api/health` directly.
+
+`--json` emits an array of objects, one per profile, with the schema documented in [`apps/cli/src/types/json-output.ts`](https://github.com/ribeirogab/zeno-agent/blob/main/apps/cli/src/types/json-output.ts) (see `StatusJson`):
+
+```json
+[
+  {
+    "name": "personal",
+    "port": 6101,
+    "state": "running",
+    "uptimeMs": 132040,
+    "connectorCount": 4,
+    "lastCron": null,
+    "lastError": null
+  }
+]
+```
+
+Fields:
+
+- `name` — profile name as registered in `state.db`.
+- `port` — host-side dashboard port (`127.0.0.1:<port>`).
+- `state` — container state. `running`, `stopped`, `restarting`, `error`, etc.
+- `uptimeMs` — milliseconds since the container last started; `0` when not running.
+- `connectorCount` — count from `GET /api/connectors`. `null` when the profile is stopped or the call timed out (rendered as `?` in the table).
+- `lastCron` — most recent entry from `GET /api/crons/runs?limit=1`, or `null`.
+- `lastError` — most recent entry from `GET /api/logs?level=error&limit=1`, or `null`.
+
+<StatusFlags />
+
 ### `zeno logs`
 
 Tail container logs. SIGINT (Ctrl-C) to abort.
@@ -187,13 +233,38 @@ zeno doctor
 
 ### `zeno upgrade`
 
-Switch the local clone to a different release. With no flags, drops into a TTY arrow-key picker over the available stable releases. With `--list`, prints a table and exits. With `--to`, pins to a specific tag. With `--prerelease` or `--edge`, opens the picker over the alternate channels.
+Switch the local clone to a different release tag, branch, or PR. With no flags in TTY, drops into an arrow-key picker over the available releases plus an `unstable` row (highlighted, separated by a horizontal rule) at the bottom. The picker cursor lands on the latest stable release; the row matching the currently-installed ref is marked with `*`. In non-TTY without flags, resolves the same fallback chain as `install.sh`: latest stable → most recent prerelease → `main` HEAD.
 
 ```bash
 zeno upgrade
 zeno upgrade --list
 zeno upgrade --to v2026.5.7-7
 ```
+
+#### Target flags
+
+`--to`, `--unstable`, `--branch`, `--pr`, `--latest`, `--prerelease` are mutually exclusive — passing more than one prints an error and exits 1.
+
+```bash
+zeno upgrade --unstable                  # main HEAD; explicit confirmation in TTY, --yes in non-TTY
+zeno upgrade --branch feat/foo --yes     # arbitrary branch (testing)
+zeno upgrade --pr 123 --yes              # pull request branch via `gh pr checkout`
+```
+
+`--unstable`, `--branch`, and `--pr` are flagged as risky targets: in TTY they prompt `<kind> target may break. continue? (y/N)`; in non-TTY they exit 1 unless `--yes` is passed.
+
+#### Pipeline & safety flags
+
+```bash
+zeno upgrade --branch feat/foo --dry-run   # print resolved target + 7 pipeline steps; exit 0 without touching anything
+zeno upgrade --to v2026.5.7-7 --yes        # skip the (y/N) prompt for risky targets
+zeno upgrade --list --limit 10             # paginate the release listing (default 30)
+zeno upgrade --notes v2026.5.7-7           # print release notes via `gh release view` and exit
+```
+
+The pipeline runs seven enumerated steps (`fetchTags`, `checkoutRef`, `setVersion`, `writeMeta`, `installDeps`, `buildCli`, `buildImage`). On failure of any post-checkout step the upgrade auto-reverts: re-checks out the previous ref, restores `state.db` + `.installed-from`, prints `✓ reverted to <prev>`, and exits 1.
+
+`zeno --version` reads `.installed-from` and renders the active ref accordingly: `v2026.5.7`, `branch:feat/foo (a1b2c3d)`, `pr:#123 (a1b2c3d)`, or `unstable (a1b2c3d)`.
 
 <UpgradeFlags />
 
@@ -204,6 +275,12 @@ zeno upgrade --to v2026.5.7-7
 The behaviour is controlled by the `ZENO_API_WRITES` env var on the worker container (default `cli`). To re-enable dashboard mutations temporarily, set `ZENO_API_WRITES=dashboard` in `~/.zeno/profiles/<name>/.env` and restart the profile. Even when set to `cli`, the CLI itself bypasses the gate by sending a `X-Zeno-Origin: cli` header — trust-based, since the API binds 127.0.0.1 on a single-user host.
 
 The CLI talks to the profile's API over HTTP (`http://127.0.0.1:<port>`). All mutations are queued through a `commands` table; the CLI polls `/api/commands/:correlationId` until the worker reports terminal status (`success` or `failed`). Synchronous endpoints (`/test`, `/secrets/:key/reveal`) skip the queue.
+
+#### Picker fallback
+
+Every `zeno connector *` command resolves its profile through the same chain as the lifecycle commands: explicit `--profile` flag → sticky → picker (TTY) → exit 1 (non-TTY). When the profile picker opens (no sticky, ≥2 profiles, no `--quiet`), the command also emits `tip: zeno profile use <name> → skip picker next time` after the selection.
+
+The same pattern applies to other positional arguments — omitting the connector slug, catalog id, secret key, tool name, or permission level in TTY opens a picker over the relevant API result; in non-TTY it exits 1 with a clear error. Every command still accepts the flag/positional directly, in which case the picker is skipped.
 
 ### `zeno connector list`
 
@@ -270,10 +347,11 @@ zeno connector disable linear-acme
 
 ### `zeno connector uninstall`
 
-Permanently remove a connector. Requires `--yes` (the dashboard's destructive `<CommandModal>` always pre-fills it).
+Permanently remove a connector. In TTY, prompts `uninstall connector '<slug>'? (y/N)`; pass `--yes` to skip. In non-TTY without `--yes`, exits 1 with `error: destructive operation requires --yes in non-interactive mode`. The dashboard's destructive `<CommandModal>` always pre-fills `--yes`.
 
 ```bash
-zeno connector uninstall linear-acme --yes
+zeno connector uninstall linear-acme            # interactive prompt
+zeno connector uninstall linear-acme --yes      # skip prompt (scripted)
 ```
 
 <ConnectorUninstallFlags />
@@ -428,10 +506,11 @@ zeno connector app installations add --installation-id 125887887 --label "FNLivr
 
 #### `zeno connector app uninstall`
 
-Tear down the App entity and cascade-delete every installation row underneath. Requires `--confirm "<App Name>"` (case-sensitive) — outsiders to the operator's tab name don't accidentally wipe it. Returns `400 confirm_app_name_mismatch` on a bad confirm.
+Tear down the App entity and cascade-delete every installation row underneath. In TTY, prompts `uninstall app '<App Name>'? this cascades to N installations. (y/N)`; pass `--yes` to skip. In non-TTY without `--yes` it exits 1 with `error: destructive operation requires --yes in non-interactive mode`.
 
 ```bash
-zeno connector app uninstall --confirm "Zeno Agent App"
+zeno connector app uninstall            # interactive prompt
+zeno connector app uninstall --yes      # skip prompt (scripted)
 ```
 
 <ConnectorAppUninstallFlags />
@@ -453,3 +532,43 @@ cd "$(zeno repo)"
 ```
 
 <RepoFlags />
+
+## Scripting & automation
+
+The CLI is designed to be drivable by AI agents and shell scripts without a TTY. Three guarantees hold across every subcommand.
+
+### Flags work without TTY
+
+Every flag, positional, and `--profile` argument behaves the same way in TTY and in pipes. When all required arguments are passed, no command needs interaction. When a required argument is missing in non-TTY, the command exits 1 with a clear error (`no profile specified. use --profile <name>`, `usage: zeno profile use <name>`, etc.) instead of hanging on a prompt.
+
+```bash
+zeno connector install --profile work --secret 'KEY=val' playwright   # no prompts, exits 0
+zeno connector list                                                   # non-TTY + no sticky → exit 1 with hint
+```
+
+### `--json` for read commands
+
+Every read command accepts `--json` and emits a single JSON value to stdout: `profile list / show`, `connector list / show / catalog`, `connector secret list`, `connector tool list`, `status`. The schemas are exported types in [`apps/cli/src/types/json-output.ts`](https://github.com/ribeirogab/zeno-agent/blob/main/apps/cli/src/types/json-output.ts) — `ProfileListItem`, `ProfileShowJson`, `ConnectorListItem`, `CatalogListItem`, `SecretListItem`, `ToolListItem`, `StatusJson`, `DiscoveredInstallationJson`.
+
+The contract is per-command (no envelope, no version field). Breaking changes land in release notes. Add `--quiet` to strip every other byte of output:
+
+```bash
+zeno status --json --quiet | jq '.[] | select(.state == "running")'
+```
+
+### `--quiet` everywhere
+
+Every command accepts `--quiet`. Effects: spinners stay silent, headers and dividers are omitted, ANSI colors are stripped (same semantics as `NO_COLOR`), and `info(...)` lines are suppressed. Errors still print to `stderr`. `--json --quiet` produces stdout that is parseable JSON with no leading or trailing decoration.
+
+### Destructive ops require `--yes` in non-TTY
+
+`zeno profile delete`, `zeno connector uninstall`, and `zeno connector app uninstall` prompt `(y/N)` in TTY. In non-TTY without `--yes` they exit 1 with `error: destructive operation requires --yes in non-interactive mode`. Pre-approving the destruction keeps automation explicit.
+
+```bash
+zeno connector uninstall linear-acme --yes
+zeno profile delete personal --yes
+```
+
+### Risky upgrade targets require `--yes` in non-TTY
+
+`zeno upgrade --unstable`, `--branch <name>`, and `--pr <number>` are flagged as risky. In TTY they prompt `<kind> target may break. continue? (y/N)`; in non-TTY they exit 1 unless `--yes` is passed. Tagged versions (`--to <tag>`, `--latest`) skip the confirmation.

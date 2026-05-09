@@ -30,10 +30,12 @@ zeno open personal           # open the dashboard in your browser
 ## Health and updates
 
 ```bash
+zeno status                  # one-screen overview: profiles, container state, connector counts, last cron, last error
 zeno doctor                  # preflight: docker reachable, DB ↔ Docker drift, etc.
-zeno upgrade                 # interactive picker: stable / pre-release / edge
+zeno upgrade                 # interactive picker: stable / pre-release / unstable (highlighted)
 zeno upgrade --list          # list every available release
 zeno upgrade --to v2026.5.7-7  # pin to a specific release
+zeno upgrade --unstable      # main HEAD; explicit confirm in TTY, --yes in non-TTY
 ```
 
 `zeno doctor` reports drift between `~/.zeno/state.db` and the running Docker world; it does not heal automatically. If something is wrong, the report tells you which command to run.

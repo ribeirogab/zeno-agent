@@ -26,25 +26,50 @@ The installer clones the repo to `~/.zeno/zeno-agent/` and symlinks the `zeno` b
 curl -fsSL https://zeno-agent.dev/install.sh | sh
 ```
 
-That writes three things:
+That writes four things:
 
-- `~/.zeno/zeno-agent/` — the cloned repo, checked out at the latest stable tag
+- `~/.zeno/zeno-agent/` — the cloned repo, checked out at the resolved ref
+- `~/.zeno/zeno-agent/.installed-from` — single line in the format `kind:value@sha` recording the install origin (read by `zeno --version` and `zeno upgrade` so they know how the clone was bootstrapped)
 - `~/.zeno/state.db` — host-side SQLite holding profile metadata (`chmod 600`, owner-only)
 - `~/.local/bin/zeno` — symlink to the built CLI
 
 Make sure `~/.local/bin` is on your `PATH`. Most distros ship that already; if not, add it to your shell rc.
 
-### Beta channel (track `main`)
+### Default behaviour
 
-<Callout type="warn">
-The beta channel installs straight from `main`. It may be broken; breaking changes are expected. Use only if you need an unreleased fix.
-</Callout>
+With no flag, the installer resolves the target through this fallback chain, in order:
+
+1. `GET /repos/ribeirogab/zeno-agent/releases/latest` — the latest stable release tag.
+2. `GET /repos/ribeirogab/zeno-agent/releases?per_page=1` — the most recent prerelease, if no stable release exists yet.
+3. `main` HEAD — only when the repo has no releases at all.
+
+The `.installed-from` line records which step the installer landed on (`tag:v…@sha`, or `unstable:@sha` for the `main` fallback). `zeno upgrade` (no flags, non-TTY) follows the same chain so installer and upgrader behave identically.
+
+### Target flags
+
+The installer accepts four mutually-exclusive target flags. Pass at most one — combining any two prints an error and exits 1.
 
 ```bash
-curl -fsSL https://zeno-agent.dev/install.sh | sh -s -- --beta
+curl -fsSL https://zeno-agent.dev/install.sh | sh                                 # latest stable (default fallback chain)
+curl -fsSL https://zeno-agent.dev/install.sh | sh -s -- --unstable                # main HEAD — explicitly untrusted
+curl -fsSL https://zeno-agent.dev/install.sh | sh -s -- --version v2026.5.7       # pin to a release tag
+curl -fsSL https://zeno-agent.dev/install.sh | sh -s -- --branch feat/foo         # arbitrary branch (testing)
+curl -fsSL https://zeno-agent.dev/install.sh | sh -s -- --pr 123                  # pull request branch (testing)
 ```
 
-Once installed, you can move between channels at any time with `zeno upgrade` (interactive picker) — see [Daily ops](/daily-ops).
+| Flag | What it installs | `.installed-from` line |
+|---|---|---|
+| _(none)_ | Latest stable → fallback prerelease → fallback `main` | `tag:<resolved>@<sha>` or `unstable:@<sha>` |
+| `--unstable` | `main` HEAD | `unstable:@<sha>` |
+| `--version <tag>` | The named release tag (validated via REST before clone) | `tag:<value>@<sha>` |
+| `--branch <name>` | The named branch | `branch:<name>@<sha>` |
+| `--pr <number>` | `pull/<n>/head` (works for fork PRs) | `pr:<n>@<sha>` |
+
+<Callout type="warn">
+**`--unstable` is the explicitly-untrusted channel.** It pulls `main` HEAD with no CI gate; breaking changes land there before they ship to a tag. Only use it when you need an unreleased fix, and expect things to break.
+</Callout>
+
+`--version`, `--branch`, and `--pr` are intended for testing-in-place — pinning to a known release, reproducing a bug on a feature branch, or trying out a contributor's PR before review. Routine version moves go through `zeno upgrade` instead; see [Daily ops](/daily-ops) and the [CLI reference](/cli#zeno-upgrade).
 
 ## Verify
 

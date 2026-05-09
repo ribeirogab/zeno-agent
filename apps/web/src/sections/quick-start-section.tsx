@@ -1,23 +1,23 @@
 import { useState } from 'react';
-import { BetaToggle } from '../components/beta-toggle';
 import { OsToggle } from '../components/os-toggle';
 import { TerminalBlock } from '../components/terminal-block';
-import { INSTALL_CMD, INSTALL_CMD_BETA } from '../lib/constants';
+import { UnstableToggle } from '../components/unstable-toggle';
+import { INSTALL_CMD, INSTALL_CMD_UNSTABLE } from '../lib/constants';
 
 // Quick Start. Heading kicker -> macOS-style terminal block with the
 // install one-liner -> prereqs footnote. Header carries an OS toggle
 // (macOS & Linux active; Windows disabled with a "Coming soon" tooltip)
-// and a BETA toggle that switches the rendered command to the
-// `--beta` form (install.sh from main vs latest release tag).
+// and an UNSTABLE toggle that switches the rendered command to the
+// `--unstable` form (install.sh from main vs latest release tag).
 //
 // Section is the install moment; everything else on the page funnels
 // here.
 export function QuickStartSection() {
-  const [beta, setBeta] = useState(false);
-  const command = beta ? INSTALL_CMD_BETA : INSTALL_CMD;
-  const comment = beta
-    ? '# BETA — installs from `main`. May be broken; expect breaking changes.'
-    : '# Clones to ~/zeno-agent and installs the `zeno` CLI to ~/.local/bin';
+  const [unstable, setUnstable] = useState(false);
+  const command = unstable ? INSTALL_CMD_UNSTABLE : INSTALL_CMD;
+  const comment = unstable
+    ? '# UNSTABLE — installs from `main`. No CI gate; may break.'
+    : '# Clones to ~/.zeno/zeno-agent and installs the `zeno` CLI to ~/.local/bin';
 
   return (
     <section
@@ -51,7 +51,7 @@ export function QuickStartSection() {
         headerRight={
           <>
             <OsToggle />
-            <BetaToggle active={beta} onChange={setBeta} />
+            <UnstableToggle active={unstable} onChange={setUnstable} />
           </>
         }
       />

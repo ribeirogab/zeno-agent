@@ -1,20 +1,22 @@
-type BetaToggleProps = {
+type UnstableToggleProps = {
   active: boolean;
   onChange: (next: boolean) => void;
 };
 
-// β BETA toggle. When active, the install command switches to the
-// `--beta` form which fetches install.sh from `main` instead of from
-// the latest release tag. The toggle itself is purely presentational —
-// the parent owns the state and rebuilds the displayed command.
-export function BetaToggle({ active, onChange }: BetaToggleProps) {
+// "Unstable" channel toggle. When active, the install command switches to the
+// `--unstable` form which fetches install.sh from `main` instead of from the
+// latest release tag. The toggle itself is purely presentational — the parent
+// owns the state and rebuilds the displayed command.
+export function UnstableToggle({ active, onChange }: UnstableToggleProps) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={active}
-      aria-label="Install from main branch (cutting edge)"
-      title={active ? 'Switch to stable release' : 'Install from main branch (cutting edge)'}
+      aria-label="Install from main branch (no CI gate; may break)"
+      title={
+        active ? 'Switch to stable release' : 'Install from main branch (no CI gate; may break)'
+      }
       data-active={active ? '' : undefined}
       onClick={() => onChange(!active)}
       style={{
@@ -35,10 +37,7 @@ export function BetaToggle({ active, onChange }: BetaToggleProps) {
           'color 280ms cubic-bezier(0.4, 0, 0.2, 1), border-color 280ms cubic-bezier(0.4, 0, 0.2, 1), background-color 280ms cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
-      <span aria-hidden="true" style={{ fontStyle: 'italic' }}>
-        β
-      </span>
-      BETA
+      UNSTABLE
     </button>
   );
 }

@@ -23,7 +23,9 @@ import { type JSX, useEffect, useState } from 'react';
 import { IcoX } from '@/components/icons';
 import { buildCliCommand, type CommandKind } from '@/lib/build-cli-command';
 
-const DOCS_BASE = 'https://docs.zeno-agent.dev/cli/connectors';
+// Single-page CLI reference; each command is a heading anchor
+// (`#zeno-connector-<verb>`). See `build-cli-command.ts` for the anchor map.
+const DOCS_BASE = 'https://docs.zeno-agent.dev/cli';
 const COPIED_RESET_MS = 1500;
 
 interface CommandModalProps {

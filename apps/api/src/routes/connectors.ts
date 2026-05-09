@@ -1135,9 +1135,9 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
 
   // GET /:id
   route.get('/:id', (c) => {
-    const id = c.req.param('id');
-    const connector = resolveConnector(id);
+    const connector = resolveConnector(c.req.param('id'));
     if (!connector) return c.json({ error: 'not_found' }, 404);
+    const id = connector.id;
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const secrets = deps.connectors.getSecrets(id);
     const tools = deps.connectors.getTools(id);

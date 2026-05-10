@@ -13,6 +13,13 @@ interface CatalogSecretSpec {
   required?: boolean;
   help?: string;
   label?: string;
+  /**
+   * Optional prefix prepended to the operator-supplied value at storage time.
+   * The prompt drops the prefix from the displayed label so the operator types
+   * only the bare token. Server stores `prefix + value` verbatim; reveal echos
+   * the full stored string.
+   */
+  prefix?: string;
 }
 
 interface CatalogEntry {
@@ -51,15 +58,17 @@ export async function runConnectorInstall(
   const provided = args.secrets ?? {};
   const submitted: Array<{ key: string; value: string }> = [];
   const required = (entry.secrets ?? []).filter((s) => s.required === true);
+  const specByKey = new Map((entry.secrets ?? []).map((s) => [s.key, s]));
   for (const sec of required) {
-    const value = provided[sec.key] ?? (await promptHidden(sec.label ?? sec.key, sec.help));
-    submitted.push({ key: sec.key, value });
+    const raw = provided[sec.key] ?? (await promptHidden(sec.label ?? sec.key, sec.help));
+    submitted.push({ key: sec.key, value: applyPrefix(sec.prefix, raw) });
   }
   // Also forward any non-required secrets the operator explicitly provided.
   const requiredKeys = new Set(required.map((s) => s.key));
   for (const [key, value] of Object.entries(provided)) {
     if (!requiredKeys.has(key)) {
-      submitted.push({ key, value });
+      const spec = specByKey.get(key);
+      submitted.push({ key, value: applyPrefix(spec?.prefix, value) });
     }
   }
 
@@ -77,6 +86,18 @@ export async function runConnectorInstall(
     return;
   }
   throw new Error(`install failed: ${status.result ?? 'unknown'}`);
+}
+
+/**
+ * Prepend the catalog-declared prefix to the operator-supplied value at
+ * storage time. Idempotent: when the value already starts with the prefix
+ * (operator forgot the prompt skipped it, or the value was preprocessed),
+ * we leave it alone to avoid double-prefixing.
+ */
+export function applyPrefix(prefix: string | undefined, value: string): string {
+  if (!prefix) return value;
+  if (value.startsWith(prefix)) return value;
+  return prefix + value;
 }
 
 function parseSecretFlags(flag: unknown): Record<string, string> {

@@ -114,6 +114,35 @@ describe('zeno connector secret', () => {
         ),
       ).rejects.toThrow(/secret set failed: bad_secret/);
     });
+
+    it('applies the catalog prefix to the typed value', async () => {
+      const client = {
+        get: vi
+          .fn()
+          // 1. connector lookup with catalogId
+          .mockResolvedValueOnce({ id: 'abc', catalogId: 'linear' })
+          // 2. catalog list
+          .mockResolvedValueOnce([
+            {
+              id: 'linear',
+              secrets: [{ key: '__MCP_AUTHORIZATION__', prefix: 'Bearer ' }],
+            },
+          ])
+          // 3+. command polls
+          .mockResolvedValue({ status: 'success', result: null }),
+        patch: vi.fn().mockResolvedValue({ correlationId: 'corr-prefix' }),
+      };
+      const prompter = vi.fn().mockResolvedValue('lin_api_xyz');
+      await runConnectorSecretSet(
+        // biome-ignore lint/suspicious/noExplicitAny: mocked client narrows to ApiClient subset
+        client as any,
+        { target: 'linear-acme', key: '__MCP_AUTHORIZATION__', prompter },
+        () => {},
+      );
+      expect(client.patch).toHaveBeenCalledWith('/api/connectors/abc', {
+        secrets: [{ key: '__MCP_AUTHORIZATION__', value: 'Bearer lin_api_xyz' }],
+      });
+    });
   });
 
   describe('rotate', () => {

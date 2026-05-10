@@ -96,4 +96,64 @@ describe('zeno connector install', () => {
       ),
     ).rejects.toThrow(/install failed: auth_failed/);
   });
+
+  it('applies the catalog prefix to operator-supplied secrets', async () => {
+    const client = {
+      get: vi
+        .fn()
+        .mockResolvedValueOnce([
+          {
+            id: 'linear',
+            secrets: [{ key: '__MCP_AUTHORIZATION__', required: true, prefix: 'Bearer ' }],
+          },
+        ])
+        .mockResolvedValue({ status: 'success', result: null }),
+      post: vi.fn().mockResolvedValue({ correlationId: 'corr-prefix' }),
+    };
+    await runConnectorInstall(
+      // biome-ignore lint/suspicious/noExplicitAny: mocked client narrows to ApiClient subset
+      client as any,
+      {
+        catalogId: 'linear',
+        secrets: { __MCP_AUTHORIZATION__: 'lin_api_xyz' },
+      },
+      () => {},
+    );
+    expect(client.post).toHaveBeenCalledWith(
+      '/api/connectors',
+      expect.objectContaining({
+        secrets: [{ key: '__MCP_AUTHORIZATION__', value: 'Bearer lin_api_xyz' }],
+      }),
+    );
+  });
+
+  it('does not double-apply the prefix when the value already contains it', async () => {
+    const client = {
+      get: vi
+        .fn()
+        .mockResolvedValueOnce([
+          {
+            id: 'linear',
+            secrets: [{ key: '__MCP_AUTHORIZATION__', required: true, prefix: 'Bearer ' }],
+          },
+        ])
+        .mockResolvedValue({ status: 'success', result: null }),
+      post: vi.fn().mockResolvedValue({ correlationId: 'corr-noprefix' }),
+    };
+    await runConnectorInstall(
+      // biome-ignore lint/suspicious/noExplicitAny: mocked client narrows to ApiClient subset
+      client as any,
+      {
+        catalogId: 'linear',
+        secrets: { __MCP_AUTHORIZATION__: 'Bearer lin_api_already' },
+      },
+      () => {},
+    );
+    expect(client.post).toHaveBeenCalledWith(
+      '/api/connectors',
+      expect.objectContaining({
+        secrets: [{ key: '__MCP_AUTHORIZATION__', value: 'Bearer lin_api_already' }],
+      }),
+    );
+  });
 });

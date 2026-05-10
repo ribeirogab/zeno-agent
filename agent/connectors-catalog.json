@@ -582,8 +582,9 @@
       "secrets": [
         {
           "key": "__MCP_AUTHORIZATION__",
-          "label": "Authorization Header",
-          "help": "Linear API key as a Bearer token. Format: \"Bearer lin_api_xxxxx\". Get a personal API key at linear.app/settings/api.",
+          "label": "Linear API Key",
+          "prefix": "Bearer ",
+          "help": "Personal API key (lin_api_...). Get at linear.app/settings/api.",
           "required": true
         }
       ],

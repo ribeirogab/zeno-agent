@@ -157,6 +157,9 @@ export default defineCommand({
     if (typeof args.label === 'string' && args.label.length > 0) {
       installArgs.label = args.label;
     }
-    await runCommand(() => runConnectorInstall(client, installArgs, (line) => console.log(line)));
+    await runCommand(
+      () => runConnectorInstall(client, installArgs, (line) => console.log(line)),
+      { context: 'install' },
+    );
   },
 });

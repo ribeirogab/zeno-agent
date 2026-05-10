@@ -255,15 +255,18 @@ function printReleaseTable(releases: Release[], current: string): void {
   console.log('');
   console.log(`  ${c.bold('Available versions')} ${c.gray(`(current: ${current})`)}`);
   console.log(`  ${rule(60)}`);
+  // Pad against the unstyled tag length so ANSI sequences don't inflate width.
+  const tagWidth = releases.length > 0 ? Math.max(...releases.map((r) => r.tag.length)) : 0;
   for (const r of releases) {
-    const tag = r.tag === current ? c.gold(r.tag) : r.tag;
+    const tagStyled = r.tag === current ? c.gold(r.tag) : r.tag;
+    const tagPadded = tagStyled + ' '.repeat(Math.max(0, tagWidth - r.tag.length + 2));
     const label = r.prerelease ? c.yellow('pre-release') : c.green('stable');
     const pad = r.tag === current ? '*' : ' ';
-    console.log(`  ${pad} ${tag.padEnd(28)} ${label.padEnd(12)} ${c.gray(r.publishedAt)}`);
+    console.log(`  ${pad} ${tagPadded}${label.padEnd(12)}  ${c.gray(r.publishedAt)}`);
   }
-  console.log(
-    `    ${c.yellow('unstable').padEnd(28)} ${c.gray('main HEAD · no CI gate · may break')}`,
-  );
+  const unstableLabel = c.yellow('unstable');
+  const unstablePadding = ' '.repeat(Math.max(0, tagWidth - 'unstable'.length + 2));
+  console.log(`    ${unstableLabel}${unstablePadding}${c.gray('main HEAD · no CI gate · may break')}`);
   console.log('');
 }
 
@@ -279,12 +282,25 @@ async function pickInteractive(
   releases: Release[],
   current: string,
 ): Promise<ResolvedTarget | null> {
-  const items: PickerItem[] = releases.map((r) => ({
-    label:
-      (r.tag === current ? `${c.gold(r.tag)}  ` : `${r.tag}  `) +
-      (r.prerelease ? c.yellow('pre-release') : c.green('stable')),
-    hint: r.tag === current ? 'current *' : r.publishedAt.slice(0, 10),
-  }));
+  // When `current` is a non-tag (branch/pr/unstable), no row matches —
+  // print a small header line ABOVE the picker title so the operator
+  // still sees the active ref.
+  const matchesAnyTag = releases.some((r) => r.tag === current);
+  if (!matchesAnyTag && current) {
+    process.stdout.write(`${c.gray(`current: ${current}`)}\n`);
+  }
+
+  // Pad against the unstyled tag length so ANSI sequences don't inflate width.
+  const tagWidth = releases.length > 0 ? Math.max(...releases.map((r) => r.tag.length)) : 0;
+  const items: PickerItem[] = releases.map((r) => {
+    const tagStyled = r.tag === current ? c.gold(r.tag) : r.tag;
+    const tagPadded = tagStyled + ' '.repeat(Math.max(0, tagWidth - r.tag.length + 2));
+    const label = r.prerelease ? c.yellow('pre-release') : c.green('stable');
+    return {
+      label: `${tagPadded}${label}`,
+      hint: r.tag === current ? 'current *' : r.publishedAt.slice(0, 10),
+    };
+  });
   items.push({ label: c.gray('─'.repeat(40)), hint: '', disabled: true });
   items.push({
     label: c.yellow('unstable'),

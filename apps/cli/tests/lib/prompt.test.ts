@@ -38,12 +38,13 @@ function fakeIO(opts: { tty?: boolean } = {}): FakeIO {
 }
 
 describe('promptHidden', () => {
-  it('emits only the label to stdout (no echo)', async () => {
+  it('echoes a masked * per char + label + newline on submit', async () => {
     const f = fakeIO();
     const p = promptHidden('secret', undefined, f.io);
     setImmediate(() => f.stdin.write('hello\n'));
     expect(await p).toBe('hello');
-    expect(f.reads.join('')).toBe('secret: \n');
+    // label, then one '*' per typed char, then '\n' on submit.
+    expect(f.reads.join('')).toBe(`secret: ${'*'.repeat(5)}\n`);
   });
 
   it('handles a 64-char paste in a single buffer write', async () => {
@@ -52,14 +53,27 @@ describe('promptHidden', () => {
     const p = promptHidden('s', undefined, f.io);
     setImmediate(() => f.stdin.write(`${value}\n`));
     expect(await p).toBe(value);
+    // label + 64 stars + newline.
+    expect(f.reads.join('')).toBe(`s: ${'*'.repeat(64)}\n`);
   });
 
-  it('handles backspace characters', async () => {
+  it('handles backspace characters and erases a star', async () => {
     const f = fakeIO();
     const p = promptHidden('s', undefined, f.io);
     // 'a','b','c', backspace (\x7f), 'X' → buffer becomes 'abX'
     setImmediate(() => f.stdin.write(`abc\x7fX\n`));
     expect(await p).toBe('abX');
+    // s: ***\b \b*\n  (3 stars, then \b<space>\b erases one, then 'X' → '*')
+    expect(f.reads.join('')).toBe('s: ***\b \b*\n');
+  });
+
+  it('does not write past the start when backspacing on an empty buffer', async () => {
+    const f = fakeIO();
+    const p = promptHidden('s', undefined, f.io);
+    setImmediate(() => f.stdin.write(`\x7f\x7fa\n`));
+    expect(await p).toBe('a');
+    // Two no-op backspaces (no \b sent), then '*' for the 'a'.
+    expect(f.reads.join('')).toBe('s: *\n');
   });
 
   it('exits 1 + writes error to stderr in non-TTY', async () => {

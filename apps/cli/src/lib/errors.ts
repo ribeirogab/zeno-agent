@@ -6,7 +6,15 @@ export interface Hint {
   hint?: string;
 }
 
-type MapEntry = (e: ApiError) => Hint;
+/**
+ * Caller surface where the error happened. Lets `friendly()` tailor the
+ * follow-up hint — `auth_failed` during install asks for a retry with the
+ * same install command, while during a test/reveal it asks the operator to
+ * update the stored token. Default `'default'` keeps the legacy message.
+ */
+export type FriendlyContext = 'install' | 'test' | 'reveal' | 'default';
+
+type MapEntry = (e: ApiError, ctx: FriendlyContext) => Hint;
 
 const map: Record<string, MapEntry> = {
   single_instance_catalog_already_installed: (e) => {
@@ -23,13 +31,23 @@ const map: Record<string, MapEntry> = {
       hint: 'uninstall first: zeno connector app uninstall',
     };
   },
-  auth_failed: (e) => {
-    const body = (e.body ?? {}) as { detail?: string; slug?: string; key?: string };
+  auth_failed: (e, ctx) => {
+    const body = (e.body ?? {}) as {
+      detail?: string;
+      slug?: string;
+      key?: string;
+      catalogId?: string;
+    };
     const result: Hint = {
       msg: `auth failed (${body.detail ?? 'upstream rejected token'})`,
     };
-    if (body.slug && body.key) {
-      result.hint = `rotate token: zeno connector secret set ${body.slug} ${body.key}`;
+    if (ctx === 'install' && body.catalogId && body.key) {
+      result.hint = `verify token, then retry: zeno connector install ${body.catalogId} --secret ${body.key}=VALUE`;
+    } else if ((ctx === 'test' || ctx === 'reveal') && body.slug && body.key) {
+      result.hint = `update token: zeno connector secret set ${body.slug} ${body.key}`;
+    } else if (body.slug && body.key) {
+      // Default keeps the legacy "update token" wording (substituted from "rotate").
+      result.hint = `update token: zeno connector secret set ${body.slug} ${body.key}`;
     }
     return result;
   },
@@ -59,18 +77,25 @@ const map: Record<string, MapEntry> = {
   },
 };
 
-export function friendly(e: ApiError): Hint {
+export function friendly(e: ApiError, context: FriendlyContext = 'default'): Hint {
   const body = (e.body ?? {}) as { error?: string };
   const code = body.error ?? '';
-  return map[code]?.(e) ?? { msg: e.message };
+  return map[code]?.(e, context) ?? { msg: e.message };
 }
 
-export async function runCommand<T>(fn: () => Promise<T>): Promise<T | undefined> {
+export interface RunCommandOptions {
+  context?: FriendlyContext;
+}
+
+export async function runCommand<T>(
+  fn: () => Promise<T>,
+  opts: RunCommandOptions = {},
+): Promise<T | undefined> {
   try {
     return await fn();
   } catch (e) {
     if (e instanceof ApiError) {
-      const { msg, hint } = friendly(e);
+      const { msg, hint } = friendly(e, opts.context);
       process.stderr.write(`${err(msg)}\n`);
       if (hint) process.stderr.write(`${c.gray(`  → ${hint}`)}\n`);
       process.exit(1);

@@ -58,10 +58,15 @@ export async function promptHidden(label: string, help?: string, io: IO = {}): P
           return resolve('');
         }
         if (ch === BACKSPACE) {
-          value = value.slice(0, -1);
+          if (value.length > 0) {
+            value = value.slice(0, -1);
+            // Move cursor back, overwrite the masked char with space, move back again.
+            stdout.write('\b \b');
+          }
           continue;
         }
         value += ch;
+        stdout.write('*');
       }
     };
     stdin.on('data', onData);

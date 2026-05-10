@@ -7,6 +7,7 @@ import { ok, setQuiet } from '../lib/output.js';
 import { promptHidden } from '../lib/prompt.js';
 import { resolveConnector, resolveProfile, resolveSecretKey } from '../lib/resolvers.js';
 import { waitForCommand } from '../lib/wait-command.js';
+import { applyPrefix } from './connector-install.js';
 
 export type SecretPrompter = (label: string) => Promise<string>;
 
@@ -18,6 +19,17 @@ interface SecretSetArgs {
 
 interface ConnectorDetail {
   id: string;
+  catalogId?: string | null;
+}
+
+interface CatalogSecretSpec {
+  key: string;
+  prefix?: string;
+}
+
+interface CatalogEntry {
+  id: string;
+  secrets?: CatalogSecretSpec[];
 }
 
 type SecretSetClient = Pick<ApiClient, 'get' | 'patch'>;
@@ -39,11 +51,20 @@ export async function runConnectorSecretSet(
   const detail = await client.get<ConnectorDetail>(
     `/api/connectors/${encodeURIComponent(args.target)}`,
   );
+  // Look up the catalog entry's prefix (if any) so we can prepend it before
+  // submitting. Custom connectors (no catalogId) skip this step.
+  let prefix: string | undefined;
+  if (detail.catalogId) {
+    const catalog = await client.get<CatalogEntry[]>('/api/connectors/catalog');
+    const entry = catalog.find((e) => e.id === detail.catalogId);
+    prefix = entry?.secrets?.find((s) => s.key === args.key)?.prefix;
+  }
   const prompter = args.prompter ?? defaultNoEchoPrompter;
-  const value = (await prompter(`${args.key} (input hidden): `)).trim();
-  if (value.length === 0) {
+  const raw = (await prompter(`${args.key} (input hidden): `)).trim();
+  if (raw.length === 0) {
     throw new Error(`empty value for ${args.key}; refusing to write`);
   }
+  const value = applyPrefix(prefix, raw);
   const post = (await client.patch(`/api/connectors/${detail.id}`, {
     secrets: [{ key: args.key, value }],
   })) as { correlationId: string };

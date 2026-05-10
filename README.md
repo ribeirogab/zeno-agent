@@ -24,7 +24,7 @@ The wrapper at `zeno-agent.dev/install.sh` forwards to the [`install.sh`](./inst
 ## What works today
 
 - **Channel:** Slack via Socket Mode (mention the bot or DM it). Worker boots without Slack creds and falls back to a `NoopChannel` so first install isn't blocked on the dashboard chicken-egg.
-- **Connectors** (live in the dashboard catalogue at <https://docs.zeno-agent.dev/connector-catalogue>): GitHub App, GitHub Personal (PAT), Linear, Klaviyo, Sentry, Swarmia, Playwright.
+- **Connectors** (live in the dashboard catalogue at <https://docs.zeno-agent.dev/connector-catalogue>): GitHub App, GitHub Personal (PAT), Linear, Klaviyo, Sentry, Swarmia.
 - **Skills:** Markdown SKILL.md playbooks installed via the dashboard, materialized into `~/.claude/skills/`, auto-discovered by the Claude Agent SDK. Capabilities (Read/Edit/Write/Bash) are gated globally per profile.
 - **Multi-profile isolation:** the `zeno` CLI manages N profiles via a host SQLite (`~/.zeno/state.db`); each profile is its own container, dashboard, master key, and credentials.
 - **Per-tool capability gating:** toggle individual connector tools allow/ask/off from `/connectors/<id>`.

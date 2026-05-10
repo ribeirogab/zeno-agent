@@ -130,16 +130,17 @@ export const upgradeSteps = {
   },
   checkoutRef(target: string, kind: VersionKind): void {
     if (kind === 'unstable') {
-      // Force-update local main to origin/main so checkout lands on the
-      // current remote tip even if the local main ref is stale.
-      run('git', ['fetch', 'origin', 'main']);
+      // Use an explicit refspec so the remote-tracking branch always lands at
+      // origin/main, even when the operator's clone has a restricted refspec
+      // (install.sh runs `git clone --branch main` which sets the refspec to
+      // `+refs/heads/main:refs/remotes/origin/main` only).
+      run('git', ['fetch', 'origin', '+main:refs/remotes/origin/main']);
       run('git', ['checkout', '-B', 'main', 'origin/main']);
     } else if (kind === 'branch') {
-      // Same fast-forward semantics as unstable: fetch the remote ref then
-      // reset the local branch to it. Without this, `git checkout <branch>`
-      // would land on a stale local pointer when the local branch already
-      // existed before the fetch.
-      run('git', ['fetch', 'origin', target]);
+      // Explicit refspec to create the remote-tracking branch; otherwise a
+      // restricted `remote.origin.fetch` (typical of `--branch main` clones)
+      // would leave `origin/<target>` undefined even after a successful fetch.
+      run('git', ['fetch', 'origin', `+${target}:refs/remotes/origin/${target}`]);
       run('git', ['checkout', '-B', target, `origin/${target}`]);
     } else if (kind === 'pr') {
       run('gh', ['pr', 'checkout', target]);

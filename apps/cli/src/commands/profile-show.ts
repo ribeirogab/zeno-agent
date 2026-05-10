@@ -15,6 +15,7 @@ import {
   workspaceVolumeName,
 } from '../lib/paths.js';
 import { requireProfile } from '../lib/profile.js';
+import { resolveProfile } from '../lib/resolvers.js';
 import { db } from '../lib/state.js';
 import type { ProfileShowJson } from '../types/json-output.js';
 
@@ -23,15 +24,17 @@ const IMAGE_TAG = 'zeno-agent:dev';
 export default defineCommand({
   meta: { name: 'show', description: 'show profile details' },
   args: {
-    profile: { type: 'positional', description: 'profile identifier', required: true },
+    profile: { type: 'positional', description: 'profile identifier', required: false },
     json: { type: 'boolean', description: 'emit JSON' },
     quiet: { type: 'boolean', description: 'minimal output' },
   },
-  run({ args }) {
+  async run({ args }) {
     if (args.quiet) setQuiet(true);
 
     const conn = db();
-    const name = args.profile;
+    const { name } = await resolveProfile(args.profile as string | undefined, {
+      ignoreSticky: true,
+    });
     const p = requireProfile(conn, name);
 
     if (args.json) {

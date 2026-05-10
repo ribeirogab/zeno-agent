@@ -94,8 +94,9 @@ export default defineCommand({
         return detail.secrets ?? [];
       },
     });
-    await runCommand(() =>
-      runConnectorSecretReveal(client, { target, key }, (line) => console.log(line)),
+    await runCommand(
+      () => runConnectorSecretReveal(client, { target, key }, (line) => console.log(line)),
+      { context: 'reveal' },
     );
   },
 });

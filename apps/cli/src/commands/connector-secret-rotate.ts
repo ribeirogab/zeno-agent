@@ -6,6 +6,7 @@ import { runCommand } from '../lib/errors.js';
 import { ok, setQuiet } from '../lib/output.js';
 import { resolveConnector, resolveProfile } from '../lib/resolvers.js';
 import { waitForCommand } from '../lib/wait-command.js';
+import { applyPrefix } from './connector-install.js';
 import { defaultNoEchoPrompter, type SecretPrompter } from './connector-secret-set.js';
 
 interface SecretRotateArgs {
@@ -23,6 +24,7 @@ interface CatalogSecretSpec {
   required?: boolean;
   label?: string;
   help?: string;
+  prefix?: string;
 }
 
 interface CatalogEntry {
@@ -66,11 +68,11 @@ export async function runConnectorSecretRotate(
   const submitted: Array<{ key: string; value: string }> = [];
   for (const spec of required) {
     const label = `${spec.label ?? spec.key} (input hidden): `;
-    const value = (await prompter(label)).trim();
-    if (value.length === 0) {
+    const raw = (await prompter(label)).trim();
+    if (raw.length === 0) {
       throw new Error(`empty value for ${spec.key}; refusing to rotate`);
     }
-    submitted.push({ key: spec.key, value });
+    submitted.push({ key: spec.key, value: applyPrefix(spec.prefix, raw) });
   }
 
   const post = (await client.patch(`/api/connectors/${detail.id}`, {

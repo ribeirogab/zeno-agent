@@ -17,7 +17,7 @@ describe('friendly', () => {
     expect(h.hint).toBe('uninstall first: zeno connector uninstall playwright');
   });
 
-  it('maps auth_failed with slug+key', () => {
+  it('maps auth_failed with slug+key (default context)', () => {
     const e = apiErr(401, {
       error: 'auth_failed',
       detail: 'invalid token',
@@ -28,7 +28,46 @@ describe('friendly', () => {
     expect(h.msg).toContain('auth failed');
     expect(h.msg).toContain('invalid token');
     expect(h.hint).toBe(
-      'rotate token: zeno connector secret set linear-acme __MCP_AUTHORIZATION__',
+      'update token: zeno connector secret set linear-acme __MCP_AUTHORIZATION__',
+    );
+  });
+
+  it('maps auth_failed during install with catalogId+key', () => {
+    const e = apiErr(401, {
+      error: 'auth_failed',
+      detail: 'invalid token',
+      catalogId: 'linear',
+      key: '__MCP_AUTHORIZATION__',
+    });
+    const h = friendly(e, 'install');
+    expect(h.hint).toBe(
+      'verify token, then retry: zeno connector install linear --secret __MCP_AUTHORIZATION__=VALUE',
+    );
+  });
+
+  it('maps auth_failed during test with slug+key', () => {
+    const e = apiErr(401, {
+      error: 'auth_failed',
+      detail: 'invalid token',
+      slug: 'linear-acme',
+      key: '__MCP_AUTHORIZATION__',
+    });
+    const h = friendly(e, 'test');
+    expect(h.hint).toBe(
+      'update token: zeno connector secret set linear-acme __MCP_AUTHORIZATION__',
+    );
+  });
+
+  it('maps auth_failed during reveal with slug+key', () => {
+    const e = apiErr(401, {
+      error: 'auth_failed',
+      detail: 'invalid token',
+      slug: 'linear-acme',
+      key: '__MCP_AUTHORIZATION__',
+    });
+    const h = friendly(e, 'reveal');
+    expect(h.hint).toBe(
+      'update token: zeno connector secret set linear-acme __MCP_AUTHORIZATION__',
     );
   });
 

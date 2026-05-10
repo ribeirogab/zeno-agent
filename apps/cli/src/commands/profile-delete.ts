@@ -11,19 +11,22 @@ import {
 } from '../lib/paths.js';
 import { requireProfile } from '../lib/profile.js';
 import { confirmDestructive } from '../lib/prompt.js';
+import { resolveProfile } from '../lib/resolvers.js';
 import { db } from '../lib/state.js';
 
 export default defineCommand({
   meta: { name: 'delete', description: 'permanently delete a profile (confirms)' },
   args: {
-    profile: { type: 'positional', description: 'profile identifier', required: true },
+    profile: { type: 'positional', description: 'profile identifier', required: false },
     yes: { type: 'boolean', description: 'skip confirmation' },
     quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
     if (args.quiet) setQuiet(true);
     const conn = db();
-    const name = args.profile;
+    const { name } = await resolveProfile(args.profile as string | undefined, {
+      ignoreSticky: true,
+    });
     requireProfile(conn, name);
 
     console.log('');

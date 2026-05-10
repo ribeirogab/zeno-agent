@@ -48,16 +48,23 @@ export default defineCommand({
     const sticky = queries.getSticky(conn);
 
     let liveByName = new Map<string, Status>();
+    let dockerReachable = false;
     try {
       const live = await orchestrator().listManagedContainers();
       liveByName = new Map(live.map((l) => [l.profile, l.state]));
+      dockerReachable = true;
     } catch {
       /* daemon down — fall back to DB status */
     }
 
     const rows: StatusJson[] = await Promise.all(
       profiles.map(async (p): Promise<StatusJson> => {
-        const state = (liveByName.get(p.name) ?? p.status) as Status;
+        // When Docker is reachable but the container is missing, the row is
+        // stopped (override stale DB state). When Docker is unreachable we
+        // can't tell — fall back to whatever the DB last recorded.
+        const state = (
+          dockerReachable ? (liveByName.get(p.name) ?? 'stopped') : p.status
+        ) as Status;
         const uptimeMs = state === 'running' && p.lastStartedAt ? Date.now() - p.lastStartedAt : 0;
         if (state !== 'running') {
           return {

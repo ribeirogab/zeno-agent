@@ -59,7 +59,7 @@ export interface ProfileShowJson {
   dashboardUrl: string;
   containerName: string;
   image: string;
-  workspaceVolume: string;
+  workspaceBindPath: string;
   claudeHomeVolume: string;
   profileDir: string;
 }

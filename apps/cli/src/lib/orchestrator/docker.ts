@@ -82,7 +82,7 @@ export class DockerOrchestrator implements Orchestrator {
       HostConfig: {
         PortBindings: { '3000/tcp': [{ HostPort: String(spec.port) }] },
         Mounts: [
-          { Type: 'volume', Source: spec.workspaceVolume, Target: '/workspace' },
+          { Type: 'bind', Source: spec.workspaceBindPath, Target: '/workspace' },
           { Type: 'volume', Source: spec.claudeHomeVolume, Target: '/home/node/.claude' },
           {
             Type: 'bind',

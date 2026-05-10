@@ -12,7 +12,7 @@ import {
   claudeHomeVolumeName,
   containerName,
   profileDir,
-  workspaceVolumeName,
+  workspaceBindPath,
 } from '../lib/paths.js';
 import { requireProfile } from '../lib/profile.js';
 import { resolveLiveStatus, snapshotLive } from '../lib/profile-state.js';
@@ -54,7 +54,7 @@ export default defineCommand({
         dashboardUrl: `http://localhost:${p.port}`,
         containerName: containerName(name),
         image: IMAGE_TAG,
-        workspaceVolume: workspaceVolumeName(name),
+        workspaceBindPath: workspaceBindPath(name),
         claudeHomeVolume: claudeHomeVolumeName(name),
         profileDir: profileDir(name),
       };
@@ -76,9 +76,9 @@ export default defineCommand({
     console.log(`  Container name:  ${c.gray(containerName(name))}`);
     console.log(`  Image:           ${c.gray(IMAGE_TAG)}`);
     console.log('');
-    console.log(`  ${c.bold('Volumes')}`);
-    console.log(`    workspace:     ${c.gray(workspaceVolumeName(name))}`);
-    console.log(`    claude home:   ${c.gray(claudeHomeVolumeName(name))}`);
+    console.log(`  ${c.bold('Storage')}`);
+    console.log(`    workspace:     ${c.gray(workspaceBindPath(name))}`);
+    console.log(`    claude home:   ${c.gray(claudeHomeVolumeName(name))} ${c.gray('(volume)')}`);
     console.log('');
     console.log(`  ${c.bold('Mounts')} ${c.gray('(read-only binds)')}`);
     console.log(`    /app/agent     ${c.gray('← ~/.zeno/zeno-agent/agent')}`);

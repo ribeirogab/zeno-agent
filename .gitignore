@@ -48,3 +48,6 @@ apps/dashboard/src/route-tree.gen.ts
 
 # Playwright MCP output (screenshots, snapshots, console logs from browser test sessions)
 .playwright-mcp/
+
+# Active version metadata (per-machine; populated by zeno upgrade)
+.installed-from

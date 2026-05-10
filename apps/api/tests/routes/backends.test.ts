@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { _resetBackendsCatalogCache } from '@zeno/backends';
 import {
   BackendCredentialsRepo,
   BackendSettingsRepo,
@@ -11,7 +12,6 @@ import {
   runRuntimeMigrations,
 } from '@zeno/db/runtime';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { _resetBackendsCatalogCache } from '@zeno/backends';
 import { createApp } from '@/server';
 import { csrfHeaders } from '../csrf-helper';
 

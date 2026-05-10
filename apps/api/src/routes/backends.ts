@@ -25,8 +25,7 @@ import { zValidator } from '@hono/zod-validator';
 import type { BackendCredentialsRepo, BackendSettingsRepo } from '@zeno/db/runtime';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { type BackendsCatalog, loadBackendsCatalog } from '@zeno/backends';
-import { testClaudeToken } from '@/lib/claude-test';
+import { type BackendsCatalog, loadBackendsCatalog, testClaudeToken } from '@zeno/backends';
 import { OAuthRegistry } from '@/lib/oauth-sessions';
 
 export interface BackendsRouteDeps {

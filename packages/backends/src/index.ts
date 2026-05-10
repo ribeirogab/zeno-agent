@@ -10,3 +10,4 @@ export {
   backendTestSchema,
   loadBackendsCatalog,
 } from './catalog.js';
+export { type ClaudeTestOpts, type ClaudeTestResult, testClaudeToken } from './claude-test.js';

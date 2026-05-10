@@ -38,7 +38,13 @@ export type CommandKind =
   | { kind: 'app-install'; appId: string; pemPath: string }
   | { kind: 'app-installations-discover' }
   | { kind: 'app-installations-add'; installationId: string; label: string }
-  | { kind: 'app-uninstall'; appName: string };
+  | { kind: 'app-uninstall'; appName: string }
+  // Spec 0072 — backend management is CLI-only; the dashboard /backend page
+  // shows snippets for each row's actions via CommandModal.
+  | { kind: 'backend-configure'; slug: string }
+  | { kind: 'backend-rotate'; slug: string }
+  | { kind: 'backend-test'; slug: string }
+  | { kind: 'backend-remove'; slug: string };
 
 export interface CliCommand {
   title: string;
@@ -149,6 +155,34 @@ export function buildCliCommand(spec: CommandKind): CliCommand {
         title: 'Uninstall App',
         command: `zeno connector app uninstall --confirm "${spec.appName}"`,
         docsAnchor: 'zeno-connector-app-uninstall',
+        destructive: true,
+      };
+    case 'backend-configure':
+      return {
+        title: `Configure ${spec.slug}`,
+        command: 'zeno backend configure',
+        docsAnchor: 'zeno-backend-configure',
+        destructive: false,
+      };
+    case 'backend-rotate':
+      return {
+        title: `Rotate ${spec.slug}`,
+        command: `zeno backend rotate ${spec.slug}`,
+        docsAnchor: 'zeno-backend-rotate',
+        destructive: false,
+      };
+    case 'backend-test':
+      return {
+        title: `Test ${spec.slug}`,
+        command: `zeno backend test ${spec.slug}`,
+        docsAnchor: 'zeno-backend-test',
+        destructive: false,
+      };
+    case 'backend-remove':
+      return {
+        title: `Remove ${spec.slug}`,
+        command: `zeno backend remove ${spec.slug}`,
+        docsAnchor: 'zeno-backend-remove',
         destructive: true,
       };
     default: {

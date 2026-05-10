@@ -24,7 +24,7 @@ export default defineCommand({
     const conn = db();
     const targets: string[] = args.all
       ? queries.listProfiles(conn).map((p) => p.name)
-      : [(await resolveProfile(args.profile as string | undefined)).name];
+      : [(await resolveProfile(args.profile as string | undefined, { ignoreSticky: true })).name];
     if (targets.length === 0) {
       console.log(c.gray('no profiles to stop.'));
       return;

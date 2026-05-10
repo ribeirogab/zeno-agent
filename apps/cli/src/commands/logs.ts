@@ -17,7 +17,7 @@ export default defineCommand({
   },
   async run({ args }) {
     if (args.quiet) setQuiet(true);
-    const p = await resolveProfile(args.profile as string | undefined);
+    const p = await resolveProfile(args.profile as string | undefined, { ignoreSticky: true });
     const name = p.name;
     const tail = args.tail ? Number(args.tail) : 50;
     if (!Number.isInteger(tail) || tail < 0) {

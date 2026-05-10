@@ -2,12 +2,13 @@ import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
 import { c, err, ok, setQuiet, warn } from '../lib/output.js';
 import { isPortTaken, PORT_MAX, PORT_MIN, requireProfile } from '../lib/profile.js';
+import { resolveProfile } from '../lib/resolvers.js';
 import { db } from '../lib/state.js';
 
 export default defineCommand({
   meta: { name: 'edit', description: 'edit a profile (port only for now)' },
   args: {
-    profile: { type: 'positional', description: 'profile identifier', required: true },
+    profile: { type: 'positional', description: 'profile identifier', required: false },
     port: {
       type: 'string',
       description: `new host port (${PORT_MIN}-${PORT_MAX})`,
@@ -15,10 +16,12 @@ export default defineCommand({
     },
     quiet: { type: 'boolean', description: 'minimal output' },
   },
-  run({ args }) {
+  async run({ args }) {
     if (args.quiet) setQuiet(true);
     const conn = db();
-    const name = args.profile;
+    const { name } = await resolveProfile(args.profile as string | undefined, {
+      ignoreSticky: true,
+    });
     const p = requireProfile(conn, name);
     const newPort = Number(args.port);
     if (!Number.isInteger(newPort) || newPort < PORT_MIN || newPort > PORT_MAX) {

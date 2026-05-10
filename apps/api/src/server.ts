@@ -172,7 +172,7 @@ export function createApp(deps: AppDeps): Hono {
       }),
     );
   }
-  // Spec 0071: backend auth via dashboard.
+  // Spec 0072: read-only backends API + single live-ping mutation.
   if (deps.backendCredentialsRepo && deps.backendSettingsRepo) {
     app.route(
       '/api/backends',
@@ -180,7 +180,6 @@ export function createApp(deps: AppDeps): Hono {
         backendCredentialsRepo: deps.backendCredentialsRepo,
         backendSettingsRepo: deps.backendSettingsRepo,
         profileId: deps.config.profileId,
-        apiLogger,
         ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
       }),
     );

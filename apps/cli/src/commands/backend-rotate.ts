@@ -20,7 +20,9 @@ export default defineCommand({
   },
   async run({ args }) {
     if (args.quiet) setQuiet(true);
-    const profile = await resolveProfile(args.profile as string | undefined);
+    const profile = await resolveProfile(args.profile as string | undefined, {
+      ignoreSticky: true,
+    });
     const slug = (args.slug as string | undefined) ?? 'claude-code';
 
     if (!args.yes) {

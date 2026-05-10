@@ -59,7 +59,12 @@ export default defineCommand({
   },
   async run({ args }) {
     if (args.quiet) setQuiet(true);
-    const profile = await resolveProfile(args.profile as string | undefined);
+    // Spec 0072 — backend mutation always shows the picker (matches the
+    // lifecycle commands' pattern), so the operator sees which profile
+    // they're modifying credentials for.
+    const profile = await resolveProfile(args.profile as string | undefined, {
+      ignoreSticky: true,
+    });
 
     const docker = new Docker();
     const inspected = await fetchContainerState(docker, profile.name);

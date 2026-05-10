@@ -1,15 +1,7 @@
 import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
-import { orchestrator } from '../lib/orchestrator/singleton.js';
-import {
-  c,
-  formatUptime,
-  rule,
-  type Status,
-  setQuiet,
-  statusDot,
-  statusLabel,
-} from '../lib/output.js';
+import { c, formatUptime, rule, setQuiet, statusDot, statusLabel } from '../lib/output.js';
+import { resolveLiveStatus, snapshotLive } from '../lib/profile-state.js';
 import { db } from '../lib/state.js';
 import type { ProfileListItem } from '../types/json-output.js';
 
@@ -25,20 +17,15 @@ export default defineCommand({
     const conn = db();
     const profiles = queries.listProfiles(conn);
 
-    // Join with live container state from Docker (best-effort).
-    let liveByProfile = new Map<string, { state: Status }>();
-    try {
-      const live = await orchestrator().listManagedContainers();
-      liveByProfile = new Map(live.map((l) => [l.profile, { state: l.state }]));
-    } catch {
-      /* daemon down — fall back to DB status */
-    }
+    // Single live snapshot — every row resolves its state through the same
+    // helper so DB-vs-live drift is impossible.
+    const snap = await snapshotLive();
 
     const sticky = queries.getSticky(conn);
 
     if (args.json) {
       const rows: ProfileListItem[] = profiles.map((p) => {
-        const liveState = (liveByProfile.get(p.name)?.state ?? p.status) as Status;
+        const liveState = resolveLiveStatus(p, snap);
         const uptimeMs =
           liveState === 'running' && p.lastStartedAt ? Date.now() - p.lastStartedAt : null;
         return {
@@ -66,7 +53,7 @@ export default defineCommand({
     console.log(`  ${rule(50)}`);
     for (const p of profiles) {
       const stickyMark = sticky === p.name ? c.gold('*') : ' ';
-      const liveState = liveByProfile.get(p.name)?.state ?? p.status;
+      const liveState = resolveLiveStatus(p, snap);
       const uptime = liveState === 'running' ? formatUptime(p.lastStartedAt) : '-';
       const cell = `${statusDot(liveState)} ${statusLabel(liveState)}`;
       console.log(

@@ -15,6 +15,7 @@ import {
   workspaceVolumeName,
 } from '../lib/paths.js';
 import { requireProfile } from '../lib/profile.js';
+import { resolveLiveStatus, snapshotLive } from '../lib/profile-state.js';
 import { resolveProfile } from '../lib/resolvers.js';
 import { db } from '../lib/state.js';
 import type { ProfileShowJson } from '../types/json-output.js';
@@ -36,16 +37,20 @@ export default defineCommand({
       ignoreSticky: true,
     });
     const p = requireProfile(conn, name);
+    // Resolve state via the shared live snapshot — never trust DB alone, or
+    // an out-of-band `docker stop` will leave us reporting `running` here.
+    const snap = await snapshotLive();
+    const liveState = resolveLiveStatus(p, snap);
 
     if (args.json) {
       const data: ProfileShowJson = {
         name,
         port: p.port,
-        status: p.status,
+        status: liveState,
         createdAt: p.createdAt,
         lastStartedAt: p.lastStartedAt,
         lastStoppedAt: p.lastStoppedAt,
-        uptimeMs: p.status === 'running' && p.lastStartedAt ? Date.now() - p.lastStartedAt : null,
+        uptimeMs: liveState === 'running' && p.lastStartedAt ? Date.now() - p.lastStartedAt : null,
         dashboardUrl: `http://localhost:${p.port}`,
         containerName: containerName(name),
         image: IMAGE_TAG,
@@ -61,11 +66,11 @@ export default defineCommand({
     console.log(`  ${c.bold('Profile:')} ${c.gold(name)}`);
     console.log(`  ${rule(50)}`);
     console.log(`  Port:            ${p.port}`);
-    console.log(`  Status:          ${statusDot(p.status)} ${statusLabel(p.status)}`);
+    console.log(`  Status:          ${statusDot(liveState)} ${statusLabel(liveState)}`);
     console.log(`  Created:         ${formatTime(p.createdAt)}`);
     console.log(`  Last started:    ${formatTime(p.lastStartedAt)}`);
     console.log(`  Last stopped:    ${formatTime(p.lastStoppedAt)}`);
-    if (p.status === 'running') console.log(`  Uptime:          ${formatUptime(p.lastStartedAt)}`);
+    if (liveState === 'running') console.log(`  Uptime:          ${formatUptime(p.lastStartedAt)}`);
     console.log('');
     console.log(`  Dashboard:       ${c.cyan(`http://localhost:${p.port}`)}`);
     console.log(`  Container name:  ${c.gray(containerName(name))}`);

@@ -7,6 +7,7 @@ const queriesMock = vi.hoisted(() => ({
   getSticky: vi.fn(),
 }));
 const pickMock = vi.hoisted(() => ({ pick: vi.fn() }));
+const orchestratorMock = vi.hoisted(() => ({ listManagedContainers: vi.fn() }));
 
 vi.mock('@/lib/state.js', () => ({
   db: () => dbMock,
@@ -15,6 +16,9 @@ vi.mock('@zeno/db/host', () => ({
   queries: queriesMock,
 }));
 vi.mock('@/lib/picker.js', () => pickMock);
+vi.mock('@/lib/orchestrator/singleton.js', () => ({
+  orchestrator: () => orchestratorMock,
+}));
 
 import {
   resolveCatalog,
@@ -54,6 +58,10 @@ beforeEach(() => {
   queriesMock.findProfile.mockReset();
   queriesMock.getSticky.mockReset();
   pickMock.pick.mockReset();
+  orchestratorMock.listManagedContainers.mockReset();
+  // Default: daemon unreachable. Tests that exercise the picker should
+  // overwrite this so the hint reflects live state.
+  orchestratorMock.listManagedContainers.mockRejectedValue(new Error('daemon down'));
 });
 
 afterEach(() => {
@@ -144,6 +152,44 @@ describe('resolveProfile', () => {
     queriesMock.listProfiles.mockReturnValue([]);
     await expect(resolveProfile(undefined)).rejects.toThrow('__exit__');
     expect(stderrChunks.join('')).toMatch(/no profiles/);
+  });
+
+  it('picker hint reflects live state, overriding stale DB status', async () => {
+    setTTY(true);
+    queriesMock.getSticky.mockReturnValue(null);
+    queriesMock.listProfiles.mockReturnValue([
+      // DB lies: says running. Live snapshot says container is gone → stopped.
+      { name: 'fn', port: 6101, status: 'running' },
+      { name: 'work', port: 6102, status: 'stopped' },
+    ]);
+    orchestratorMock.listManagedContainers.mockResolvedValue([
+      // No 'fn' container — fn must render as stopped, not running.
+      { name: 'zeno-work', profile: 'work', port: 6102, state: 'stopped', startedAt: null },
+    ]);
+    pickMock.pick.mockResolvedValue(0);
+    await resolveProfile(undefined);
+    const callArgs = pickMock.pick.mock.calls[0]?.[0] as Array<{ label: string; hint: string }>;
+    expect(callArgs).toBeDefined();
+    // Strip ANSI codes for stable assertion.
+    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
+    expect(stripAnsi(callArgs[0]?.hint ?? '')).toBe('stopped');
+    expect(stripAnsi(callArgs[1]?.hint ?? '')).toBe('stopped');
+  });
+
+  it('picker hint falls back to DB when daemon is unreachable', async () => {
+    setTTY(true);
+    queriesMock.getSticky.mockReturnValue(null);
+    queriesMock.listProfiles.mockReturnValue([
+      { name: 'fn', port: 6101, status: 'running' },
+      { name: 'work', port: 6102, status: 'stopped' },
+    ]);
+    // Daemon unreachable (the default beforeEach sets this) — DB is the only source.
+    pickMock.pick.mockResolvedValue(0);
+    await resolveProfile(undefined);
+    const callArgs = pickMock.pick.mock.calls[0]?.[0] as Array<{ label: string; hint: string }>;
+    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
+    expect(stripAnsi(callArgs[0]?.hint ?? '')).toBe('running');
+    expect(stripAnsi(callArgs[1]?.hint ?? '')).toBe('stopped');
   });
 });
 

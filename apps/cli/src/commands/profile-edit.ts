@@ -4,6 +4,7 @@ import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
 import { c, err, ok, setQuiet, warn } from '../lib/output.js';
 import { isPortTaken, PORT_MAX, PORT_MIN, requireProfile } from '../lib/profile.js';
+import { resolveLiveStatus, snapshotLive } from '../lib/profile-state.js';
 import { resolveProfile } from '../lib/resolvers.js';
 import { db } from '../lib/state.js';
 
@@ -59,7 +60,11 @@ export default defineCommand({
       details: { from: { port: oldPort }, to: { port: newPort } },
     });
     console.log(ok(`Profile ${c.bold(name)} port: ${oldPort} → ${c.gold(String(newPort))}`));
-    if (p.status === 'running') {
+    // Decide the "restart required" hint from live container state, not the
+    // potentially-stale DB column — operators expect a port edit hint to
+    // reflect what's actually running.
+    const snap = await snapshotLive();
+    if (resolveLiveStatus(p, snap) === 'running') {
       console.log(warn(`restart required: ${c.gold(`zeno restart ${name}`)}`));
     }
   },

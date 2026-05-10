@@ -38,6 +38,9 @@ importers:
       '@hono/zod-validator':
         specifier: ^0.7.6
         version: 0.7.6(hono@4.12.14)(zod@4.3.6)
+      '@zeno/backends':
+        specifier: workspace:*
+        version: link:../../packages/backends
       '@zeno/db':
         specifier: workspace:*
         version: link:../../packages/db

@@ -1,2 +1,12 @@
-// Re-exports added in subsequent tasks (catalog, claude-test).
-export {};
+export {
+  _resetBackendsCatalogCache,
+  type BackendCatalogEntry,
+  type BackendsCatalog,
+  BackendsCatalogReadError,
+  backendAuthFieldSchema,
+  backendAutoFlowSchema,
+  backendEntrySchema,
+  backendsCatalogFileSchema,
+  backendTestSchema,
+  loadBackendsCatalog,
+} from './catalog.js';

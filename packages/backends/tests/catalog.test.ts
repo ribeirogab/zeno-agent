@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { _resetBackendsCatalogCache, loadBackendsCatalog } from '@/lib/backends-catalog-loader';
+import { _resetBackendsCatalogCache, loadBackendsCatalog } from '../src/catalog.js';
 
 describe('loadBackendsCatalog', () => {
   it('reads the on-disk catalog and validates the schema', () => {

@@ -22,7 +22,7 @@ export default defineCommand({
   },
   async run({ args }) {
     if (args.quiet) setQuiet(true);
-    const p = await resolveProfile(args.profile as string | undefined);
+    const p = await resolveProfile(args.profile as string | undefined, { ignoreSticky: true });
     const url = `http://localhost:${p.port}`;
     const child = spawn(platformOpener(), [url], { stdio: 'inherit' });
     child.on('exit', (code) => process.exit(code ?? 1));

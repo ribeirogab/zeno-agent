@@ -16,17 +16,32 @@ function emitTip(line: string): void {
   process.stdout.write(`${c.dim(line)}\n`);
 }
 
-export async function resolveProfile(arg: string | undefined): Promise<ProfileRow> {
+export interface ResolveProfileOptions {
+  /**
+   * When `false` (the default), an explicit arg or the sticky profile shortcuts
+   * the picker. Lifecycle commands (start/stop/restart/logs/open) pass `true`
+   * to always show the picker when no arg is given, so the operator sees the
+   * live state of every profile before acting.
+   */
+  ignoreSticky?: boolean;
+}
+
+export async function resolveProfile(
+  arg: string | undefined,
+  opts: ResolveProfileOptions = {},
+): Promise<ProfileRow> {
   const conn = db();
   if (arg) {
     const p = queries.findProfile(conn, arg);
     if (!p) fail(`profile '${arg}' not found`);
     return p;
   }
-  const sticky = queries.getSticky(conn);
-  if (sticky) {
-    const p = queries.findProfile(conn, sticky);
-    if (p) return p;
+  if (!opts.ignoreSticky) {
+    const sticky = queries.getSticky(conn);
+    if (sticky) {
+      const p = queries.findProfile(conn, sticky);
+      if (p) return p;
+    }
   }
   const profiles = queries.listProfiles(conn);
   if (profiles.length === 0) {
@@ -35,15 +50,16 @@ export async function resolveProfile(arg: string | undefined): Promise<ProfileRo
   if (profiles.length === 1) {
     const only = profiles[0];
     if (!only) fail('no profiles');
-    emitTip(`tip: zeno profile use ${only.name}`);
+    if (!opts.ignoreSticky) emitTip(`tip: zeno profile use ${only.name}`);
     return only;
   }
   if (!isInteractive()) {
     fail('no profile specified. use --profile <name>');
   }
+  const sticky = queries.getSticky(conn);
   const idx = await pick(
     profiles.map((p) => ({
-      label: p.name,
+      label: sticky === p.name ? `${p.name} *` : p.name,
       hint: statusLabel((p.status ?? 'stopped') as Status),
     })),
     { title: `${c.bold('select profile')}  ${c.gray('↑/↓ + Enter')}` },
@@ -51,7 +67,9 @@ export async function resolveProfile(arg: string | undefined): Promise<ProfileRo
   if (idx === null) fail('aborted');
   const chosen = profiles[idx];
   if (!chosen) fail('invalid selection');
-  emitTip(`tip: zeno profile use ${chosen.name} → skip picker next time`);
+  if (!opts.ignoreSticky) {
+    emitTip(`tip: zeno profile use ${chosen.name} → skip picker next time`);
+  }
   return chosen;
 }
 

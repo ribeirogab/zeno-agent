@@ -70,7 +70,9 @@ describe('runDockerExecPty', () => {
         {
           name: 'echo',
           regex: /(hello)/,
-          onMatch: (v) => captured.push(v),
+          onMatch: (v) => {
+            captured.push(v);
+          },
         },
       ],
       stdin,

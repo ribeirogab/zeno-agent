@@ -1,32 +1,29 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openProfileRuntimeDb } from '../../src/lib/runtime-db.js';
 
 describe('openProfileRuntimeDb', () => {
   let tmp: string;
+  let dbPath: string;
   const HEX_KEY = 'a'.repeat(64);
 
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'zeno-runtime-db-test-'));
-    // Redirect HOME so workspaceBindPath() resolves under our temp dir.
-    vi.stubEnv('HOME', tmp);
+    dbPath = join(tmp, 'zeno.db');
   });
 
   afterEach(() => {
-    vi.unstubAllEnvs();
     rmSync(tmp, { recursive: true, force: true });
   });
 
   it('opens the runtime DB, runs migrations, returns both repos', () => {
-    const handle = openProfileRuntimeDb({ profile: 'test', masterKeyHex: HEX_KEY });
+    const handle = openProfileRuntimeDb({ profile: 'test', masterKeyHex: HEX_KEY, dbPath });
     try {
       expect(handle.backendCredentialsRepo).toBeDefined();
       expect(handle.backendSettingsRepo).toBeDefined();
-      // After migrations, listStatuses() should return [] (table exists).
       expect(handle.backendCredentialsRepo.listStatuses()).toEqual([]);
-      // backendSettings starts empty.
       expect(handle.backendSettingsRepo.get('active_backend_id')).toBeNull();
     } finally {
       handle.close();
@@ -34,7 +31,7 @@ describe('openProfileRuntimeDb', () => {
   });
 
   it('round-trips an encrypted credential', () => {
-    const handle = openProfileRuntimeDb({ profile: 'test', masterKeyHex: HEX_KEY });
+    const handle = openProfileRuntimeDb({ profile: 'test', masterKeyHex: HEX_KEY, dbPath });
     try {
       handle.backendCredentialsRepo.upsert({
         backendId: 'claude-code',
@@ -51,7 +48,7 @@ describe('openProfileRuntimeDb', () => {
 
   it('rejects malformed master keys', () => {
     expect(() =>
-      openProfileRuntimeDb({ profile: 'test', masterKeyHex: 'deadbeef' }),
+      openProfileRuntimeDb({ profile: 'test', masterKeyHex: 'deadbeef', dbPath }),
     ).toThrowError(/malformed/);
   });
 });

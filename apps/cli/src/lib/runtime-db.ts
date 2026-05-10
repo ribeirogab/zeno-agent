@@ -22,10 +22,15 @@ import {
 import { profileRuntimeDbPath, workspaceBindPath } from './paths.js';
 
 export interface ProfileRuntimeDbOpts {
-  /** Profile name — used to derive the bind path and as the repo `profileId`. */
+  /** Profile name — also used as the repo `profileId`. */
   profile: string;
   /** Hex-encoded master key from the host DB profile record (64 chars). */
   masterKeyHex: string;
+  /**
+   * Optional override for the runtime DB path. Defaults to
+   * `profileRuntimeDbPath(profile)`. Tests pass an isolated path here.
+   */
+  dbPath?: string;
 }
 
 export interface ProfileRuntimeDbHandle {
@@ -34,14 +39,6 @@ export interface ProfileRuntimeDbHandle {
   close(): void;
 }
 
-/**
- * Open the runtime DB for a profile. Creates the workspace bind dir if
- * missing (idempotent — the same dir is created by `zeno start`). Runs
- * runtime migrations on first open so a fresh profile (no container ever
- * started) still gets a usable schema.
- *
- * Throws if the master key is malformed.
- */
 export function openProfileRuntimeDb(opts: ProfileRuntimeDbOpts): ProfileRuntimeDbHandle {
   const masterKey = Buffer.from(opts.masterKeyHex, 'hex');
   if (masterKey.length !== 32) {
@@ -50,11 +47,12 @@ export function openProfileRuntimeDb(opts: ProfileRuntimeDbOpts): ProfileRuntime
     );
   }
 
-  const dbPath = profileRuntimeDbPath(opts.profile);
-  // Defensive — the bind dir is also created by `zeno start`, but tests and
-  // first-touch CLI commands (e.g. `zeno backend list` before first start)
-  // should not crash on a missing dir.
-  mkdirSync(workspaceBindPath(opts.profile), { recursive: true });
+  const dbPath = opts.dbPath ?? profileRuntimeDbPath(opts.profile);
+  // Defensive — first-touch CLI commands (e.g. `zeno backend list` before
+  // first start) should not crash on a missing dir.
+  if (!opts.dbPath) {
+    mkdirSync(workspaceBindPath(opts.profile), { recursive: true });
+  }
   mkdirSync(dirname(dbPath), { recursive: true });
 
   const opened = openRuntimeDatabase(dbPath);

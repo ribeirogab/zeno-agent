@@ -15,6 +15,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@zeno/backends": "workspace:*",
     "@zeno/db": "workspace:*",
     "better-sqlite3": "^12.9.0",
     "citty": "^0.2.2",

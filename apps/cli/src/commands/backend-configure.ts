@@ -93,6 +93,11 @@ export default defineCommand({
       token = await runClaudeOAuth({
         container,
         backend: catalogEntry as never,
+        // Silence the container's raw PTY mirror — `claude setup-token`
+        // prints an ASCII banner + duplicates the URL + echoes the operator's
+        // typed code chars (TTY echo). The CLI owns the screen with its own
+        // formatted prompt below.
+        mirror: null,
         promptCode: async (url) => {
           process.stdout.write(`\nopen this URL in your browser:\n  ${c.cyan(url)}\n\n`);
           const code = await promptHidden('paste code from browser: ');

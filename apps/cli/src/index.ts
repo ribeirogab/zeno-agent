@@ -1,4 +1,5 @@
 import { defineCommand, runMain } from 'citty';
+import backend from './commands/backend.js';
 import connector from './commands/connector.js';
 import doctor from './commands/doctor.js';
 import logs from './commands/logs.js';
@@ -30,6 +31,7 @@ const main = defineCommand({
     upgrade,
     repo,
     connector,
+    backend,
   },
 });
 

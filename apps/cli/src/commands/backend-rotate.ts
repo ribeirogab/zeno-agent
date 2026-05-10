@@ -5,9 +5,9 @@
  */
 
 import { defineCommand } from 'citty';
+import { c, setQuiet } from '../lib/output.js';
 import { confirm } from '../lib/prompt.js';
 import { resolveProfile } from '../lib/resolvers.js';
-import { c, setQuiet } from '../lib/output.js';
 import configureCmd from './backend-configure.js';
 
 export default defineCommand({
@@ -24,7 +24,9 @@ export default defineCommand({
     const slug = (args.slug as string | undefined) ?? 'claude-code';
 
     if (!args.yes) {
-      const ok = await confirm(`rotate ${c.bold(slug)} creds for profile=${c.bold(profile.name)}? (y/N)`);
+      const ok = await confirm(
+        `rotate ${c.bold(slug)} creds for profile=${c.bold(profile.name)}? (y/N)`,
+      );
       if (!ok) {
         process.stderr.write('aborted\n');
         process.exit(130);

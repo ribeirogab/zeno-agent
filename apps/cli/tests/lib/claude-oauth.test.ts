@@ -47,9 +47,7 @@ describe('runClaudeOAuth', () => {
       mirror: null,
     });
     expect(captured).toBe(TOKEN);
-    expect(promptCode).toHaveBeenCalledWith(
-      'https://example.com/oauth?state=xyz',
-    );
+    expect(promptCode).toHaveBeenCalledWith('https://example.com/oauth?state=xyz');
     expect(promptCode).toHaveBeenCalledTimes(1);
   });
 

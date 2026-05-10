@@ -5,7 +5,7 @@
  * api.anthropic.com, then writes the result back to the DB.
  */
 
-import { loadBackendsCatalog, testClaudeToken, type ClaudeTestResult } from '@zeno/backends';
+import { type ClaudeTestResult, loadBackendsCatalog, testClaudeToken } from '@zeno/backends';
 import { defineCommand } from 'citty';
 import { c, err, isQuiet, ok, setQuiet } from '../lib/output.js';
 import { resolveProfile } from '../lib/resolvers.js';
@@ -18,9 +18,7 @@ export function mapTestResultToExit(r: ClaudeTestResult): number {
   return 2;
 }
 
-export function mapTestResultToStatus(
-  r: ClaudeTestResult,
-): 'active' | 'expired' | 'untested' {
+export function mapTestResultToStatus(r: ClaudeTestResult): 'active' | 'expired' | 'untested' {
   if (r.kind === 'ok') return 'active';
   if (r.kind === 'unauthorized') return 'expired';
   return 'untested';

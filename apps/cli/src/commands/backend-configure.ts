@@ -51,8 +51,7 @@ async function fetchContainerState(docker: Docker, profileName: string): Promise
 export default defineCommand({
   meta: {
     name: 'configure',
-    description:
-      'configure a backend (interactive OAuth flow inside the profile container)',
+    description: 'configure a backend (interactive OAuth flow inside the profile container)',
   },
   args: {
     profile: { type: 'string', description: 'profile identifier (omit for sticky/picker)' },

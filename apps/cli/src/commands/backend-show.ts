@@ -56,9 +56,7 @@ export default defineCommand({
         process.stderr.write(`${err(`backend '${slug}' not in catalog`)}\n`);
         process.exit(1);
       }
-      const status = handle.backendCredentialsRepo
-        .listStatuses()
-        .find((s) => s.backendId === slug);
+      const status = handle.backendCredentialsRepo.listStatuses().find((s) => s.backendId === slug);
       const detail: BackendDetail = {
         id: slug,
         name: entry.name,

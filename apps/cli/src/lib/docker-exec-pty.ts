@@ -11,7 +11,7 @@
  * CLI runs on the host so it cannot do the same).
  */
 
-import { type Duplex, Readable } from 'node:stream';
+import type { Duplex, Readable } from 'node:stream';
 import type Dockerode from 'dockerode';
 
 const ESC = '\\x1b';

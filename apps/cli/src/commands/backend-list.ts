@@ -6,19 +6,14 @@
  * the DB show as `not_configured`.
  */
 
-import { loadBackendsCatalog, type BackendsCatalog } from '@zeno/backends';
+import { type BackendsCatalog, loadBackendsCatalog } from '@zeno/backends';
 import type { BackendCredentialStatus } from '@zeno/db/runtime';
 import { defineCommand } from 'citty';
 import { c, isQuiet, setQuiet } from '../lib/output.js';
 import { resolveProfile } from '../lib/resolvers.js';
 import { openProfileRuntimeDb } from '../lib/runtime-db.js';
 
-export type BackendRowStatus =
-  | 'active'
-  | 'expired'
-  | 'untested'
-  | 'failed'
-  | 'not_configured';
+export type BackendRowStatus = 'active' | 'expired' | 'untested' | 'failed' | 'not_configured';
 
 export interface BackendRow {
   id: string;

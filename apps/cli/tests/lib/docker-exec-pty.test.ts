@@ -36,9 +36,7 @@ describe('stripAnsi', () => {
 
 describe('runDockerExecPty', () => {
   it('matches a regex against the ANSI-stripped streamed stdout', async () => {
-    const fc = makeFakeContainer([
-      'Open: \x1b[32mhttps://example.com/oauth?state=xyz\x1b[0m\n',
-    ]);
+    const fc = makeFakeContainer(['Open: \x1b[32mhttps://example.com/oauth?state=xyz\x1b[0m\n']);
     const onUrl = vi.fn();
     const result = await runDockerExecPty({
       container: fc.container as never,

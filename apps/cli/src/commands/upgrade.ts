@@ -266,7 +266,9 @@ function printReleaseTable(releases: Release[], current: string): void {
   }
   const unstableLabel = c.yellow('unstable');
   const unstablePadding = ' '.repeat(Math.max(0, tagWidth - 'unstable'.length + 2));
-  console.log(`    ${unstableLabel}${unstablePadding}${c.gray('main HEAD · no CI gate · may break')}`);
+  console.log(
+    `    ${unstableLabel}${unstablePadding}${c.gray('main HEAD · no CI gate · may break')}`,
+  );
   console.log('');
 }
 

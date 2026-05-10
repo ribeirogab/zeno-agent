@@ -79,9 +79,9 @@ describe('zeno connector app', () => {
   describe('instances discover', () => {
     it('POSTs /catalog/github-app/installations/discover and prints rows', async () => {
       const client = {
-        get: vi.fn().mockResolvedValue([
-          { id: 'github-app', terminology: { instance: 'Installation' } },
-        ]),
+        get: vi
+          .fn()
+          .mockResolvedValue([{ id: 'github-app', terminology: { instance: 'Installation' } }]),
         post: vi.fn().mockResolvedValue({
           installations: [
             {
@@ -135,9 +135,7 @@ describe('zeno connector app', () => {
           // 1+. command status polls
           .mockResolvedValueOnce({ status: 'success', result: null })
           // 2. catalog terminology lookup
-          .mockResolvedValueOnce([
-            { id: 'github-app', terminology: { instance: 'Installation' } },
-          ]),
+          .mockResolvedValueOnce([{ id: 'github-app', terminology: { instance: 'Installation' } }]),
         post: vi.fn().mockResolvedValue({ correlationId: 'corr-add', slug: 'github-app-acme' }),
       };
       const out: string[] = [];

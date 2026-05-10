@@ -176,7 +176,8 @@ export default defineCommand({
     const appIdShort = (flags['app-id'] ?? flags.appId) as string | undefined;
     const pemFileShort = (flags['pem-file'] ?? flags.pemFile) as string | undefined;
     if (typeof appIdShort === 'string' && appIdShort.length > 0) argMap['app-id'] = appIdShort;
-    if (typeof pemFileShort === 'string' && pemFileShort.length > 0) argMap['pem-file'] = pemFileShort;
+    if (typeof pemFileShort === 'string' && pemFileShort.length > 0)
+      argMap['pem-file'] = pemFileShort;
 
     // Validate against the catalog declaration when available.
     try {
@@ -197,10 +198,8 @@ export default defineCommand({
     }
 
     await runCommand(() =>
-      runConnectorAppInstall(
-        client,
-        { catalog: args.catalog as string, args: argMap },
-        (line) => console.log(line),
+      runConnectorAppInstall(client, { catalog: args.catalog as string, args: argMap }, (line) =>
+        console.log(line),
       ),
     );
   },

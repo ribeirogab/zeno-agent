@@ -67,9 +67,8 @@ export default defineCommand({
     const target = await resolveConnector(args.target as string | undefined, {
       listConnectors: () => client.get('/api/connectors'),
     });
-    await runCommand(
-      () => runConnectorTest(client, { target }, (line) => console.log(line)),
-      { context: 'test' },
-    );
+    await runCommand(() => runConnectorTest(client, { target }, (line) => console.log(line)), {
+      context: 'test',
+    });
   },
 });

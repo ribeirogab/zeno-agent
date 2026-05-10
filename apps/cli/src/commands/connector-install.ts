@@ -138,7 +138,9 @@ export async function runConnectorInstall(
   // Verification failed → roll back so the operator isn't left with a broken
   // half-wired row that needs manual cleanup before retrying.
   const reason = result.error ?? result.errorKind ?? 'unknown';
-  print(`${err(`verification failed: ${result.errorKind ?? 'unknown'}${result.error ? ` (${result.error})` : ''}`)}`);
+  print(
+    `${err(`verification failed: ${result.errorKind ?? 'unknown'}${result.error ? ` (${result.error})` : ''}`)}`,
+  );
   print(c.gray('rolling back...'));
   try {
     await client.delete(`/api/connectors/${fresh.id}`);
@@ -227,9 +229,8 @@ export default defineCommand({
     if (typeof args.label === 'string' && args.label.length > 0) {
       installArgs.label = args.label;
     }
-    await runCommand(
-      () => runConnectorInstall(client, installArgs, (line) => console.log(line)),
-      { context: 'install' },
-    );
+    await runCommand(() => runConnectorInstall(client, installArgs, (line) => console.log(line)), {
+      context: 'install',
+    });
   },
 });

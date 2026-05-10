@@ -187,7 +187,11 @@ describe('zeno connector install', () => {
           // 1. install POST
           .mockResolvedValueOnce({ correlationId: 'corr-v1' })
           // 2. test POST
-          .mockResolvedValueOnce({ ok: true, tools: [{ name: 'a' }, { name: 'b' }], durationMs: 12 }),
+          .mockResolvedValueOnce({
+            ok: true,
+            tools: [{ name: 'a' }, { name: 'b' }],
+            durationMs: 12,
+          }),
         delete: vi.fn(),
       };
       const out: string[] = [];
@@ -213,14 +217,11 @@ describe('zeno connector install', () => {
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce({ status: 'success', result: null })
           .mockResolvedValueOnce([{ id: 'new', slug: 'linear', catalogId: 'linear' }]),
-        post: vi
-          .fn()
-          .mockResolvedValueOnce({ correlationId: 'corr-v2' })
-          .mockResolvedValueOnce({
-            ok: false,
-            errorKind: 'auth_failed',
-            error: 'invalid_token',
-          }),
+        post: vi.fn().mockResolvedValueOnce({ correlationId: 'corr-v2' }).mockResolvedValueOnce({
+          ok: false,
+          errorKind: 'auth_failed',
+          error: 'invalid_token',
+        }),
         delete: vi.fn().mockResolvedValue({ correlationId: 'corr-rb' }),
       };
       const out: string[] = [];

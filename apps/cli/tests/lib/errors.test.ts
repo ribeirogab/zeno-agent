@@ -27,7 +27,9 @@ describe('friendly', () => {
     const h = friendly(e);
     expect(h.msg).toContain('auth failed');
     expect(h.msg).toContain('invalid token');
-    expect(h.hint).toBe('update token: zeno connector secret set linear-acme __MCP_AUTHORIZATION__');
+    expect(h.hint).toBe(
+      'update token: zeno connector secret set linear-acme __MCP_AUTHORIZATION__',
+    );
   });
 
   it('maps auth_failed during install with catalogId+key', () => {
@@ -51,7 +53,9 @@ describe('friendly', () => {
       key: '__MCP_AUTHORIZATION__',
     });
     const h = friendly(e, 'test');
-    expect(h.hint).toBe('update token: zeno connector secret set linear-acme __MCP_AUTHORIZATION__');
+    expect(h.hint).toBe(
+      'update token: zeno connector secret set linear-acme __MCP_AUTHORIZATION__',
+    );
   });
 
   it('maps auth_failed during reveal with slug+key', () => {
@@ -62,7 +66,9 @@ describe('friendly', () => {
       key: '__MCP_AUTHORIZATION__',
     });
     const h = friendly(e, 'reveal');
-    expect(h.hint).toBe('update token: zeno connector secret set linear-acme __MCP_AUTHORIZATION__');
+    expect(h.hint).toBe(
+      'update token: zeno connector secret set linear-acme __MCP_AUTHORIZATION__',
+    );
   });
 
   it('maps auth_failed without slug+key (no hint)', () => {

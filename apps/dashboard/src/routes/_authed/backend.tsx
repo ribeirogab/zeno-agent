@@ -14,7 +14,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { type JSX, useState } from 'react';
 import { CommandModal } from '@/components/command-modal';
 import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
-import { type CommandKind } from '@/lib/build-cli-command';
+import type { CommandKind } from '@/lib/build-cli-command';
 import { type BackendListItem, type BackendStatus, useBackends } from '@/lib/use-backends';
 
 const IMPLEMENTED = new Set(['claude-code']);
@@ -35,11 +35,7 @@ function BackendPage(): JSX.Element {
         <DashboardTopstrip crumbs={[{ label: 'backend', current: true }]} />
         <div className="max-w-[1080px] w-full mx-auto px-12 pt-10 pb-20 flex flex-col gap-8 min-w-0">
           <Header />
-          <Table
-            items={items}
-            onAction={setModal}
-            loading={backends.isLoading}
-          />
+          <Table items={items} onAction={setModal} loading={backends.isLoading} />
           <FooterHint catalogCount={items.length} />
         </div>
       </main>
@@ -83,8 +79,7 @@ function Table(props: {
 }
 
 function TableHeader(): JSX.Element {
-  const colClass =
-    'font-mono text-[10px] tracking-[0.18em] uppercase text-text-tertiary';
+  const colClass = 'font-mono text-[10px] tracking-[0.18em] uppercase text-text-tertiary';
   return (
     <div className="flex gap-4 px-4 py-2 border-b border-border-subtle items-center">
       <div className={`${colClass} w-[320px]`}>BACKEND</div>
@@ -138,17 +133,11 @@ function Row(props: {
       <div className="w-[320px] flex gap-3 items-center">
         <div className="w-8 h-8 rounded bg-panel-2 flex items-center justify-center shrink-0 overflow-hidden">
           {backend.logoUrl ? (
-            <img
-              src={backend.logoUrl}
-              alt=""
-              className="w-[22px] h-[22px] object-contain"
-            />
+            <img src={backend.logoUrl} alt="" className="w-[22px] h-[22px] object-contain" />
           ) : null}
         </div>
         <div className="flex flex-col gap-1">
-          <div className="font-mono text-[13px] font-semibold text-text-primary">
-            {backend.id}
-          </div>
+          <div className="font-mono text-[13px] font-semibold text-text-primary">{backend.id}</div>
           <div className="font-mono text-[11px] text-text-tertiary">{backend.name}</div>
         </div>
       </div>

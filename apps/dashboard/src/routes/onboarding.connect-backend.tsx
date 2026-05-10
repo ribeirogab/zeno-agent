@@ -81,8 +81,8 @@ function OnboardingConnectBackend(): JSX.Element {
             Welcome to Zeno.
           </h1>
           <p className="font-sans text-[17px] leading-[1.5] text-text-secondary max-w-[540px] m-0">
-            One step left: connect a backend. Run the command below in your terminal — Zeno
-            detects the new credentials within seconds and unlocks the dashboard.
+            One step left: connect a backend. Run the command below in your terminal — Zeno detects
+            the new credentials within seconds and unlocks the dashboard.
           </p>
         </div>
 
@@ -92,7 +92,8 @@ function OnboardingConnectBackend(): JSX.Element {
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-gold" />
             <span>
-              picker shows every backend in the catalog · today: claude-code · future: codex · gemini
+              picker shows every backend in the catalog · today: claude-code · future: codex ·
+              gemini
             </span>
           </div>
           <div className="flex items-center gap-2">

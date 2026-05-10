@@ -20,6 +20,13 @@ export const catalogSecretSchema = z.object({
    * - `pem`: textarea + file picker that loads file content into textarea
    */
   inputType: z.enum(['text', 'password', 'pem']).optional(),
+  /**
+   * Optional prefix prepended to the operator-supplied value at storage time.
+   * Lets the operator type only the bare token (e.g. `lin_api_xxx`) while the
+   * stored value is `Bearer lin_api_xxx`. Idempotent: if the operator-supplied
+   * value already starts with the prefix, it's left alone.
+   */
+  prefix: z.string().optional(),
 });
 
 export const catalogToolSchema = z.object({
@@ -81,6 +88,40 @@ export const catalogEntrySchema = z.object({
    * exists.
    */
   multiInstance: z.boolean().optional(),
+  /**
+   * Spec 2026-05-09-cli-ux-overhaul iter2 (Change 13): the App pattern is a
+   * generic shape — one App entity (set of `appArgs`) with N "instances"
+   * underneath (one connector row per discovered installation/account/scope).
+   * Today only `github-app` declares `pattern: "app"`; future apps with the
+   * same shape can opt in without changing CLI plumbing.
+   */
+  pattern: z.enum(['app']).optional(),
+  /**
+   * For `pattern: "app"` catalogs: the args the operator supplies when
+   * installing the App entity itself (e.g. GitHub App ID + PEM file). The
+   * CLI reads this list, prompts/parses each argument by `key`, and ships
+   * the resulting payload to the catalog-specific install endpoint.
+   */
+  appArgs: z
+    .array(
+      z.object({
+        key: z.string(),
+        label: z.string(),
+        type: z.enum(['text', 'file']),
+        required: z.boolean().optional().default(true),
+      }),
+    )
+    .optional(),
+  /**
+   * Optional display vocabulary for the catalog. `instance` overrides the
+   * generic "Instance" label in the CLI when listing/adding instances —
+   * github-app uses "Installation" because that's the GitHub vocabulary.
+   */
+  terminology: z
+    .object({
+      instance: z.string().optional(),
+    })
+    .optional(),
   tags: z.array(z.string()).optional(),
 });
 

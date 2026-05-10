@@ -28,7 +28,7 @@ Most connectors are **plain**: each install is its own row, independent. Operato
 
 A few catalogs declare `multiInstance: false`. Trying to install a second one returns `409 single_instance_catalog_already_installed`; the dashboard's `+` button is disabled with a tooltip.
 
-`github-app` is the **App pattern**: one App entity (one PEM, one app_id) with N installations underneath (one per GitHub org/user the App is installed on). Future apps with similar shapes will follow the same pattern. The CLI exposes `zeno connector app install`, `zeno connector app installations discover`, `zeno connector app installations add`, and `zeno connector app uninstall` for this flow.
+`github-app` is the **App pattern**: one App entity (one PEM, one app_id) with N instances underneath (one per GitHub org/user the App is installed on). Future apps with similar shapes will follow the same pattern. The CLI exposes `zeno connector app install`, `zeno connector app instances discover`, `zeno connector app instances add`, and `zeno connector app uninstall` for this flow.
 
 ## CLI reference
 
@@ -50,9 +50,9 @@ zeno connector secret reveal linear-acme __MCP_AUTHORIZATION__
 
 # App-pattern (github-app)
 zeno connector app install --catalog github-app --app-id 123456 --pem-file ~/keys/app.pem
-zeno connector app installations discover
-zeno connector app installations add --installation-id 125887887 --label "FNLivros"
-zeno connector app uninstall --confirm "Zeno Agent App"
+zeno connector app instances discover
+zeno connector app instances add --instance-id 125887887 --label "FNLivros"
+zeno connector app uninstall --yes
 
 # Lifecycle
 zeno connector enable linear-acme

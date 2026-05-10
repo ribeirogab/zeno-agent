@@ -85,8 +85,19 @@ export default defineCommand({
     );
     const installationsCount = appItem?.installationCount ?? 0;
 
+    // Catalog terminology, best-effort lookup.
+    let instanceLabel = 'instance';
+    try {
+      const catalog = (await client.get<Array<{ id: string; terminology?: { instance?: string } }>>(
+        '/api/connectors/catalog',
+      )) as Array<{ id: string; terminology?: { instance?: string } }>;
+      const entry = catalog.find((e) => e.id === 'github-app');
+      if (entry?.terminology?.instance) instanceLabel = entry.terminology.instance.toLowerCase();
+    } catch {
+      /* keep the fallback */
+    }
     const confirmed = await confirmDestructive(
-      `uninstall app '${app.appName}'? this cascades to ${installationsCount} installations. (y/N)`,
+      `uninstall app '${app.appName}'? this cascades to ${installationsCount} ${instanceLabel}s. (y/N)`,
       { yes: !!args.yes },
     );
     if (!confirmed) {

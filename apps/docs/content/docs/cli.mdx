@@ -24,9 +24,9 @@ import ConnectorSecretRotateFlags from '@/generated/cli-flags/connector-secret-r
 import ConnectorSecretRevealFlags from '@/generated/cli-flags/connector-secret-reveal.mdx';
 import ConnectorAppFlags from '@/generated/cli-flags/connector-app.mdx';
 import ConnectorAppInstallFlags from '@/generated/cli-flags/connector-app-install.mdx';
-import ConnectorAppInstallationsFlags from '@/generated/cli-flags/connector-app-installations.mdx';
-import ConnectorAppInstallationsDiscoverFlags from '@/generated/cli-flags/connector-app-installations-discover.mdx';
-import ConnectorAppInstallationsAddFlags from '@/generated/cli-flags/connector-app-installations-add.mdx';
+import ConnectorAppInstancesFlags from '@/generated/cli-flags/connector-app-instances.mdx';
+import ConnectorAppInstancesDiscoverFlags from '@/generated/cli-flags/connector-app-instances-discover.mdx';
+import ConnectorAppInstancesAddFlags from '@/generated/cli-flags/connector-app-instances-add.mdx';
 import ConnectorAppUninstallFlags from '@/generated/cli-flags/connector-app-uninstall.mdx';
 import DoctorFlags from '@/generated/cli-flags/doctor.mdx';
 import LogsFlags from '@/generated/cli-flags/logs.mdx';
@@ -461,7 +461,7 @@ zeno connector secret reveal linear-acme __MCP_AUTHORIZATION__
 
 ### `zeno connector app`
 
-Manage app-pattern catalogs (`github-app` today; future apps share the same shape — one App entity with N installations underneath). Three top-level verbs.
+Manage app-pattern catalogs (`github-app` today; future apps share the same shape — one App entity with N instances underneath). Three top-level verbs.
 
 <ConnectorAppFlags />
 
@@ -477,31 +477,31 @@ A second install of the same App catalog returns `409 app_already_installed` —
 
 <ConnectorAppInstallFlags />
 
-#### `zeno connector app installations`
+#### `zeno connector app instances`
 
-Manage the installations under the App. Two subcommands.
+Manage the instances under the App. Two subcommands. The catalog declares display vocabulary via `terminology.instance` (e.g. `github-app` calls them "Installation"); the CLI uses that label when rendering.
 
-<ConnectorAppInstallationsFlags />
+<ConnectorAppInstancesFlags />
 
-##### `zeno connector app installations discover`
+##### `zeno connector app instances discover`
 
-Calls GitHub's `GET /app/installations` and prints a table: installation id, account name, account type (Organization/User), repo count, whether the installation is already wired into Zeno.
-
-```bash
-zeno connector app installations discover
-```
-
-<ConnectorAppInstallationsDiscoverFlags />
-
-##### `zeno connector app installations add`
-
-Wire one installation into Zeno. Creates a connector row with slug `github-app-<kebab-label>` that inherits the App's PEM at runtime.
+Calls GitHub's `GET /app/installations` and prints a table: instance id, account name, account type (Organization/User), repo count, whether the instance is already wired into Zeno.
 
 ```bash
-zeno connector app installations add --installation-id 125887887 --label "FNLivros"
+zeno connector app instances discover
 ```
 
-<ConnectorAppInstallationsAddFlags />
+<ConnectorAppInstancesDiscoverFlags />
+
+##### `zeno connector app instances add`
+
+Wire one instance into Zeno. Creates a connector row with slug `github-app-<kebab-label>` that inherits the App's PEM at runtime.
+
+```bash
+zeno connector app instances add --instance-id 125887887 --label "FNLivros"
+```
+
+<ConnectorAppInstancesAddFlags />
 
 #### `zeno connector app uninstall`
 

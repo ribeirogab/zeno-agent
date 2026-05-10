@@ -19,6 +19,12 @@
       "authCheckTool": "get_me",
       "secrets": [],
       "tools": [],
+      "pattern": "app",
+      "appArgs": [
+        { "key": "app-id", "label": "GitHub App ID", "type": "text", "required": true },
+        { "key": "pem-file", "label": "Private key PEM file", "type": "file", "required": true }
+      ],
+      "terminology": { "instance": "Installation" },
       "tags": [
         "development",
         "code"

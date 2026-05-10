@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { runConnectorAppInstall } from '@/commands/connector-app-install.js';
-import { runConnectorAppInstallationsAdd } from '@/commands/connector-app-installations-add.js';
-import { runConnectorAppInstallationsDiscover } from '@/commands/connector-app-installations-discover.js';
+import { runConnectorAppInstancesAdd } from '@/commands/connector-app-instances-add.js';
+import { runConnectorAppInstancesDiscover } from '@/commands/connector-app-instances-discover.js';
 import { runConnectorAppUninstall } from '@/commands/connector-app-uninstall.js';
 
 describe('zeno connector app', () => {
@@ -76,10 +76,12 @@ describe('zeno connector app', () => {
     });
   });
 
-  describe('installations discover', () => {
+  describe('instances discover', () => {
     it('POSTs /catalog/github-app/installations/discover and prints rows', async () => {
       const client = {
-        get: vi.fn(),
+        get: vi.fn().mockResolvedValue([
+          { id: 'github-app', terminology: { instance: 'Installation' } },
+        ]),
         post: vi.fn().mockResolvedValue({
           installations: [
             {
@@ -102,7 +104,7 @@ describe('zeno connector app', () => {
         }),
       };
       const out: string[] = [];
-      await runConnectorAppInstallationsDiscover(
+      await runConnectorAppInstancesDiscover(
         // biome-ignore lint/suspicious/noExplicitAny: mocked client narrows to ApiClient subset
         client as any,
         {},
@@ -125,17 +127,24 @@ describe('zeno connector app', () => {
     });
   });
 
-  describe('installations add', () => {
+  describe('instances add', () => {
     it('POSTs /catalog/github-app/installations and waits for the command', async () => {
       const client = {
-        get: vi.fn().mockResolvedValue({ status: 'success', result: null }),
+        get: vi
+          .fn()
+          // 1+. command status polls
+          .mockResolvedValueOnce({ status: 'success', result: null })
+          // 2. catalog terminology lookup
+          .mockResolvedValueOnce([
+            { id: 'github-app', terminology: { instance: 'Installation' } },
+          ]),
         post: vi.fn().mockResolvedValue({ correlationId: 'corr-add', slug: 'github-app-acme' }),
       };
       const out: string[] = [];
-      await runConnectorAppInstallationsAdd(
+      await runConnectorAppInstancesAdd(
         // biome-ignore lint/suspicious/noExplicitAny: mocked client narrows to ApiClient subset
         client as any,
-        { installationId: '111', label: 'Acme Books' },
+        { instanceId: '111', label: 'Acme Books' },
         (line) => out.push(line),
       );
       expect(client.post).toHaveBeenCalledWith('/api/connectors/catalog/github-app/installations', {
@@ -146,6 +155,7 @@ describe('zeno connector app', () => {
       const text = out.join('\n');
       expect(text).toContain('corr-add');
       expect(text).toMatch(/github-app-acme/);
+      expect(text).toMatch(/installation added/);
     });
 
     it('throws when waitForCommand reports failure', async () => {
@@ -154,10 +164,10 @@ describe('zeno connector app', () => {
         post: vi.fn().mockResolvedValue({ correlationId: 'corr-bad', slug: 'github-app-x' }),
       };
       await expect(
-        runConnectorAppInstallationsAdd(
+        runConnectorAppInstancesAdd(
           // biome-ignore lint/suspicious/noExplicitAny: mocked client narrows to ApiClient subset
           client as any,
-          { installationId: '111', label: 'X' },
+          { instanceId: '111', label: 'X' },
           () => {},
         ),
       ).rejects.toThrow(/install_failed/);

@@ -1,9 +1,13 @@
+import { stdin as input, stdout as output } from 'node:process';
+import { createInterface } from 'node:readline/promises';
 import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
 import { c, err, ok, setQuiet, warn } from '../lib/output.js';
 import { isPortTaken, PORT_MAX, PORT_MIN, requireProfile } from '../lib/profile.js';
 import { resolveProfile } from '../lib/resolvers.js';
 import { db } from '../lib/state.js';
+
+const isInteractive = () => Boolean(process.stdin.isTTY) && Boolean(process.stdout.isTTY);
 
 export default defineCommand({
   meta: { name: 'edit', description: 'edit a profile (port only for now)' },
@@ -12,7 +16,7 @@ export default defineCommand({
     port: {
       type: 'string',
       description: `new host port (${PORT_MIN}-${PORT_MAX})`,
-      required: true,
+      required: false,
     },
     quiet: { type: 'boolean', description: 'minimal output' },
   },
@@ -23,7 +27,22 @@ export default defineCommand({
       ignoreSticky: true,
     });
     const p = requireProfile(conn, name);
-    const newPort = Number(args.port);
+    let portArg = args.port as string | undefined;
+    if (!portArg) {
+      if (!isInteractive()) {
+        console.error(err(`--port required (${PORT_MIN}-${PORT_MAX})`));
+        process.exit(1);
+      }
+      const rl = createInterface({ input, output });
+      try {
+        portArg = (
+          await rl.question(`new port (current ${p.port}, ${PORT_MIN}-${PORT_MAX}): `)
+        ).trim();
+      } finally {
+        rl.close();
+      }
+    }
+    const newPort = Number(portArg);
     if (!Number.isInteger(newPort) || newPort < PORT_MIN || newPort > PORT_MAX) {
       console.error(err(`port must be integer in [${PORT_MIN}, ${PORT_MAX}]`));
       process.exit(1);

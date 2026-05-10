@@ -1,15 +1,7 @@
 import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
 import { resolveProfileApiUrl } from '../lib/api-base.js';
-import {
-  c,
-  formatUptime,
-  isQuiet,
-  rule,
-  setQuiet,
-  statusDot,
-  statusLabel,
-} from '../lib/output.js';
+import { c, formatUptime, isQuiet, rule, setQuiet, statusDot, statusLabel } from '../lib/output.js';
 import { resolveLiveStatus, snapshotLive } from '../lib/profile-state.js';
 import { db } from '../lib/state.js';
 import type { StatusJson } from '../types/json-output.js';

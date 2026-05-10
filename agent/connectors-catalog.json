@@ -870,7 +870,7 @@
         {
           "key": "SENTRY_ACCESS_TOKEN",
           "label": "Access Token",
-          "help": "User Auth Token from sentry.io/settings/account/api/auth-tokens. Recommended scopes: org:read, project:read, event:read, member:read, alerts:read. (The package reads this env as `SENTRY_ACCESS_TOKEN` \u2014 different from SENTRY_AUTH_TOKEN used by other Sentry SDKs.)",
+          "help": "User Auth Token from sentry.io/settings/account/api/auth-tokens. Recommended scopes: org:read, project:read, event:read, member:read, alerts:read. (The package reads this env as `SENTRY_ACCESS_TOKEN` \u2014 different from SENTRY_AUTH_TOKEN used by other Sentry SDKs.) Note: this personal token validates against `sentry.io/api/0/` whoami and works for direct API calls, but Sentry's MCP server may still respond \"Authorization Expired\" because some tools require an OAuth-session credential rather than a personal access token. If MCP `whoami` keeps failing, expect to switch to an OAuth flow once Sentry exposes one.",
           "required": true
         },
         {

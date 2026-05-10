@@ -234,3 +234,26 @@ export async function resolvePermission(arg: string | undefined): Promise<Permis
   if (!chosen) fail('invalid selection');
   return chosen;
 }
+
+export type ToolCategory = 'read' | 'write' | 'interactive';
+const TOOL_CATEGORIES: ToolCategory[] = ['read', 'write', 'interactive'];
+
+export async function resolveToolCategory(arg: string | undefined): Promise<ToolCategory> {
+  if (arg) {
+    if (!TOOL_CATEGORIES.includes(arg as ToolCategory)) {
+      throw new Error(`invalid category '${arg}'. use one of: ${TOOL_CATEGORIES.join(', ')}`);
+    }
+    return arg as ToolCategory;
+  }
+  if (!isInteractive()) {
+    fail('no category specified. pass one of: read | write | interactive');
+  }
+  const idx = await pick(
+    TOOL_CATEGORIES.map((cat) => ({ label: cat, hint: '' })),
+    { title: `${c.bold('select category')}  ${c.gray('↑/↓ + Enter')}` },
+  );
+  if (idx === null) fail('aborted');
+  const chosen = TOOL_CATEGORIES[idx];
+  if (!chosen) fail('invalid selection');
+  return chosen;
+}

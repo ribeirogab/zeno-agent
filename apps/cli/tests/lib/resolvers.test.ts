@@ -27,6 +27,7 @@ import {
   resolveProfile,
   resolveSecretKey,
   resolveTool,
+  resolveToolCategory,
 } from '@/lib/resolvers.js';
 
 const setTTY = (value: boolean) => {
@@ -170,8 +171,6 @@ describe('resolveProfile', () => {
     await resolveProfile(undefined);
     const callArgs = pickMock.pick.mock.calls[0]?.[0] as Array<{ label: string; hint: string }>;
     expect(callArgs).toBeDefined();
-    // Strip ANSI codes for stable assertion.
-    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
     expect(stripAnsi(callArgs[0]?.hint ?? '')).toBe('stopped');
     expect(stripAnsi(callArgs[1]?.hint ?? '')).toBe('stopped');
   });
@@ -187,11 +186,19 @@ describe('resolveProfile', () => {
     pickMock.pick.mockResolvedValue(0);
     await resolveProfile(undefined);
     const callArgs = pickMock.pick.mock.calls[0]?.[0] as Array<{ label: string; hint: string }>;
-    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
     expect(stripAnsi(callArgs[0]?.hint ?? '')).toBe('running');
     expect(stripAnsi(callArgs[1]?.hint ?? '')).toBe('stopped');
   });
 });
+
+// Build the ANSI strip pattern via the RegExp constructor so the literal
+// 0x1B (ESC) byte never lands in source — biome's noControlCharactersInRegex
+// flags the literal escape sequence, even though it's intentional here.
+const ANSI_ESCAPE = String.fromCharCode(27);
+const ANSI_PATTERN = new RegExp(`${ANSI_ESCAPE}\\[[0-9;]*m`, 'g');
+function stripAnsi(s: string): string {
+  return s.replace(ANSI_PATTERN, '');
+}
 
 describe('resolveConnector', () => {
   const src = { listConnectors: vi.fn() };
@@ -292,5 +299,28 @@ describe('resolvePermission', () => {
   it('exits in non-TTY without arg', async () => {
     setTTY(false);
     await expect(resolvePermission(undefined)).rejects.toThrow('__exit__');
+  });
+});
+
+describe('resolveToolCategory', () => {
+  it('returns valid value', async () => {
+    expect(await resolveToolCategory('read')).toBe('read');
+    expect(await resolveToolCategory('write')).toBe('write');
+    expect(await resolveToolCategory('interactive')).toBe('interactive');
+  });
+
+  it('throws on invalid value', async () => {
+    await expect(resolveToolCategory('bogus')).rejects.toThrow(/invalid category/);
+  });
+
+  it('opens 3-option picker when missing in TTY', async () => {
+    setTTY(true);
+    pickMock.pick.mockResolvedValue(2);
+    expect(await resolveToolCategory(undefined)).toBe('interactive');
+  });
+
+  it('exits in non-TTY without arg', async () => {
+    setTTY(false);
+    await expect(resolveToolCategory(undefined)).rejects.toThrow('__exit__');
   });
 });

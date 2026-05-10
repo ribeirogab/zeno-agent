@@ -83,7 +83,7 @@ describe('resolveLiveStatus', () => {
     expect(resolveLiveStatus(profile({ name: 'fn', status: 'running' }), snap)).toBe('stopped');
   });
 
-  it("returns the failed state when container exists in failed state", () => {
+  it('returns the failed state when container exists in failed state', () => {
     const snap = {
       reachable: true,
       liveByName: new Map<string, 'running' | 'stopped' | 'failed'>([['fn', 'failed']]),

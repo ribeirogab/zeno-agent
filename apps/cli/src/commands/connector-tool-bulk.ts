@@ -4,7 +4,12 @@ import type { ApiClient } from '../lib/api-client.js';
 import { ApiClient as ApiClientImpl } from '../lib/api-client.js';
 import { runCommand } from '../lib/errors.js';
 import { ok, setQuiet } from '../lib/output.js';
-import { resolveConnector, resolveProfile } from '../lib/resolvers.js';
+import {
+  resolveConnector,
+  resolvePermission,
+  resolveProfile,
+  resolveToolCategory,
+} from '../lib/resolvers.js';
 
 const CATEGORIES = ['read', 'write', 'interactive'] as const;
 const PERMISSIONS = ['always_allow', 'ask', 'never'] as const;
@@ -54,16 +59,20 @@ export async function runConnectorToolBulk(
 export default defineCommand({
   meta: { name: 'bulk', description: 'set permission for all tools in a category' },
   args: {
+    // All three are optional positionals so the picker can fill them in. The
+    // earlier `required: true` form forced citty to error before the CLI even
+    // entered `run()` — the same defeat-the-picker bug we hit on
+    // `profile edit --port` (commit bb7f992).
     target: { type: 'positional', description: 'slug or id', required: false },
     category: {
       type: 'string',
-      description: 'read | write | interactive',
-      required: true,
+      description: 'read | write | interactive (prompted if omitted)',
+      required: false,
     },
     permission: {
       type: 'string',
-      description: 'always_allow | ask | never',
-      required: true,
+      description: 'always_allow | ask | never (prompted if omitted)',
+      required: false,
     },
     profile: { type: 'string', description: 'profile name', required: false },
     quiet: { type: 'boolean', description: 'minimal output' },
@@ -76,13 +85,15 @@ export default defineCommand({
     const target = await resolveConnector(args.target as string | undefined, {
       listConnectors: () => client.get('/api/connectors'),
     });
+    const category = await resolveToolCategory(args.category as string | undefined);
+    const permission = await resolvePermission(args.permission as string | undefined);
     await runCommand(() =>
       runConnectorToolBulk(
         client,
         {
           target,
-          category: args.category as string,
-          permission: args.permission as string,
+          category,
+          permission,
         },
         (line) => console.log(line),
       ),

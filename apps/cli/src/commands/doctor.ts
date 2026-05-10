@@ -4,6 +4,7 @@ import { defineCommand } from 'citty';
 import { orchestrator } from '../lib/orchestrator/singleton.js';
 import { c, err, info, ok, rule, setQuiet, warn } from '../lib/output.js';
 import { containerName, STATE_DB_PATH, ZENO_HOME } from '../lib/paths.js';
+import { snapshotLive } from '../lib/profile-state.js';
 import { db } from '../lib/state.js';
 import { getCurrentVersion } from '../lib/version.js';
 
@@ -54,26 +55,34 @@ export default defineCommand({
     console.log(`  ${ok('Installed version'.padEnd(28))} ${c.gold(getCurrentVersion(conn))}`);
 
     // Drift: DB profiles vs Docker reality.
+    //
+    // Drift detection is the *one* place where we deliberately compare DB
+    // status against the live Docker snapshot — every other CLI surface uses
+    // `resolveLiveStatus` (which masks DB-vs-live disagreement by preferring
+    // the live value). Here we want the disagreement: it's the diagnostic.
     if (dockerOk) {
-      try {
-        const live = await orch.listManagedContainers();
-        const liveByProfile = new Map(live.map((l) => [l.profile, l]));
+      const snap = await snapshotLive();
+      if (!snap.reachable) {
+        console.log(
+          `  ${warn('DB ↔ Docker drift'.padEnd(28))} ${c.gray('check failed: docker snapshot unavailable')}`,
+        );
+      } else {
         const dbProfiles = queries.listProfiles(conn);
         const dbNames = new Set(dbProfiles.map((p) => p.name));
 
         const drifted: string[] = [];
         for (const p of dbProfiles) {
-          const l = liveByProfile.get(p.name);
-          if (p.status === 'running' && (!l || l.state !== 'running')) {
+          const liveState = snap.liveByName.get(p.name);
+          if (p.status === 'running' && liveState !== 'running') {
             drifted.push(`profile '${p.name}' marked running in DB but no live container`);
           }
         }
-        for (const l of live) {
-          if (!dbNames.has(l.profile)) {
-            drifted.push(`container ${containerName(l.profile)} exists but no DB row`);
+        for (const [profile] of snap.liveByName) {
+          if (!dbNames.has(profile)) {
+            drifted.push(`container ${containerName(profile)} exists but no DB row`);
           }
         }
-        const running = live.filter((l) => l.state === 'running').length;
+        const running = Array.from(snap.liveByName.values()).filter((s) => s === 'running').length;
         console.log(`  ${ok('Running profiles'.padEnd(28))} ${c.gray(`${running} active`)}`);
 
         if (drifted.length === 0) {
@@ -85,10 +94,6 @@ export default defineCommand({
           for (const d of drifted) console.log(`    ${c.gray('-')} ${d}`);
           failed = true;
         }
-      } catch (e) {
-        console.log(
-          `  ${warn('DB ↔ Docker drift'.padEnd(28))} ${c.gray(`check failed: ${(e as Error).message}`)}`,
-        );
       }
     }
 

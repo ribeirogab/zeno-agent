@@ -7,6 +7,7 @@ const queriesMock = vi.hoisted(() => ({
   getSticky: vi.fn(),
 }));
 const pickMock = vi.hoisted(() => ({ pick: vi.fn() }));
+const orchestratorMock = vi.hoisted(() => ({ listManagedContainers: vi.fn() }));
 
 vi.mock('@/lib/state.js', () => ({
   db: () => dbMock,
@@ -15,6 +16,9 @@ vi.mock('@zeno/db/host', () => ({
   queries: queriesMock,
 }));
 vi.mock('@/lib/picker.js', () => pickMock);
+vi.mock('@/lib/orchestrator/singleton.js', () => ({
+  orchestrator: () => orchestratorMock,
+}));
 
 import {
   resolveCatalog,
@@ -23,6 +27,7 @@ import {
   resolveProfile,
   resolveSecretKey,
   resolveTool,
+  resolveToolCategory,
 } from '@/lib/resolvers.js';
 
 const setTTY = (value: boolean) => {
@@ -54,6 +59,10 @@ beforeEach(() => {
   queriesMock.findProfile.mockReset();
   queriesMock.getSticky.mockReset();
   pickMock.pick.mockReset();
+  orchestratorMock.listManagedContainers.mockReset();
+  // Default: daemon unreachable. Tests that exercise the picker should
+  // overwrite this so the hint reflects live state.
+  orchestratorMock.listManagedContainers.mockRejectedValue(new Error('daemon down'));
 });
 
 afterEach(() => {
@@ -145,7 +154,51 @@ describe('resolveProfile', () => {
     await expect(resolveProfile(undefined)).rejects.toThrow('__exit__');
     expect(stderrChunks.join('')).toMatch(/no profiles/);
   });
+
+  it('picker hint reflects live state, overriding stale DB status', async () => {
+    setTTY(true);
+    queriesMock.getSticky.mockReturnValue(null);
+    queriesMock.listProfiles.mockReturnValue([
+      // DB lies: says running. Live snapshot says container is gone → stopped.
+      { name: 'fn', port: 6101, status: 'running' },
+      { name: 'work', port: 6102, status: 'stopped' },
+    ]);
+    orchestratorMock.listManagedContainers.mockResolvedValue([
+      // No 'fn' container — fn must render as stopped, not running.
+      { name: 'zeno-work', profile: 'work', port: 6102, state: 'stopped', startedAt: null },
+    ]);
+    pickMock.pick.mockResolvedValue(0);
+    await resolveProfile(undefined);
+    const callArgs = pickMock.pick.mock.calls[0]?.[0] as Array<{ label: string; hint: string }>;
+    expect(callArgs).toBeDefined();
+    expect(stripAnsi(callArgs[0]?.hint ?? '')).toBe('stopped');
+    expect(stripAnsi(callArgs[1]?.hint ?? '')).toBe('stopped');
+  });
+
+  it('picker hint falls back to DB when daemon is unreachable', async () => {
+    setTTY(true);
+    queriesMock.getSticky.mockReturnValue(null);
+    queriesMock.listProfiles.mockReturnValue([
+      { name: 'fn', port: 6101, status: 'running' },
+      { name: 'work', port: 6102, status: 'stopped' },
+    ]);
+    // Daemon unreachable (the default beforeEach sets this) — DB is the only source.
+    pickMock.pick.mockResolvedValue(0);
+    await resolveProfile(undefined);
+    const callArgs = pickMock.pick.mock.calls[0]?.[0] as Array<{ label: string; hint: string }>;
+    expect(stripAnsi(callArgs[0]?.hint ?? '')).toBe('running');
+    expect(stripAnsi(callArgs[1]?.hint ?? '')).toBe('stopped');
+  });
 });
+
+// Build the ANSI strip pattern via the RegExp constructor so the literal
+// 0x1B (ESC) byte never lands in source — biome's noControlCharactersInRegex
+// flags the literal escape sequence, even though it's intentional here.
+const ANSI_ESCAPE = String.fromCharCode(27);
+const ANSI_PATTERN = new RegExp(`${ANSI_ESCAPE}\\[[0-9;]*m`, 'g');
+function stripAnsi(s: string): string {
+  return s.replace(ANSI_PATTERN, '');
+}
 
 describe('resolveConnector', () => {
   const src = { listConnectors: vi.fn() };
@@ -246,5 +299,28 @@ describe('resolvePermission', () => {
   it('exits in non-TTY without arg', async () => {
     setTTY(false);
     await expect(resolvePermission(undefined)).rejects.toThrow('__exit__');
+  });
+});
+
+describe('resolveToolCategory', () => {
+  it('returns valid value', async () => {
+    expect(await resolveToolCategory('read')).toBe('read');
+    expect(await resolveToolCategory('write')).toBe('write');
+    expect(await resolveToolCategory('interactive')).toBe('interactive');
+  });
+
+  it('throws on invalid value', async () => {
+    await expect(resolveToolCategory('bogus')).rejects.toThrow(/invalid category/);
+  });
+
+  it('opens 3-option picker when missing in TTY', async () => {
+    setTTY(true);
+    pickMock.pick.mockResolvedValue(2);
+    expect(await resolveToolCategory(undefined)).toBe('interactive');
+  });
+
+  it('exits in non-TTY without arg', async () => {
+    setTTY(false);
+    await expect(resolveToolCategory(undefined)).rejects.toThrow('__exit__');
   });
 });

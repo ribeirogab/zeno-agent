@@ -1,7 +1,8 @@
 import type { ProfileRow } from '@zeno/db/host';
 import { queries } from '@zeno/db/host';
-import { c, err, isQuiet, type Status, statusLabel } from './output.js';
+import { c, err, isQuiet, statusLabel } from './output.js';
 import { pick } from './picker.js';
+import { resolveLiveStatus, snapshotLive } from './profile-state.js';
 import { db } from './state.js';
 
 const isInteractive = () => Boolean(process.stdin.isTTY) && Boolean(process.stdout.isTTY);
@@ -60,10 +61,14 @@ export async function resolveProfile(
     fail('no profile specified. use --profile <name>');
   }
   const sticky = queries.getSticky(conn);
+  // Snapshot live container state once so each picker hint reflects what the
+  // operator will actually find — running `docker stop` out-of-band must not
+  // leave us advertising `running` next to a dead container.
+  const snap = await snapshotLive();
   const idx = await pick(
     profiles.map((p) => ({
       label: sticky === p.name ? `${p.name} *` : p.name,
-      hint: statusLabel((p.status ?? 'stopped') as Status),
+      hint: statusLabel(resolveLiveStatus(p, snap)),
     })),
     { title: `${c.bold('select profile')}  ${c.gray('↑/↓ + Enter')}` },
   );
@@ -226,6 +231,29 @@ export async function resolvePermission(arg: string | undefined): Promise<Permis
   );
   if (idx === null) fail('aborted');
   const chosen = PERMISSIONS[idx];
+  if (!chosen) fail('invalid selection');
+  return chosen;
+}
+
+export type ToolCategory = 'read' | 'write' | 'interactive';
+const TOOL_CATEGORIES: ToolCategory[] = ['read', 'write', 'interactive'];
+
+export async function resolveToolCategory(arg: string | undefined): Promise<ToolCategory> {
+  if (arg) {
+    if (!TOOL_CATEGORIES.includes(arg as ToolCategory)) {
+      throw new Error(`invalid category '${arg}'. use one of: ${TOOL_CATEGORIES.join(', ')}`);
+    }
+    return arg as ToolCategory;
+  }
+  if (!isInteractive()) {
+    fail('no category specified. pass one of: read | write | interactive');
+  }
+  const idx = await pick(
+    TOOL_CATEGORIES.map((cat) => ({ label: cat, hint: '' })),
+    { title: `${c.bold('select category')}  ${c.gray('↑/↓ + Enter')}` },
+  );
+  if (idx === null) fail('aborted');
+  const chosen = TOOL_CATEGORIES[idx];
   if (!chosen) fail('invalid selection');
   return chosen;
 }

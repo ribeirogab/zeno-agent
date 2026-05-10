@@ -27,7 +27,7 @@ export const Route = createFileRoute('/_authed/')({
       const r = await apiFetch<BackendsResponse>('/api/backends');
       const configured = r.backends.some((b) => b.status !== 'not_configured');
       if (!configured) {
-        throw redirect({ to: '/onboarding/connect-claude' });
+        throw redirect({ to: '/onboarding/connect-backend' });
       }
     } catch (err) {
       if ((err as { isRedirect?: boolean })?.isRedirect) throw err;

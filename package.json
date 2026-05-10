@@ -1,6 +1,6 @@
 {
   "name": "zeno-agent",
-  "version": "2026.5.10-1",
+  "version": "2026.5.10-2",
   "private": true,
   "type": "module",
   "engines": {

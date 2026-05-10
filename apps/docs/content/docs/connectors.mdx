@@ -26,7 +26,7 @@ The dashboard's read-only mode is governed by `ZENO_API_WRITES` (default `cli`).
 
 Most connectors are **plain**: each install is its own row, independent. Operators with two Linear workspaces install Linear twice with `--label "Acme"` and `--label "Personal"`; the dashboard collapses them into a single `connector_group` card with both rows nested. Slugs are derived as `linear-acme` / `linear-personal`.
 
-A few catalogs declare `multiInstance: false` (today only `playwright`, which holds an exclusive Chromium session). Trying to install a second one returns `409 single_instance_catalog_already_installed`; the dashboard's `+` button is disabled with a tooltip.
+A few catalogs declare `multiInstance: false`. Trying to install a second one returns `409 single_instance_catalog_already_installed`; the dashboard's `+` button is disabled with a tooltip.
 
 `github-app` is the **App pattern**: one App entity (one PEM, one app_id) with N installations underneath (one per GitHub org/user the App is installed on). Future apps with similar shapes will follow the same pattern. The CLI exposes `zeno connector app install`, `zeno connector app installations discover`, `zeno connector app installations add`, and `zeno connector app uninstall` for this flow.
 
@@ -36,8 +36,8 @@ Every connector mutation lives in [`zeno connector`](/cli#connector-management).
 
 ```bash
 # Install a plain catalog with a label (multi-instance) or no label (single-instance)
-zeno connector install linear --label "Acme workspace" --secret '__MCP_AUTHORIZATION__=Bearer lin_api_xxx'
-zeno connector install playwright
+zeno connector install linear --label "Acme workspace" --secret '__MCP_AUTHORIZATION__=lin_api_xxx'
+zeno connector install sentry --secret SENTRY_ACCESS_TOKEN=sntryu_xxx
 
 # Manage tool permissions
 zeno connector tool list linear-acme
@@ -75,7 +75,7 @@ The defaults ship with the catalogue (most read-only tools default to `allow`; m
 
 Connectors ship one of two auth shapes:
 
-- **Secret-based.** The operator pastes a token into the dashboard. Examples: GitHub Personal (PAT), Linear, Klaviyo, Sentry, Swarmia, Playwright.
+- **Secret-based.** The operator pastes a token into the dashboard. Examples: GitHub Personal (PAT), Linear, Klaviyo, Sentry, Swarmia.
 - **GitHub App.** A GitHub App installation flow handles auth via short-lived installation tokens that the worker rotates on its own. One installation per connector entry, supporting multi-installation use cases (personal account + work org).
 
 <Callout type="info">

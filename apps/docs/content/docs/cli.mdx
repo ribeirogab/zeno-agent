@@ -309,7 +309,7 @@ Both slug and UUID are accepted on every dynamic `:id` route.
 
 ### `zeno connector catalog`
 
-Lists the curated catalog. Each entry shows whether it's currently installed and (via `--json`) whether it's `multiInstance: false` (e.g. `playwright`).
+Lists the curated catalog. Each entry shows whether it's currently installed and (via `--json`) whether it's `multiInstance: false`.
 
 ```bash
 zeno connector catalog
@@ -323,9 +323,8 @@ zeno connector catalog --json
 Install a catalog connector. Pass `--label` to give the installation a human-readable name (used as `instance_label` in the DB; the slug is derived from the catalog id plus a kebab-cased label, e.g. `linear-acme`). Required secrets can come from `--secret KEY=VALUE` flags or be prompted interactively.
 
 ```bash
-zeno connector install linear --label "Acme workspace" --secret '__MCP_AUTHORIZATION__=Bearer lin_api_xxx'
+zeno connector install linear --label "Acme workspace" --secret '__MCP_AUTHORIZATION__=lin_api_xxx'
 zeno connector install sentry --secret SENTRY_ACCESS_TOKEN=sntryu_xxx
-zeno connector install playwright   # no secrets, single-instance
 ```
 
 A second `install` of a `multiInstance: false` catalog returns `409 single_instance_catalog_already_installed`.
@@ -542,7 +541,7 @@ The CLI is designed to be drivable by AI agents and shell scripts without a TTY.
 Every flag, positional, and `--profile` argument behaves the same way in TTY and in pipes. When all required arguments are passed, no command needs interaction. When a required argument is missing in non-TTY, the command exits 1 with a clear error (`no profile specified. use --profile <name>`, `usage: zeno profile use <name>`, etc.) instead of hanging on a prompt.
 
 ```bash
-zeno connector install --profile work --secret 'KEY=val' playwright   # no prompts, exits 0
+zeno connector install --profile work --secret 'SENTRY_ACCESS_TOKEN=val' sentry   # no prompts, exits 0
 zeno connector list                                                   # non-TTY + no sticky → exit 1 with hint
 ```
 

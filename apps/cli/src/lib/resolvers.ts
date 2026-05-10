@@ -47,10 +47,13 @@ export async function resolveProfile(
   if (profiles.length === 0) {
     fail('no profiles. create one: zeno profile create <name>');
   }
-  if (profiles.length === 1) {
+  // Single-profile shortcut only when sticky behaviour applies. Lifecycle
+  // commands pass `ignoreSticky: true` so the picker still fires — the
+  // operator should always see live state before acting on a profile.
+  if (profiles.length === 1 && !opts.ignoreSticky) {
     const only = profiles[0];
     if (!only) fail('no profiles');
-    if (!opts.ignoreSticky) emitTip(`tip: zeno profile use ${only.name}`);
+    emitTip(`tip: zeno profile use ${only.name}`);
     return only;
   }
   if (!isInteractive()) {

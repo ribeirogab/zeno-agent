@@ -92,6 +92,31 @@ describe('resolveProfile', () => {
     expect(stdoutChunks.join('')).toMatch(/zeno profile use only/);
   });
 
+  it('opens picker even with 1 profile when ignoreSticky is set (lifecycle case)', async () => {
+    setTTY(true);
+    queriesMock.getSticky.mockReturnValue(null);
+    queriesMock.listProfiles.mockReturnValue([
+      { name: 'only', port: 6101, status: 'running' },
+    ]);
+    pickMock.pick.mockResolvedValue(0);
+    const p = await resolveProfile(undefined, { ignoreSticky: true });
+    expect(p.name).toBe('only');
+    expect(pickMock.pick).toHaveBeenCalledTimes(1);
+    // ignoreSticky path skips the "tip: zeno profile use ..." line.
+    expect(stdoutChunks.join('')).not.toMatch(/zeno profile use/);
+  });
+
+  it('exits in non-TTY with 1 profile when ignoreSticky is set', async () => {
+    setTTY(false);
+    queriesMock.getSticky.mockReturnValue(null);
+    queriesMock.listProfiles.mockReturnValue([
+      { name: 'only', port: 6101, status: 'running' },
+    ]);
+    await expect(resolveProfile(undefined, { ignoreSticky: true })).rejects.toThrow('__exit__');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(stderrChunks.join('')).toMatch(/no profile specified/);
+  });
+
   it('opens picker when no arg + no sticky + multiple profiles in TTY', async () => {
     setTTY(true);
     queriesMock.getSticky.mockReturnValue(null);

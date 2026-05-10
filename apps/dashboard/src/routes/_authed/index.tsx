@@ -379,10 +379,9 @@ function FirstRunChecklist({ onPasteToken }: { onPasteToken: () => void }): JSX.
       <FirstRunStep
         index={1}
         title="configure Claude backend"
-        helper="Zeno needs a Claude OAuth token before it can reply. Authorize once and the worker picks it up on next start."
-        cta="configure Claude →"
-        ctaTo="/settings"
-        ctaSearch={{ tab: 'backend' }}
+        helper="Zeno needs a Claude OAuth token before it can reply. Run `zeno backend configure` from your terminal — the worker picks it up within ~5s."
+        cta="open /backend →"
+        ctaTo="/backend"
         active
       />
       <FirstRunStep

@@ -31,7 +31,7 @@ export const Route = createFileRoute('/onboarding/connect-claude')({
       const r = await apiFetch<BackendsResponse>('/api/backends');
       const configured = r.backends.some((b) => b.status !== 'not_configured');
       if (configured) {
-        throw redirect({ to: '/settings', search: { tab: 'backend' } });
+        throw redirect({ to: '/backend' });
       }
     } catch (err) {
       // If the API itself fails, render the hero anyway — operator has no

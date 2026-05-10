@@ -1,29 +1,22 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import type { JSX, ReactNode } from 'react';
-import { useState } from 'react';
 import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
 import { AboutRow } from '@/components/settings/about-row';
-import { ActiveBackendSelector } from '@/components/settings/active-backend-selector';
 import { AgentCapabilitiesSection } from '@/components/settings/agent-capabilities-section';
-import { BackendCard } from '@/components/settings/backend-card';
-import { ConfigureModal } from '@/components/settings/configure-modal';
 import { ProfileFileRow } from '@/components/settings/profile-file-row';
 import { TabStrip } from '@/components/settings/tab-strip';
 import { UserMdEditor } from '@/components/settings/user-md-editor';
 import { SettingsSectionSkeleton } from '@/components/skeletons/settings-section-skeleton';
-import { type BackendListItem, useBackends, useSetActiveBackend } from '@/lib/use-backends';
 import { useHealth } from '@/lib/use-health';
 import { type SettingsSnapshot, useSettings } from '@/lib/use-settings';
 
-// Spec 0067 A: settings page in 4 tabs. Default = `profile`. URL
-// reflects the active tab via `?tab=` search param so each tab is
-// deep-linkable. Unknown / missing values fall back to the default.
-const TABS = ['profile', 'capabilities', 'backend', 'about'] as const;
+// Spec 0072: BACKEND tab removed. Settings page now hosts profile +
+// capabilities + about; backend lives at /backend (top-level).
+const TABS = ['profile', 'capabilities', 'about'] as const;
 type SettingsTab = (typeof TABS)[number];
 const TAB_LABELS: Record<SettingsTab, string> = {
   profile: 'profile',
   capabilities: 'capabilities',
-  backend: 'backend',
   about: 'about',
 };
 
@@ -39,6 +32,14 @@ export const Route = createFileRoute('/_authed/settings')({
   validateSearch: (search: Record<string, unknown>): SettingsSearch => ({
     tab: isTab(search.tab) ? search.tab : 'profile',
   }),
+  // Spec 0072 — legacy /settings?tab=backend redirects to the new top-level
+  // /backend page so old links / bookmarks land in the right place.
+  beforeLoad: ({ search }) => {
+    const raw = (search as { tab?: unknown }).tab;
+    if (raw === 'backend') {
+      throw redirect({ to: '/backend' });
+    }
+  },
   component: SettingsScreen,
 });
 
@@ -98,8 +99,6 @@ function TabContent({
       );
     case 'capabilities':
       return <AgentCapabilitiesSection />;
-    case 'backend':
-      return <BackendSection backend={data.backend} />;
     case 'about':
       return <AboutSection backend={data.backend.name} uptime={uptime} version={version} />;
   }
@@ -121,9 +120,10 @@ function Header(): JSX.Element {
         <h1 className="font-sans text-[32px] font-medium tracking-[-0.015em] leading-10 text-text-primary mt-2 m-0">
           settings
         </h1>
+        {/* Spec 0072 — copy replaced; backend tab moved to its own /backend page. */}
         <p className="mt-2.5 max-w-[640px] m-0 font-sans text-sm leading-[1.6] text-text-secondary">
-          Mostly read-only. Configuration knobs live in <InlineCode>.env</InlineCode> and{' '}
-          <InlineCode>profile/</InlineCode> — edit there and Zeno hot-reloads.
+          Edit USER.md inline; flip capabilities. Worker auto-reloads on profile changes. Backend
+          lives at <InlineCode>/backend</InlineCode>.
         </p>
       </div>
     </header>
@@ -161,69 +161,6 @@ function Section({
       </div>
       {children}
     </section>
-  );
-}
-
-function BackendSection(_props: { backend: SettingsSnapshot['backend'] }): JSX.Element {
-  // Spec 0071: backend section now driven by /api/backends (encrypted DB,
-  // multi-backend ready) rather than the old /settings static field. The
-  // legacy `backend` snapshot from useSettings is kept as a parameter for
-  // call-site compatibility but unused here.
-  const q = useBackends();
-  const setActive = useSetActiveBackend();
-  const [configuringId, setConfiguringId] = useState<string | null>(null);
-
-  if (q.isLoading || !q.data) {
-    return (
-      <Section title="backend" meta="loading...">
-        <div className="bg-panel border border-border-subtle rounded-md p-5 h-32 animate-pulse" />
-      </Section>
-    );
-  }
-
-  const configuring: BackendListItem | undefined =
-    configuringId !== null ? q.data.backends.find((b) => b.id === configuringId) : undefined;
-
-  return (
-    <>
-      <Section
-        title="active backend"
-        meta={`${q.data.backends.length} of ${q.data.backends.length} installed · pluggable surface`}
-      >
-        <ActiveBackendSelector
-          backends={q.data.backends}
-          activeId={q.data.active_backend_id}
-          onChange={(id) => setActive.mutate(id)}
-        />
-      </Section>
-      <Section title="backends" meta="catalog · agent/backends-catalog.json">
-        <div className="flex flex-col gap-3">
-          {q.data.backends.map((b) => (
-            <BackendCard
-              key={b.id}
-              backend={b}
-              profileId={q.data.profile_id}
-              onConfigure={() => setConfiguringId(b.id)}
-            />
-          ))}
-          <div className="flex items-center gap-2.5 px-4 py-3.5 border border-dashed border-border-subtle rounded-md">
-            <span className="w-1.5 h-1.5 rounded-full bg-text-tertiary" />
-            <span className="font-mono text-[11px] tracking-[0.08em] uppercase text-text-tertiary">
-              codex · gemini · future backends — same install + auth surface
-            </span>
-          </div>
-        </div>
-      </Section>
-      {configuring ? (
-        <ConfigureModal
-          backend={configuring}
-          open
-          onOpenChange={(next) => {
-            if (!next) setConfiguringId(null);
-          }}
-        />
-      ) : null}
-    </>
   );
 }
 

@@ -29,17 +29,19 @@ function isTab(value: unknown): value is SettingsTab {
 }
 
 export const Route = createFileRoute('/_authed/settings')({
-  validateSearch: (search: Record<string, unknown>): SettingsSearch => ({
-    tab: isTab(search.tab) ? search.tab : 'profile',
-  }),
-  // Spec 0072 — legacy /settings?tab=backend redirects to the new top-level
-  // /backend page so old links / bookmarks land in the right place.
-  beforeLoad: ({ search }) => {
-    const raw = (search as { tab?: unknown }).tab;
-    if (raw === 'backend') {
+  // Spec 0072 — legacy /settings?tab=backend → /backend. Check the raw search
+  // BEFORE validateSearch normalizes it (validateSearch would coerce the
+  // unknown `'backend'` value to the default `'profile'` and we'd never see
+  // it in beforeLoad).
+  beforeLoad: ({ location }) => {
+    const params = new URLSearchParams(location.searchStr ?? '');
+    if (params.get('tab') === 'backend') {
       throw redirect({ to: '/backend' });
     }
   },
+  validateSearch: (search: Record<string, unknown>): SettingsSearch => ({
+    tab: isTab(search.tab) ? search.tab : 'profile',
+  }),
   component: SettingsScreen,
 });
 

@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "dashboard",
-      "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "while true; do sleep 3600; done"],
-      "port": 3001
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@zeno/dashboard", "exec", "vite", "--port", "5173", "--host", "127.0.0.1", "--strictPort"],
+      "port": 5173
     },
     {
       "name": "docs",

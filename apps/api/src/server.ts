@@ -148,6 +148,11 @@ export function createApp(deps: AppDeps): Hono {
     '/api/settings',
     buildSettingsRoute({
       profileDir: deps.profileDir,
+      // Spec 0072 — backend slug now sourced from runtime DB, not env.
+      backendSettings: deps.backendSettingsRepo ?? {
+        // Defensive fallback for tests/dev that boot without a settings repo.
+        get: () => null,
+      },
     }),
   );
   app.route('/api/logs', buildLogsRoute({ logs: deps.logRepo }));

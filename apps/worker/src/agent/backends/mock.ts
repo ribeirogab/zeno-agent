@@ -11,7 +11,11 @@ export interface Fixture {
 }
 
 /**
- * In-memory backend that returns canned replies. Selected via ZENO_BACKEND=mock.
+ * In-memory backend that returns canned replies. Selected via the runtime
+ * DB (`backend_settings.active_backend_id = 'mock'`) — set by the E2E fixture
+ * `tests/e2e/fixtures/mock-backend.ts`. Spec 0072 dropped the legacy
+ * ZENO_BACKEND=mock env path.
+ *
  * Free, instant, deterministic — useful for dev iteration on Slack/core/runner without burning Claude.
  */
 export class MockBackend implements AgentBackend {

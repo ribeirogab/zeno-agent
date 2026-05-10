@@ -9,8 +9,11 @@ const TRACKED_FILES = ['SOUL.md', 'USER.md', 'crons.yaml'] as const;
 
 // Spec 0067 C: CommandRepo dep removed alongside the Restart Worker
 // route. Re-add when a settings action needs to enqueue commands again.
+// Spec 0072: backendSettings injected so the GET / response sources the
+// active backend slug from the runtime DB instead of process.env.ZENO_BACKEND.
 export interface SettingsRouteDeps {
   profileDir: string;
+  backendSettings: { get: (key: string) => string | null };
 }
 
 interface ProfileFile {
@@ -62,9 +65,9 @@ export function buildSettingsRoute(deps: SettingsRouteDeps): Hono {
   const route = new Hono();
 
   route.get('/', (c) => {
-    const backendName = process.env.ZENO_BACKEND ?? 'claude-code';
+    const backendName = deps.backendSettings.get('active_backend_id') ?? 'claude-code';
     return c.json({
-      backend: { name: backendName, selectedVia: 'ZENO_BACKEND env' },
+      backend: { name: backendName, selectedVia: 'runtime_db' },
       profile: readProfileInfo(deps.profileDir),
       profileFiles: readProfileFiles(deps.profileDir),
     });

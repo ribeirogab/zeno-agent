@@ -14,7 +14,49 @@
  * and forward the operator-pasted code to the spawned PTY's stdin.
  */
 
+import { spawnSync } from 'node:child_process';
+import { chmodSync, existsSync, statSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
 import * as pty from 'node-pty';
+
+/**
+ * Resolve the absolute path to `docker` once at module-load time. node-pty's
+ * `posix_spawnp` doesn't honor PATH the same way `child_process.spawn` does —
+ * spawning bare `docker` returns `posix_spawnp failed`. Resolving via
+ * `which` and passing the absolute path is the workaround.
+ */
+function resolveDockerBin(): string {
+  const r = spawnSync('which', ['docker'], { encoding: 'utf8' });
+  const path = (r.stdout ?? '').trim();
+  return path || 'docker';
+}
+const DOCKER_BIN = resolveDockerBin();
+
+/**
+ * node-pty ships its prebuilt `spawn-helper` binary (the program posix_spawnp
+ * actually launches; it then exec()s the target command) without the
+ * executable bit set in some pnpm installs. The result is a generic
+ * `posix_spawnp failed.` at runtime. Chmod +x once at load time.
+ */
+function ensureSpawnHelperExecutable(): void {
+  if (process.platform === 'win32') return;
+  try {
+    const req = createRequire(import.meta.url);
+    const pkgPath = req.resolve('node-pty/package.json');
+    const pkgDir = dirname(pkgPath);
+    const platDir = `${process.platform}-${process.arch}`;
+    const helper = join(pkgDir, 'prebuilds', platDir, 'spawn-helper');
+    if (!existsSync(helper)) return;
+    const mode = statSync(helper).mode & 0o777;
+    if ((mode & 0o111) === 0) {
+      chmodSync(helper, mode | 0o755);
+    }
+  } catch {
+    // Best effort — if this fails, pty.spawn will surface the original error.
+  }
+}
+ensureSpawnHelperExecutable();
 
 const ESC = '\\x1b';
 const BEL = '\\x07';
@@ -86,7 +128,7 @@ export async function runDockerExecPty(
   // `-i` keeps stdin open; `-t` allocates the container-side TTY. Together
   // with node-pty's host-side PTY, this gives a real bidirectional terminal.
   const args = ['exec', '-i', '-t', opts.containerName, ...opts.cmd];
-  const term = pty.spawn('docker', args, {
+  const term = pty.spawn(DOCKER_BIN, args, {
     name: 'xterm-256color',
     cols,
     rows,

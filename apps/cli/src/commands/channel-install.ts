@@ -44,9 +44,18 @@ function isInteractive(): boolean {
 }
 
 function parseSecretFlags(raw: string | string[] | undefined): Map<string, string> {
-  const flags = raw === undefined ? [] : Array.isArray(raw) ? raw : [raw];
+  // citty 0.2.x string args do not array-collect repeated flags (the last value wins),
+  // so the operator can EITHER repeat `--secret KEY=VALUE` (only the last sticks) OR
+  // pass a single `--secret 'K1=V1,K2=V2'` comma-separated bundle. The bundled form is
+  // documented in the channel install help text. We accept both shapes here.
+  const flat: string[] = [];
+  const acc = raw === undefined ? [] : Array.isArray(raw) ? raw : [raw];
+  for (const piece of acc) {
+    for (const pair of piece.split(',')) flat.push(pair.trim());
+  }
   const m = new Map<string, string>();
-  for (const pair of flags) {
+  for (const pair of flat) {
+    if (!pair) continue;
     const idx = pair.indexOf('=');
     if (idx === -1) {
       console.error(err(`invalid --secret flag: '${pair}' (expected KEY=VALUE)`));

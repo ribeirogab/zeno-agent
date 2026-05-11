@@ -131,11 +131,11 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
   // (defense in depth — never expose MCP rows via the channels endpoints).
   route.get('/:id', (c) => {
     const id = c.req.param('id');
-    const row = deps.connectors.get(id);
+    const row = deps.connectors.get(id) ?? deps.connectors.getBySlug(id);
     if (!row || row.kind !== 'channel') {
       return c.json({ error: 'channel_not_found' }, 404);
     }
-    const secrets = deps.connectors.getSecrets(id);
+    const secrets = deps.connectors.getSecrets(row.id);
     const catalogEntry = deps.channelsCatalog.entries.find((e) => e.id === row.catalogId);
     return c.json({
       id: row.id,
@@ -176,7 +176,7 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
     if (blocked) return blocked;
 
     const id = c.req.param('id');
-    const row = deps.connectors.get(id);
+    const row = deps.connectors.get(id) ?? deps.connectors.getBySlug(id);
     if (!row || row.kind !== 'channel') {
       return c.json({ error: 'channel_not_found' }, 404);
     }
@@ -204,7 +204,7 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
     } else {
       // mode === 'merge': overlay submitted onto existing, keyed by key.
       // Plaintext lookup is local — never leaves this handler.
-      const existing = deps.connectors.getSecrets(id);
+      const existing = deps.connectors.getSecrets(row.id);
       const merged = new Map<string, string>();
       for (const s of existing) merged.set(s.key, s.value);
       for (const s of submitted) merged.set(s.key, s.value);
@@ -222,7 +222,7 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
       return { key: s.key, value: s.value, isPublic: field?.public ?? false };
     });
 
-    deps.connectors.replaceSecrets(id, enriched);
+    deps.connectors.replaceSecrets(row.id, enriched);
     return c.body(null, 204);
   });
 
@@ -238,7 +238,7 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
     if (blocked) return blocked;
 
     const id = c.req.param('id');
-    const row = deps.connectors.get(id);
+    const row = deps.connectors.get(id) ?? deps.connectors.getBySlug(id);
     if (!row || row.kind !== 'channel') {
       return c.json({ error: 'channel_not_found' }, 404);
     }
@@ -249,7 +249,7 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
 
     // Decrypt every stored secret + bundle into the probe ctx. The plaintext never
     // leaves this handler — `runTestStrategy` reads what it needs and returns.
-    const secretsList = deps.connectors.getSecrets(id);
+    const secretsList = deps.connectors.getSecrets(row.id);
     const fields: Record<string, string> = {};
     for (const s of secretsList) fields[s.key] = s.value;
 
@@ -258,13 +258,13 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
       ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
     });
     if (result.status === 'passed') {
-      deps.connectors.update(id, {
+      deps.connectors.update(row.id, {
         lastVerifiedAt: new Date().toISOString(),
         lastError: null,
         lastErrorAt: null,
       });
     } else {
-      deps.connectors.update(id, {
+      deps.connectors.update(row.id, {
         lastError: result.error ?? 'unknown',
         lastErrorAt: new Date().toISOString(),
       });
@@ -286,11 +286,11 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
     if (blocked) return blocked;
 
     const id = c.req.param('id');
-    const row = deps.connectors.get(id);
+    const row = deps.connectors.get(id) ?? deps.connectors.getBySlug(id);
     if (!row || row.kind !== 'channel') {
       return c.json({ error: 'channel_not_found' }, 404);
     }
-    deps.connectors.delete(id);
+    deps.connectors.delete(row.id);
     return c.body(null, 204);
   });
 

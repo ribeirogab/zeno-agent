@@ -1,3 +1,4 @@
+import { remarkMdxMermaid } from 'fumadocs-core/mdx-plugins/remark-mdx-mermaid';
 import { type DocsCollection, defineConfig, defineDocs } from 'fumadocs-mdx/config';
 import type { ThemeRegistration } from 'shiki';
 import { imperialTerminalTheme } from '@/lib/shiki-imperial-terminal';
@@ -17,6 +18,7 @@ export const docs: DocsCollection = defineDocs({
 
 export default defineConfig({
   mdxOptions: {
+    remarkPlugins: [remarkMdxMermaid],
     rehypeCodeOptions: {
       themes: {
         // Cast: the theme is shaped as a shiki ThemeRegistration but the

@@ -5,6 +5,7 @@ import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 import defaultMdxComponents from 'fumadocs-ui/mdx';
 import type { MDXComponents } from 'mdx/types';
+import { Mermaid } from '@/components/mermaid';
 
 /**
  * Single source of truth for the MDX component map. The page renderer passes
@@ -33,6 +34,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     Folder,
     TypeTable,
     ImageZoom,
+    Mermaid,
     ...components,
   } as MDXComponents;
 }

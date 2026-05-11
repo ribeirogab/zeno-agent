@@ -1,12 +1,9 @@
 import '@/styles/globals.css';
 import { Banner } from 'fumadocs-ui/components/banner';
-import { DocsLayout } from 'fumadocs-ui/layouts/notebook';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import type { Metadata, Viewport } from 'next';
 import { Fraunces, JetBrains_Mono, Space_Grotesk } from 'next/font/google';
 import type { ReactNode } from 'react';
-import { Crest } from '@/components/crest';
-import { source } from '@/lib/source';
 
 // Brand fonts mirror the apps/web landing. next/font fetches at build time
 // and self-hosts in production so there is zero runtime request to Google.
@@ -148,23 +145,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Banner>
             Zeno is experimental. Personal project, no SLA, breaking changes expected.
           </Banner>
-          <DocsLayout
-            tree={source.pageTree}
-            nav={{
-              mode: 'top',
-              title: (
-                <span className="inline-flex items-center gap-2 font-medium">
-                  <Crest size={20} />
-                  <span>zeno</span>
-                </span>
-              ),
-              url: '/',
-            }}
-            githubUrl="https://github.com/ribeirogab/zeno-agent"
-            themeSwitch={{ enabled: false }}
-          >
-            {children}
-          </DocsLayout>
+          {/* DocsLayout (sidebar tree + top nav) is provided by the `(docs)`
+              route group's own layout, not the root. Sibling routes like
+              `/preview/*` and `/og` skip the docs chrome by living outside
+              the route group. */}
+          {children}
         </RootProvider>
       </body>
     </html>

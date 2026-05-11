@@ -39,11 +39,18 @@ function findAgentDir(): string | null {
   return null;
 }
 
-export const channelSecretSchema = z.object({
+/**
+ * Spec 2026-05-11: a `field` is the canonical unit for both secrets and non-secret
+ * configuration. `public: true` means the value is stored unmasked (`connector_secrets.is_public=1`)
+ * and rendered without redaction on GET; `public: false` means the value is masked on read
+ * and prompted with hidden input by the CLI.
+ */
+export const channelFieldSchema = z.object({
   key: z.string(),
   label: z.string(),
   help: z.string(),
   required: z.boolean(),
+  public: z.boolean(),
   /** Optional rendering hint for the install modal. Mirrors catalog-loader convention. */
   inputType: z.enum(['text', 'password', 'pem']).optional(),
 });
@@ -56,7 +63,11 @@ export const channelEntrySchema = z.object({
   description: z.string(),
   icon: z.string(),
   docsUrl: z.string(),
-  secrets: z.array(channelSecretSchema),
+  /** Transport discriminator (e.g. `socket-mode`). Drives adapter wiring in the worker. */
+  transport: z.string(),
+  /** Probe strategy id resolved by `runTestStrategy()` in the worker (e.g. `slack_auth_test`). */
+  testStrategy: z.string(),
+  fields: z.array(channelFieldSchema),
 });
 
 export const channelsCatalogFileSchema = z.object({
@@ -64,11 +75,17 @@ export const channelsCatalogFileSchema = z.object({
   channels: z.array(channelEntrySchema),
 });
 
+export type ChannelField = z.infer<typeof channelFieldSchema>;
 export type ChannelCatalogEntry = z.infer<typeof channelEntrySchema>;
 
-/** What `loadChannelsCatalog` returns + helper methods bind to. Channels are stored as a list (not a map) so the catalog file is the canonical order. */
+/**
+ * What `loadChannelsCatalog` returns + helper methods bind to. Channels are stored as a
+ * list (not a map) so the catalog file is the canonical order. `findField` is a fast lookup
+ * the API gate handler uses to resolve `public` per submitted key on PATCH /:slug/secrets.
+ */
 export interface ChannelsCatalog {
   entries: ChannelCatalogEntry[];
+  findField(catalogId: string, key: string): ChannelField | undefined;
 }
 
 function findCatalogFile(): string | null {
@@ -128,7 +145,24 @@ export function loadChannelsCatalog(): ChannelsCatalog {
   if (!result.success) {
     throw new ChannelsCatalogReadError('channels catalog malformed (schema)', result.error.message);
   }
-  cached = { mtime, catalog: { entries: result.data.channels } };
+  const entries = result.data.channels;
+  // Index `<catalogId, <key, field>>` so `findField` is O(1). Catalog is small, but
+  // PATCH /:slug/secrets calls this once per submitted key — Map beats nested .find() scans.
+  const fieldIndex = new Map<string, Map<string, ChannelField>>();
+  for (const entry of entries) {
+    const inner = new Map<string, ChannelField>();
+    for (const field of entry.fields) inner.set(field.key, field);
+    fieldIndex.set(entry.id, inner);
+  }
+  cached = {
+    mtime,
+    catalog: {
+      entries,
+      findField(catalogId, key) {
+        return fieldIndex.get(catalogId)?.get(key);
+      },
+    },
+  };
   return cached.catalog;
 }
 

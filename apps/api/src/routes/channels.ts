@@ -65,12 +65,14 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
       icon: e.icon,
       iconUrl: `/api/connectors/catalog/icons/${e.icon}`,
       docsUrl: e.docsUrl,
-      secrets: e.secrets.map((s) => ({
-        key: s.key,
-        label: s.label,
-        help: s.help,
-        required: s.required,
-        inputType: s.inputType ?? 'password',
+      transport: e.transport,
+      fields: e.fields.map((f) => ({
+        key: f.key,
+        label: f.label,
+        help: f.help,
+        required: f.required,
+        public: f.public,
+        inputType: f.inputType ?? (f.public ? 'text' : 'password'),
       })),
     }));
     return c.json({ channels: entries });

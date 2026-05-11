@@ -1,45 +1,38 @@
 'use client';
 
-import { Check, Link2, X } from 'lucide-react';
-import { useState } from 'react';
-
-type State = 'idle' | 'copied' | 'failed';
+import { buttonVariants } from 'fumadocs-ui/components/ui/button';
+import { useCopyButton } from 'fumadocs-ui/utils/use-copy-button';
+import { Check, Link2 } from 'lucide-react';
 
 /**
- * Copies the absolute URL of the page's raw markdown endpoint to the clipboard.
- * Sits next to Fumadocs's `MarkdownCopyButton` (which copies the body) and
- * `ViewOptionsPopover` (which opens the markdown in ChatGPT/Claude/etc.) so the
- * page-actions row mirrors nuqs.dev: [Copy MD] [Copy MD URL] [Open ▾].
+ * Copies the absolute URL of the page's raw markdown endpoint to the
+ * clipboard. Visually identical to Fumadocs's `MarkdownCopyButton` (color,
+ * size, gap, icon size, checked-state transition) — only the icon differs
+ * (`Link2` instead of `Copy`). The three buttons in the page-actions row
+ * (`[Copy Markdown] [Copy Markdown URL] [Open ▾]`) read as one consistent
+ * control surface.
  */
 export function CopyMarkdownUrlButton({ markdownUrl }: { markdownUrl: string }) {
-  const [state, setState] = useState<State>('idle');
-
-  async function handleClick() {
-    try {
-      const absolute =
-        typeof window === 'undefined'
-          ? markdownUrl
-          : new URL(markdownUrl, window.location.origin).toString();
-      await navigator.clipboard.writeText(absolute);
-      setState('copied');
-    } catch {
-      setState('failed');
-    } finally {
-      setTimeout(() => setState('idle'), 2000);
-    }
-  }
-
-  const Icon = state === 'copied' ? Check : state === 'failed' ? X : Link2;
-  const label = state === 'copied' ? 'Copied' : state === 'failed' ? 'Failed' : 'Copy Markdown URL';
+  const [checked, onClick] = useCopyButton(async () => {
+    const absolute =
+      typeof window === 'undefined'
+        ? markdownUrl
+        : new URL(markdownUrl, window.location.origin).toString();
+    await navigator.clipboard.writeText(absolute);
+  });
 
   return (
     <button
       type="button"
-      onClick={handleClick}
-      className="inline-flex h-8 items-center gap-2 rounded-md border border-fd-border bg-fd-card px-3 text-sm text-fd-foreground transition-colors hover:bg-fd-accent"
+      onClick={onClick}
+      className={buttonVariants({
+        color: 'secondary',
+        size: 'sm',
+        className: 'gap-2 [&_svg]:size-3.5 [&_svg]:text-fd-muted-foreground',
+      })}
     >
-      <Icon size={14} aria-hidden />
-      <span>{label}</span>
+      {checked ? <Check /> : <Link2 />}
+      Copy Markdown URL
     </button>
   );
 }

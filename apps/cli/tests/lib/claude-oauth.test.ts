@@ -62,15 +62,17 @@ describe('runClaudeOAuth', () => {
     });
     fp.__emitData('Open https://example.com/oauth?state=xyz\n');
     fp.__emitData('Paste code here:\n');
-    // Allow promptCode (async) to resolve and write to be called.
-    await new Promise((r) => setTimeout(r, 10));
+    // Allow promptCode + chunked writes (5ms per char) to finish.
+    await new Promise((r) => setTimeout(r, 200));
     fp.__emitData(`${TOKEN}\n`);
     fp.__exit(0);
     const captured = await promise;
     expect(captured).toBe(TOKEN);
     expect(promptCode).toHaveBeenCalledWith('https://example.com/oauth?state=xyz');
     expect(promptCode).toHaveBeenCalledTimes(1);
-    expect(fp.write).toHaveBeenCalledWith('AUTHCODE\r');
+    // chunked write — one char at a time then trailing CR
+    expect(fp.write).toHaveBeenCalledWith('A');
+    expect(fp.write).toHaveBeenCalledWith('\r');
   });
 
   it('throws when the flow exits without a token', async () => {

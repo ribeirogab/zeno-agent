@@ -66,9 +66,10 @@ describe('runDockerExecPty', () => {
       ],
       mirror: null,
     });
-    // Verify argv
+    // Verify argv (DOCKER_BIN is resolved at module load via `which docker`;
+    // accept any absolute path ending in /docker, falling back to bare 'docker').
     expect(ptySpawnMock).toHaveBeenCalledWith(
-      'docker',
+      expect.stringMatching(/(^|\/)docker$/),
       ['exec', '-i', '-t', 'zeno-test-0072', 'claude', 'setup-token'],
       expect.objectContaining({ cols: 200 }),
     );

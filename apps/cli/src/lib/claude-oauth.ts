@@ -55,16 +55,12 @@ export async function runClaudeOAuth(opts: ClaudeOAuthOpts): Promise<string> {
     if (codeSent || !url) return;
     codeSent = true;
     const code = await opts.promptCode(url);
-    process.stderr.write(`[oauth-dbg] code received (len=${code.length}); writing to stdin\n`);
-    if (!stdinWrite) {
-      process.stderr.write('[oauth-dbg] WARN no stdinWrite available\n');
-      return;
-    }
+    if (!stdinWrite) return;
     // claude setup-token uses an interactive TUI readline that hangs when
-    // fed long input as one atomic block (verified empirically: < ~70 char
+    // fed long input as one atomic block (verified empirically: ≤ ~70 char
     // batches process; ≥ ~80 char batches show the chars masked as `*` but
-    // never fire on the trailing `\r`). Mimic actual typing by writing one
-    // char at a time with a small delay; readline handles each keypress
+    // never fire on the trailing `\r`). Mimic actual typing — write one
+    // char at a time with a 5 ms delay; readline handles each keypress
     // cleanly and fires on the final CR. Real OAuth codes are ~92 chars so
     // this matters in practice.
     for (const ch of code) {
@@ -73,10 +69,7 @@ export async function runClaudeOAuth(opts: ClaudeOAuthOpts): Promise<string> {
     }
     await new Promise((r) => setTimeout(r, 50));
     stdinWrite('\r');
-    process.stderr.write(`[oauth-dbg] code written to pty (${code.length} chars chunked)\n`);
   };
-
-  const dbg = (msg: string) => process.stderr.write(`[oauth-dbg] ${msg}\n`);
 
   const matchers = [
     {
@@ -84,7 +77,6 @@ export async function runClaudeOAuth(opts: ClaudeOAuthOpts): Promise<string> {
       regex: urlRe,
       onMatch: (v: string) => {
         url = v;
-        dbg(`url captured (len=${v.length})`);
         if (!awaitingRe) {
           // No awaiting-code prompt → ask immediately after URL is captured.
           void sendCode();
@@ -94,12 +86,13 @@ export async function runClaudeOAuth(opts: ClaudeOAuthOpts): Promise<string> {
     {
       name: 'token',
       regex: tokenRe,
+      // Token must match against the raw buffer (newlines preserved) so
+      // the greedy regex stops at the \n after the token line, not at the
+      // first whitespace many lines down — without this we'd capture
+      // `<token>StoreThisTokenSecurely...` and get a 401 from Anthropic.
+      buffer: 'raw' as const,
       onMatch: (v: string) => {
         token = v;
-        dbg(`token captured (len=${v.length}, prefix=${v.slice(0, 12)}...)`);
-        // No need to close stdin — the spawned CLI exits on its own once it
-        // prints the token. Closing the duplex stream early can also tear
-        // down the stdout half before we capture the final byte.
       },
     },
   ];
@@ -109,7 +102,6 @@ export async function runClaudeOAuth(opts: ClaudeOAuthOpts): Promise<string> {
       name: 'awaiting',
       regex: awaitingRe,
       onMatch: () => {
-        dbg('awaiting-code regex matched');
         void sendCode();
       },
     });

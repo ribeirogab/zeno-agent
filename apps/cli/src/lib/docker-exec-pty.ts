@@ -76,8 +76,18 @@ export function stripAnsi(s: string): string {
 export interface PtyMatcher {
   /** Unique label for at-most-once firing. */
   name: string;
-  /** Regex applied against the running ANSI-stripped buffer. */
+  /** Regex applied against the running buffer. */
   regex: RegExp;
+  /**
+   * Which buffer the regex runs against:
+   *   - 'flat' (default) — ANSI + \r + \n stripped. Best for matching long
+   *     output that wraps across PTY width (e.g. OAuth URLs ~340 chars at
+   *     200-col PTY wrap into 2 lines; flat lets the regex span them).
+   *   - 'raw'  — ANSI + \r stripped, \n preserved. Best for matching
+   *     content that's bounded by line ends (e.g. the OAuth token; flat
+   *     would greedy-engole the next "Store this token securely" line).
+   */
+  buffer?: 'flat' | 'raw';
   /** Called with `match[1]` (or full match if no capture group). At-most-once. */
   onMatch: (value: string) => void | Promise<void>;
 }
@@ -108,8 +118,9 @@ export interface RunDockerExecPtyResult {
   timedOut: boolean;
 }
 
-function normalize(chunk: string): string {
-  return stripAnsi(chunk).replace(/[\r\n]+/g, '');
+function stripBase(chunk: string): string {
+  // Strip ANSI escapes + \r (CR — TTY echo artifact).
+  return stripAnsi(chunk).replace(/\r+/g, '');
 }
 
 /**
@@ -135,7 +146,8 @@ export async function runDockerExecPty(
     env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1', TERM: 'xterm-256color' },
   });
 
-  let buffer = '';
+  let bufRaw = '';
+  let bufFlat = '';
   const fired = new Set<string>();
   let timedOut = false;
 
@@ -153,11 +165,15 @@ export async function runDockerExecPty(
 
   term.onData((chunk: string) => {
     if (mirror) mirror.write(chunk);
-    buffer += normalize(chunk);
-    if (buffer.length > 65_536) buffer = buffer.slice(-32_768);
+    const stripped = stripBase(chunk);
+    bufRaw += stripped;
+    bufFlat += stripped.replace(/\n+/g, '');
+    if (bufRaw.length > 65_536) bufRaw = bufRaw.slice(-32_768);
+    if (bufFlat.length > 65_536) bufFlat = bufFlat.slice(-32_768);
     for (const m of opts.matchers) {
       if (fired.has(m.name)) continue;
-      const match = m.regex.exec(buffer);
+      const target = m.buffer === 'raw' ? bufRaw : bufFlat;
+      const match = m.regex.exec(target);
       if (match) {
         fired.add(m.name);
         const value = match[1] ?? match[0];
@@ -168,17 +184,13 @@ export async function runDockerExecPty(
   });
 
   if (opts.onReady) {
-    opts.onReady((data: string) => {
-      term.write(data);
-    });
+    opts.onReady((data: string) => term.write(data));
   }
 
-  const result = await new Promise<RunDockerExecPtyResult>((resolve) => {
+  return await new Promise<RunDockerExecPtyResult>((resolve) => {
     term.onExit(({ exitCode, signal }) => {
       clearTimeout(timer);
       resolve({ exitCode, signal: signal ?? null, timedOut });
     });
   });
-
-  return result;
 }

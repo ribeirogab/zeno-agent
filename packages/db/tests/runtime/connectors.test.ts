@@ -105,7 +105,15 @@ describe('ConnectorRepo — create', () => {
     expect(created.slug).toBe('echo');
     expect(created.args).toEqual(['fixture.js']);
     expect(repo.getSecrets(created.id)).toEqual([
-      { connectorId: created.id, key: 'TOKEN', value: 'xyz', isPublic: false },
+      {
+        connectorId: created.id,
+        key: 'TOKEN',
+        value: 'xyz',
+        isPublic: false,
+        // Spec 2026-05-11: every secret row carries an updated_at default; assert
+        // shape without pinning the exact timestamp.
+        updatedAt: expect.any(String),
+      },
     ]);
     expect(repo.getTools(created.id)).toHaveLength(2);
   });

@@ -63,6 +63,13 @@ export interface ConnectorSecret {
    * the masking decision is UI-only.
    */
   isPublic?: boolean;
+  /**
+   * Spec 2026-05-11: row-level last-modified timestamp. Defaults to insert time
+   * via the schema's `strftime` default; `replaceSecrets` re-inserts every row
+   * in a transaction so a no-op call still advances this field. Used by the
+   * worker's `ChannelManager` to detect rotations between poll ticks.
+   */
+  updatedAt: string;
 }
 
 export interface ConnectorToolPermission {
@@ -202,6 +209,7 @@ function rowToSecret(
     key: row.key,
     value,
     isPublic: row.isPublic === 1,
+    updatedAt: row.updatedAt,
   };
 }
 

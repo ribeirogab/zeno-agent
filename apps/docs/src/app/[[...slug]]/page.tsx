@@ -3,6 +3,7 @@ import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/page
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { CopyMarkdownUrlButton } from '@/components/copy-markdown-url-button';
+import { editOnGithub } from '@/lib/edit-on-github';
 import { source } from '@/lib/source';
 import { getMDXComponents } from '@/mdx-components';
 
@@ -17,7 +18,7 @@ export default async function Page({ params }: { params: Promise<{ slug?: string
   const markdownUrl = `/llms.mdx/${slugString}`;
 
   return (
-    <DocsPage toc={page.data.toc}>
+    <DocsPage toc={page.data.toc} editOnGithub={editOnGithub(page.path)}>
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <div className="not-prose mb-4 flex flex-wrap items-center gap-2">

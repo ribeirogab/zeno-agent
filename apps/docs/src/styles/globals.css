@@ -74,6 +74,21 @@ html > body[data-scroll-locked] {
   --removed-body-scroll-bar-size: 0px !important;
 }
 
+/* Callout palette — info / error / success bind to Imperial status tokens.
+   Fumadocs Callout resolves accent via `--callout-color: var(--color-fd-${type})`
+   inline on the container; no ID specificity gymnastics needed.
+
+   `warn` deliberately untouched: Imperial gold is reserved for affirmative
+   actions per /DESIGN.md and the comment at the top of this file. Fumadocs's
+   default amber stands for warn (the Callout component aliases warn → warning
+   internally, so the lookup is `--color-fd-warning` which we never bind). */
+:root,
+.dark {
+  --color-fd-info: var(--color-status-info);
+  --color-fd-success: var(--color-status-active);
+  --color-fd-error: var(--color-status-failed);
+}
+
 /* Selection mirrors the landing site (gold on dark ink). */
 ::selection {
   background: var(--color-gold);

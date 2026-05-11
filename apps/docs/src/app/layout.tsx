@@ -1,4 +1,5 @@
 import '@/styles/globals.css';
+import { Banner } from 'fumadocs-ui/components/banner';
 import { DocsLayout } from 'fumadocs-ui/layouts/notebook';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import type { Metadata, Viewport } from 'next';
@@ -142,6 +143,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }}
         />
         <RootProvider theme={{ enabled: false, defaultTheme: 'dark' }}>
+          {/* No `id` prop → non-dismissible. The site is experimental; the
+              banner stays in place across navigations and on repeat visits. */}
+          <Banner>
+            Zeno is experimental. Personal project, no SLA, breaking changes expected.
+          </Banner>
           <DocsLayout
             tree={source.pageTree}
             nav={{

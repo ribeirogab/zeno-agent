@@ -1,4 +1,6 @@
 import { type DocsCollection, defineConfig, defineDocs } from 'fumadocs-mdx/config';
+import type { ThemeRegistration } from 'shiki';
+import { imperialTerminalTheme } from '@/lib/shiki-imperial-terminal';
 
 export const docs: DocsCollection = defineDocs({
   dir: 'content/docs',
@@ -13,4 +15,15 @@ export const docs: DocsCollection = defineDocs({
   },
 });
 
-export default defineConfig();
+export default defineConfig({
+  mdxOptions: {
+    rehypeCodeOptions: {
+      themes: {
+        // Cast: the theme is shaped as a shiki ThemeRegistration but the
+        // mutable builder return type loses the `settings` discriminator.
+        // Runtime is well-formed; this only sidesteps a structural narrowness.
+        dark: imperialTerminalTheme as unknown as ThemeRegistration,
+      },
+    },
+  },
+});

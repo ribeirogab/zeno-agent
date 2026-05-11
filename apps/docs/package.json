@@ -20,6 +20,7 @@
     "deploy": "pnpm run cf:build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
+    "@shikijs/themes": "^4.0.2",
     "@zeno/ui": "workspace:*",
     "fumadocs-core": "^16.8.8",
     "fumadocs-mdx": "^15.0.0",
@@ -27,7 +28,8 @@
     "lucide-react": "^0.460.0",
     "next": "^16.2.6",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "shiki": "^4.0.2"
   },
   "devDependencies": {
     "@opennextjs/cloudflare": "^1.19.8",

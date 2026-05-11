@@ -60,10 +60,20 @@ export async function runClaudeOAuth(opts: ClaudeOAuthOpts): Promise<string> {
       process.stderr.write('[oauth-dbg] WARN no stdinWrite available\n');
       return;
     }
-    // node-pty over docker exec — \r is the line terminator; PTY ICRNL maps
-    // it to \n for the inner readline reader.
-    stdinWrite(`${code}\r`);
-    process.stderr.write('[oauth-dbg] code written to pty\n');
+    // claude setup-token uses an interactive TUI readline that hangs when
+    // fed long input as one atomic block (verified empirically: < ~70 char
+    // batches process; ≥ ~80 char batches show the chars masked as `*` but
+    // never fire on the trailing `\r`). Mimic actual typing by writing one
+    // char at a time with a small delay; readline handles each keypress
+    // cleanly and fires on the final CR. Real OAuth codes are ~92 chars so
+    // this matters in practice.
+    for (const ch of code) {
+      stdinWrite(ch);
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    await new Promise((r) => setTimeout(r, 50));
+    stdinWrite('\r');
+    process.stderr.write(`[oauth-dbg] code written to pty (${code.length} chars chunked)\n`);
   };
 
   const dbg = (msg: string) => process.stderr.write(`[oauth-dbg] ${msg}\n`);

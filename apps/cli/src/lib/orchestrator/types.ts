@@ -6,7 +6,12 @@ export interface ContainerSpec {
   profile: string;
   port: number;
   envFile: string;
-  workspaceVolume: string;
+  /**
+   * Spec 0072 — host bind path for the workspace dir (replaces the named
+   * `workspaceVolume` from spec 0050). Lets the CLI on the host open the
+   * runtime DB at `<workspaceBindPath>/zeno.db` without a docker exec hop.
+   */
+  workspaceBindPath: string;
   claudeHomeVolume: string;
   agentMountSource: string;
   profileMountSource: string;

@@ -1,17 +1,21 @@
 /**
- * Spec 0071: TanStack Query hooks for the backends UI surface.
+ * Spec 0071 / 0072: TanStack Query hooks for the backends UI surface.
  *
  * Endpoints live at /api/backends/*. The list response merges the
  * agent/backends-catalog.json static metadata with per-backend status from
  * the encrypted backend_credentials table.
  *
- * The dashboard polls the list every 30s so a server-side `auth_expired`
- * (set by the worker) flips the sidebar status dot red within ~30s without
- * needing a long-lived stream.
+ * Dashboard polls the list every 30s by default so a CLI-driven status
+ * change converges without an SSE stream. The /onboarding/connect-backend
+ * page passes `{ poll: 'fast' }` to tighten the cadence to 2s while the
+ * operator is mid-CLI-flow.
+ *
+ * Mutation hooks (save/oauth-start/oauth-cancel/set-active) were dropped
+ * in spec 0072 — backend mutation is CLI-only now. The api-side routes
+ * those hooks called are deleted in the same PR.
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@zeno/ui';
+import { useQuery } from '@tanstack/react-query';
 import { ApiError, apiFetch } from '@/lib/api-client';
 
 function formatBackendError(err: unknown): string {
@@ -61,12 +65,20 @@ export const backendsKeys = {
   detail: (id: string) => [...backendsKeys.all, id] as const,
 };
 
-export function useBackends() {
+export interface UseBackendsOpts {
+  /**
+   * 'normal' (30s, default) for /backend + sidebar dot; 'fast' (2s) for the
+   * onboarding hero so CLI-driven changes appear within one cycle.
+   */
+  poll?: 'normal' | 'fast';
+}
+
+export function useBackends(opts: UseBackendsOpts = {}) {
+  const refetchInterval = opts.poll === 'fast' ? 2_000 : 30_000;
   return useQuery({
     queryKey: backendsKeys.list(),
     queryFn: () => apiFetch<BackendsResponse>('/api/backends'),
-    // 30s poll keeps the sidebar status dot fresh without an SSE stream.
-    refetchInterval: 30_000,
+    refetchInterval,
   });
 }
 
@@ -78,64 +90,7 @@ export function useBackend(id: string | undefined) {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Mutations
-// ─────────────────────────────────────────────────────────────────
-
-export interface SaveBackendCredentialsInput {
-  backendId: string;
-  token: string;
-}
-
-/** Paste-token path: regex-validated client-side, then verified by the server. */
-export function useSaveBackendCredentials() {
-  const qc = useQueryClient();
-  const toast = useToast();
-  return useMutation({
-    mutationFn: (input: SaveBackendCredentialsInput) =>
-      apiFetch<{ ok: true; status: BackendStatus }>(
-        `/api/backends/${input.backendId}/credentials`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ token: input.token }),
-        },
-      ),
-    onSuccess: () => {
-      toast.success('Claude connected');
-      qc.invalidateQueries({ queryKey: backendsKeys.list() });
-    },
-    onError: (err) => toast.fail(formatBackendError(err)),
-  });
-}
-
-export function useStartOAuth() {
-  return useMutation({
-    mutationFn: (backendId: string) =>
-      apiFetch<{ session_id: string }>(`/api/backends/${backendId}/oauth/start`, {
-        method: 'POST',
-      }),
-  });
-}
-
-export function useCancelOAuth() {
-  return useMutation({
-    mutationFn: (input: { backendId: string; sessionId: string }) =>
-      apiFetch<{ ok: true }>(`/api/backends/${input.backendId}/oauth/${input.sessionId}/cancel`, {
-        method: 'POST',
-      }),
-  });
-}
-
-export function useSetActiveBackend() {
-  const qc = useQueryClient();
-  const toast = useToast();
-  return useMutation({
-    mutationFn: (backendId: string) =>
-      apiFetch<{ ok: true }>('/api/backends/active', {
-        method: 'PUT',
-        body: JSON.stringify({ backend_id: backendId }),
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: backendsKeys.list() }),
-    onError: (err) => toast.fail(formatBackendError(err)),
-  });
-}
+// Spec 0072 — formatBackendError + ApiError are kept on the import surface
+// for backwards-compat with consumers that handle the api error shape.
+// They are no longer used by mutation hooks (which were deleted).
+export { ApiError, formatBackendError };

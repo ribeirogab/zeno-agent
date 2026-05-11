@@ -3,9 +3,15 @@
   "configurations": [
     {
       "name": "dashboard",
-      "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "while true; do sleep 3600; done"],
-      "port": 3001
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@zeno/dashboard", "exec", "vite", "--port", "5173", "--host", "127.0.0.1", "--strictPort"],
+      "port": 5173
+    },
+    {
+      "name": "live-test-0072",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "const http=require('http'),net=require('net'),u=require('url');const TARGET={h:'127.0.0.1',p:6101};http.createServer((req,res)=>{const o={hostname:TARGET.h,port:TARGET.p,method:req.method,path:req.url,headers:{...req.headers,host:TARGET.h+':'+TARGET.p}};const proxy=http.request(o,r=>{res.writeHead(r.statusCode,r.headers);r.pipe(res)});req.pipe(proxy);proxy.on('error',e=>{res.writeHead(502);res.end(e.message)})}).listen(process.env.PORT||5174,()=>console.log('proxy listening'))"],
+      "port": 5174
     },
     {
       "name": "docs",

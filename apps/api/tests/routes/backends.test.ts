@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { _resetBackendsCatalogCache } from '@zeno/backends';
 import {
   BackendCredentialsRepo,
   BackendSettingsRepo,
@@ -11,7 +12,6 @@ import {
   runRuntimeMigrations,
 } from '@zeno/db/runtime';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { _resetBackendsCatalogCache } from '@/lib/backends-catalog-loader';
 import { createApp } from '@/server';
 import { csrfHeaders } from '../csrf-helper';
 
@@ -93,112 +93,73 @@ describe('GET /api/backends (spec 0071)', () => {
   });
 });
 
-describe('POST /api/backends/:id/credentials (paste-token, spec 0071)', () => {
-  it('rejects with invalid_format when regex fails', async () => {
+// Spec 0072 — POST /api/backends/:id/credentials, /oauth/start, /oauth/:s/input,
+// /oauth/:s/stream, /oauth/:s/cancel, and PUT /api/backends/active are all
+// deleted (CLI-only mutation surface). The previous test cases are gone.
+
+describe('POST /api/backends/:id/test (spec 0072)', () => {
+  it('returns 400 not_configured when no credential is stored', async () => {
     const app = makeApp(db);
-    const res = await app.request('/api/backends/claude-code/credentials', {
+    const res = await app.request('/api/backends/claude-code/test', {
       method: 'POST',
-      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
-      body: JSON.stringify({ token: 'not-a-real-token' }),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string };
-    expect(body.error).toBe('invalid_format');
+    expect(body.error).toBe('not_configured');
   });
 
-  it('returns 401 unauthorized when Anthropic rejects (and does NOT save)', async () => {
-    const fetchImpl = vi.fn(
-      async () => new Response('{}', { status: 401 }),
-    ) as unknown as typeof fetch;
-    const app = makeApp(db, { fetchImpl });
-    const res = await app.request('/api/backends/claude-code/credentials', {
-      method: 'POST',
-      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
-      body: JSON.stringify({
-        token: 'sk-ant-oat01-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-      }),
-    });
-    expect(res.status).toBe(401);
-    // Verify NOT saved
+  it('flips status to active on a successful Anthropic ping', async () => {
     const repo = new BackendCredentialsRepo(db, { masterKey: MASTER_KEY, profileId: 'test' });
-    expect(repo.getValue('claude-code', 'oauth_token')).toBeNull();
-  });
+    repo.upsert({ backendId: 'claude-code', fieldName: 'oauth_token', value: 'sk-ant-secret' });
 
-  it('returns 429 rate_limited (with retryAfterSec) and does NOT save', async () => {
-    const fetchImpl = vi.fn(
-      async () => new Response('{}', { status: 429, headers: { 'retry-after': '30' } }),
-    ) as unknown as typeof fetch;
-    const app = makeApp(db, { fetchImpl });
-    const res = await app.request('/api/backends/claude-code/credentials', {
-      method: 'POST',
-      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
-      body: JSON.stringify({
-        token: 'sk-ant-oat01-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-      }),
-    });
-    expect(res.status).toBe(429);
-    const body = (await res.json()) as { error: string; retryAfterSec?: number };
-    expect(body.error).toBe('rate_limited');
-    expect(body.retryAfterSec).toBe(30);
-  });
-
-  it('saves with status=active when Anthropic returns ok', async () => {
     const fetchImpl = vi.fn(
       async () => new Response('{"ok":true}', { status: 200 }),
     ) as unknown as typeof fetch;
     const app = makeApp(db, { fetchImpl });
-    const token = 'sk-ant-oat01-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB';
-    const res = await app.request('/api/backends/claude-code/credentials', {
+    const res = await app.request('/api/backends/claude-code/test', {
       method: 'POST',
-      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
-      body: JSON.stringify({ token }),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { ok: boolean; status: string };
-    expect(body).toEqual({ ok: true, status: 'active' });
-
-    const repo = new BackendCredentialsRepo(db, { masterKey: MASTER_KEY, profileId: 'test' });
-    expect(repo.getValue('claude-code', 'oauth_token')).toBe(token);
+    const body = (await res.json()) as { ok: boolean; status: string; kind: string };
+    expect(body).toMatchObject({ ok: true, status: 'active', kind: 'ok' });
     expect(repo.listStatuses()[0]?.status).toBe('active');
   });
 
-  it('saves with status=untested on network error', async () => {
+  it('flips status to expired on 401 unauthorized', async () => {
+    const repo = new BackendCredentialsRepo(db, { masterKey: MASTER_KEY, profileId: 'test' });
+    repo.upsert({ backendId: 'claude-code', fieldName: 'oauth_token', value: 'sk-ant-secret' });
+
+    const fetchImpl = vi.fn(
+      async () => new Response('{}', { status: 401 }),
+    ) as unknown as typeof fetch;
+    const app = makeApp(db, { fetchImpl });
+    const res = await app.request('/api/backends/claude-code/test', {
+      method: 'POST',
+      headers: csrfHeaders(),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { status: string; kind: string };
+    expect(body.status).toBe('expired');
+    expect(body.kind).toBe('unauthorized');
+  });
+
+  it('flips status to untested on network error', async () => {
+    const repo = new BackendCredentialsRepo(db, { masterKey: MASTER_KEY, profileId: 'test' });
+    repo.upsert({ backendId: 'claude-code', fieldName: 'oauth_token', value: 'sk-ant-secret' });
+
     const fetchImpl = vi.fn(async () => {
       throw new Error('ECONNREFUSED');
     }) as unknown as typeof fetch;
     const app = makeApp(db, { fetchImpl });
-    const token = 'sk-ant-oat01-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC';
-    const res = await app.request('/api/backends/claude-code/credentials', {
+    const res = await app.request('/api/backends/claude-code/test', {
       method: 'POST',
-      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
-      body: JSON.stringify({ token }),
+      headers: csrfHeaders(),
     });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { ok: boolean; status: string };
+    const body = (await res.json()) as { status: string; kind: string };
     expect(body.status).toBe('untested');
-  });
-});
-
-describe('PUT /api/backends/active (spec 0071)', () => {
-  it('sets active_backend_id', async () => {
-    const app = makeApp(db);
-    const res = await app.request('/api/backends/active', {
-      method: 'PUT',
-      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
-      body: JSON.stringify({ backend_id: 'claude-code' }),
-    });
-    expect(res.status).toBe(200);
-    const settings = new BackendSettingsRepo(db, 'test');
-    expect(settings.get('active_backend_id')).toBe('claude-code');
-  });
-
-  it('rejects unknown backend_id', async () => {
-    const app = makeApp(db);
-    const res = await app.request('/api/backends/active', {
-      method: 'PUT',
-      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
-      body: JSON.stringify({ backend_id: 'not-a-backend' }),
-    });
-    expect(res.status).toBe(400);
+    expect(body.kind).toBe('network');
   });
 });

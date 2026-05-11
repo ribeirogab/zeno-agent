@@ -1,3 +1,4 @@
+import { mkdirSync } from 'node:fs';
 import { queries } from '@zeno/db/host';
 import { defineCommand } from 'citty';
 import { rewriteMasterKey } from '../lib/env-file.js';
@@ -9,7 +10,7 @@ import {
   containerName,
   profileDir,
   profileEnvFile,
-  workspaceVolumeName,
+  workspaceBindPath,
   ZENO_HOME,
 } from '../lib/paths.js';
 import { requireProfile } from '../lib/profile.js';
@@ -80,6 +81,9 @@ export default defineCommand({
         }
         if (live) await orch.removeContainer(cName);
 
+        const wsBind = workspaceBindPath(name);
+        mkdirSync(wsBind, { recursive: true });
+
         await spin(
           `starting container ${c.gray(cName)}`,
           async () => {
@@ -88,7 +92,7 @@ export default defineCommand({
               profile: name,
               port: p.port,
               envFile: profileEnvFile(name),
-              workspaceVolume: workspaceVolumeName(name),
+              workspaceBindPath: wsBind,
               claudeHomeVolume: claudeHomeVolumeName(name),
               agentMountSource: agentMountSource(),
               profileMountSource: profileDir(name),

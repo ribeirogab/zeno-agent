@@ -15,10 +15,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@zeno/backends": "workspace:*",
     "@zeno/db": "workspace:*",
     "better-sqlite3": "^12.9.0",
     "citty": "^0.2.2",
-    "dockerode": "^5.0.0"
+    "dockerode": "^5.0.0",
+    "node-pty": "^1.1.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

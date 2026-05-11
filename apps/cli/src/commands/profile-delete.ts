@@ -7,7 +7,7 @@ import {
   claudeHomeVolumeName,
   containerName,
   profileDir,
-  workspaceVolumeName,
+  workspaceBindPath,
 } from '../lib/paths.js';
 import { requireProfile } from '../lib/profile.js';
 import { confirmDestructive } from '../lib/prompt.js';
@@ -32,7 +32,7 @@ export default defineCommand({
     console.log('');
     console.log(warn(`This will permanently delete profile ${c.bold(name)}:`));
     console.log(`  - Container:   ${c.gray(containerName(name))}`);
-    console.log(`  - Volume:      ${c.gray(workspaceVolumeName(name))}`);
+    console.log(`  - Workspace:   ${c.gray(workspaceBindPath(name))}`);
     console.log(`  - Volume:      ${c.gray(claudeHomeVolumeName(name))}`);
     console.log(`  - Directory:   ${c.gray(`~/.zeno/profiles/${name}/`)}`);
     console.log(`  - DB row`);
@@ -54,7 +54,8 @@ export default defineCommand({
       /* container may not exist */
     }
     await orch.removeContainer(containerName(name));
-    await orch.removeVolume(workspaceVolumeName(name));
+    // Spec 0072 — workspace is now a host bind dir inside profileDir; the
+    // rmSync below clears it. Only claudeHome remains as a named volume.
     await orch.removeVolume(claudeHomeVolumeName(name));
     rmSync(profileDir(name), { recursive: true, force: true });
     queries.deleteProfile(conn, name);

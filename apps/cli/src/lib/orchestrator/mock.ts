@@ -11,6 +11,8 @@ interface MockContainer {
 export class MockOrchestrator implements Orchestrator {
   readonly images = new Set<string>();
   readonly containers = new Map<string, MockContainer>();
+  /** Spec 0072 — workspace is a host bind dir; tracked here for assertions. */
+  readonly workspaceBindPaths = new Set<string>();
   readonly volumes = new Set<string>();
   daemonUp = true;
 
@@ -29,7 +31,7 @@ export class MockOrchestrator implements Orchestrator {
   async createContainer(spec: ContainerSpec): Promise<void> {
     if (this.containers.has(spec.name)) throw new Error(`container ${spec.name} exists`);
     this.containers.set(spec.name, { spec, state: 'stopped', startedAt: null });
-    this.volumes.add(spec.workspaceVolume);
+    this.workspaceBindPaths.add(spec.workspaceBindPath);
     this.volumes.add(spec.claudeHomeVolume);
   }
 

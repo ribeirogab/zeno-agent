@@ -25,8 +25,18 @@ export function agentMountSource(): string {
   return join(ZENO_HOME, 'agent');
 }
 
-export function workspaceVolumeName(profile: string): string {
-  return `zeno-${profile}-workspace`;
+/**
+ * Spec 0072 — workspace dir is a bind mount on the host so the CLI can open
+ * the runtime DB (`<workspaceBindPath>/zeno.db`) directly via
+ * `openRuntimeDatabase` without going through docker exec. Replaces the
+ * named volume `workspaceVolumeName` from spec 0050.
+ */
+export function workspaceBindPath(profile: string): string {
+  return join(profileDir(profile), 'workspace');
+}
+
+export function profileRuntimeDbPath(profile: string): string {
+  return join(workspaceBindPath(profile), 'zeno.db');
 }
 
 export function claudeHomeVolumeName(profile: string): string {

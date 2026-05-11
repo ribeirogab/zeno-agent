@@ -66,7 +66,12 @@ export class DockerOrchestrator implements Orchestrator {
   }
 
   async createContainer(spec: ContainerSpec): Promise<void> {
-    const env = parseEnvFile(spec.envFile);
+    const fileEnv = parseEnvFile(spec.envFile);
+    // Spec 0072 — pass ZENO_PROFILE so the worker's BackendCredentialsRepo
+    // / BackendSettingsRepo open the correct row partition. Without this,
+    // the worker defaults to profileId='default' and can't see credentials
+    // the host CLI wrote for the actual profile name.
+    const env = [`ZENO_PROFILE=${spec.profile}`, ...fileEnv.filter((e) => !e.startsWith('ZENO_PROFILE='))];
     await this.docker.createContainer({
       Image: 'zeno-agent:dev',
       name: spec.name,
@@ -82,7 +87,7 @@ export class DockerOrchestrator implements Orchestrator {
       HostConfig: {
         PortBindings: { '3000/tcp': [{ HostPort: String(spec.port) }] },
         Mounts: [
-          { Type: 'volume', Source: spec.workspaceVolume, Target: '/workspace' },
+          { Type: 'bind', Source: spec.workspaceBindPath, Target: '/workspace' },
           { Type: 'volume', Source: spec.claudeHomeVolume, Target: '/home/node/.claude' },
           {
             Type: 'bind',

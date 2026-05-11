@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import {
   AgentCapabilityRepo,
   BackendCredentialsRepo,
+  BackendSettingsRepo,
   CommandRepo,
   ConnectorAppRepo,
   ConnectorRepo,
@@ -84,12 +85,13 @@ interface BackendBuildOptions {
 }
 
 /**
- * Pick the agent backend based on ZENO_BACKEND. Default is the real Claude SDK; 'mock' is for dev/tests.
+ * Spec 0072 — pick the agent backend based on `backend_settings.active_backend_id`
+ * (per profile, runtime DB), no longer the ZENO_BACKEND env. Default is the
+ * real Claude SDK; 'mock' is for dev/tests (E2E fixture seeds `active_backend_id='mock'`).
  * Throws on unknown values so a typo never silently degrades to a mock in prod.
  */
-function buildBackend(logger: Logger, opts: BackendBuildOptions): AgentBackend {
-  const choice = process.env.ZENO_BACKEND ?? 'claude-code';
-  switch (choice) {
+function buildBackend(logger: Logger, slug: string, opts: BackendBuildOptions): AgentBackend {
+  switch (slug) {
     case 'claude-code':
       logger.info({ event: 'backend_selected', backend: 'claude-code' }, 'using ClaudeCodeBackend');
       return new ClaudeCodeBackend({
@@ -102,7 +104,9 @@ function buildBackend(logger: Logger, opts: BackendBuildOptions): AgentBackend {
       logger.info({ event: 'backend_selected', backend: 'mock' }, 'using MockBackend');
       return new MockBackend(loadMockFixtures());
     default:
-      throw new Error(`Unknown ZENO_BACKEND='${choice}' (expected 'claude-code' or 'mock')`);
+      throw new Error(
+        `Unknown active_backend_id='${slug}' (expected 'claude-code' or 'mock'). Set via the runtime DB (zeno backend) or E2E fixture.`,
+      );
   }
 }
 
@@ -121,8 +125,9 @@ async function healthChecks(logger: Logger, _config: Config): Promise<void> {
   // Spec 0044: github-mcp-server is the binary spawned by github-app-* connectors.
   // If the binary is missing, every github-app turn would fail with an opaque
   // ENOENT mid-conversation. Fail-fast at boot instead per spec §"Phase 7".
-  // Dev environments that don't need github-app can run with ZENO_BACKEND=mock,
-  // which already skips healthChecks entirely (line above).
+  // Spec 0072: dev environments that need to bypass this check select the
+  // 'mock' backend via the runtime DB (E2E fixture seeds active_backend_id),
+  // which routes around healthChecks entirely.
   const ghMcpResult = await run('github-mcp-server', ['--version']);
   if (ghMcpResult.code !== 0) {
     throw new Error(`github-mcp-server --version failed: ${ghMcpResult.err.slice(0, 200)}`);
@@ -172,14 +177,8 @@ async function main(): Promise<void> {
   const bootLogger = createLogger({ service: 'worker' });
   bootLogger.info({ event: 'boot_start' }, 'Zeno booting');
 
-  if ((process.env.ZENO_BACKEND ?? 'claude-code') === 'claude-code') {
-    await healthChecks(bootLogger, config);
-  } else {
-    bootLogger.info(
-      { event: 'health_checks_skipped' },
-      'mock backend selected, skipping CLI checks',
-    );
-  }
+  // Spec 0072: defer the claude-cli healthcheck until we know the active
+  // backend slug from the runtime DB. The check moves below DB open.
 
   // Load identity files (SOUL.md from agent/, USER.md from profile/).
   // Spec 0050: skills are no longer part of the runtime; the system prompt
@@ -258,6 +257,23 @@ async function main(): Promise<void> {
     masterKey: config.masterKey,
     profileId,
   });
+  const backendSettings = new BackendSettingsRepo(db, profileId);
+  // Spec 0072: active backend now lives in the runtime DB (set by the CLI),
+  // not in process.env.ZENO_BACKEND. Default 'claude-code' string literal so
+  // a fresh profile boots into the only real driver.
+  const activeBackendId = backendSettings.get('active_backend_id') ?? 'claude-code';
+  bootLogger.info(
+    { event: 'backend_active_resolved', backend: activeBackendId, source: 'runtime_db' },
+    `active backend resolved: ${activeBackendId}`,
+  );
+  if (activeBackendId === 'claude-code') {
+    await healthChecks(bootLogger, config);
+  } else {
+    bootLogger.info(
+      { event: 'health_checks_skipped', backend: activeBackendId },
+      'non-claude-code backend selected, skipping claude-cli healthcheck',
+    );
+  }
   const credentialsService = new CredentialsService({ repo: backendCredentials });
 
   /**
@@ -486,7 +502,7 @@ async function main(): Promise<void> {
     : new NoopChannel(logger);
   const defaultCronChannel = process.env.ZENO_CRON_DEFAULT_CHANNEL ?? null;
 
-  const isClaudeBackend = (process.env.ZENO_BACKEND ?? 'claude-code') === 'claude-code';
+  const isClaudeBackend = activeBackendId === 'claude-code';
   const gatedDeps = {
     connectorRepo: connectors,
     agentCapabilityRepo,
@@ -535,7 +551,7 @@ async function main(): Promise<void> {
     cronOuterHook = cronWrapper.buildPreToolUseHook();
     backendForRunner = cronWrapper;
   } else {
-    backendForRunner = buildBackend(logger, {
+    backendForRunner = buildBackend(logger, activeBackendId, {
       getMcpServers,
       onInvocation,
       envProvider: claudeEnvProvider,
@@ -619,7 +635,7 @@ async function main(): Promise<void> {
       'connector-permission gate enabled (spec 0050 + spec 0054 cron)',
     );
   } else {
-    chatBackend = buildBackend(logger, {
+    chatBackend = buildBackend(logger, activeBackendId, {
       getMcpServers,
       inProcessMcpServers: { zeno: cronMcp },
       onInvocation,

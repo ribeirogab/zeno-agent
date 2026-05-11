@@ -1,33 +1,26 @@
 /**
- * Spec 0071 — REST + SSE endpoints for the dashboard's `/settings/backend`
- * surface and `/onboarding/connect-claude` flow.
+ * Spec 0072 — read-only backends API + a single live-ping mutation.
  *
  * Endpoints:
- *   GET    /                             list catalog merged with status
- *   GET    /:id                          single backend detail
- *   POST   /:id/credentials              paste-token path (regex + verify + save)
- *   POST   /:id/oauth/start              spawn auto-flow CLI, return session_id
- *   GET    /:id/oauth/:sessionId/stream  SSE — events: device_code_url, token_captured, success, error
- *   POST   /:id/oauth/:sessionId/cancel  kill the spawned CLI
- *   PUT    /active                       set active_backend_id
+ *   GET  /                  list catalog merged with status
+ *   GET  /:id               single backend detail
+ *   POST /:id/test          live Anthropic ping → updates last_tested_at + status
+ *   GET  /icons/:filename   serve backend logos
+ *
+ * The dashboard NEVER mutates credentials or active backend selection — that
+ * surface moved to the `zeno backend` CLI subtree (spec 0072 / Phase 7).
  *
  * SECURITY:
  *   - The backend NEVER returns the encrypted token value, ciphertext bytes,
  *     length, prefix, or sha256. Only `{configured, status, last_tested_at}`.
- *   - The OAuth SSE stream NEVER emits the token — the route runs the
- *     verification handshake server-side and emits success/error events only.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { zValidator } from '@hono/zod-validator';
+import { type BackendsCatalog, loadBackendsCatalog, testClaudeToken } from '@zeno/backends';
 import type { BackendCredentialsRepo, BackendSettingsRepo } from '@zeno/db/runtime';
 import { Hono } from 'hono';
-import { z } from 'zod';
-import { type BackendsCatalog, loadBackendsCatalog } from '@/lib/backends-catalog-loader';
-import { testClaudeToken } from '@/lib/claude-test';
-import { OAuthRegistry } from '@/lib/oauth-sessions';
 
 export interface BackendsRouteDeps {
   backendCredentialsRepo: BackendCredentialsRepo;
@@ -40,12 +33,6 @@ export interface BackendsRouteDeps {
   /** Optional injection point for tests — replaces the global fetch in
    *  testClaudeToken calls. */
   fetchImpl?: typeof fetch;
-  /** Optional injection point for tests — replaces the in-process OAuth registry. */
-  oauthRegistry?: OAuthRegistry;
-  /** Spec 0071: pino-shaped logger for the OAuth registry to emit
-   *  observability events (oauth_session_started / _input_forwarded /
-   *  _exit_ok / _exit_no_token). */
-  apiLogger?: { info: (o: object, m: string) => void; warn: (o: object, m: string) => void };
 }
 
 function findAgentDir(): string | null {
@@ -65,7 +52,6 @@ function findAgentDir(): string | null {
 export function buildBackendsRoute(deps: BackendsRouteDeps): Hono {
   const router = new Hono();
   const catalog = deps.catalog ?? loadBackendsCatalog();
-  const oauthRegistry = deps.oauthRegistry ?? new OAuthRegistry();
 
   // GET /icons/:filename — serve backend logos from agent/assets/backends/.
   // Must be registered BEFORE the dynamic /:id routes so it doesn't collide.
@@ -101,8 +87,6 @@ export function buildBackendsRoute(deps: BackendsRouteDeps): Hono {
     const active =
       deps.backendSettingsRepo.get('active_backend_id') ?? catalog.backends[0]?.id ?? null;
     return c.json({
-      // Spec 0071: surface the active profile so the dashboard can render
-      // "scope · <profile>" without hardcoding the wrong value.
       profile_id: deps.profileId,
       active_backend_id: active,
       backends: catalog.backends.map((b) => {
@@ -141,224 +125,27 @@ export function buildBackendsRoute(deps: BackendsRouteDeps): Hono {
     });
   });
 
-  router.post(
-    '/:id/credentials',
-    zValidator(
-      'json',
-      z.object({
-        token: z.string().min(1),
-      }),
-    ),
-    async (c) => {
-      const id = c.req.param('id');
-      const backend = catalog.backends.find((b) => b.id === id);
-      if (!backend) return c.json({ error: 'unknown_backend' }, 404);
-      const { token } = c.req.valid('json');
-      const field = backend.auth_schema[0];
-      if (!field) return c.json({ error: 'no_auth_field' }, 500);
-      if (field.regex) {
-        const re = new RegExp(field.regex);
-        if (!re.test(token)) {
-          return c.json({ error: 'invalid_format', hint: field.regex_hint ?? null }, 400);
-        }
-      }
-
-      const result = await testClaudeToken({
-        token,
-        model: backend.test.model,
-        ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
-      });
-      if (result.kind === 'unauthorized') {
-        return c.json({ error: 'unauthorized' }, 401);
-      }
-      if (result.kind === 'rate_limited') {
-        const body: Record<string, unknown> = { error: 'rate_limited' };
-        if (result.retryAfterSec !== undefined) body.retryAfterSec = result.retryAfterSec;
-        return c.json(body, 429);
-      }
-      // network OR ok → save (network ⇒ status='untested', operator can retry)
-      deps.backendCredentialsRepo.upsert({
-        backendId: id,
-        fieldName: field.field,
-        value: token,
-      });
-      const status = result.kind === 'ok' ? 'active' : 'untested';
-      deps.backendCredentialsRepo.setStatus(id, status, Date.now());
-      return c.json({ ok: true, status });
-    },
-  );
-
-  router.post('/:id/oauth/start', (c) => {
+  // Spec 0072 — POST /:id/test re-runs the live ping using the already-stored
+  // token (read via getValue → decrypted in-process by the repo). Updates
+  // last_tested_at + status. Never accepts or returns credential bytes.
+  router.post('/:id/test', async (c) => {
     const id = c.req.param('id');
     const backend = catalog.backends.find((b) => b.id === id);
     if (!backend) return c.json({ error: 'unknown_backend' }, 404);
-    const sess = oauthRegistry.start({
-      command: backend.auto_flow.command,
-      urlRegex: new RegExp(backend.auto_flow.stdout_url_regex),
-      tokenRegex: new RegExp(backend.auto_flow.stdout_token_regex),
-      ...(backend.auto_flow.stdout_awaiting_code_regex
-        ? { awaitingCodeRegex: new RegExp(backend.auto_flow.stdout_awaiting_code_regex) }
-        : {}),
-      // Pass through pino-shaped logger so OAuthRegistry observability lands
-      // in the api logs (oauth_session_started / _input_forwarded / _exit_ok
-      // / _exit_no_token). Pino's `.info`/`.warn` accept (obj, msg) so the
-      // shape matches OAuthRegistryOpts.logger.
-      ...(deps.apiLogger ? { logger: deps.apiLogger } : {}),
+    const field = backend.auth_schema[0];
+    if (!field) return c.json({ error: 'no_auth_field' }, 500);
+    const token = deps.backendCredentialsRepo.getValue(id, field.field);
+    if (!token) return c.json({ error: 'not_configured' }, 400);
+    const result = await testClaudeToken({
+      token,
+      model: backend.test.model,
+      ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
     });
-    return c.json({ session_id: sess.id });
+    const status =
+      result.kind === 'ok' ? 'active' : result.kind === 'unauthorized' ? 'expired' : 'untested';
+    deps.backendCredentialsRepo.setStatus(id, status, Date.now());
+    return c.json({ ok: true, status, kind: result.kind });
   });
-
-  // Spec 0071: forward the OAuth callback code from the dashboard into the
-  // CLI's stdin. The CLI then exchanges code → access token and prints the
-  // token, which the SSE stream picks up and persists.
-  router.post(
-    '/:id/oauth/:session/input',
-    zValidator(
-      'json',
-      z.object({
-        text: z.string().min(1),
-      }),
-    ),
-    (c) => {
-      const sess = oauthRegistry.get(c.req.param('session'));
-      if (!sess) return c.json({ error: 'session_not_found' }, 404);
-      const { text } = c.req.valid('json');
-      sess.sendInput(text);
-      return c.json({ ok: true });
-    },
-  );
-
-  router.get('/:id/oauth/:session/stream', (c) => {
-    const id = c.req.param('id');
-    const sessionId = c.req.param('session');
-    const backend = catalog.backends.find((b) => b.id === id);
-    if (!backend) return c.text('unknown backend', 404);
-    const sess = oauthRegistry.get(sessionId);
-    if (!sess) return c.text('session not found', 404);
-
-    const stream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        const encoder = new TextEncoder();
-        let closed = false;
-        const send = (ev: object) => {
-          if (closed) return;
-          try {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(ev)}\n\n`));
-          } catch {
-            // Controller may have been closed by client disconnect; ignore.
-          }
-        };
-        const finish = () => {
-          if (closed) return;
-          closed = true;
-          try {
-            controller.close();
-          } catch {
-            // ignore
-          }
-          sess.emitter.removeListener('event', onEvent);
-        };
-        const onEvent = async (ev: { type: string; [k: string]: unknown }) => {
-          if (closed) return;
-          if (ev.type === 'token_captured') {
-            send({ type: 'token_captured' });
-            send({ type: 'verifying' });
-            const token = sess.capturedToken;
-            if (!token) {
-              send({ type: 'error', kind: 'cli', message: 'token captured but unreadable' });
-              finish();
-              return;
-            }
-            const result = await testClaudeToken({
-              token,
-              model: backend.test.model,
-              ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
-            });
-            if (result.kind === 'ok') {
-              const field = backend.auth_schema[0];
-              if (field) {
-                deps.backendCredentialsRepo.upsert({
-                  backendId: id,
-                  fieldName: field.field,
-                  value: token,
-                });
-                deps.backendCredentialsRepo.setStatus(id, 'active', Date.now());
-              }
-              send({ type: 'success' });
-            } else if (result.kind === 'unauthorized') {
-              send({
-                type: 'error',
-                kind: 'unauthorized',
-                message: 'Anthropic rejected the captured token',
-              });
-            } else if (result.kind === 'rate_limited') {
-              const body: Record<string, unknown> = {
-                type: 'error',
-                kind: 'rate_limited',
-                message: 'Anthropic throttled the test handshake',
-              };
-              if (result.retryAfterSec !== undefined) body.retryAfterSec = result.retryAfterSec;
-              send(body);
-            } else {
-              // network — save with status='untested' so operator can retry
-              const field = backend.auth_schema[0];
-              if (field) {
-                deps.backendCredentialsRepo.upsert({
-                  backendId: id,
-                  fieldName: field.field,
-                  value: token,
-                });
-                deps.backendCredentialsRepo.setStatus(id, 'untested', Date.now());
-              }
-              send({ type: 'error', kind: 'network', message: result.reason });
-            }
-            finish();
-            return;
-          }
-          if (ev.type === 'error') {
-            send(ev);
-            finish();
-            return;
-          }
-          // device_code_url, awaiting_code, status, verifying — pass through.
-          send(ev);
-        };
-        sess.emitter.on('event', onEvent);
-      },
-    });
-    return new Response(stream, {
-      headers: {
-        'content-type': 'text/event-stream',
-        'cache-control': 'no-cache',
-        connection: 'keep-alive',
-      },
-    });
-  });
-
-  router.post('/:id/oauth/:session/cancel', (c) => {
-    const sessionId = c.req.param('session');
-    const sess = oauthRegistry.get(sessionId);
-    if (sess) sess.cancel();
-    return c.json({ ok: true });
-  });
-
-  router.put(
-    '/active',
-    zValidator(
-      'json',
-      z.object({
-        backend_id: z.string().min(1),
-      }),
-    ),
-    (c) => {
-      const { backend_id } = c.req.valid('json');
-      if (!catalog.backends.some((b) => b.id === backend_id)) {
-        return c.json({ error: 'unknown_backend' }, 400);
-      }
-      deps.backendSettingsRepo.set('active_backend_id', backend_id);
-      return c.json({ ok: true });
-    },
-  );
 
   return router;
 }

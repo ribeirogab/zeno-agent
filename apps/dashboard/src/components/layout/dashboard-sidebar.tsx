@@ -5,15 +5,18 @@ import { useBackends } from '@/lib/use-backends';
 import { type ServiceStatus, useHealth } from '@/lib/use-health';
 import { useSettings } from '@/lib/use-settings';
 
-type NavId = 'home' | 'crons' | 'channels' | 'connectors' | 'skills' | 'settings';
+type NavId = 'home' | 'backend' | 'crons' | 'channels' | 'connectors' | 'skills' | 'settings';
 
 // Spec 0066 B: `sessions` removed from the primary nav. The route
 // stays mounted (`/sessions/*`) and is reachable from log entries
 // and cron run history — operators don't navigate there to act.
 // Spec 0066 follow-up: `logs` removed from the primary nav for the
 // same reason — debugging surface, reachable via deep-link.
+// Spec 0072: `backend` promoted to top-level (between home and crons),
+// replacing the old `/settings/backend` sub-tab.
 const NAV: { id: NavId; label: string; to: string; badge?: number }[] = [
   { id: 'home', label: 'home', to: '/' },
+  { id: 'backend', label: 'backend', to: '/backend' },
   { id: 'crons', label: 'crons', to: '/crons' },
   // Spec 0059: channels (transport substrate) sit ABOVE connectors
   // (tool surface) — conceptual ordering: where Zeno talks vs what Zeno calls.
@@ -47,6 +50,7 @@ export function DashboardSidebar(): JSX.Element {
 
 function navIdForPath(path: string): NavId {
   if (path === '/') return 'home';
+  if (path === '/backend' || path.startsWith('/backend/')) return 'backend';
   if (path.startsWith('/crons')) return 'crons';
   if (path.startsWith('/channels')) return 'channels';
   if (path.startsWith('/connectors')) return 'connectors';
@@ -86,9 +90,9 @@ function Brand(): JSX.Element {
       <span className="font-mono text-[15px] font-medium tracking-[0.08em] text-text-primary">
         zeno
       </span>
+      {/* Spec 0072 — Brand dot links to the new top-level /backend route. */}
       <Link
-        to="/settings"
-        search={{ tab: 'backend' }}
+        to="/backend"
         className={`w-2 h-2 rounded-full ml-auto ${dotClass}`}
         title={tooltip}
         aria-label={tooltip}
@@ -182,6 +186,16 @@ function NavIcon({ id }: { id: NavId }): JSX.Element {
         <svg {...props} aria-hidden="true">
           <path d="M3 11l9-8 9 8" />
           <path d="M5 10v10h14V10" />
+        </svg>
+      );
+    case 'backend':
+      // CPU/chip silhouette — the agent runtime
+      return (
+        <svg {...props} aria-hidden="true">
+          <rect x="6" y="6" width="12" height="12" rx="1" />
+          <path d="M9 9h6v6H9z" />
+          <path d="M9 3v2M12 3v2M15 3v2M9 19v2M12 19v2M15 19v2" />
+          <path d="M3 9h2M3 12h2M3 15h2M19 9h2M19 12h2M19 15h2" />
         </svg>
       );
     case 'crons':

@@ -20,22 +20,21 @@ import { useStats } from '@/lib/use-stats';
 
 export const Route = createFileRoute('/_authed/')({
   beforeLoad: async () => {
-    // Spec 0071: when no backend is configured, drop the operator into the
-    // first-run onboarding hero. Auth is already validated by the parent
-    // _authed route's beforeLoad — this only runs after login succeeded.
+    // Spec 0072: when no backend is configured, drop the operator into the
+    // first-run onboarding hero. Throw the redirect OUTSIDE try/catch so
+    // TanStack Router's Redirect signal isn't swallowed by the catch.
+    let r: BackendsResponse | null = null;
     try {
-      const r = await apiFetch<BackendsResponse>('/api/backends');
-      const configured = r.backends.some((b) => b.status !== 'not_configured');
-      if (!configured) {
-        throw redirect({ to: '/onboarding/connect-claude' });
-      }
+      r = await apiFetch<BackendsResponse>('/api/backends');
     } catch (err) {
-      if ((err as { isRedirect?: boolean })?.isRedirect) throw err;
       // /api/backends down → render home with the existing degraded state.
-      // The sidebar status dot will turn neutral; operator can still navigate.
-      if (err instanceof ApiError) {
-        // ignore — fall through
-      }
+      // Sidebar status dot will turn neutral; operator can still navigate.
+      if (err instanceof ApiError) return;
+      throw err;
+    }
+    const configured = r.backends.some((b) => b.status !== 'not_configured');
+    if (!configured) {
+      throw redirect({ to: '/onboarding/connect-backend' });
     }
   },
   component: HomeScreen,
@@ -379,10 +378,9 @@ function FirstRunChecklist({ onPasteToken }: { onPasteToken: () => void }): JSX.
       <FirstRunStep
         index={1}
         title="configure Claude backend"
-        helper="Zeno needs a Claude OAuth token before it can reply. Authorize once and the worker picks it up on next start."
-        cta="configure Claude →"
-        ctaTo="/settings"
-        ctaSearch={{ tab: 'backend' }}
+        helper="Zeno needs a Claude OAuth token before it can reply. Run `zeno backend configure` from your terminal — the worker picks it up within ~5s."
+        cta="open /backend →"
+        ctaTo="/backend"
         active
       />
       <FirstRunStep

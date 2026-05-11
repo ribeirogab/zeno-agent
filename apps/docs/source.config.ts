@@ -1,5 +1,6 @@
 import { remarkMdxMermaid } from 'fumadocs-core/mdx-plugins/remark-mdx-mermaid';
 import { type DocsCollection, defineConfig, defineDocs } from 'fumadocs-mdx/config';
+import { transformerTwoslash } from 'fumadocs-twoslash';
 import type { ThemeRegistration } from 'shiki';
 import { imperialTerminalTheme } from '@/lib/shiki-imperial-terminal';
 
@@ -26,6 +27,7 @@ export default defineConfig({
         // Runtime is well-formed; this only sidesteps a structural narrowness.
         dark: imperialTerminalTheme as unknown as ThemeRegistration,
       },
+      transformers: [transformerTwoslash()],
     },
   },
 });

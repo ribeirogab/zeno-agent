@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "fumadocs-twoslash/twoslash.css";
 /*
  * Brand tokens via relative monorepo path. Turbopack's CSS pipeline does
  * not honour the package `exports` map for CSS imports the way Vite does,

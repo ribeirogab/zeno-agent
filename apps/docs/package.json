@@ -24,6 +24,7 @@
     "@zeno/ui": "workspace:*",
     "fumadocs-core": "^16.8.8",
     "fumadocs-mdx": "^15.0.0",
+    "fumadocs-twoslash": "^3.2.0",
     "fumadocs-ui": "^16.8.8",
     "lucide-react": "^0.460.0",
     "mermaid": "^11.14.0",

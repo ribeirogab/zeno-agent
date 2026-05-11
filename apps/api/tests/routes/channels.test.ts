@@ -35,7 +35,7 @@ afterEach(() => {
   _resetChannelsCatalogCache();
 });
 
-function makeApp(database: RuntimeDB) {
+function makeApp(database: RuntimeDB, writes: 'cli' | 'dashboard' = 'dashboard') {
   return createApp({
     config: {
       logLevel: 'info',
@@ -57,7 +57,7 @@ function makeApp(database: RuntimeDB) {
     claudeHome: '/tmp',
     profileDir: '/tmp',
     channelsCatalog: loadChannelsCatalog(),
-    writes: 'dashboard',
+    writes,
   });
 }
 
@@ -312,9 +312,12 @@ describe('GET /api/channels/:id (spec 0059)', () => {
     expect(body.catalogId).toBe('slack');
     expect(body.displayName).toBe('Slack');
     expect(body.iconUrl).toBe('/api/connectors/catalog/icons/slack.svg');
+    // Spec 2026-05-11: every secret carries `isPublic` so the dashboard/CLI can
+    // distinguish masked tokens from readable config (e.g. dm_owner_user_id) without
+    // a catalog round-trip. Both Slack tokens are private — `isPublic: false`, masked.
     expect(body.secrets).toEqual([
-      { key: 'SLACK_APP_TOKEN', masked: true, last4: 'v0Hk' },
-      { key: 'SLACK_BOT_TOKEN', masked: true, last4: 'K4xR' },
+      { key: 'SLACK_APP_TOKEN', isPublic: false, masked: true, last4: 'v0Hk' },
+      { key: 'SLACK_BOT_TOKEN', isPublic: false, masked: true, last4: 'K4xR' },
     ]);
     // No leaky fields from the connector shape
     expect(body.transport).toBeUndefined();
@@ -348,6 +351,59 @@ describe('GET /api/channels/:id (spec 0059)', () => {
     const app = makeApp(db);
     const res = await app.request('/api/channels/nonexistent-id', { headers: csrfHeaders() });
     expect(res.status).toBe(404);
+  });
+});
+
+describe("DELETE /api/channels/:id (spec 0059 + 2026-05-11 gate)", () => {
+  function seedSlack(database = db) {
+    const repo = new ConnectorRepo(database, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
+    return repo.create({
+      slug: 'slack',
+      displayName: 'Slack',
+      source: 'catalog',
+      catalogId: 'slack',
+      transport: 'remote',
+      command: null,
+      args: null,
+      url: null,
+      kind: 'channel',
+      secrets: [
+        { key: 'SLACK_APP_TOKEN', value: 'xapp-A-AAAA' },
+        { key: 'SLACK_BOT_TOKEN', value: 'xoxb-B-BBBB' },
+      ],
+      tools: [],
+    });
+  }
+
+  it("returns 403 mode_cli_only when writes='cli' and X-Zeno-Origin missing", async () => {
+    const channel = seedSlack();
+    const app = makeApp(db, 'cli');
+    const res = await app.request(`/api/channels/${channel.id}`, {
+      method: 'DELETE',
+      headers: csrfHeaders(),
+    });
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: string; action: string; cli: string };
+    expect(body.error).toBe('mode_cli_only');
+    expect(body.action).toBe('uninstall');
+    expect(body.cli).toContain('zeno channel uninstall');
+  });
+
+  it("cascades to connector_secrets atomically when X-Zeno-Origin='cli'", async () => {
+    const channel = seedSlack();
+    const app = makeApp(db, 'cli');
+    const res = await app.request(`/api/channels/${channel.id}`, {
+      method: 'DELETE',
+      headers: { ...csrfHeaders(), 'x-zeno-origin': 'cli' },
+    });
+    expect(res.status).toBe(204);
+    const count = opened.raw
+      .prepare('SELECT COUNT(*) as c FROM connector_secrets WHERE connector_id = ?')
+      .get(channel.id) as { c: number };
+    expect(count.c).toBe(0);
   });
 });
 
@@ -397,7 +453,125 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
     expect(byKey.SLACK_BOT_TOKEN).toBe('xoxb-B2-CCCC'); // CHANGED
   });
 
-  it('mode=replace removes keys not in submitted set', async () => {
+  it("mode=replace with all required fields drops any keys outside the submitted set", async () => {
+    // Spec 2026-05-11: replace mode replaces the full set; required fields must
+    // all be present. Submitting both required tokens + omitting any optional
+    // (e.g. dm_owner_user_id) is the canonical "full replace" call.
+    const channel = seedSlack();
+    const app = makeApp(db);
+    const res = await app.request(`/api/channels/${channel.id}/secrets`, {
+      method: 'PATCH',
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'replace',
+        secrets: [
+          { key: 'SLACK_APP_TOKEN', value: 'xapp-NEW' },
+          { key: 'SLACK_BOT_TOKEN', value: 'xoxb-NEW' },
+        ],
+      }),
+    });
+    expect(res.status).toBe(204);
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
+    const after = repo.getSecrets(channel.id);
+    expect(after.map((s) => s.key).sort()).toEqual(['SLACK_APP_TOKEN', 'SLACK_BOT_TOKEN']);
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // Spec 2026-05-11: ZENO_API_WRITES=cli gate
+  // ─────────────────────────────────────────────────────────────────
+
+  it("returns 403 mode_cli_only when writes='cli' and X-Zeno-Origin missing", async () => {
+    const channel = seedSlack();
+    const app = makeApp(db, 'cli');
+    const res = await app.request(`/api/channels/${channel.id}/secrets`, {
+      method: 'PATCH',
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'merge',
+        secrets: [{ key: 'SLACK_BOT_TOKEN', value: 'xoxb-NEW' }],
+      }),
+    });
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: string; action: string; cli: string };
+    expect(body.error).toBe('mode_cli_only');
+    expect(body.action).toBe('rotate');
+    expect(body.cli).toContain('zeno channel rotate');
+  });
+
+  it("passes through when writes='cli' and X-Zeno-Origin='cli'", async () => {
+    const channel = seedSlack();
+    const app = makeApp(db, 'cli');
+    const res = await app.request(`/api/channels/${channel.id}/secrets`, {
+      method: 'PATCH',
+      headers: { ...csrfHeaders(), 'content-type': 'application/json', 'x-zeno-origin': 'cli' },
+      body: JSON.stringify({
+        mode: 'merge',
+        secrets: [{ key: 'SLACK_BOT_TOKEN', value: 'xoxb-NEW' }],
+      }),
+    });
+    expect(res.status).toBe(204);
+  });
+
+  it("PATCH stores isPublic=true for catalog public fields (spec 2026-05-11)", async () => {
+    const channel = seedSlack();
+    const app = makeApp(db, 'cli');
+    const res = await app.request(`/api/channels/${channel.id}/secrets`, {
+      method: 'PATCH',
+      headers: { ...csrfHeaders(), 'content-type': 'application/json', 'x-zeno-origin': 'cli' },
+      body: JSON.stringify({
+        mode: 'merge',
+        secrets: [{ key: 'dm_owner_user_id', value: 'U123' }],
+      }),
+    });
+    expect(res.status).toBe(204);
+    const row = opened.raw
+      .prepare('SELECT is_public FROM connector_secrets WHERE connector_id = ? AND key = ?')
+      .get(channel.id, 'dm_owner_user_id') as { is_public: number };
+    expect(row.is_public).toBe(1);
+  });
+
+  it("PATCH stores isPublic=false for catalog non-public fields", async () => {
+    const channel = seedSlack();
+    const app = makeApp(db, 'cli');
+    await app.request(`/api/channels/${channel.id}/secrets`, {
+      method: 'PATCH',
+      headers: { ...csrfHeaders(), 'content-type': 'application/json', 'x-zeno-origin': 'cli' },
+      body: JSON.stringify({
+        mode: 'merge',
+        secrets: [{ key: 'SLACK_BOT_TOKEN', value: 'xoxb-NEW' }],
+      }),
+    });
+    const row = opened.raw
+      .prepare('SELECT is_public FROM connector_secrets WHERE connector_id = ? AND key = ?')
+      .get(channel.id, 'SLACK_BOT_TOKEN') as { is_public: number };
+    expect(row.is_public).toBe(0);
+  });
+
+  it("GET /:slug exposes isPublic=true public fields unmasked", async () => {
+    const channel = seedSlack();
+    const app = makeApp(db, 'cli');
+    await app.request(`/api/channels/${channel.id}/secrets`, {
+      method: 'PATCH',
+      headers: { ...csrfHeaders(), 'content-type': 'application/json', 'x-zeno-origin': 'cli' },
+      body: JSON.stringify({
+        mode: 'merge',
+        secrets: [{ key: 'dm_owner_user_id', value: 'U123' }],
+      }),
+    });
+    const res = await app.request(`/api/channels/${channel.id}`, { headers: csrfHeaders() });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { secrets: Array<{ key: string; isPublic: boolean; value?: string; last4?: string }> };
+    const dmOwner = body.secrets.find((s) => s.key === 'dm_owner_user_id');
+    expect(dmOwner).toMatchObject({ isPublic: true, value: 'U123' });
+    const appToken = body.secrets.find((s) => s.key === 'SLACK_APP_TOKEN');
+    expect(appToken).toMatchObject({ isPublic: false, masked: true });
+    expect(appToken).not.toHaveProperty('value');
+  });
+
+  it("mode=replace rejects body missing a required catalog field (spec 2026-05-11)", async () => {
     const channel = seedSlack();
     const app = makeApp(db);
     const res = await app.request(`/api/channels/${channel.id}/secrets`, {
@@ -408,13 +582,10 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
         secrets: [{ key: 'SLACK_APP_TOKEN', value: 'xapp-NEW' }],
       }),
     });
-    expect(res.status).toBe(204);
-    const repo = new ConnectorRepo(db, {
-      masterKey: Buffer.from('a'.repeat(64), 'hex'),
-      profileId: 'test',
-    });
-    const after = repo.getSecrets(channel.id);
-    expect(after.map((s) => s.key)).toEqual(['SLACK_APP_TOKEN']);
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string; keys: string[] };
+    expect(body.error).toBe('missing_required_secrets');
+    expect(body.keys).toContain('SLACK_BOT_TOKEN');
   });
 
   it('defaults mode to merge when omitted', async () => {

@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { CopyMarkdownUrlButton } from '@/components/copy-markdown-url-button';
 import { source } from '@/lib/source';
+import { getMDXComponents } from '@/mdx-components';
 
 export default async function Page({ params }: { params: Promise<{ slug?: string[] }> }) {
   const { slug } = await params;
@@ -25,7 +26,7 @@ export default async function Page({ params }: { params: Promise<{ slug?: string
         <ViewOptionsPopover markdownUrl={markdownUrl} />
       </div>
       <DocsBody>
-        <MDX components={{}} />
+        <MDX components={getMDXComponents()} />
       </DocsBody>
     </DocsPage>
   );

@@ -1,9 +1,14 @@
 /**
- * Spec 0059: TanStack Query hooks for the channels UI surface.
+ * Spec 2026-05-11-channels-cli-first §A7 — read-only TanStack Query hooks
+ * for the channels UI surface.
  *
  * Channels are stored in the connectors table with kind='channel' (spec 0057);
  * the dashboard treats them as a parallel section to /connectors with their
- * own routes, hooks, and components.
+ * own routes, hooks, and components. After the CLI-first rewrite, the
+ * dashboard never mutates — every action chip opens a `<CommandModal>` with
+ * the equivalent `zeno channel …` command. The previous mutation hooks
+ * (`useInstallChannel`, `useEditChannelSecrets`, `useUninstallChannel`) were
+ * deleted in this spec; do not reintroduce them. Mutations live in the CLI.
  *
  * Catalog response shape gotcha: GET /api/channels/catalog returns
  * `{ channels: [...] }` (wrapped object), NOT a flat array like the connectors
@@ -14,19 +19,8 @@
  * collisions with `['connectors']` / `['catalog']`.
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@zeno/ui';
-import { ApiError, apiFetch } from '@/lib/api-client';
-
-function formatChannelError(err: unknown): string {
-  if (err instanceof ApiError && err.body && typeof err.body === 'object') {
-    const body = err.body as { error?: unknown; message?: unknown };
-    if (typeof body.error === 'string') return body.error;
-    if (typeof body.message === 'string') return body.message;
-  }
-  if (err instanceof Error) return err.message;
-  return 'unknown error';
-}
+import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '@/lib/api-client';
 
 export type ChannelStatus = 'enabled' | 'disabled' | 'pending';
 
@@ -73,35 +67,33 @@ export interface ChannelCatalogEntry {
   secrets: ChannelCatalogSecretField[];
 }
 
-export interface ChannelSetupHelper {
-  steps: Array<{ index: number; html: string }>;
-  manifest: { filename: string; content: string } | null;
-}
-
 export const channelsKeys = {
   all: ['channels'] as const,
   list: () => [...channelsKeys.all] as const,
   detail: (id: string) => [...channelsKeys.all, id] as const,
   catalog: () => [...channelsKeys.all, 'catalog'] as const,
-  setupHelper: (catalogId: string) => [...channelsKeys.all, 'catalog', 'setup', catalogId] as const,
 };
 
 // ─────────────────────────────────────────────────────────────────
 // Read hooks
 // ─────────────────────────────────────────────────────────────────
 
-export function useChannels() {
+export interface UseChannelsOptions {
+  /**
+   * `'normal'` — 30s refetch interval (the /channels page default).
+   * `'fast'`   — 2s refetch interval, matching the ChannelManager poll tick,
+   *              for callers that need near-real-time reconciliation feedback
+   *              after a CLI mutation lands.
+   */
+  poll?: 'normal' | 'fast';
+}
+
+export function useChannels(opts: UseChannelsOptions = {}) {
+  const refetchInterval = opts.poll === 'fast' ? 2000 : 30000;
   return useQuery({
     queryKey: channelsKeys.list(),
     queryFn: () => apiFetch<ChannelListItem[]>('/api/channels'),
-  });
-}
-
-export function useChannel(id: string | undefined) {
-  return useQuery({
-    queryKey: id ? channelsKeys.detail(id) : ['channels', 'noop'],
-    queryFn: () => apiFetch<ChannelDetail>(`/api/channels/${id}`),
-    enabled: !!id,
+    refetchInterval,
   });
 }
 
@@ -114,95 +106,5 @@ export function useChannelsCatalog() {
       const wrapped = await apiFetch<{ channels: ChannelCatalogEntry[] }>('/api/channels/catalog');
       return wrapped.channels;
     },
-  });
-}
-
-export function useChannelSetupHelper(catalogId: string | null | undefined) {
-  return useQuery({
-    queryKey: catalogId ? channelsKeys.setupHelper(catalogId) : ['channels', 'setup', 'noop'],
-    queryFn: () => apiFetch<ChannelSetupHelper>(`/api/channels/catalog/setup/${catalogId}`),
-    enabled: !!catalogId,
-  });
-}
-
-// ─────────────────────────────────────────────────────────────────
-// Mutations
-// ─────────────────────────────────────────────────────────────────
-
-export interface InstallChannelInput {
-  catalogId: string;
-  secrets: Array<{ key: string; value: string }>;
-}
-
-/**
- * Install hits the existing POST /api/connectors endpoint with kind='channel'
- * (spec 0057), not a channels-specific endpoint. The worker validates against
- * the catalog and binds the row asynchronously; the modal polls /api/channels
- * for the row to appear (success predicate: catalogId match).
- *
- * Note: success/timeout toasts fire from the install modal — not here — because
- * the polling outcome (row appeared vs 10s timeout) needs to drive different
- * messages, and the polling lives in the modal's handler.
- */
-export function useInstallChannel() {
-  const qc = useQueryClient();
-  const toast = useToast();
-  return useMutation({
-    mutationFn: (input: InstallChannelInput) =>
-      apiFetch<void>('/api/connectors', {
-        method: 'POST',
-        body: JSON.stringify({
-          source: 'catalog',
-          kind: 'channel',
-          catalogId: input.catalogId,
-          secrets: input.secrets,
-        }),
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: channelsKeys.list() });
-    },
-    onError: (err) => toast.fail(formatChannelError(err)),
-  });
-}
-
-export interface EditChannelSecretsInput {
-  channelId: string;
-  /**
-   * Only changed keys — the backend's mode='merge' overlay preserves
-   * unchanged keys so the UI never has to read plaintext for fields the
-   * operator didn't touch.
-   */
-  secrets: Array<{ key: string; value: string }>;
-}
-
-export function useEditChannelSecrets() {
-  const qc = useQueryClient();
-  const toast = useToast();
-  return useMutation({
-    mutationFn: (input: EditChannelSecretsInput) =>
-      apiFetch<void>(`/api/channels/${input.channelId}/secrets`, {
-        method: 'PATCH',
-        body: JSON.stringify({ mode: 'merge', secrets: input.secrets }),
-      }),
-    onSuccess: (_data, input) => {
-      toast.success('secrets updated');
-      qc.invalidateQueries({ queryKey: channelsKeys.detail(input.channelId) });
-      qc.invalidateQueries({ queryKey: channelsKeys.list() });
-    },
-    onError: (err) => toast.fail(formatChannelError(err)),
-  });
-}
-
-export function useUninstallChannel() {
-  const qc = useQueryClient();
-  const toast = useToast();
-  return useMutation({
-    mutationFn: (channelId: string) =>
-      apiFetch<void>(`/api/channels/${channelId}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      toast.success('channel uninstalled');
-      qc.invalidateQueries({ queryKey: channelsKeys.list() });
-    },
-    onError: (err) => toast.fail(formatChannelError(err)),
   });
 }

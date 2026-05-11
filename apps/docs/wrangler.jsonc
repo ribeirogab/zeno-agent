@@ -6,6 +6,9 @@
 // `account_id` is committed on purpose — Cloudflare account IDs are not
 // secrets (they're visible in any worker URL anyone can hit). Do NOT move
 // it to a repo secret.
+//
+// One-time R2 bucket creation (required before first deploy with R2 binding):
+//   wrangler r2 bucket create zeno-docs-isr-cache
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "zeno-docs",
@@ -21,15 +24,16 @@
   // account; `custom_domain: true` makes Cloudflare auto-provision DNS +
   // TLS cert when the Worker is published. The docs are pinned to the
   // `docs.` subdomain so the apex is free for `apps/web` (the landing).
-  "routes": [
-    { "pattern": "docs.zeno-agent.dev", "custom_domain": true }
-  ],
+  "routes": [{ "pattern": "docs.zeno-agent.dev", "custom_domain": true }],
   "observability": {
     "enabled": true
   },
-  // Custom domain — `zeno-agent.dev` is on Cloudflare DNS in the same account,
-  // so wrangler creates the proxied DNS record and provisions the SSL cert
-  // automatically on the next deploy. The default `*.workers.dev` URL keeps
-  // working alongside this.
-  "routes": [{ "pattern": "docs.zeno-agent.dev", "custom_domain": true }]
+  // R2 incremental cache for OpenNext-Cloudflare. The binding name is fixed
+  // by the package convention; see open-next.config.ts.
+  "r2_buckets": [
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "zeno-docs-isr-cache"
+    }
+  ]
 }

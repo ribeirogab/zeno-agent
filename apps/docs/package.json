@@ -20,14 +20,18 @@
     "deploy": "pnpm run cf:build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
+    "@shikijs/themes": "^4.0.2",
     "@zeno/ui": "workspace:*",
     "fumadocs-core": "^16.8.8",
     "fumadocs-mdx": "^15.0.0",
+    "fumadocs-twoslash": "^3.2.0",
     "fumadocs-ui": "^16.8.8",
+    "lucide-react": "^0.460.0",
+    "mermaid": "^11.14.0",
     "next": "^16.2.6",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "lucide-react": "^0.460.0"
+    "shiki": "^4.0.2"
   },
   "devDependencies": {
     "@opennextjs/cloudflare": "^1.19.8",
@@ -35,6 +39,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.5.2",
+    "@types/mdx": "^2.0.13",
     "@types/node": "25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

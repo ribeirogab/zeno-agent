@@ -87,6 +87,7 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/fumadocs-mdx-source-postinstall|`fumadocs-mdx` needs a postinstall hook to materialize `.source/`]] — required scripts: `postinstall`, `predev`, `prebuild`. Import from `.source/server`, cast to `DocsCollectionEntry`.
 - [[../learnings/tanstack-router-pretypecheck-regen|Dashboard `tsr generate` not wired to typecheck]] — `route-tree.gen.ts` is gitignored and needs a Vite build before `tsc --noEmit` works; fresh worktrees fail `quality-gate` until then.
 - [[../learnings/fumadocs-gettext-raw-breaks-on-workers|Fumadocs `getText('raw')` reads from disk — breaks on Cloudflare Workers]] — switch to `'processed'` + enable `postprocess.includeProcessedMarkdown` in `source.config.ts`; otherwise `/llms.mdx/<slug>` 500s in production.
+- [[../learnings/turbopack-rejects-og-in-catch-all|Turbopack rejects `opengraph-image` siblings of an optional catch-all]] — `app/[[...slug]]/opengraph-image.tsx` panics on dev-server startup; lift to a sibling `app/og/route.tsx` and wire metadata via `generateMetadata`.
 
 ## `#meta` — Workflow and process
 

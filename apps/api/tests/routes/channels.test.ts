@@ -35,7 +35,11 @@ afterEach(() => {
   _resetChannelsCatalogCache();
 });
 
-function makeApp(database: RuntimeDB, writes: 'cli' | 'dashboard' = 'dashboard') {
+function makeApp(
+  database: RuntimeDB,
+  writes: 'cli' | 'dashboard' = 'dashboard',
+  fetchImpl?: typeof fetch,
+) {
   return createApp({
     config: {
       logLevel: 'info',
@@ -58,6 +62,7 @@ function makeApp(database: RuntimeDB, writes: 'cli' | 'dashboard' = 'dashboard')
     profileDir: '/tmp',
     channelsCatalog: loadChannelsCatalog(),
     writes,
+    ...(fetchImpl ? { fetchImpl } : {}),
   });
 }
 
@@ -176,6 +181,47 @@ describe('GET /api/connectors filters channel rows (spec 0057)', () => {
     const slugs = body.map((c) => c.slug);
     expect(slugs).toContain('sentry');
     expect(slugs).not.toContain('slack');
+  });
+});
+
+describe('POST /api/connectors with kind=channel + ZENO_API_WRITES gate (spec 2026-05-11)', () => {
+  it("returns 403 mode_cli_only with zeno channel hint when no X-Zeno-Origin", async () => {
+    const app = makeApp(db, 'cli');
+    const res = await app.request('/api/connectors', {
+      method: 'POST',
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        source: 'catalog',
+        catalogId: 'slack',
+        kind: 'channel',
+        secrets: [
+          { key: 'SLACK_APP_TOKEN', value: 'xapp-x' },
+          { key: 'SLACK_BOT_TOKEN', value: 'xoxb-x' },
+        ],
+      }),
+    });
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: string; action: string; cli: string };
+    expect(body.error).toBe('mode_cli_only');
+    expect(body.action).toBe('install');
+    expect(body.cli).toBe('zeno channel install <type>');
+  });
+
+  it("returns 403 mode_cli_only with zeno connector hint for kind=mcp", async () => {
+    const app = makeApp(db, 'cli');
+    const res = await app.request('/api/connectors', {
+      method: 'POST',
+      headers: { ...csrfHeaders(), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        source: 'catalog',
+        catalogId: 'sentry',
+        kind: 'mcp',
+        secrets: [],
+      }),
+    });
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: string; cli: string };
+    expect(body.cli).toContain('zeno connector install');
   });
 });
 
@@ -350,6 +396,95 @@ describe('GET /api/channels/:id (spec 0059)', () => {
   it('returns 404 for unknown id', async () => {
     const app = makeApp(db);
     const res = await app.request('/api/channels/nonexistent-id', { headers: csrfHeaders() });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/channels/:id/test (spec 2026-05-11)", () => {
+  function seedSlack(database = db) {
+    const repo = new ConnectorRepo(database, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
+    return repo.create({
+      slug: 'slack',
+      displayName: 'Slack',
+      source: 'catalog',
+      catalogId: 'slack',
+      transport: 'remote',
+      command: null,
+      args: null,
+      url: null,
+      kind: 'channel',
+      secrets: [
+        { key: 'SLACK_APP_TOKEN', value: 'xapp-A-AAAA' },
+        { key: 'SLACK_BOT_TOKEN', value: 'xoxb-B-BBBB' },
+      ],
+      tools: [],
+    });
+  }
+
+  it("returns 403 mode_cli_only when writes='cli' and X-Zeno-Origin missing", async () => {
+    const channel = seedSlack();
+    const app = makeApp(db, 'cli');
+    const res = await app.request(`/api/channels/${channel.id}/test`, {
+      method: 'POST',
+      headers: csrfHeaders(),
+    });
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: string; action: string; cli: string };
+    expect(body.error).toBe('mode_cli_only');
+    expect(body.action).toBe('test');
+    expect(body.cli).toContain('zeno channel test');
+  });
+
+  it('returns passed and updates lastVerifiedAt when probe succeeds', async () => {
+    const channel = seedSlack();
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify({ ok: true }), { status: 200 })) as unknown as typeof fetch;
+    const app = makeApp(db, 'cli', fetchImpl);
+    const res = await app.request(`/api/channels/${channel.id}/test`, {
+      method: 'POST',
+      headers: { ...csrfHeaders(), 'x-zeno-origin': 'cli' },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { status: string; latencyMs: number };
+    expect(body.status).toBe('passed');
+    expect(body.latencyMs).toBeGreaterThanOrEqual(0);
+    const row = opened.raw
+      .prepare('SELECT last_verified_at, last_error FROM connectors WHERE id = ?')
+      .get(channel.id) as { last_verified_at: string | null; last_error: string | null };
+    expect(row.last_verified_at).not.toBeNull();
+    expect(row.last_error).toBeNull();
+  });
+
+  it('writes lastError + lastErrorAt when probe fails', async () => {
+    const channel = seedSlack();
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify({ ok: false, error: 'invalid_auth' }), {
+        status: 200,
+      })) as unknown as typeof fetch;
+    const app = makeApp(db, 'cli', fetchImpl);
+    const res = await app.request(`/api/channels/${channel.id}/test`, {
+      method: 'POST',
+      headers: { ...csrfHeaders(), 'x-zeno-origin': 'cli' },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { status: string; error: string };
+    expect(body).toMatchObject({ status: 'failed', error: 'auth_failed' });
+    const row = opened.raw
+      .prepare('SELECT last_error, last_error_at FROM connectors WHERE id = ?')
+      .get(channel.id) as { last_error: string | null; last_error_at: string | null };
+    expect(row.last_error).toBe('auth_failed');
+    expect(row.last_error_at).not.toBeNull();
+  });
+
+  it('returns 404 for unknown id', async () => {
+    const app = makeApp(db, 'cli');
+    const res = await app.request('/api/channels/nope/test', {
+      method: 'POST',
+      headers: { ...csrfHeaders(), 'x-zeno-origin': 'cli' },
+    });
     expect(res.status).toBe(404);
   });
 });

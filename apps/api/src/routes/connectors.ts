@@ -932,6 +932,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // POST / (create — enqueues command)
   route.post('/', zValidator('json', createSchema), (c) => {
     if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      // Spec 2026-05-11: emit channel-shaped CLI hint when the install payload targets a
+      // channel kind. Operator-facing surface is `zeno channel install <type>`; the
+      // underlying wire happens to share /api/connectors with MCP installs.
+      const body = c.req.valid('json');
+      if (body.kind === 'channel') {
+        return blockIfCli('install', 'zeno channel install <type>')(c);
+      }
       return blockIfCli('install', 'zeno connector install <catalog-id> --label "<label>"')(c);
     }
     const body = c.req.valid('json');

@@ -28,6 +28,7 @@ import { z } from 'zod';
 import type { ApiWriteMode } from '@/lib/api-mode';
 import { blockIfCli } from '@/lib/block-if-cli';
 import { getChannelSetupHelper } from '@/lib/channel-setup-helpers';
+import { runTestStrategy } from '@/lib/channel-test-strategies';
 import type { ChannelsCatalog } from '@/lib/channels-catalog-loader';
 
 export interface BuildChannelsRouteDeps {
@@ -39,6 +40,12 @@ export interface BuildChannelsRouteDeps {
    * does not send `X-Zeno-Origin: cli`. GET reads are unrestricted in either mode.
    */
   writes: ApiWriteMode;
+  /**
+   * Spec 2026-05-11: injected fetch for `POST /:slug/test`. Tests pass a mock; production
+   * uses the global fetch. Threaded through `runTestStrategy` so strategies can hit upstream
+   * APIs (Slack `auth.test`, etc.) without coupling the route to any particular SDK.
+   */
+  fetchImpl?: typeof fetch;
 }
 
 /**
@@ -214,6 +221,53 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
 
     deps.connectors.replaceSecrets(id, enriched);
     return c.body(null, 204);
+  });
+
+  // Spec 2026-05-11: POST /:id/test — synchronous probe via catalog-declared strategy.
+  // Gated because it writes lastVerifiedAt / lastError on the connector row.
+  // The dashboard never calls this route; operator must run `zeno channel test <slug>`.
+  route.post('/:id/test', (c) => {
+    const blocked = blockIfCli(c, {
+      writes: deps.writes,
+      action: 'test',
+      cli: 'zeno channel test <slug>',
+    });
+    if (blocked) return blocked;
+
+    const id = c.req.param('id');
+    const row = deps.connectors.get(id);
+    if (!row || row.kind !== 'channel') {
+      return c.json({ error: 'channel_not_found' }, 404);
+    }
+    const catalogEntry = deps.channelsCatalog.entries.find((e) => e.id === row.catalogId);
+    if (!catalogEntry) {
+      return c.json({ error: 'catalog_entry_missing' }, 500);
+    }
+
+    // Decrypt every stored secret + bundle into the probe ctx. The plaintext never
+    // leaves this handler — `runTestStrategy` reads what it needs and returns.
+    const secretsList = deps.connectors.getSecrets(id);
+    const fields: Record<string, string> = {};
+    for (const s of secretsList) fields[s.key] = s.value;
+
+    return runTestStrategy(catalogEntry.testStrategy, {
+      fields,
+      ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
+    }).then((result) => {
+      if (result.status === 'passed') {
+        deps.connectors.update(id, {
+          lastVerifiedAt: new Date().toISOString(),
+          lastError: null,
+          lastErrorAt: null,
+        });
+      } else {
+        deps.connectors.update(id, {
+          lastError: result.error ?? 'unknown',
+          lastErrorAt: new Date().toISOString(),
+        });
+      }
+      return c.json(result, 200);
+    });
   });
 
   // Spec 0059: DELETE /:id — sync direct DB delete.

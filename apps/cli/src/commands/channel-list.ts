@@ -37,7 +37,9 @@ export async function runChannelList(
   }
   if (!isQuiet()) {
     print('');
-    print(`  ${c.bold('channel'.padEnd(14))} ${c.bold('status'.padEnd(14))} ${c.bold('last event')}`);
+    print(
+      `  ${c.bold('channel'.padEnd(14))} ${c.bold('status'.padEnd(14))} ${c.bold('last event')}`,
+    );
   }
   for (const row of rows) {
     const status = row.lastError ? 'disconnected' : 'connected';

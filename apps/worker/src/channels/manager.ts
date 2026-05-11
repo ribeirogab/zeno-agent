@@ -20,8 +20,8 @@
  */
 import type { ConnectorRepo } from '@zeno/db/runtime';
 import type { Logger } from '@zeno/logger';
-import type { Channel, MessageHandler, MessageTarget, ReactionEvent } from '@/channels/types';
 import { NoopChannel } from '@/channels/noop/noop-channel';
+import type { Channel, MessageHandler, MessageTarget, ReactionEvent } from '@/channels/types';
 
 export interface ChannelRow {
   id: string;

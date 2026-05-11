@@ -212,12 +212,15 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
     }
 
     // Spec 2026-05-11: thread `isPublic` from the catalog field into the secret row so the
-    // GET /:slug projection knows what to unmask. Unknown keys fall through as private.
-    const enriched = finalSecrets.map((s) => ({
-      key: s.key,
-      value: s.value,
-      isPublic: deps.channelsCatalog.findField(row.catalogId, s.key)?.public ?? false,
-    }));
+    // GET /:slug projection knows what to unmask. Unknown keys (or rows with a null
+    // catalogId — possible only for hand-installed channel rows that never went through
+    // the catalog branch) fall through as private.
+    const enriched = finalSecrets.map((s) => {
+      const field = row.catalogId
+        ? deps.channelsCatalog.findField(row.catalogId, s.key)
+        : undefined;
+      return { key: s.key, value: s.value, isPublic: field?.public ?? false };
+    });
 
     deps.connectors.replaceSecrets(id, enriched);
     return c.body(null, 204);
@@ -226,7 +229,7 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
   // Spec 2026-05-11: POST /:id/test — synchronous probe via catalog-declared strategy.
   // Gated because it writes lastVerifiedAt / lastError on the connector row.
   // The dashboard never calls this route; operator must run `zeno channel test <slug>`.
-  route.post('/:id/test', (c) => {
+  route.post('/:id/test', async (c) => {
     const blocked = blockIfCli(c, {
       writes: deps.writes,
       action: 'test',
@@ -250,24 +253,23 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
     const fields: Record<string, string> = {};
     for (const s of secretsList) fields[s.key] = s.value;
 
-    return runTestStrategy(catalogEntry.testStrategy, {
+    const result = await runTestStrategy(catalogEntry.testStrategy, {
       fields,
       ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
-    }).then((result) => {
-      if (result.status === 'passed') {
-        deps.connectors.update(id, {
-          lastVerifiedAt: new Date().toISOString(),
-          lastError: null,
-          lastErrorAt: null,
-        });
-      } else {
-        deps.connectors.update(id, {
-          lastError: result.error ?? 'unknown',
-          lastErrorAt: new Date().toISOString(),
-        });
-      }
-      return c.json(result, 200);
     });
+    if (result.status === 'passed') {
+      deps.connectors.update(id, {
+        lastVerifiedAt: new Date().toISOString(),
+        lastError: null,
+        lastErrorAt: null,
+      });
+    } else {
+      deps.connectors.update(id, {
+        lastError: result.error ?? 'unknown',
+        lastErrorAt: new Date().toISOString(),
+      });
+    }
+    return c.json(result, 200);
   });
 
   // Spec 0059: DELETE /:id — sync direct DB delete.

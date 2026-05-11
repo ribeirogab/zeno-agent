@@ -26,11 +26,18 @@ interface CatalogEntryRemote {
 }
 
 export default defineCommand({
-  meta: { name: 'configure', description: "update channel's non-secret config (e.g. dm-owner-user-id)" },
+  meta: {
+    name: 'configure',
+    description: "update channel's non-secret config (e.g. dm-owner-user-id)",
+  },
   args: {
     slug: { type: 'positional', description: 'channel slug', required: true },
     profile: { type: 'string', description: 'profile name', required: false },
-    'dm-owner-user-id': { type: 'string', description: 'restrict DMs to this Slack user id (Uxxx)', required: false },
+    'dm-owner-user-id': {
+      type: 'string',
+      description: 'restrict DMs to this Slack user id (Uxxx)',
+      required: false,
+    },
     quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
@@ -41,9 +48,7 @@ export default defineCommand({
     const slug = args.slug as string;
 
     const detail = await client.get<{ catalogId: string }>(`/api/channels/${slug}`);
-    const catalog = await client.get<{ channels: CatalogEntryRemote[] }>(
-      '/api/channels/catalog',
-    );
+    const catalog = await client.get<{ channels: CatalogEntryRemote[] }>('/api/channels/catalog');
     const entry = catalog.channels.find((e) => e.id === detail.catalogId);
     if (!entry) {
       console.error(err(`catalog entry '${detail.catalogId}' not found`));

@@ -40,7 +40,7 @@ describe('blockIfCli (spec 2026-05-11)', () => {
     expect(res.status).toBe(200);
   });
 
-  it("rejects when X-Zeno-Origin has a foreign value (case-sensitive literal match)", async () => {
+  it('rejects when X-Zeno-Origin has a foreign value (case-sensitive literal match)', async () => {
     const app = buildApp('cli', 'install', 'zeno foo install');
     const res = await app.request('/x', {
       method: 'POST',

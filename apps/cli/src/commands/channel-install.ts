@@ -71,9 +71,7 @@ export default defineCommand({
     const baseUrl = await resolveProfileApiUrl(profile);
     const client = new ApiClient({ baseUrl });
 
-    const catalog = await client.get<{ channels: CatalogEntryRemote[] }>(
-      '/api/channels/catalog',
-    );
+    const catalog = await client.get<{ channels: CatalogEntryRemote[] }>('/api/channels/catalog');
 
     let type = args.type as string | undefined;
     if (!type) {

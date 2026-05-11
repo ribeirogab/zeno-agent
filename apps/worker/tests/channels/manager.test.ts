@@ -403,10 +403,7 @@ describe('ChannelManager (spec 2026-05-11)', () => {
 
     // The proxy is the same object reference; calling .send goes to the NEW adapter.
     const sendSpy = vi.spyOn(built[1]!, 'send');
-    await proxy.send(
-      { platform: 'slack', conversationId: 'C1', threadId: null },
-      'hello',
-    );
+    await proxy.send({ platform: 'slack', conversationId: 'C1', threadId: null }, 'hello');
     expect(sendSpy).toHaveBeenCalled();
     await mgr.stop();
   });

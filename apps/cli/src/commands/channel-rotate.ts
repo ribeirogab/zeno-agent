@@ -57,7 +57,11 @@ export default defineCommand({
   args: {
     slug: { type: 'positional', description: 'channel slug', required: true },
     profile: { type: 'string', description: 'profile name', required: false },
-    secret: { type: 'string', description: 'KEY=VALUE — can repeat for non-interactive', required: false },
+    secret: {
+      type: 'string',
+      description: 'KEY=VALUE — can repeat for non-interactive',
+      required: false,
+    },
     quiet: { type: 'boolean', description: 'minimal output' },
   },
   async run({ args }) {
@@ -68,9 +72,7 @@ export default defineCommand({
     const slug = args.slug as string;
 
     const detail = await client.get<{ catalogId: string }>(`/api/channels/${slug}`);
-    const catalog = await client.get<{ channels: CatalogEntryRemote[] }>(
-      '/api/channels/catalog',
-    );
+    const catalog = await client.get<{ channels: CatalogEntryRemote[] }>('/api/channels/catalog');
     const entry = catalog.channels.find((e) => e.id === detail.catalogId);
     if (!entry) {
       console.error(err(`catalog entry '${detail.catalogId}' not found`));

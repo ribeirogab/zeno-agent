@@ -26,9 +26,9 @@ describe('runRuntimeMigrations', () => {
       expect(indexes.map((i) => i.name)).toContain('idx_connectors_catalog_id');
 
       // Spec 2026-05-11: 0002 adds updated_at column to connector_secrets for hot-reload detection.
-      const secretCols = raw
-        .prepare('PRAGMA table_info(connector_secrets)')
-        .all() as { name: string }[];
+      const secretCols = raw.prepare('PRAGMA table_info(connector_secrets)').all() as {
+        name: string;
+      }[];
       expect(secretCols.map((c) => c.name)).toContain('updated_at');
     } finally {
       close();

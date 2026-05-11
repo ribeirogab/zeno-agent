@@ -185,7 +185,7 @@ describe('GET /api/connectors filters channel rows (spec 0057)', () => {
 });
 
 describe('POST /api/connectors with kind=channel + ZENO_API_WRITES gate (spec 2026-05-11)', () => {
-  it("returns 403 mode_cli_only with zeno channel hint when no X-Zeno-Origin", async () => {
+  it('returns 403 mode_cli_only with zeno channel hint when no X-Zeno-Origin', async () => {
     const app = makeApp(db, 'cli');
     const res = await app.request('/api/connectors', {
       method: 'POST',
@@ -207,7 +207,7 @@ describe('POST /api/connectors with kind=channel + ZENO_API_WRITES gate (spec 20
     expect(body.cli).toBe('zeno channel install <type>');
   });
 
-  it("returns 403 mode_cli_only with zeno connector hint for kind=mcp", async () => {
+  it('returns 403 mode_cli_only with zeno connector hint for kind=mcp', async () => {
     const app = makeApp(db, 'cli');
     const res = await app.request('/api/connectors', {
       method: 'POST',
@@ -400,7 +400,7 @@ describe('GET /api/channels/:id (spec 0059)', () => {
   });
 });
 
-describe("POST /api/channels/:id/test (spec 2026-05-11)", () => {
+describe('POST /api/channels/:id/test (spec 2026-05-11)', () => {
   function seedSlack(database = db) {
     const repo = new ConnectorRepo(database, {
       masterKey: Buffer.from('a'.repeat(64), 'hex'),
@@ -489,7 +489,7 @@ describe("POST /api/channels/:id/test (spec 2026-05-11)", () => {
   });
 });
 
-describe("DELETE /api/channels/:id (spec 0059 + 2026-05-11 gate)", () => {
+describe('DELETE /api/channels/:id (spec 0059 + 2026-05-11 gate)', () => {
   function seedSlack(database = db) {
     const repo = new ConnectorRepo(database, {
       masterKey: Buffer.from('a'.repeat(64), 'hex'),
@@ -588,7 +588,7 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
     expect(byKey.SLACK_BOT_TOKEN).toBe('xoxb-B2-CCCC'); // CHANGED
   });
 
-  it("mode=replace with all required fields drops any keys outside the submitted set", async () => {
+  it('mode=replace with all required fields drops any keys outside the submitted set', async () => {
     // Spec 2026-05-11: replace mode replaces the full set; required fields must
     // all be present. Submitting both required tokens + omitting any optional
     // (e.g. dm_owner_user_id) is the canonical "full replace" call.
@@ -650,7 +650,7 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
     expect(res.status).toBe(204);
   });
 
-  it("PATCH stores isPublic=true for catalog public fields (spec 2026-05-11)", async () => {
+  it('PATCH stores isPublic=true for catalog public fields (spec 2026-05-11)', async () => {
     const channel = seedSlack();
     const app = makeApp(db, 'cli');
     const res = await app.request(`/api/channels/${channel.id}/secrets`, {
@@ -668,7 +668,7 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
     expect(row.is_public).toBe(1);
   });
 
-  it("PATCH stores isPublic=false for catalog non-public fields", async () => {
+  it('PATCH stores isPublic=false for catalog non-public fields', async () => {
     const channel = seedSlack();
     const app = makeApp(db, 'cli');
     await app.request(`/api/channels/${channel.id}/secrets`, {
@@ -685,7 +685,7 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
     expect(row.is_public).toBe(0);
   });
 
-  it("GET /:slug exposes isPublic=true public fields unmasked", async () => {
+  it('GET /:slug exposes isPublic=true public fields unmasked', async () => {
     const channel = seedSlack();
     const app = makeApp(db, 'cli');
     await app.request(`/api/channels/${channel.id}/secrets`, {
@@ -698,7 +698,9 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
     });
     const res = await app.request(`/api/channels/${channel.id}`, { headers: csrfHeaders() });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { secrets: Array<{ key: string; isPublic: boolean; value?: string; last4?: string }> };
+    const body = (await res.json()) as {
+      secrets: Array<{ key: string; isPublic: boolean; value?: string; last4?: string }>;
+    };
     const dmOwner = body.secrets.find((s) => s.key === 'dm_owner_user_id');
     expect(dmOwner).toMatchObject({ isPublic: true, value: 'U123' });
     const appToken = body.secrets.find((s) => s.key === 'SLACK_APP_TOKEN');
@@ -706,7 +708,7 @@ describe('PATCH /api/channels/:id/secrets (spec 0059)', () => {
     expect(appToken).not.toHaveProperty('value');
   });
 
-  it("mode=replace rejects body missing a required catalog field (spec 2026-05-11)", async () => {
+  it('mode=replace rejects body missing a required catalog field (spec 2026-05-11)', async () => {
     const channel = seedSlack();
     const app = makeApp(db);
     const res = await app.request(`/api/channels/${channel.id}/secrets`, {

@@ -67,9 +67,11 @@ export interface ConnectorSecret {
    * Spec 2026-05-11: row-level last-modified timestamp. Defaults to insert time
    * via the schema's `strftime` default; `replaceSecrets` re-inserts every row
    * in a transaction so a no-op call still advances this field. Used by the
-   * worker's `ChannelManager` to detect rotations between poll ticks.
+   * worker's `ChannelManager` to detect rotations between poll ticks. Optional
+   * because legacy callers that construct `ConnectorSecret` literals (test
+   * fixtures, MCP server build paths) don't carry the timestamp.
    */
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface ConnectorToolPermission {

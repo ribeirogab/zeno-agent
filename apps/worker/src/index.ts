@@ -35,9 +35,8 @@ import type { McpServerConfig } from '@/agent/mcp';
 import { buildMcpServersMap } from '@/agent/mcp-build';
 import { buildSystemPrompt, loadAgentFile, loadProfileFile } from '@/agent/system-prompt';
 import type { AgentBackend } from '@/agent/types';
-import { NoopChannel } from '@/channels/noop/noop-channel';
+import { ChannelManager, type ChannelRow } from '@/channels/manager';
 import { SlackChannel } from '@/channels/slack/adapter';
-import { resolveSlackCredentials } from '@/channels/slack/resolve-credentials';
 import type { Channel } from '@/channels/types';
 import { buildDispatcher } from '@/commands/dispatcher';
 import { buildHandlerMap } from '@/commands/handlers';
@@ -487,19 +486,37 @@ async function main(): Promise<void> {
     process.env.GIT_COMMITTER_EMAIL = gitIdentity.email;
   }
 
-  // Resolve Slack creds via channel-connector DB row. When absent (first install,
-  // or operator hasn't installed the Slack connector yet), boot continues with a
-  // NoopChannel — the dashboard at apps/api stays reachable so the operator can
-  // install Slack via /connectors. Restarting the container picks up the real
-  // SlackChannel.
-  const slackCreds = resolveSlackCredentials({ connectors, logger });
-  const slack: Channel = slackCreds
-    ? new SlackChannel({
-        appToken: slackCreds.appToken,
-        botToken: slackCreds.botToken,
+  // Spec 2026-05-11: ChannelManager owns every channel adapter (slack today,
+  // discord/telegram/whatsapp tomorrow). It polls the DB every 2 s and reconciles
+  // the running adapter set with the desired state — install / rotate / disable /
+  // uninstall all land without restart. When zero channels are installed, the
+  // manager's `getActiveChannel()` returns a `NoopChannel` singleton so the cron
+  // runner + agent orchestrator have a stable Channel reference to call into.
+  //
+  // The cron runner and the inbound message handler hold the proxy returned by
+  // `manager.asChannel()`; the proxy re-resolves to the live adapter on every
+  // method call, so a rotation/restart never invalidates downstream references.
+  const channelManager = new ChannelManager({
+    repo: connectors,
+    logger,
+    buildAdapter: (row: ChannelRow) => {
+      if (row.catalogId !== 'slack') {
+        throw new Error(`no adapter registered for catalog '${row.catalogId}'`);
+      }
+      const secrets = connectors.getSecrets(row.id);
+      const appToken = secrets.find((s) => s.key === 'SLACK_APP_TOKEN')?.value;
+      const botToken = secrets.find((s) => s.key === 'SLACK_BOT_TOKEN')?.value;
+      if (!appToken || !botToken) {
+        throw new Error(`slack channel ${row.id} missing required secrets`);
+      }
+      return new SlackChannel({
+        appToken,
+        botToken,
         workspaceDir: config.workspaceDir,
-      })
-    : new NoopChannel(logger);
+      });
+    },
+  });
+  const slack: Channel = channelManager.asChannel();
   const defaultCronChannel = process.env.ZENO_CRON_DEFAULT_CHANNEL ?? null;
 
   const isClaudeBackend = activeBackendId === 'claude-code';
@@ -731,7 +748,10 @@ async function main(): Promise<void> {
     dashboardSkillsPath: dashboardSkillsRoot,
   });
 
-  await slack.start(core.bind(slack));
+  // Spec 2026-05-11: ChannelManager.start() spawns every enabled channel adapter and
+  // registers the agent core's message handler on each one. The `slack` Channel
+  // reference above is the manager's proxy — it stays valid across restarts.
+  await channelManager.start(core.bind(slack));
   runner.start();
   commandsPoller.start();
   watcher.start();
@@ -780,7 +800,9 @@ async function main(): Promise<void> {
       // best effort
     }
     try {
-      await slack.stop();
+      // Spec 2026-05-11: ChannelManager.stop cascades adapter.stop() across every running
+      // adapter and clears the poll tick.
+      await channelManager.stop();
     } catch {
       // best effort
     }

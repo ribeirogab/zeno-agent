@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { openRuntimeDatabase, runRuntimeMigrations } from '../../src/runtime/db.js';
 
 describe('runRuntimeMigrations', () => {
-  it('creates the schema_migrations table and applies the baseline + 0001 once', () => {
+  it('creates the schema_migrations table and applies the baseline + 0001 + 0002 once', () => {
     const { raw, close } = openRuntimeDatabase(':memory:');
     try {
       runRuntimeMigrations(raw);
       const versions = raw
         .prepare('SELECT version FROM schema_migrations ORDER BY version')
         .all() as { version: number }[];
-      expect(versions.map((v) => v.version)).toEqual([0, 1]);
+      expect(versions.map((v) => v.version)).toEqual([0, 1, 2]);
 
       const tables = raw
         .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
@@ -24,6 +24,12 @@ describe('runRuntimeMigrations', () => {
       expect(cols.map((c) => c.name)).toContain('instance_label');
       const indexes = raw.prepare('PRAGMA index_list(connectors)').all() as { name: string }[];
       expect(indexes.map((i) => i.name)).toContain('idx_connectors_catalog_id');
+
+      // Spec 2026-05-11: 0002 adds updated_at column to connector_secrets for hot-reload detection.
+      const secretCols = raw
+        .prepare('PRAGMA table_info(connector_secrets)')
+        .all() as { name: string }[];
+      expect(secretCols.map((c) => c.name)).toContain('updated_at');
     } finally {
       close();
     }

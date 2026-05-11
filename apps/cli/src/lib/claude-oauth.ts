@@ -11,8 +11,6 @@
  * exits without capturing a token (most common cause: operator cancelled).
  */
 
-import { PassThrough } from 'node:stream';
-import type Dockerode from 'dockerode';
 import { runDockerExecPty } from './docker-exec-pty.js';
 
 export interface ClaudeOAuthBackend {
@@ -26,8 +24,8 @@ export interface ClaudeOAuthBackend {
 }
 
 export interface ClaudeOAuthOpts {
-  /** Profile container — must already be running. */
-  container: Pick<Dockerode.Container, 'exec'>;
+  /** Profile container name (e.g. `zeno-test-0072`). Must be running. */
+  containerName: string;
   /** Catalog entry from @zeno/backends with auto_flow regexes. */
   backend: ClaudeOAuthBackend;
   /** Prompts the operator for the OAuth code (hidden input recommended). */
@@ -48,17 +46,27 @@ export async function runClaudeOAuth(opts: ClaudeOAuthOpts): Promise<string> {
     ? new RegExp(flow.stdout_awaiting_code_regex)
     : null;
 
-  const stdin = new PassThrough();
   let url: string | null = null;
   let token: string | null = null;
   let codeSent = false;
+  let stdinWrite: ((data: string) => void) | null = null;
 
   const sendCode = async (): Promise<void> => {
     if (codeSent || !url) return;
     codeSent = true;
     const code = await opts.promptCode(url);
-    stdin.write(`${code}\r`);
+    process.stderr.write(`[oauth-dbg] code received (len=${code.length}); writing to stdin\n`);
+    if (!stdinWrite) {
+      process.stderr.write('[oauth-dbg] WARN no stdinWrite available\n');
+      return;
+    }
+    // node-pty over docker exec — \r is the line terminator; PTY ICRNL maps
+    // it to \n for the inner readline reader.
+    stdinWrite(`${code}\r`);
+    process.stderr.write('[oauth-dbg] code written to pty\n');
   };
+
+  const dbg = (msg: string) => process.stderr.write(`[oauth-dbg] ${msg}\n`);
 
   const matchers = [
     {
@@ -66,6 +74,7 @@ export async function runClaudeOAuth(opts: ClaudeOAuthOpts): Promise<string> {
       regex: urlRe,
       onMatch: (v: string) => {
         url = v;
+        dbg(`url captured (len=${v.length})`);
         if (!awaitingRe) {
           // No awaiting-code prompt → ask immediately after URL is captured.
           void sendCode();
@@ -77,8 +86,10 @@ export async function runClaudeOAuth(opts: ClaudeOAuthOpts): Promise<string> {
       regex: tokenRe,
       onMatch: (v: string) => {
         token = v;
-        // Token captured — close stdin so the spawned CLI can exit cleanly.
-        stdin.end();
+        dbg(`token captured (len=${v.length}, prefix=${v.slice(0, 12)}...)`);
+        // No need to close stdin — the spawned CLI exits on its own once it
+        // prints the token. Closing the duplex stream early can also tear
+        // down the stdout half before we capture the final byte.
       },
     },
   ];
@@ -88,16 +99,19 @@ export async function runClaudeOAuth(opts: ClaudeOAuthOpts): Promise<string> {
       name: 'awaiting',
       regex: awaitingRe,
       onMatch: () => {
+        dbg('awaiting-code regex matched');
         void sendCode();
       },
     });
   }
 
   const opts2: Parameters<typeof runDockerExecPty>[0] = {
-    container: opts.container,
+    containerName: opts.containerName,
     cmd: flow.command,
-    stdin,
     matchers,
+    onReady: (write) => {
+      stdinWrite = write;
+    },
   };
   if (opts.mirror !== undefined) opts2.mirror = opts.mirror;
   await runDockerExecPty(opts2);

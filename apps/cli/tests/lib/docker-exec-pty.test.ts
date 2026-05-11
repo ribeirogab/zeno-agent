@@ -1,27 +1,42 @@
-import { PassThrough, Readable } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
+
+// Mock node-pty BEFORE importing the module under test.
+type DataHandler = (chunk: string) => void;
+type ExitHandler = (e: { exitCode: number; signal?: number }) => void;
+
+interface FakePty {
+  write: ReturnType<typeof vi.fn>;
+  kill: ReturnType<typeof vi.fn>;
+  onData: (cb: DataHandler) => void;
+  onExit: (cb: ExitHandler) => void;
+  __emitData: (chunk: string) => void;
+  __exit: (code: number) => void;
+}
+
+const ptySpawnMock = vi.fn();
+
+vi.mock('node-pty', () => {
+  return {
+    spawn: (...args: unknown[]) => ptySpawnMock(...args),
+  };
+});
+
 import { runDockerExecPty, stripAnsi } from '../../src/lib/docker-exec-pty.js';
 
-function makeFakeContainer(
-  stdoutChunks: Array<Buffer | string>,
-  opts: { exitCode?: number; endAfterChunks?: boolean } = {},
-) {
-  const stream = new PassThrough();
-  const exec = {
-    start: vi.fn(async () => {
-      // Push chunks asynchronously so listeners attach first.
-      queueMicrotask(() => {
-        for (const c of stdoutChunks) stream.write(c);
-        if (opts.endAfterChunks !== false) stream.end();
-      });
-      return stream;
-    }),
-    inspect: vi.fn(async () => ({ ExitCode: opts.exitCode ?? 0 })),
-  };
+function makeFakePty(): FakePty {
+  let dataCb: DataHandler | null = null;
+  let exitCb: ExitHandler | null = null;
   return {
-    container: { exec: vi.fn(async () => exec) },
-    exec,
-    stream,
+    write: vi.fn(),
+    kill: vi.fn(),
+    onData: (cb: DataHandler) => {
+      dataCb = cb;
+    },
+    onExit: (cb: ExitHandler) => {
+      exitCb = cb;
+    },
+    __emitData: (chunk: string) => dataCb?.(chunk),
+    __exit: (code: number) => exitCb?.({ exitCode: code }),
   };
 }
 
@@ -35,11 +50,12 @@ describe('stripAnsi', () => {
 });
 
 describe('runDockerExecPty', () => {
-  it('matches a regex against the ANSI-stripped streamed stdout', async () => {
-    const fc = makeFakeContainer(['Open: \x1b[32mhttps://example.com/oauth?state=xyz\x1b[0m\n']);
+  it('spawns docker exec with the right argv and matches a regex on streamed stdout', async () => {
+    const fp = makeFakePty();
+    ptySpawnMock.mockReturnValueOnce(fp);
     const onUrl = vi.fn();
-    const result = await runDockerExecPty({
-      container: fc.container as never,
+    const promise = runDockerExecPty({
+      containerName: 'zeno-test-0072',
       cmd: ['claude', 'setup-token'],
       matchers: [
         {
@@ -48,47 +64,53 @@ describe('runDockerExecPty', () => {
           onMatch: onUrl,
         },
       ],
-      stdin: Readable.from([]),
       mirror: null,
     });
+    // Verify argv
+    expect(ptySpawnMock).toHaveBeenCalledWith(
+      'docker',
+      ['exec', '-i', '-t', 'zeno-test-0072', 'claude', 'setup-token'],
+      expect.objectContaining({ cols: 200 }),
+    );
+    // Stream a chunk that matches the URL regex
+    fp.__emitData('Open: \x1b[32mhttps://example.com/oauth?state=xyz\x1b[0m\n');
+    fp.__exit(0);
+    const result = await promise;
     expect(onUrl).toHaveBeenCalledWith('xyz');
     expect(result.exitCode).toBe(0);
   });
 
-  it('forwards bytes from stdin into the exec stream', async () => {
-    // Stdin chunks loop back through PassThrough as 'data' events; matcher
-    // captures them. endAfterChunks=false lets stdin's pipe end the stream.
-    const fc = makeFakeContainer([], { endAfterChunks: false });
-    const stdin = Readable.from(['hello\r']);
-    const captured: string[] = [];
-    await runDockerExecPty({
-      container: fc.container as never,
+  it('forwards bytes via the onReady write callback into the spawned PTY', async () => {
+    const fp = makeFakePty();
+    ptySpawnMock.mockReturnValueOnce(fp);
+    const promise = runDockerExecPty({
+      containerName: 'zeno-test-0072',
       cmd: ['claude', 'setup-token'],
-      matchers: [
-        {
-          name: 'echo',
-          regex: /(hello)/,
-          onMatch: (v) => {
-            captured.push(v);
-          },
-        },
-      ],
-      stdin,
+      matchers: [],
+      onReady: (write) => {
+        write('hello\r');
+      },
       mirror: null,
     });
-    expect(captured).toContain('hello');
+    fp.__exit(0);
+    await promise;
+    expect(fp.write).toHaveBeenCalledWith('hello\r');
   });
 
   it('fires each matcher at most once', async () => {
-    const fc = makeFakeContainer(['url=https://e.com/x\n', 'url=https://e.com/x\n']);
+    const fp = makeFakePty();
+    ptySpawnMock.mockReturnValueOnce(fp);
     const onUrl = vi.fn();
-    await runDockerExecPty({
-      container: fc.container as never,
+    const promise = runDockerExecPty({
+      containerName: 'zeno-test-0072',
       cmd: ['x'],
       matchers: [{ name: 'url', regex: /url=(\S+)/, onMatch: onUrl }],
-      stdin: Readable.from([]),
       mirror: null,
     });
+    fp.__emitData('url=https://e.com/x\n');
+    fp.__emitData('url=https://e.com/x\n');
+    fp.__exit(0);
+    await promise;
     expect(onUrl).toHaveBeenCalledTimes(1);
   });
 });

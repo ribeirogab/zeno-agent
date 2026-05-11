@@ -1,6 +1,41 @@
-import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
+
+type DataHandler = (chunk: string) => void;
+type ExitHandler = (e: { exitCode: number; signal?: number }) => void;
+
+interface FakePty {
+  write: ReturnType<typeof vi.fn>;
+  kill: ReturnType<typeof vi.fn>;
+  onData: (cb: DataHandler) => void;
+  onExit: (cb: ExitHandler) => void;
+  __emitData: (chunk: string) => void;
+  __exit: (code: number) => void;
+}
+
+const ptySpawnMock = vi.fn();
+
+vi.mock('node-pty', () => ({
+  spawn: (...args: unknown[]) => ptySpawnMock(...args),
+}));
+
 import { runClaudeOAuth } from '../../src/lib/claude-oauth.js';
+
+function makeFakePty(): FakePty {
+  let dataCb: DataHandler | null = null;
+  let exitCb: ExitHandler | null = null;
+  return {
+    write: vi.fn(),
+    kill: vi.fn(),
+    onData: (cb: DataHandler) => {
+      dataCb = cb;
+    },
+    onExit: (cb: ExitHandler) => {
+      exitCb = cb;
+    },
+    __emitData: (chunk: string) => dataCb?.(chunk),
+    __exit: (code: number) => exitCb?.({ exitCode: code }),
+  };
+}
 
 const BACKEND = {
   id: 'claude-code',
@@ -14,56 +49,44 @@ const BACKEND = {
 
 const TOKEN = 'sk-ant-oat01-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
-function makeFakeContainer(stdoutScript: Array<Buffer | string>) {
-  const stream = new PassThrough();
-  const exec = {
-    start: vi.fn(async () => {
-      queueMicrotask(() => {
-        for (const c of stdoutScript) stream.write(c);
-        // Don't auto-end — claude-oauth ends stdin on token capture, which
-        // closes our PassThrough's writable side via the pipe. We end here
-        // after a small delay to simulate the CLI exiting.
-        setImmediate(() => stream.end());
-      });
-      return stream;
-    }),
-    inspect: vi.fn(async () => ({ ExitCode: 0 })),
-  };
-  return { container: { exec: vi.fn(async () => exec) }, stream };
-}
-
 describe('runClaudeOAuth', () => {
   it('captures token after URL prompt + code paste', async () => {
-    const fc = makeFakeContainer([
-      'Open https://example.com/oauth?state=xyz\n',
-      'Paste code here:\n',
-      `${TOKEN}\n`,
-    ]);
+    const fp = makeFakePty();
+    ptySpawnMock.mockReturnValueOnce(fp);
     const promptCode = vi.fn(async () => 'AUTHCODE');
-    const captured = await runClaudeOAuth({
-      container: fc.container as never,
+    const promise = runClaudeOAuth({
+      containerName: 'zeno-test-0072',
       backend: BACKEND,
       promptCode,
       mirror: null,
     });
+    fp.__emitData('Open https://example.com/oauth?state=xyz\n');
+    fp.__emitData('Paste code here:\n');
+    // Allow promptCode (async) to resolve and write to be called.
+    await new Promise((r) => setTimeout(r, 10));
+    fp.__emitData(`${TOKEN}\n`);
+    fp.__exit(0);
+    const captured = await promise;
     expect(captured).toBe(TOKEN);
     expect(promptCode).toHaveBeenCalledWith('https://example.com/oauth?state=xyz');
     expect(promptCode).toHaveBeenCalledTimes(1);
+    expect(fp.write).toHaveBeenCalledWith('AUTHCODE\r');
   });
 
   it('throws when the flow exits without a token', async () => {
-    const fc = makeFakeContainer([
-      'Open https://example.com/oauth?state=xyz\n',
-      'Paste code here:\n',
-      'invalid code, exiting\n',
-    ]);
-    await expect(
-      runClaudeOAuth({
-        container: fc.container as never,
-        backend: BACKEND,
-        promptCode: async () => 'BADCODE',
-        mirror: null,
-      }),
-    ).rejects.toThrowError(/exited without capturing a token/);
+    const fp = makeFakePty();
+    ptySpawnMock.mockReturnValueOnce(fp);
+    const promise = runClaudeOAuth({
+      containerName: 'zeno-test-0072',
+      backend: BACKEND,
+      promptCode: async () => 'BADCODE',
+      mirror: null,
+    });
+    fp.__emitData('Open https://example.com/oauth?state=xyz\n');
+    fp.__emitData('Paste code here:\n');
+    await new Promise((r) => setTimeout(r, 10));
+    fp.__emitData('invalid code, exiting\n');
+    fp.__exit(1);
+    await expect(promise).rejects.toThrowError(/exited without capturing a token/);
   });
 });

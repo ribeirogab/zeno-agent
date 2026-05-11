@@ -1,37 +1,33 @@
 /**
  * Spec 0072 — run an interactive command inside the profile container with a
- * TTY, proxying stdio between the host CLI and the docker exec session.
+ * real PTY, by shelling out to `docker exec -it <container> <cmd>` via
+ * node-pty (a host PTY).
+ *
+ * Earlier attempts via `dockerode.exec({Tty:true,hijack:true})` could write
+ * to the hijacked stream (drained=true) but the inner `claude setup-token`
+ * never observed the input. node-pty + docker exec gives a real PTY that
+ * cooperates with the container's tty line-discipline and the inner CLI's
+ * readline path.
  *
  * Used by `runClaudeOAuth` to spawn `claude setup-token` inside the
- * container, capture the OAuth URL/token from stdout via regex matchers, and
- * forward the operator-pasted code to the container's stdin.
- *
- * No precedent for this pattern in the rest of the repo (the api spawns
- * `claude setup-token` LOCALLY via node-pty inside its own container; the
- * CLI runs on the host so it cannot do the same).
+ * container, capture the OAuth URL/token from stdout via regex matchers,
+ * and forward the operator-pasted code to the spawned PTY's stdin.
  */
 
-import type { Duplex, Readable } from 'node:stream';
-import type Dockerode from 'dockerode';
+import * as pty from 'node-pty';
 
 const ESC = '\\x1b';
 const BEL = '\\x07';
 const ANSI_PATTERNS: readonly RegExp[] = [
-  // CSI (ESC [ … letter)
   new RegExp(`${ESC}\\[[0-9;?]*[ -/]*[@-~]`, 'g'),
-  // OSC (ESC ] … BEL or ESC \)
   new RegExp(`${ESC}\\][^${BEL}${ESC}]*(${BEL}|${ESC}\\\\)`, 'g'),
-  // Charset designator
   new RegExp(`${ESC}[()][AB012]`, 'g'),
-  // Single-byte ESC sequences
   new RegExp(`${ESC}[78=>]`, 'g'),
 ];
 
 export function stripAnsi(s: string): string {
   let out = s;
-  for (const re of ANSI_PATTERNS) {
-    out = out.replace(re, '');
-  }
+  for (const re of ANSI_PATTERNS) out = out.replace(re, '');
   return out;
 }
 
@@ -45,58 +41,75 @@ export interface PtyMatcher {
 }
 
 export interface RunDockerExecPtyOpts {
-  /** Container to exec into. Must be running. */
-  container: Pick<Dockerode.Container, 'exec'>;
-  /** Argv (e.g. ['claude', 'setup-token']). First element is the binary. */
+  /** Container name (e.g. `zeno-test-0072`). */
+  containerName: string;
+  /** Argv to run inside the container (e.g. `['claude', 'setup-token']`). */
   cmd: string[];
-  /** Forwarded into the exec stdin stream. CLI typically passes process.stdin. */
-  stdin: Readable;
+  /**
+   * Called once the PTY is alive, before any matcher fires. Receives a
+   * `write` fn the caller uses to send bytes to the spawned process's stdin.
+   */
+  onReady?: (write: (data: string) => void) => void;
   matchers: PtyMatcher[];
-  /** PTY columns. Defaults to 200 so wrapped URLs stay on one logical line. */
+  /** PTY columns. Defaults to 200 so wrapped URLs/tokens stay on one line. */
   cols?: number;
   rows?: number;
-  /** Optional mirror — every chunk is also written here (defaults to process.stdout). Pass `null` to silence. */
+  /** Optional mirror — every chunk also written here. Pass `null` to silence. */
   mirror?: NodeJS.WritableStream | null;
+  /** Hard timeout in ms. Defaults to 5 min. */
+  timeoutMs?: number;
 }
 
 export interface RunDockerExecPtyResult {
   exitCode: number | null;
+  signal: number | null;
+  timedOut: boolean;
 }
 
-/** Strip-then-flatten newlines so wrapped URLs reassemble in the buffer. */
-function normalize(chunk: Buffer | string): string {
-  return stripAnsi(typeof chunk === 'string' ? chunk : chunk.toString('utf8')).replace(
-    /[\r\n]+/g,
-    '',
-  );
+function normalize(chunk: string): string {
+  return stripAnsi(chunk).replace(/[\r\n]+/g, '');
 }
 
 /**
- * Run `cmd` inside the container with a PTY. Resolves when the exec stream
- * ends. Matchers fire at-most-once as their regexes match the running
- * buffer.
+ * Spawn `docker exec -it <containerName> <cmd>` via node-pty. Resolves when
+ * the spawned process exits. Matchers fire at-most-once as their regexes
+ * match the running ANSI-stripped buffer.
  */
 export async function runDockerExecPty(
   opts: RunDockerExecPtyOpts,
 ): Promise<RunDockerExecPtyResult> {
-  const exec = await opts.container.exec({
-    Cmd: opts.cmd,
-    AttachStdin: true,
-    AttachStdout: true,
-    AttachStderr: true,
-    Tty: true,
-  });
-
-  // start({ hijack: true, stdin: true }) returns a single bidirectional
-  // Duplex stream when Tty=true (no docker multiplex header).
-  const stream = (await exec.start({ hijack: true, stdin: true })) as Duplex;
-
-  let buffer = '';
-  const fired = new Set<string>();
+  const cols = opts.cols ?? 200;
+  const rows = opts.rows ?? 40;
   const mirror =
     opts.mirror === undefined ? process.stdout : opts.mirror === null ? null : opts.mirror;
 
-  const onData = (chunk: Buffer | string): void => {
+  // `-i` keeps stdin open; `-t` allocates the container-side TTY. Together
+  // with node-pty's host-side PTY, this gives a real bidirectional terminal.
+  const args = ['exec', '-i', '-t', opts.containerName, ...opts.cmd];
+  const term = pty.spawn('docker', args, {
+    name: 'xterm-256color',
+    cols,
+    rows,
+    env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1', TERM: 'xterm-256color' },
+  });
+
+  let buffer = '';
+  const fired = new Set<string>();
+  let timedOut = false;
+
+  const timer = setTimeout(
+    () => {
+      timedOut = true;
+      try {
+        term.kill();
+      } catch {
+        /* ignore */
+      }
+    },
+    opts.timeoutMs ?? 5 * 60 * 1000,
+  );
+
+  term.onData((chunk: string) => {
     if (mirror) mirror.write(chunk);
     buffer += normalize(chunk);
     if (buffer.length > 65_536) buffer = buffer.slice(-32_768);
@@ -107,27 +120,23 @@ export async function runDockerExecPty(
         fired.add(m.name);
         const value = match[1] ?? match[0];
         const r = m.onMatch(value);
-        // Swallow promise rejections from matchers — they should not abort the
-        // exec stream. Caller is responsible for surfacing user-visible errors.
         if (r instanceof Promise) r.catch(() => undefined);
       }
     }
-  };
-
-  stream.on('data', onData);
-  opts.stdin.pipe(stream);
-
-  await new Promise<void>((resolve) => {
-    stream.once('end', resolve);
-    stream.once('close', resolve);
   });
 
-  let exitCode: number | null = null;
-  try {
-    const inspect = await exec.inspect();
-    exitCode = inspect.ExitCode ?? null;
-  } catch {
-    /* container died mid-exec — propagate as null */
+  if (opts.onReady) {
+    opts.onReady((data: string) => {
+      term.write(data);
+    });
   }
-  return { exitCode };
+
+  const result = await new Promise<RunDockerExecPtyResult>((resolve) => {
+    term.onExit(({ exitCode, signal }) => {
+      clearTimeout(timer);
+      resolve({ exitCode, signal: signal ?? null, timedOut });
+    });
+  });
+
+  return result;
 }

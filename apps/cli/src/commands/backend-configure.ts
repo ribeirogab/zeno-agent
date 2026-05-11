@@ -87,20 +87,18 @@ export default defineCommand({
       process.stdout.write(c.dim(`\n─ ${backend.name} oauth (in ${profile.name} container) ─\n\n`));
     }
 
-    const container = docker.getContainer(containerName(profile.name));
     let token: string;
     try {
       token = await runClaudeOAuth({
-        container,
+        containerName: containerName(profile.name),
         backend: catalogEntry as never,
         // Silence the container's raw PTY mirror — `claude setup-token`
-        // prints an ASCII banner + duplicates the URL + echoes the operator's
-        // typed code chars (TTY echo). The CLI owns the screen with its own
-        // formatted prompt below.
+        // prints an ASCII banner + duplicates the URL + echoes operator-typed
+        // chars. CLI owns the screen with its own formatted prompt.
         mirror: null,
         promptCode: async (url) => {
           process.stdout.write(`\nopen this URL in your browser:\n  ${c.cyan(url)}\n\n`);
-          const code = await promptHidden('paste code from browser: ');
+          const code = await promptHidden('paste code from browser');
           return code.trim();
         },
       });

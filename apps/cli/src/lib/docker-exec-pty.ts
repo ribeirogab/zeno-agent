@@ -16,8 +16,8 @@
 
 import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, statSync } from 'node:fs';
-import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import * as pty from 'node-pty';
 
 /**

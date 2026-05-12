@@ -183,6 +183,7 @@ export const connectorSecrets = sqliteTable(
     isPublic: integer('is_public').notNull().default(0),
     valueEncrypted: blob('value_encrypted', { mode: 'buffer' }).notNull(),
     iv: blob('iv', { mode: 'buffer' }).notNull(),
+    updatedAt: text('updated_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.connectorId, table.key] }),

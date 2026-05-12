@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openRuntimeDatabase, type RuntimeDB, runRuntimeMigrations } from '../../src/runtime/db.js';
 import { ConnectorRepo, type CreateConnectorInput } from '../../src/runtime/repos/connectors.js';
+import type { DB as RawDB } from '../../src/shared/client.js';
 
 let db: RuntimeDB;
+let raw: RawDB;
 let close: () => void;
 
 function freshDb(): RuntimeDB {
@@ -11,6 +13,7 @@ function freshDb(): RuntimeDB {
   // The new runtime baseline does NOT auto-seed (seedDefaultConnectors is
   // explicit). Tests start with empty connector tables — no extra cleanup
   // needed.
+  raw = opened.raw;
   close = opened.close;
   return opened.drizzle;
 }
@@ -102,7 +105,15 @@ describe('ConnectorRepo — create', () => {
     expect(created.slug).toBe('echo');
     expect(created.args).toEqual(['fixture.js']);
     expect(repo.getSecrets(created.id)).toEqual([
-      { connectorId: created.id, key: 'TOKEN', value: 'xyz', isPublic: false },
+      {
+        connectorId: created.id,
+        key: 'TOKEN',
+        value: 'xyz',
+        isPublic: false,
+        // Spec 2026-05-11: every secret row carries an updated_at default; assert
+        // shape without pinning the exact timestamp.
+        updatedAt: expect.any(String),
+      },
     ]);
     expect(repo.getTools(created.id)).toHaveLength(2);
   });
@@ -221,6 +232,31 @@ describe('ConnectorRepo — replaceSecrets / replaceTools', () => {
     ]);
     const secrets = repo.getSecrets(created.id);
     expect(secrets.map((s) => s.key)).toEqual(['B', 'C']);
+  });
+
+  it('replaceSecrets bumps connector_secrets.updated_at on every call (spec 2026-05-11)', async () => {
+    const repo = new ConnectorRepo(db, {
+      masterKey: Buffer.from('a'.repeat(64), 'hex'),
+      profileId: 'test',
+    });
+    const created = repo.create({
+      ...baseInput,
+      slug: 'hot-reload',
+      secrets: [{ key: 'K', value: 'v1' }],
+    });
+    const firstRow = raw
+      .prepare('SELECT updated_at FROM connector_secrets WHERE connector_id = ? AND key = ?')
+      .get(created.id, 'K') as { updated_at: string };
+    // Wait long enough for the strftime('%Y-%m-%dT%H:%M:%fZ', 'now') millisecond resolution to advance.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    repo.replaceSecrets(created.id, [{ key: 'K', value: 'v2' }]);
+    const secondRow = raw
+      .prepare('SELECT updated_at FROM connector_secrets WHERE connector_id = ? AND key = ?')
+      .get(created.id, 'K') as { updated_at: string };
+    expect(secondRow.updated_at).not.toBe(firstRow.updated_at);
+    expect(new Date(secondRow.updated_at).getTime()).toBeGreaterThan(
+      new Date(firstRow.updated_at).getTime(),
+    );
   });
 
   it('replaceTools wipes overrides and applies new set', () => {

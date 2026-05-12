@@ -71,7 +71,10 @@ export class DockerOrchestrator implements Orchestrator {
     // / BackendSettingsRepo open the correct row partition. Without this,
     // the worker defaults to profileId='default' and can't see credentials
     // the host CLI wrote for the actual profile name.
-    const env = [`ZENO_PROFILE=${spec.profile}`, ...fileEnv.filter((e) => !e.startsWith('ZENO_PROFILE='))];
+    const env = [
+      `ZENO_PROFILE=${spec.profile}`,
+      ...fileEnv.filter((e) => !e.startsWith('ZENO_PROFILE=')),
+    ];
     await this.docker.createContainer({
       Image: 'zeno-agent:dev',
       name: spec.name,

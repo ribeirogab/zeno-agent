@@ -25,12 +25,27 @@ import { zValidator } from '@hono/zod-validator';
 import type { ConnectorRepo } from '@zeno/db/runtime';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import type { ApiWriteMode } from '@/lib/api-mode';
+import { blockIfCli } from '@/lib/block-if-cli';
 import { getChannelSetupHelper } from '@/lib/channel-setup-helpers';
+import { runTestStrategy } from '@/lib/channel-test-strategies';
 import type { ChannelsCatalog } from '@/lib/channels-catalog-loader';
 
 export interface BuildChannelsRouteDeps {
   connectors: ConnectorRepo;
   channelsCatalog: ChannelsCatalog;
+  /**
+   * Spec 2026-05-11: mutating channel routes (`PATCH /:slug/secrets`, `DELETE /:slug`,
+   * `POST /:slug/test`) return 403 mode_cli_only when this is `'cli'` and the caller
+   * does not send `X-Zeno-Origin: cli`. GET reads are unrestricted in either mode.
+   */
+  writes: ApiWriteMode;
+  /**
+   * Spec 2026-05-11: injected fetch for `POST /:slug/test`. Tests pass a mock; production
+   * uses the global fetch. Threaded through `runTestStrategy` so strategies can hit upstream
+   * APIs (Slack `auth.test`, etc.) without coupling the route to any particular SDK.
+   */
+  fetchImpl?: typeof fetch;
 }
 
 /**
@@ -65,12 +80,14 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
       icon: e.icon,
       iconUrl: `/api/connectors/catalog/icons/${e.icon}`,
       docsUrl: e.docsUrl,
-      secrets: e.secrets.map((s) => ({
-        key: s.key,
-        label: s.label,
-        help: s.help,
-        required: s.required,
-        inputType: s.inputType ?? 'password',
+      transport: e.transport,
+      fields: e.fields.map((f) => ({
+        key: f.key,
+        label: f.label,
+        help: f.help,
+        required: f.required,
+        public: f.public,
+        inputType: f.inputType ?? (f.public ? 'text' : 'password'),
       })),
     }));
     return c.json({ channels: entries });
@@ -114,11 +131,11 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
   // (defense in depth — never expose MCP rows via the channels endpoints).
   route.get('/:id', (c) => {
     const id = c.req.param('id');
-    const row = deps.connectors.get(id);
+    const row = deps.connectors.get(id) ?? deps.connectors.getBySlug(id);
     if (!row || row.kind !== 'channel') {
       return c.json({ error: 'channel_not_found' }, 404);
     }
-    const secrets = deps.connectors.getSecrets(id);
+    const secrets = deps.connectors.getSecrets(row.id);
     const catalogEntry = deps.channelsCatalog.entries.find((e) => e.id === row.catalogId);
     return c.json({
       id: row.id,
@@ -133,25 +150,53 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       iconUrl: catalogEntry ? `/api/connectors/catalog/icons/${catalogEntry.icon}` : null,
+      // Spec 2026-05-11: public fields render unmasked (e.g. dm_owner_user_id) so the CLI
+      // and dashboard can display them without a second catalog round-trip; secret fields
+      // ship masked with `last4`. `isPublic` lets the caller distinguish without re-parsing
+      // the catalog.
       secrets: secrets.map((s) => ({
         key: s.key,
-        masked: true as const,
-        last4: s.value.slice(-4),
+        isPublic: s.isPublic,
+        masked: !s.isPublic,
+        ...(s.isPublic ? { value: s.value } : { last4: s.value.slice(-4) }),
       })),
     });
   });
 
   // Spec 0059: PATCH /:id/secrets — sync direct DB write.
-  // Channels don't need MCP-server-restart side-effects (secrets are read at
-  // next worker boot), so the connectors `connector_update` command-queue
-  // path doesn't apply.
+  // Spec 2026-05-11: gated by `ZENO_API_WRITES`; handler reads the catalog at request
+  // time so `connector_secrets.is_public` reflects each field's catalog declaration
+  // (no client-supplied flag — source of truth is the catalog).
   route.patch('/:id/secrets', zValidator('json', patchSecretsSchema), (c) => {
+    const blocked = blockIfCli(c, {
+      writes: deps.writes,
+      action: 'rotate',
+      cli: 'zeno channel rotate <slug>',
+    });
+    if (blocked) return blocked;
+
     const id = c.req.param('id');
-    const row = deps.connectors.get(id);
+    const row = deps.connectors.get(id) ?? deps.connectors.getBySlug(id);
     if (!row || row.kind !== 'channel') {
       return c.json({ error: 'channel_not_found' }, 404);
     }
     const { mode, secrets: submitted } = c.req.valid('json');
+
+    // Spec 2026-05-11: when mode='replace', every catalog field with required=true must be
+    // present in the submission. mode='merge' overlays onto existing, so only the keys the
+    // CLI explicitly sent are touched; required-field validation does not apply on merge.
+    if (mode === 'replace') {
+      const submittedKeys = new Set(submitted.map((s) => s.key));
+      const missing: string[] = [];
+      for (const field of deps.channelsCatalog.entries
+        .find((e) => e.id === row.catalogId)
+        ?.fields.filter((f) => f.required) ?? []) {
+        if (!submittedKeys.has(field.key)) missing.push(field.key);
+      }
+      if (missing.length > 0) {
+        return c.json({ error: 'missing_required_secrets', keys: missing }, 400);
+      }
+    }
 
     let finalSecrets: Array<{ key: string; value: string }>;
     if (mode === 'replace') {
@@ -159,28 +204,93 @@ export function buildChannelsRoute(deps: BuildChannelsRouteDeps): Hono {
     } else {
       // mode === 'merge': overlay submitted onto existing, keyed by key.
       // Plaintext lookup is local — never leaves this handler.
-      const existing = deps.connectors.getSecrets(id);
+      const existing = deps.connectors.getSecrets(row.id);
       const merged = new Map<string, string>();
       for (const s of existing) merged.set(s.key, s.value);
       for (const s of submitted) merged.set(s.key, s.value);
       finalSecrets = Array.from(merged, ([key, value]) => ({ key, value }));
     }
 
-    deps.connectors.replaceSecrets(id, finalSecrets);
+    // Spec 2026-05-11: thread `isPublic` from the catalog field into the secret row so the
+    // GET /:slug projection knows what to unmask. Unknown keys (or rows with a null
+    // catalogId — possible only for hand-installed channel rows that never went through
+    // the catalog branch) fall through as private.
+    const enriched = finalSecrets.map((s) => {
+      const field = row.catalogId
+        ? deps.channelsCatalog.findField(row.catalogId, s.key)
+        : undefined;
+      return { key: s.key, value: s.value, isPublic: field?.public ?? false };
+    });
+
+    deps.connectors.replaceSecrets(row.id, enriched);
     return c.body(null, 204);
   });
 
+  // Spec 2026-05-11: POST /:id/test — synchronous probe via catalog-declared strategy.
+  // Gated because it writes lastVerifiedAt / lastError on the connector row.
+  // The dashboard never calls this route; operator must run `zeno channel test <slug>`.
+  route.post('/:id/test', async (c) => {
+    const blocked = blockIfCli(c, {
+      writes: deps.writes,
+      action: 'test',
+      cli: 'zeno channel test <slug>',
+    });
+    if (blocked) return blocked;
+
+    const id = c.req.param('id');
+    const row = deps.connectors.get(id) ?? deps.connectors.getBySlug(id);
+    if (!row || row.kind !== 'channel') {
+      return c.json({ error: 'channel_not_found' }, 404);
+    }
+    const catalogEntry = deps.channelsCatalog.entries.find((e) => e.id === row.catalogId);
+    if (!catalogEntry) {
+      return c.json({ error: 'catalog_entry_missing' }, 500);
+    }
+
+    // Decrypt every stored secret + bundle into the probe ctx. The plaintext never
+    // leaves this handler — `runTestStrategy` reads what it needs and returns.
+    const secretsList = deps.connectors.getSecrets(row.id);
+    const fields: Record<string, string> = {};
+    for (const s of secretsList) fields[s.key] = s.value;
+
+    const result = await runTestStrategy(catalogEntry.testStrategy, {
+      fields,
+      ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
+    });
+    if (result.status === 'passed') {
+      deps.connectors.update(row.id, {
+        lastVerifiedAt: new Date().toISOString(),
+        lastError: null,
+        lastErrorAt: null,
+      });
+    } else {
+      deps.connectors.update(row.id, {
+        lastError: result.error ?? 'unknown',
+        lastErrorAt: new Date().toISOString(),
+      });
+    }
+    return c.json(result, 200);
+  });
+
   // Spec 0059: DELETE /:id — sync direct DB delete.
+  // Spec 2026-05-11: gated by `ZENO_API_WRITES`.
   // FK CASCADE on connector_secrets.connector_id (migration 5) drops secrets
   // in the same transaction. The connectors `connector_uninstall` command-queue
   // path exists for MCP servers that need spawn cleanup; channels don't.
   route.delete('/:id', (c) => {
+    const blocked = blockIfCli(c, {
+      writes: deps.writes,
+      action: 'uninstall',
+      cli: 'zeno channel uninstall <slug> --yes',
+    });
+    if (blocked) return blocked;
+
     const id = c.req.param('id');
-    const row = deps.connectors.get(id);
+    const row = deps.connectors.get(id) ?? deps.connectors.getBySlug(id);
     if (!row || row.kind !== 'channel') {
       return c.json({ error: 'channel_not_found' }, 404);
     }
-    deps.connectors.delete(id);
+    deps.connectors.delete(row.id);
     return c.body(null, 204);
   });
 

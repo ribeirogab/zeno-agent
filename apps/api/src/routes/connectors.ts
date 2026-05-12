@@ -932,6 +932,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
   // POST / (create — enqueues command)
   route.post('/', zValidator('json', createSchema), (c) => {
     if (deps.writes === 'cli' && c.req.header('x-zeno-origin') !== 'cli') {
+      // Spec 2026-05-11: emit channel-shaped CLI hint when the install payload targets a
+      // channel kind. Operator-facing surface is `zeno channel install <type>`; the
+      // underlying wire happens to share /api/connectors with MCP installs.
+      const body = c.req.valid('json');
+      if (body.kind === 'channel') {
+        return blockIfCli('install', 'zeno channel install <type>')(c);
+      }
       return blockIfCli('install', 'zeno connector install <catalog-id> --label "<label>"')(c);
     }
     const body = c.req.valid('json');
@@ -966,11 +973,13 @@ export function buildConnectorsRoute(deps: ConnectorsRouteDeps): Hono {
         }
         const channelEntry = findChannelCatalogEntry(channelsCatalog, body.catalogId);
         if (!channelEntry) return c.json({ error: 'channel_catalog_entry_not_found' }, 404);
-        // Validate required secrets are all present in the payload.
+        // Spec 2026-05-11: catalog fields collapse secrets + non-secret config into one
+        // array with a `public` flag. Only `required: true && public: false` fields are
+        // hard-required for install (public config is optional by definition).
         const submitted = new Map(body.secrets.map((s) => [s.key, s.value]));
-        for (const sec of channelEntry.secrets.filter((s) => s.required)) {
-          if (!submitted.has(sec.key)) {
-            return c.json({ error: 'missing_required_secret', key: sec.key }, 400);
+        for (const field of channelEntry.fields.filter((f) => f.required && !f.public)) {
+          if (!submitted.has(field.key)) {
+            return c.json({ error: 'missing_required_secret', key: field.key }, 400);
           }
         }
         // Spec 2026-05-08-connectors-cli-first-design: channels are stricter —

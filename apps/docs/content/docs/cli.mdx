@@ -28,6 +28,14 @@ import ConnectorAppInstancesFlags from '@/generated/cli-flags/connector-app-inst
 import ConnectorAppInstancesDiscoverFlags from '@/generated/cli-flags/connector-app-instances-discover.mdx';
 import ConnectorAppInstancesAddFlags from '@/generated/cli-flags/connector-app-instances-add.mdx';
 import ConnectorAppUninstallFlags from '@/generated/cli-flags/connector-app-uninstall.mdx';
+import ChannelFlags from '@/generated/cli-flags/channel.mdx';
+import ChannelListFlags from '@/generated/cli-flags/channel-list.mdx';
+import ChannelShowFlags from '@/generated/cli-flags/channel-show.mdx';
+import ChannelInstallFlags from '@/generated/cli-flags/channel-install.mdx';
+import ChannelConfigureFlags from '@/generated/cli-flags/channel-configure.mdx';
+import ChannelTestFlags from '@/generated/cli-flags/channel-test.mdx';
+import ChannelRotateFlags from '@/generated/cli-flags/channel-rotate.mdx';
+import ChannelUninstallFlags from '@/generated/cli-flags/channel-uninstall.mdx';
 import DoctorFlags from '@/generated/cli-flags/doctor.mdx';
 import LogsFlags from '@/generated/cli-flags/logs.mdx';
 import OpenFlags from '@/generated/cli-flags/open.mdx';
@@ -519,6 +527,114 @@ zeno connector app uninstall --yes      # skip prompt (scripted)
 The umbrella verb. Running `zeno connector --help` lists every subcommand above.
 
 <ConnectorFlags />
+
+## Channel management
+
+`zeno channel` is the **only** path to mutate channel configuration. Like connectors, the dashboard `/channels` page is read-only by default — every action chip there opens a modal showing the equivalent `zeno channel` command, which you copy and run here. The dashboard reads `GET /api/mode` once at load to know which UI variant to render.
+
+The behaviour is controlled by the same `ZENO_API_WRITES` env var on the worker container (default `cli`) that gates connectors. The CLI bypasses the gate by sending an `X-Zeno-Origin: cli` header on every request. Channels share storage with connectors (`connectors` table with `kind='channel'`); the install wire is `POST /api/connectors` with `kind: 'channel'` and channel-shaped routes (`PATCH /api/channels/:slug/secrets`, `DELETE /api/channels/:slug`, `POST /api/channels/:slug/test`) live under `/api/channels`.
+
+Channels are **single-instance** — at most one Slack workspace per profile, one Discord guild, etc. Multi-instance is reserved for connectors. The catalog file at `agent/channels-catalog.json` declares each channel's `fields[]` with `required` and `public` flags; required private fields prompt for hidden input, public fields render unmasked and configure via typed CLI flags.
+
+Hot-reload is owned by the worker's `ChannelManager`, which polls the runtime DB every 2 s. After `rotate` or `configure`, the running adapter stops and restarts with the new tokens within one poll tick — no `zeno restart` needed.
+
+### `zeno channel list`
+
+List every channel installed in this profile. Status comes from the runtime: `connected` (last test passed, no error) or `disconnected` (last event surfaced an error).
+
+```bash
+zeno channel list
+zeno channel list --profile work
+zeno channel list --json
+```
+
+<ChannelListFlags />
+
+### `zeno channel show`
+
+Read a single channel's full record. Private fields render with `…<last4>`; public fields (e.g. `dm_owner_user_id`) render unmasked.
+
+```bash
+zeno channel show slack
+zeno channel show <uuid>
+```
+
+Both slug and UUID are accepted.
+
+<ChannelShowFlags />
+
+### `zeno channel install`
+
+Install a channel from the catalog. In TTY without a positional, a picker opens over the catalog (today: slack only — the picker still appears for forward-compatibility with future channels). In non-TTY without a positional, exits 1 with `usage: zeno channel install <type>`.
+
+```bash
+zeno channel install                               # TTY: picker
+zeno channel install slack                         # positional: skip picker, prompt secrets
+zeno channel install slack \
+  --secret 'SLACK_APP_TOKEN=xapp-…' \
+  --secret 'SLACK_BOT_TOKEN=xoxb-…'                # scripted: no prompts
+```
+
+A second `install` of an already-installed channel exits 0 with `<type> already installed` on stderr.
+
+<ChannelInstallFlags />
+
+### `zeno channel configure`
+
+Update public (non-secret) config fields. For Slack today: `--dm-owner-user-id <Uxxx>` restricts DMs to a single Slack user.
+
+```bash
+zeno channel configure slack --dm-owner-user-id U01H1A2B3
+```
+
+The handler reads the catalog at request time and stores the value as `connector_secrets` with `is_public=1`. Calling `configure` for a channel that has no public fields exits 1 with `no public config fields supplied`.
+
+<ChannelConfigureFlags />
+
+### `zeno channel test`
+
+Run the catalog-declared probe strategy synchronously. For Slack, the strategy is `slack_auth_test` — a direct call to `https://slack.com/api/auth.test` with the stored bot token.
+
+```bash
+zeno channel test slack
+```
+
+Returns `passed · Xms` and exits 0 on success; prints `failed · <error>` to stderr and exits 1 on failure. Possible error codes: `auth_failed`, `timeout` (5 s wall clock), `network`, `not_implemented`. The handler writes `lastVerifiedAt` on pass and `lastError` + `lastErrorAt` on fail, which the dashboard surfaces in the CH3 disconnected banner.
+
+<ChannelTestFlags />
+
+### `zeno channel rotate`
+
+Walk every required private field in the catalog, prompt each via hidden input, submit an atomic merge `PATCH`, then immediately call `test` so the operator sees the result in the same command.
+
+```bash
+zeno channel rotate slack
+# prompt: App Token (SLACK_APP_TOKEN)
+# prompt: Bot Token (SLACK_BOT_TOKEN)
+```
+
+In non-TTY, every required key must come via `--secret KEY=VALUE`. Missing required key → exits 1.
+
+<ChannelRotateFlags />
+
+### `zeno channel uninstall`
+
+Permanently remove a channel. FK CASCADE drops every secret row in the same transaction. The worker's `ChannelManager` picks up the row deletion on the next poll tick and stops the adapter automatically.
+
+```bash
+zeno channel uninstall slack          # TTY: prompts to confirm
+zeno channel uninstall slack --yes    # scripted
+```
+
+In non-TTY without `--yes`, exits 1 with `error: destructive operation requires --yes in non-interactive mode`.
+
+<ChannelUninstallFlags />
+
+### `zeno channel` (parent)
+
+The umbrella verb. Running `zeno channel --help` lists every subcommand above.
+
+<ChannelFlags />
 
 ## Misc
 

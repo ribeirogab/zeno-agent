@@ -174,6 +174,8 @@ export function createApp(deps: AppDeps): Hono {
       buildChannelsRoute({
         connectors: deps.connectorRepo,
         channelsCatalog: deps.channelsCatalog,
+        writes,
+        ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
       }),
     );
   }

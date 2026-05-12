@@ -44,7 +44,16 @@ export type CommandKind =
   | { kind: 'backend-configure'; slug: string }
   | { kind: 'backend-rotate'; slug: string }
   | { kind: 'backend-test'; slug: string }
-  | { kind: 'backend-remove'; slug: string };
+  | { kind: 'backend-remove'; slug: string }
+  // Spec 2026-05-11-channels-cli-first §A7 — channel management is CLI-only;
+  // the dashboard /channels page surfaces each action via CommandModal. The
+  // install chip intentionally does NOT preselect the catalog id — the
+  // operator picks the type in their terminal (matches the CLI picker UX).
+  | { kind: 'channel-install' }
+  | { kind: 'channel-configure'; slug: string }
+  | { kind: 'channel-test'; slug: string }
+  | { kind: 'channel-rotate'; slug: string }
+  | { kind: 'channel-uninstall'; slug: string };
 
 export interface CliCommand {
   title: string;
@@ -183,6 +192,45 @@ export function buildCliCommand(spec: CommandKind): CliCommand {
         title: `Remove ${spec.slug}`,
         command: `zeno backend remove ${spec.slug}`,
         docsAnchor: 'zeno-backend-remove',
+        destructive: true,
+      };
+    case 'channel-install':
+      // No positional — the CLI picker resolves the type interactively. This
+      // matches the spec's intent that the dashboard chip stays catalog-blind.
+      return {
+        title: 'Install channel',
+        command: 'zeno channel install',
+        docsAnchor: 'zeno-channel-install',
+        destructive: false,
+      };
+    case 'channel-configure':
+      return {
+        title: `Configure ${spec.slug}`,
+        // `--dm-owner-user-id <Uxxx>` is the documented public field today; the
+        // operator substitutes the actual Slack user id in their terminal.
+        command: `zeno channel configure ${spec.slug} --dm-owner-user-id <Uxxx>`,
+        docsAnchor: 'zeno-channel-configure',
+        destructive: false,
+      };
+    case 'channel-test':
+      return {
+        title: `Test ${spec.slug}`,
+        command: `zeno channel test ${spec.slug}`,
+        docsAnchor: 'zeno-channel-test',
+        destructive: false,
+      };
+    case 'channel-rotate':
+      return {
+        title: `Rotate ${spec.slug}`,
+        command: `zeno channel rotate ${spec.slug}`,
+        docsAnchor: 'zeno-channel-rotate',
+        destructive: false,
+      };
+    case 'channel-uninstall':
+      return {
+        title: `Uninstall ${spec.slug}`,
+        command: `zeno channel uninstall ${spec.slug} --yes`,
+        docsAnchor: 'zeno-channel-uninstall',
         destructive: true,
       };
     default: {

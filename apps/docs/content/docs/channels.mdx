@@ -1,15 +1,87 @@
 ---
 title: Channels
-description: A channel is the I/O boundary — how a request gets to Zeno and how the reply goes back out. Slack today.
+description: A channel is the I/O boundary — how a request gets to Zeno and how the reply goes back out. Slack today; managed via the `zeno channel` CLI subtree.
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 
 A **channel** is the I/O boundary of a Zeno profile: it is how the operator's request reaches the agent and how the agent's reply gets back out. The channel is **not** a tool the agent calls — it is the conversation itself.
 
-Today there is exactly one channel implementation: Slack via Socket Mode. The abstraction is real — the worker has a generic `Channel` port — but the only adapter that ships is Slack. Anything else (Discord, Telegram, email) is roadmap, not present.
+Today there is exactly one channel implementation: Slack via Socket Mode. The abstraction is real — the worker has a generic `Channel` port — but the only adapter that ships is Slack. Discord, Telegram, WhatsApp, and email are future entries on the [`agent/channels-catalog.json`](https://github.com/ribeirogab/zeno-agent/blob/main/agent/channels-catalog.json) directory.
 
-## Slack
+## Channel vs Connector vs Backend
+
+Three abstractions, one CLI-first contract:
+
+| | Channel | Connector | Backend |
+| --- | --- | --- | --- |
+| What it is | I/O boundary (operator ↔ agent) | MCP tool surface the agent calls | Reasoning engine (LLM) |
+| Examples | Slack (today) | Linear, Sentry, GitHub App | claude-code (today) |
+| Multi-instance | No | Yes (e.g. Linear acme + Linear personal) | No |
+| Storage | `connectors` table, `kind='channel'` | `connectors` table, `kind='mcp'` | `backend_credentials` |
+| CLI surface | `zeno channel …` | `zeno connector …` | `zeno backend …` |
+
+Channel ≠ Connector even when the platform is the same. Slack-as-channel is the conversation Zeno listens to and replies on; if you wanted the agent to *post* to Slack proactively or read another channel's history, that would be a Slack-as-connector entry — and is not currently shipped.
+
+## The CLI-first contract
+
+Every channel mutation goes through the `zeno channel …` CLI. The dashboard `/channels` page is read-only by default; every action chip there opens a modal showing the equivalent CLI command to copy and run.
+
+Seven verbs, each documented in the [CLI reference](/cli#channel-management):
+
+| Verb | Purpose |
+| --- | --- |
+| `list` | Table of installed channels with status + last event. |
+| `show` | Detail for one channel; private fields masked, public fields unmasked. |
+| `install` | Pick a channel from the catalog and write its secrets. |
+| `configure` | Update a public (non-secret) field — e.g. `--dm-owner-user-id`. |
+| `test` | Probe connectivity via the catalog-declared strategy. |
+| `rotate` | Replace every required private secret atomically and re-test. |
+| `uninstall` | Destructive remove; cascade-deletes secrets in the same transaction. |
+
+The CLI sends `X-Zeno-Origin: cli` on every request; the worker's API gates mutations behind that header when `ZENO_API_WRITES=cli` (default). The dashboard never sends the header — operator-facing surface for changes stays in the terminal.
+
+## Hot-reload via `ChannelManager`
+
+The worker boots a single `ChannelManager` that owns every channel adapter (today: just Slack). The manager:
+
+- Reads `connectors WHERE kind='channel' AND status='enabled'` at boot and spawns each adapter.
+- Polls the runtime DB every **2 s**. When a row's `updated_at` or its secrets' `updated_at` advances, the manager stops the existing adapter and re-instantiates it with the fresh credentials. After `zeno channel rotate`, the live Slack websocket disconnects and reconnects with the new tokens within one poll tick — no `zeno restart` needed.
+- Exposes `getActiveChannel()` returning the running adapter (or a `NoopChannel` singleton when zero channels are installed). Cron runners + the agent orchestrator hold a stable proxy returned by `asChannel()` that re-resolves on every method call.
+
+This subsumes the original credential-resolver pattern (a one-shot read at boot) and lets the operator land secret rotations live.
+
+## Catalog file
+
+[`agent/channels-catalog.json`](https://github.com/ribeirogab/zeno-agent/blob/main/agent/channels-catalog.json) is the directory the dashboard and CLI both read. Each entry declares its `fields[]` with two flags:
+
+- `required: true` → the field must be supplied at install (or via `--secret KEY=VALUE` in non-TTY).
+- `public: true` → the value is stored unmasked (`connector_secrets.is_public=1`) and rendered without redaction. `false` → masked on read, prompted with hidden input.
+
+The Slack entry today:
+
+```json
+{
+  "id": "slack",
+  "slug": "slack",
+  "name": "Slack",
+  "transport": "socket-mode",
+  "testStrategy": "slack_auth_test",
+  "fields": [
+    { "key": "SLACK_APP_TOKEN", "required": true, "public": false },
+    { "key": "SLACK_BOT_TOKEN", "required": true, "public": false },
+    { "key": "dm_owner_user_id", "required": false, "public": true }
+  ]
+}
+```
+
+`testStrategy` is a string discriminator the worker resolves to a probe function (`slack_auth_test` → call Slack `auth.test`). Adding a future channel = append a catalog entry + register a strategy handler + ship an adapter; none of those changes touch the CLI surface or the dashboard.
+
+<Callout type="info">
+Catalog entries exist if and only if an adapter exists. There are no `available: false` placeholder entries — the picker shows whatever the catalog returns.
+</Callout>
+
+## Slack-specific details
 
 The Slack channel uses [`@slack/bolt`](https://github.com/slackapi/bolt-js) in **Socket Mode**, which means an outbound websocket from the container to Slack. No public URL, no inbound tunnel, no Slack event subscription URL to point at the host.
 
@@ -21,28 +93,25 @@ The contract:
 
 ### App manifest
 
-The Slack app definition lives in the repo at [`infra/slack-app-manifest.json`](https://github.com/ribeirogab/zeno-agent/blob/main/infra/slack-app-manifest.json). Create a Slack app from that manifest, install it to your workspace, and copy the bot token + app-level token into the dashboard's Slack connector flow.
+The Slack app definition lives in the repo at [`infra/slack-app-manifest.json`](https://github.com/ribeirogab/zeno-agent/blob/main/infra/slack-app-manifest.json). Create a Slack app from that manifest, install it to your workspace, and run `zeno channel install slack` — the CLI will prompt for both tokens.
 
 ### Credentials
 
-Two tokens go through the dashboard, not the CLI:
-
 | Token | Where it comes from | Stored as |
 | --- | --- | --- |
-| Bot token (`xoxb-…`) | "OAuth & Permissions" page of the Slack app | Connector secret, encrypted with the profile's master key |
+| Bot token (`xoxb-…`) | "OAuth & Permissions" page of the Slack app | `connector_secrets` row, `is_public=0`, encrypted with the profile's master key |
 | App-level token (`xapp-…`) | "Basic Information" → App-level tokens, with `connections:write` scope | Same |
+| DM owner user id (`Uxxx`) | Optional config — restricts DMs to one user | `connector_secrets` row, `is_public=1`, plaintext |
 
-You never paste these into a `.env` file by hand. The dashboard puts them in the runtime DB.
+You never paste these into a `.env` file by hand. The CLI puts them in the runtime DB; the dashboard surfaces masked values for the private fields.
 
 ### Boot without Slack
 
 <Callout type="info">
-The worker boots **without** Slack credentials. If credentials are missing or incomplete, the worker constructs a `NoopChannel` that quietly drops events, finishes boot, and stays alive. The dashboard becomes reachable, the operator installs the Slack connector, and a `zeno restart <profile>` then promotes the real `SlackChannel`.
+The worker boots **without** Slack credentials. When zero channels are installed, the manager's `getActiveChannel()` returns a `NoopChannel` that quietly drops outbound calls; the dashboard stays reachable for the operator to install. As soon as `zeno channel install slack` lands the row, the manager picks it up on the next poll tick and the real `SlackChannel` takes over — no restart needed.
 </Callout>
-
-This is the supported first-install flow: there is no chicken-and-egg between "the dashboard is the only place to install Slack" and "the worker needs Slack to boot."
 
 ## What channels are not
 
-- **Channels are not connectors.** Slack-as-channel (the I/O boundary) is distinct from Slack-as-connector (an MCP tool surface the agent can call). Today only the channel side ships; if you want the agent to *post* to Slack proactively or read another channel's history, that is a separate connector and is not yet on the roadmap.
 - **Channels are not memory.** The MVP runs each turn fresh. Persisting cross-turn memory is a future concern attached to its own spec, not something to assume.
+- **Channels are not multi-instance.** A profile has one Slack workspace, period. If you operate two, run two profiles.

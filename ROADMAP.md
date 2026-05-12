@@ -10,8 +10,6 @@ _Nothing currently in flight._
 
 ## Next (committed, soon)
 
-- [ ] [#56](https://github.com/ribeirogab/zeno-agent/issues/56) — feat(backend): manage agent backend (Claude) only via CLI + dedicated dashboard menu + onboarding gate
-- [ ] [#57](https://github.com/ribeirogab/zeno-agent/issues/57) — feat(channels): manage channels (Slack only for now) via CLI
 - [ ] [#58](https://github.com/ribeirogab/zeno-agent/issues/58) — feat(crons): manage scheduled tasks via CLI
 - [ ] [#8](https://github.com/ribeirogab/zeno-agent/issues/8) — feat(agent): multi-backend toggle + Codex impl
 - [ ] [#9](https://github.com/ribeirogab/zeno-agent/issues/9) — feat(channels): channel inbound files
@@ -27,6 +25,8 @@ _Nothing currently in flight._
 
 ## Recently shipped
 
+- [x] [#57](https://github.com/ribeirogab/zeno-agent/issues/57) — feat(channels): manage channels via CLI + read-only `/channels` page + `ChannelManager` hot-reload ([PR #70](https://github.com/ribeirogab/zeno-agent/pull/70))
+- [x] [#56](https://github.com/ribeirogab/zeno-agent/issues/56) — feat(backend): manage agent backend (Claude) only via CLI + dedicated dashboard menu + onboarding gate ([PR #68](https://github.com/ribeirogab/zeno-agent/pull/68))
 - [x] [#60](https://github.com/ribeirogab/zeno-agent/issues/60) — feat(cli): UX overhaul — pickers, install.sh/upgrade parity, security fixes ([PR #62](https://github.com/ribeirogab/zeno-agent/pull/62))
 - [x] [PR #54](https://github.com/ribeirogab/zeno-agent/pull/54) — feat(connectors): CLI-first rework — N instances per catalog, dashboard goes read-only, install/uninstall/test/refresh-tools/enable/disable all via `zeno connector …`
 - [x] [#44](https://github.com/ribeirogab/zeno-agent/issues/44) — feat(db): unify DB stack as drizzle ([PR #53](https://github.com/ribeirogab/zeno-agent/pull/53))

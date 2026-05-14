@@ -222,5 +222,11 @@ describe('zeno upgrade pipeline', () => {
     expect(metaWritten).toEqual({ kind: 'tag', value: 'v2026.5.10', sha: 'aaa1111' });
     expect(stepsMock.setVersion).toHaveBeenCalledWith(dbConn, 'v2026.5.10');
     expect(stepsMock.buildImage).toHaveBeenCalled();
+    expect(stepsMock.bootstrapPnpm).toHaveBeenCalledTimes(1);
+    const writeMetaOrder = stepsMock.writeMeta.mock.invocationCallOrder[0] ?? Infinity;
+    const bootstrapOrder = stepsMock.bootstrapPnpm.mock.invocationCallOrder[0] ?? -Infinity;
+    const installDepsOrder = stepsMock.installDeps.mock.invocationCallOrder[0] ?? -Infinity;
+    expect(bootstrapOrder).toBeGreaterThan(writeMetaOrder);
+    expect(bootstrapOrder).toBeLessThan(installDepsOrder);
   });
 });

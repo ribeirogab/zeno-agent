@@ -205,6 +205,9 @@ export default defineCommand({
       upgradeSteps.setVersion(conn, formatDisplay(newMeta));
       upgradeSteps.writeMeta(newMeta);
 
+      await spin('bootstrapping pnpm via corepack', async () => {
+        upgradeSteps.bootstrapPnpm();
+      });
       await spin('installing dependencies (pnpm)', async () => {
         upgradeSteps.installDeps();
       });

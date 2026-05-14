@@ -25,6 +25,7 @@ _Nothing currently in flight._
 
 ## Recently shipped
 
+- [x] [#52](https://github.com/ribeirogab/zeno-agent/issues/52) — feat(install): drop pnpm host prereq via corepack bootstrap
 - [x] [#57](https://github.com/ribeirogab/zeno-agent/issues/57) — feat(channels): manage channels via CLI + read-only `/channels` page + `ChannelManager` hot-reload ([PR #70](https://github.com/ribeirogab/zeno-agent/pull/70))
 - [x] [#56](https://github.com/ribeirogab/zeno-agent/issues/56) — feat(backend): manage agent backend (Claude) only via CLI + dedicated dashboard menu + onboarding gate ([PR #68](https://github.com/ribeirogab/zeno-agent/pull/68))
 - [x] [#60](https://github.com/ribeirogab/zeno-agent/issues/60) — feat(cli): UX overhaul — pickers, install.sh/upgrade parity, security fixes ([PR #62](https://github.com/ribeirogab/zeno-agent/pull/62))

@@ -176,11 +176,11 @@ export const upgradeSteps = {
     if (enable.status !== 0) {
       throw new Error(`bootstrapPnpm failed: corepack enable exited ${enable.status}`);
     }
-    const prepare = spawnSync(
-      'corepack',
-      ['prepare', `pnpm@${version}`, '--activate'],
-      { stdio: 'inherit', cwd: ZENO_HOME, env },
-    );
+    const prepare = spawnSync('corepack', ['prepare', `pnpm@${version}`, '--activate'], {
+      stdio: 'inherit',
+      cwd: ZENO_HOME,
+      env,
+    });
     if (prepare.status !== 0) {
       throw new Error(`bootstrapPnpm failed: corepack prepare exited ${prepare.status}`);
     }

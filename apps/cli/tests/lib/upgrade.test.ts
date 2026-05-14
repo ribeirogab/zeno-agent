@@ -119,10 +119,7 @@ describe('upgradeSteps.bootstrapPnpm', () => {
   });
 
   it('sets COREPACK_ENABLE_DOWNLOAD_PROMPT=0 in spawn env', () => {
-    writeFileSync(
-      join(tmp, 'package.json'),
-      JSON.stringify({ packageManager: 'pnpm@10.33.0' }),
-    );
+    writeFileSync(join(tmp, 'package.json'), JSON.stringify({ packageManager: 'pnpm@10.33.0' }));
     upgradeSteps.bootstrapPnpm();
     const calls = spawnSyncMock.mock.calls as unknown as SpawnArgs[];
     for (const call of calls) {
@@ -139,10 +136,7 @@ describe('upgradeSteps.bootstrapPnpm', () => {
   });
 
   it('throws when corepack exits non-zero', () => {
-    writeFileSync(
-      join(tmp, 'package.json'),
-      JSON.stringify({ packageManager: 'pnpm@10.33.0' }),
-    );
+    writeFileSync(join(tmp, 'package.json'), JSON.stringify({ packageManager: 'pnpm@10.33.0' }));
     spawnSyncMock.mockReturnValueOnce({
       status: 0,
       stdout: '',

@@ -170,9 +170,10 @@ export default defineCommand({
       console.log(`    2. checkoutRef(${checkoutValue}, ${resolved.kind})`);
       console.log('    3. setVersion');
       console.log('    4. writeMeta');
-      console.log('    5. installDeps (pnpm install --frozen-lockfile)');
-      console.log('    6. buildCli (pnpm build --filter @zeno/cli)');
-      console.log('    7. buildImage (docker build -t zeno-agent:dev)');
+      console.log('    5. bootstrapPnpm (corepack prepare pnpm@<version> --activate)');
+      console.log('    6. installDeps (pnpm install --frozen-lockfile)');
+      console.log('    7. buildCli (pnpm build --filter @zeno/cli)');
+      console.log('    8. buildImage (docker build -t zeno-agent:dev)');
       console.log('');
       return;
     }

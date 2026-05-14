@@ -26,6 +26,7 @@ const stepsMock = vi.hoisted(() => ({
   checkoutRef: vi.fn(),
   setVersion: vi.fn(),
   writeMeta: vi.fn(),
+  bootstrapPnpm: vi.fn(),
   installDeps: vi.fn(),
   buildCli: vi.fn(),
   buildImage: vi.fn(),
@@ -47,6 +48,7 @@ vi.mock('@/lib/upgrade.js', async () => {
       checkoutRef: stepsMock.checkoutRef,
       setVersion: stepsMock.setVersion,
       writeMeta: stepsMock.writeMeta,
+      bootstrapPnpm: stepsMock.bootstrapPnpm,
       installDeps: stepsMock.installDeps,
       buildCli: stepsMock.buildCli,
       buildImage: stepsMock.buildImage,
@@ -80,6 +82,7 @@ beforeEach(() => {
   stepsMock.checkoutRef.mockReset();
   stepsMock.setVersion.mockReset();
   stepsMock.writeMeta.mockReset();
+  stepsMock.bootstrapPnpm.mockReset();
   stepsMock.installDeps.mockReset();
   stepsMock.buildCli.mockReset();
   stepsMock.buildImage.mockReset();
@@ -115,7 +118,7 @@ afterEach(() => {
 });
 
 describe('zeno upgrade pipeline', () => {
-  it('--dry-run prints all 7 steps without executing', async () => {
+  it('--dry-run prints all 8 steps without executing', async () => {
     queriesMock.getVersion.mockReturnValue('v2026.5.9');
     await upgrade.run?.({
       args: { branch: 'feat/foo', yes: true, dryRun: true },
@@ -130,6 +133,7 @@ describe('zeno upgrade pipeline', () => {
       'checkoutRef',
       'setVersion',
       'writeMeta',
+      'bootstrapPnpm',
       'installDeps',
       'buildCli',
       'buildImage',

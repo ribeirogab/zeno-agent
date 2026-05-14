@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -88,5 +89,33 @@ describe('install.sh parser', () => {
     const r = shRun('--dry-parse');
     expect(r.status).toBe(0);
     expect(r.stdout).toContain('KIND=unstable');
+  });
+});
+
+describe('install.sh corepack bootstrap', () => {
+  const source = readFileSync(SH, 'utf8');
+
+  it('does not require pnpm on the host', () => {
+    expect(source).not.toMatch(/^need pnpm /m);
+  });
+
+  it('enables corepack before invoking pnpm', () => {
+    expect(source).toMatch(/corepack enable/);
+    const enableIdx = source.indexOf('corepack enable');
+    const pnpmInstallIdx = source.indexOf('pnpm install --frozen-lockfile');
+    expect(enableIdx).toBeGreaterThan(-1);
+    expect(pnpmInstallIdx).toBeGreaterThan(enableIdx);
+  });
+
+  it('prepares the pnpm version parsed from package.json', () => {
+    expect(source).toMatch(/corepack prepare "?pnpm@/);
+    expect(source).toMatch(/parse_pnpm_version\(\)/);
+  });
+
+  it('exports COREPACK_ENABLE_DOWNLOAD_PROMPT=0 before corepack calls', () => {
+    const corepackIdx = source.indexOf('corepack enable');
+    const envIdx = source.indexOf('COREPACK_ENABLE_DOWNLOAD_PROMPT=0');
+    expect(envIdx).toBeGreaterThan(-1);
+    expect(envIdx).toBeLessThan(corepackIdx);
   });
 });

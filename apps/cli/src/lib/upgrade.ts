@@ -3,10 +3,23 @@
 // pnpm install + pnpm build + docker build.
 
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { DB } from '@zeno/db/host';
 import { queries } from '@zeno/db/host';
 import { ZENO_HOME } from './paths.js';
 import { type VersionKind, type VersionMeta, writeMeta as writeMetaImpl } from './version-meta.js';
+
+function parsePackageManagerVersion(home: string): string {
+  const pkgPath = join(home, 'package.json');
+  const raw = readFileSync(pkgPath, 'utf8');
+  const parsed = JSON.parse(raw) as { packageManager?: string };
+  const value = parsed.packageManager;
+  if (!value || !value.startsWith('pnpm@')) {
+    throw new Error('package.json missing "packageManager" field (corepack bootstrap requires it)');
+  }
+  return value.slice('pnpm@'.length);
+}
 
 export interface Release {
   tag: string;
@@ -155,6 +168,22 @@ export const upgradeSteps = {
   },
   writeMeta(meta: VersionMeta): void {
     writeMetaImpl(meta);
+  },
+  bootstrapPnpm(): void {
+    const version = parsePackageManagerVersion(ZENO_HOME);
+    const env = { ...process.env, COREPACK_ENABLE_DOWNLOAD_PROMPT: '0' };
+    const enable = spawnSync('corepack', ['enable'], { stdio: 'inherit', cwd: ZENO_HOME, env });
+    if (enable.status !== 0) {
+      throw new Error(`bootstrapPnpm failed: corepack enable exited ${enable.status}`);
+    }
+    const prepare = spawnSync('corepack', ['prepare', `pnpm@${version}`, '--activate'], {
+      stdio: 'inherit',
+      cwd: ZENO_HOME,
+      env,
+    });
+    if (prepare.status !== 0) {
+      throw new Error(`bootstrapPnpm failed: corepack prepare exited ${prepare.status}`);
+    }
   },
   installDeps(): void {
     run('pnpm', ['install', '--frozen-lockfile']);

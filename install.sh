@@ -15,8 +15,9 @@
 #   - Hardcoded install path: ~/.zeno/zeno-agent. No ZENO_HOME override.
 #   - Refuses to run if ~/.zeno/zeno-agent already exists. Use 'zeno upgrade'
 #     for routine version moves, or remove the directory to reinstall.
-#   - Verifies prerequisites (git, docker, node 24+, pnpm 10+, curl) and prints
-#     an install URL when one is missing.
+#   - Verifies prerequisites (git, docker, node 24+, curl) and prints
+#     an install URL when one is missing. pnpm is bootstrapped via corepack
+#     from the cloned repo's package.json (no host pnpm needed).
 #   - Detects the legacy ~/zeno-agent install and prints an explicit cleanup
 #     instruction (manual; the installer never deletes operator data).
 #   - Clones the repo at the resolved ref, runs pnpm install, builds @zeno/cli,
@@ -176,7 +177,6 @@ need() {
 need git    'install git: https://git-scm.com/downloads'
 need docker 'install Docker Desktop (mac/win) or Engine (linux): https://docs.docker.com/get-docker/'
 need node   'install Node.js 24 LTS: https://nodejs.org/ (recommend fnm/nvm)'
-need pnpm   'install pnpm 10: https://pnpm.io/installation'
 need curl   'install curl: https://curl.se/'
 
 NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]')
@@ -215,6 +215,20 @@ case "$KIND" in
 esac
 
 cd "$ZENO_HOME"
+
+parse_pnpm_version() {
+  grep '"packageManager"' package.json | sed 's/.*"pnpm@\([^"]*\)".*/\1/'
+}
+
+PNPM_VERSION="$(parse_pnpm_version)"
+if [ -z "$PNPM_VERSION" ]; then
+  fail 'package.json missing "packageManager" field (corepack bootstrap requires it)'
+fi
+
+export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+corepack enable
+corepack prepare "pnpm@${PNPM_VERSION}" --activate
+
 pnpm install --frozen-lockfile
 pnpm build --filter @zeno/cli
 

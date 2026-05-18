@@ -8,7 +8,7 @@ created: 2026-05-18
 
 **For this plan:** [[plan-channel-inbound-files]]
 
-> All commands run from the worktree root `/Users/gabriel/.zeno/zeno-agent/.claude/worktrees/issue-9-channel-inbound-files/`. `pnpm run quality-gate` is the lint + typecheck + tests gate. Never use `--no-verify`.
+> All commands run from the worktree root for this branch. `pnpm run quality-gate` is the lint + typecheck + tests gate. Never use `--no-verify`.
 
 ## Phase 0: Preflight
 

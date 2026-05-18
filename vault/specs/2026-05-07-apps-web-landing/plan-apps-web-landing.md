@@ -1,11 +1,11 @@
 ---
 feature: apps-web-landing
-spec: "[[spec]]"
+spec: "[[spec-apps-web-landing]]"
 created: 2026-05-07
 ---
 # `apps/web` Landing Page — Plan
 
-**For this spec:** `[[spec]]`
+**For this spec:** `[[spec-apps-web-landing]]`
 
 ## Approach
 

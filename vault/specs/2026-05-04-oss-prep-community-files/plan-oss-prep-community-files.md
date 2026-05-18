@@ -1,11 +1,11 @@
 ---
 feature: oss-prep-community-files
-spec: "[[spec]]"
+spec: "[[spec-oss-prep-community-files]]"
 created: 2026-05-04
 ---
 # OSS-Prep — Community Files — Plan
 
-**For this spec:** `[[spec]]`
+**For this spec:** `[[spec-oss-prep-community-files]]`
 
 ## Approach
 

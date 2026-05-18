@@ -1,12 +1,12 @@
 ---
 feature: oss-prep-community-files
-plan: "[[plan]]"
-spec: "[[spec]]"
+plan: "[[plan-oss-prep-community-files]]"
+spec: "[[spec-oss-prep-community-files]]"
 created: 2026-05-04
 ---
 # OSS-Prep — Community Files — Tasks
 
-**For this plan:** `[[plan]]`
+**For this plan:** `[[plan-oss-prep-community-files]]`
 
 > **Execution model:** inline. Each file is small, self-contained, and sequenced in this single session. Branch `chore/oss-prep-community` is already created.
 

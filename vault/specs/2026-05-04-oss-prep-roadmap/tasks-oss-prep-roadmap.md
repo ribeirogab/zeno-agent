@@ -1,12 +1,12 @@
 ---
 feature: oss-prep-roadmap
-plan: "[[plan]]"
-spec: "[[spec]]"
+plan: "[[plan-oss-prep-roadmap]]"
+spec: "[[spec-oss-prep-roadmap]]"
 created: 2026-05-04
 ---
 # OSS-Prep — Roadmap Communication — Tasks
 
-**For this plan:** `[[plan]]`
+**For this plan:** `[[plan-oss-prep-roadmap]]`
 
 > **Execution model:** inline. Branch `chore/oss-prep-roadmap` is already created from `main`.
 

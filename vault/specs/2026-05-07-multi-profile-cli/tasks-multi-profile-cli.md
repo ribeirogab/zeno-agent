@@ -1,12 +1,12 @@
 ---
 feature: multi-profile-cli
-plan: "[[plan]]"
-spec: "[[spec]]"
+plan: "[[plan-multi-profile-cli]]"
+spec: "[[spec-multi-profile-cli]]"
 created: 2026-05-07
 ---
 # Multi-Profile CLI — Tasks
 
-**For this plan:** `[[plan]]`
+**For this plan:** `[[plan-multi-profile-cli]]`
 
 > All commits in this branch follow Conventional Commits. Branch name: `feat/multi-profile-cli`. Open the PR via `/open-pr` per project rule.
 >

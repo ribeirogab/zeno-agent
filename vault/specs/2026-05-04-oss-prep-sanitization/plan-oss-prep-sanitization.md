@@ -1,11 +1,11 @@
 ---
 feature: oss-prep-sanitization
-spec: "[[spec]]"
+spec: "[[spec-oss-prep-sanitization]]"
 created: 2026-05-04
 ---
 # OSS-Prep — Sanitization Rule + Final Scrub — Plan
 
-**For this spec:** `[[spec]]`
+**For this spec:** `[[spec-oss-prep-sanitization]]`
 
 ## Approach
 

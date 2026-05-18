@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "ribeirogab-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "ribeirogab/agent-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "memex@ribeirogab-agent-skills": true
+  }
+}

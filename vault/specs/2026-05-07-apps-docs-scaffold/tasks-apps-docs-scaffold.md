@@ -1,12 +1,12 @@
 ---
 feature: apps-docs-scaffold
-plan: "[[plan]]"
-spec: "[[spec]]"
+plan: "[[plan-apps-docs-scaffold]]"
+spec: "[[spec-apps-docs-scaffold]]"
 created: 2026-05-07
 ---
 # Apps/Docs Minimal Scaffold — Tasks
 
-**For this plan:** [[plan]]
+**For this plan:** [[plan-apps-docs-scaffold]]
 
 > **For agentic workers:** Steps use checkbox (`- [ ]`) syntax for tracking. Each commit step is a logical boundary; `git add` / `git commit` require explicit user approval per `CLAUDE.md` rule 20.
 

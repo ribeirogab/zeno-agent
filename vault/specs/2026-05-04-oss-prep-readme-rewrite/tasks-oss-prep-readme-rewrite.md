@@ -1,12 +1,12 @@
 ---
 feature: oss-prep-readme-rewrite
-plan: "[[plan]]"
-spec: "[[spec]]"
+plan: "[[plan-oss-prep-readme-rewrite]]"
+spec: "[[spec-oss-prep-readme-rewrite]]"
 created: 2026-05-04
 ---
 # OSS-Prep — README Rewrite — Tasks
 
-**For this plan:** `[[plan]]`
+**For this plan:** `[[plan-oss-prep-readme-rewrite]]`
 
 > **Execution model:** inline. Branch `chore/oss-prep-readme` is already created.
 

@@ -1,11 +1,11 @@
 ---
 feature: oss-prep-readme-rewrite
-spec: "[[spec]]"
+spec: "[[spec-oss-prep-readme-rewrite]]"
 created: 2026-05-04
 ---
 # OSS-Prep — README Rewrite — Plan
 
-**For this spec:** `[[spec]]`
+**For this spec:** `[[spec-oss-prep-readme-rewrite]]`
 
 ## Approach
 

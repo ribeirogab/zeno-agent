@@ -1,12 +1,12 @@
 ---
 feature: apps-web-landing
-plan: "[[plan]]"
-spec: "[[spec]]"
+plan: "[[plan-apps-web-landing]]"
+spec: "[[spec-apps-web-landing]]"
 created: 2026-05-07
 ---
 # `apps/web` Landing Page — Tasks
 
-**For this plan:** `[[plan]]`
+**For this plan:** `[[plan-apps-web-landing]]`
 
 > All commits in this branch follow Conventional Commits and use the `feat(web):`, `chore(web):`, `test(web):`, `docs:`, or `ci:` scope as appropriate. Branch name: `feat/apps-web-landing`. Open the PR via `/open-pr` per project rule.
 >

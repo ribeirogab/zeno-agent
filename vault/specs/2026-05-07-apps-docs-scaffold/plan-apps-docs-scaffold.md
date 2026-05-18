@@ -1,11 +1,11 @@
 ---
 feature: apps-docs-scaffold
-spec: "[[spec]]"
+spec: "[[spec-apps-docs-scaffold]]"
 created: 2026-05-07
 ---
 # Apps/Docs Minimal Scaffold — Plan
 
-**For this spec:** [[spec]]
+**For this spec:** [[spec-apps-docs-scaffold]]
 
 > **Project rule reminder:** This plan stages logical commit boundaries, but `git add` / `git commit` / `git push` require explicit user approval per `CLAUDE.md` rule 20. Treat every commit step as "stage + ask before committing." Never push to `main`/`master`.
 

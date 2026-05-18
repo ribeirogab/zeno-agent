@@ -1,11 +1,11 @@
 ---
 feature: zeno-cli
-spec: "[[spec]]"
+spec: "[[spec-zeno-cli]]"
 created: 2026-05-07
 ---
 # Zeno CLI — Plan
 
-**For this spec:** `[[spec]]`
+**For this spec:** `[[spec-zeno-cli]]`
 
 ## Approach
 

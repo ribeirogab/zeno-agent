@@ -1,13 +1,13 @@
 ---
 feature: channels-cli-first
-spec: "[[spec]]"
+spec: "[[spec-channels-cli-first]]"
 created: 2026-05-11
 ---
 # Channels CLI-First — Implementation Plan
 
 > **For agentic workers:** Use the superpowers:subagent-driven-development sub-skill to execute this plan task-by-task. Steps use checkbox (`- [ ]`) syntax in `tasks.md` for tracking.
 
-**For this spec:** [[spec]]
+**For this spec:** [[spec-channels-cli-first]]
 
 **Goal:** Land issue [#57](https://github.com/ribeirogab/zeno-agent/issues/57) in a single PR (`feat/channels-cli-first`): move every channel mutation (install, configure, test, rotate, uninstall) behind a new `zeno channel …` CLI subtree; retrofit the existing `/api/channels` routes with the `ZENO_API_WRITES` gate plus `isPublic` threading on PATCH; replace the boot-time one-shot Slack credential resolver with a `ChannelManager` that hot-reloads adapters on DB change; rewrite the dashboard `/channels` page as the read-only Paper artboards (CH1/CH2/CH3 + `M-ch · CommandModal` variants). Catalog ships with Slack only — surface is forward-compatible for Discord/Telegram/WhatsApp.
 

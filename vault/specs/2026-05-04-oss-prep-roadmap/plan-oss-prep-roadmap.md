@@ -1,11 +1,11 @@
 ---
 feature: oss-prep-roadmap
-spec: "[[spec]]"
+spec: "[[spec-oss-prep-roadmap]]"
 created: 2026-05-04
 ---
 # OSS-Prep — Roadmap Communication — Plan
 
-**For this spec:** `[[spec]]`
+**For this spec:** `[[spec-oss-prep-roadmap]]`
 
 ## Approach
 

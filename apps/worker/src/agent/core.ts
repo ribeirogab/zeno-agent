@@ -79,7 +79,7 @@ export class AgentCore {
 
       const agentInput: AgentInput = {
         systemPrompt: this.opts.getSystemPrompt(),
-        userMessage: wrapWithSlackContext(message),
+        userMessage: wrapWithChannelContext(message),
         cwd: this.opts.workspaceDir,
         correlationId: message.correlationId,
         // Messages without a thread (DM first msg) are stateless — don't persist the SDK session
@@ -165,31 +165,44 @@ export class AgentCore {
 }
 
 /**
- * Prepend a `[slack_context]` preamble so the agent can default cron tool args
- * (notify_conversation_id, notify_thread_id) to the current Slack target.
- * Concatenated into the user message — NOT into the system prompt — to keep the prompt cache valid.
+ * Prepend optional channel-context blocks to the user's message text.
+ *
+ * - `[slack_context]` + `[parent_message]`: emitted only when `platform === 'slack'`.
+ *   Lets the agent default cron tool args (notify_conversation_id, notify_thread_id)
+ *   to the current Slack target.
+ * - `[attached_files]`: emitted whenever `attachments?.length > 0`, regardless of platform.
+ *   This is the channel-agnostic surface — any future channel adapter that populates
+ *   `IncomingMessage.attachments[]` gets prompt surfacing for free.
+ *
+ * Concatenated into the user message — NOT into the system prompt — to keep the
+ * prompt cache valid.
  */
 /** @internal Exported for testing only. */
-export function wrapWithSlackContext(message: IncomingMessage): string {
-  if (message.platform !== 'slack') return message.text;
-  const lines = [
-    '[slack_context]',
-    `conversation_id: ${message.conversationId}`,
-    `thread_id: ${message.threadId ?? 'null'}`,
-    `user_id: ${message.userId}`,
-    `current_time: ${new Date().toISOString()}`,
-    '[/slack_context]',
-  ];
+export function wrapWithChannelContext(message: IncomingMessage): string {
+  const lines: string[] = [];
 
-  if (message.parentText) {
-    lines.push('');
-    lines.push('[parent_message]');
-    lines.push(message.parentText);
-    lines.push('[/parent_message]');
+  // Slack-specific context blocks (gated by platform).
+  if (message.platform === 'slack') {
+    lines.push(
+      '[slack_context]',
+      `conversation_id: ${message.conversationId}`,
+      `thread_id: ${message.threadId ?? 'null'}`,
+      `user_id: ${message.userId}`,
+      `current_time: ${new Date().toISOString()}`,
+      '[/slack_context]',
+    );
+
+    if (message.parentText) {
+      lines.push('');
+      lines.push('[parent_message]');
+      lines.push(message.parentText);
+      lines.push('[/parent_message]');
+    }
   }
 
+  // Universal: any channel that populates attachments[] gets injection.
   if (message.attachments?.length) {
-    lines.push('');
+    if (lines.length) lines.push('');
     lines.push('[attached_files]');
     for (const attachment of message.attachments) {
       lines.push(`- ${attachment.localPath} (${attachment.mimetype}, ${attachment.name})`);
@@ -197,6 +210,9 @@ export function wrapWithSlackContext(message: IncomingMessage): string {
     lines.push('[/attached_files]');
     lines.push('Read the attached files before responding.');
   }
+
+  // No context blocks at all → return raw text unchanged.
+  if (!lines.length) return message.text;
 
   lines.push('');
   lines.push(message.text);

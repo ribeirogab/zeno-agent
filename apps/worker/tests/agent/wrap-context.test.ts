@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { wrapWithSlackContext } from '@/agent/core';
+import { wrapWithChannelContext } from '@/agent/core';
 import type { IncomingMessage } from '@/channels/types';
 
 function makeMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessage {
@@ -16,14 +16,14 @@ function makeMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessage 
   };
 }
 
-describe('wrapWithSlackContext', () => {
+describe('wrapWithChannelContext', () => {
   it('returns plain text for non-slack platforms', () => {
     const message = makeMessage({ platform: 'discord', text: 'hi' });
-    expect(wrapWithSlackContext(message)).toBe('hi');
+    expect(wrapWithChannelContext(message)).toBe('hi');
   });
 
   it('wraps slack messages with context preamble', () => {
-    const result = wrapWithSlackContext(makeMessage({ text: 'test' }));
+    const result = wrapWithChannelContext(makeMessage({ text: 'test' }));
     expect(result).toContain('[slack_context]');
     expect(result).toContain('conversation_id: C1');
     expect(result).toContain('thread_id: T1');
@@ -33,7 +33,7 @@ describe('wrapWithSlackContext', () => {
   });
 
   it('does not include attached_files block when no attachments', () => {
-    const result = wrapWithSlackContext(makeMessage());
+    const result = wrapWithChannelContext(makeMessage());
     expect(result).not.toContain('[attached_files]');
   });
 
@@ -55,7 +55,7 @@ describe('wrapWithSlackContext', () => {
       ],
     });
 
-    const result = wrapWithSlackContext(message);
+    const result = wrapWithChannelContext(message);
 
     expect(result).toContain('[attached_files]');
     expect(result).toContain(
@@ -81,7 +81,7 @@ describe('wrapWithSlackContext', () => {
       ],
     });
 
-    const result = wrapWithSlackContext(message);
+    const result = wrapWithChannelContext(message);
 
     // Attachments block appears between context and user text
     const attachedIdx = result.indexOf('[attached_files]');
@@ -94,7 +94,7 @@ describe('wrapWithSlackContext', () => {
 
   it('does not include attached_files block when attachments array is empty', () => {
     const message = makeMessage({ attachments: [] });
-    const result = wrapWithSlackContext(message);
+    const result = wrapWithChannelContext(message);
     expect(result).not.toContain('[attached_files]');
   });
 });

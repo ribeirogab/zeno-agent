@@ -15,7 +15,7 @@ shipped: null
 
 This spec captures the polish pass that gets the docs site to feature-parity with comparable docs (Fumadocs's own site, `nuqs.dev`, `mdxjs.com`) without authoring any new content.
 
-The brainstorming flow (this session, 2026-05-10) resolved every conceptual decision before this spec was written. Q1–Q10 summary lives in the implementation plan; see [[plan]].
+The brainstorming flow (this session, 2026-05-10) resolved every conceptual decision before this spec was written. Q1–Q10 summary lives in the implementation plan; see [[plan-docs-ui-polish]].
 
 ## Problem Statement
 
@@ -185,4 +185,4 @@ Each item is a binary check verifiable in under a minute by someone other than t
 
 ## Open Questions
 
-None at spec time. Q1–Q10 resolved every decision the owner needed to make; remaining items are implementation details documented in [[plan]].
+None at spec time. Q1–Q10 resolved every decision the owner needed to make; remaining items are implementation details documented in [[plan-docs-ui-polish]].

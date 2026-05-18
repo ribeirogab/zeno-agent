@@ -1,12 +1,12 @@
 ---
 feature: zeno-cli
-plan: "[[plan]]"
-spec: "[[spec]]"
+plan: "[[plan-zeno-cli]]"
+spec: "[[spec-zeno-cli]]"
 created: 2026-05-07
 ---
 # Zeno CLI — Tasks
 
-**For this plan:** `[[plan]]`
+**For this plan:** `[[plan-zeno-cli]]`
 
 > All commits in this branch follow Conventional Commits and use the `feat(cli):`, `chore(cli):`, `test(cli):`, `docs:`, or `ci:` scope as appropriate. Branch name: `feat/zeno-cli`. Open the PR via `/open-pr` per project rule.
 >

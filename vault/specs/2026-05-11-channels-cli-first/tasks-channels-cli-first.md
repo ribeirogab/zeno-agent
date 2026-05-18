@@ -1,12 +1,12 @@
 ---
 feature: channels-cli-first
-plan: "[[plan]]"
-spec: "[[spec]]"
+plan: "[[plan-channels-cli-first]]"
+spec: "[[spec-channels-cli-first]]"
 created: 2026-05-11
 ---
 # Channels CLI-First — Tasks
 
-**For this plan:** [[plan]]
+**For this plan:** [[plan-channels-cli-first]]
 
 > All tasks run from the repo root unless stated. Branch is already created (`feat/channels-cli-first`). Every task ends with `git commit`. Phase boundaries are commit clusters; the PR is opened only after Phase 12.
 

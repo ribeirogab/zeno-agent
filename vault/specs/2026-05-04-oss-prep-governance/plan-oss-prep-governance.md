@@ -1,11 +1,11 @@
 ---
 feature: oss-prep-governance
-spec: "[[spec]]"
+spec: "[[spec-oss-prep-governance]]"
 created: 2026-05-04
 ---
 # OSS-Prep — Governance + Release Flow — Plan
 
-**For this spec:** `[[spec]]`
+**For this spec:** `[[spec-oss-prep-governance]]`
 
 ## Approach
 

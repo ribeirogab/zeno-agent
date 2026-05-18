@@ -1,12 +1,12 @@
 ---
 feature: backend-cli-only
-plan: "[[plan]]"
-spec: "[[spec]]"
+plan: "[[plan-backend-cli-only]]"
+spec: "[[spec-backend-cli-only]]"
 created: 2026-05-10
 ---
 # 0072 — Backend CLI-Only — Tasks
 
-**For this plan:** [[plan]]
+**For this plan:** [[plan-backend-cli-only]]
 
 > All tasks run from the repo root unless stated. Branch is already created (`feat/backend-cli-only`). Every task ends with `git commit`. Phase boundaries are commit clusters; the PR is opened only after Phase 12.
 

@@ -1,13 +1,13 @@
 ---
 feature: backend-cli-only
-spec: "[[spec]]"
+spec: "[[spec-backend-cli-only]]"
 created: 2026-05-10
 ---
 # 0072 — Backend CLI-Only — Implementation Plan
 
 > **For agentic workers:** Use the superpowers:subagent-driven-development sub-skill to execute this plan task-by-task. Steps use checkbox (`- [ ]`) syntax in `tasks.md` for tracking.
 
-**For this spec:** [[spec]]
+**For this spec:** [[spec-backend-cli-only]]
 
 **Goal:** Land issue [#56](https://github.com/ribeirogab/zeno-agent/issues/56) in a single PR (`feat/backend-cli-only`): move all backend (claude-code) configuration from the dashboard to a new `zeno backend` CLI subtree; make the dashboard `/backend` page read-only; rename onboarding to be backend-generic; nuke `process.env.ZENO_BACKEND` everywhere.
 

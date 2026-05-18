@@ -1,11 +1,11 @@
 ---
 feature: multi-profile-cli
-spec: "[[spec]]"
+spec: "[[spec-multi-profile-cli]]"
 created: 2026-05-07
 ---
 # Multi-Profile CLI — Plan
 
-**For this spec:** `[[spec]]`
+**For this spec:** `[[spec-multi-profile-cli]]`
 
 ## Approach
 

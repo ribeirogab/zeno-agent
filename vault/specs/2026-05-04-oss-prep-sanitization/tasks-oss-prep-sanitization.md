@@ -1,12 +1,12 @@
 ---
 feature: oss-prep-sanitization
-plan: "[[plan]]"
-spec: "[[spec]]"
+plan: "[[plan-oss-prep-sanitization]]"
+spec: "[[spec-oss-prep-sanitization]]"
 created: 2026-05-04
 ---
 # OSS-Prep — Sanitization Rule + Final Scrub — Tasks
 
-**For this plan:** `[[plan]]`
+**For this plan:** `[[plan-oss-prep-sanitization]]`
 
 > **Execution model:** subagent-driven. Main thread dispatches one subagent per task, reviews the resulting diff, then moves to the next. Each subagent receives the full forbidden list (1–11) + mapping table inline, so context is self-contained.
 

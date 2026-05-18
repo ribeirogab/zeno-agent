@@ -1,12 +1,12 @@
 ---
 feature: oss-prep-governance
-plan: "[[plan]]"
-spec: "[[spec]]"
+plan: "[[plan-oss-prep-governance]]"
+spec: "[[spec-oss-prep-governance]]"
 created: 2026-05-04
 ---
 # OSS-Prep — Governance + Release Flow — Tasks
 
-**For this plan:** `[[plan]]`
+**For this plan:** `[[plan-oss-prep-governance]]`
 
 > **Execution model:** inline. Branch `chore/oss-prep-governance` (renamed from `chore/oss-prep-smoke-test`) is the working branch.
 

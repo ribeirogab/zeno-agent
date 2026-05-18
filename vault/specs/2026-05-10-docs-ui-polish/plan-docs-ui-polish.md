@@ -1,13 +1,13 @@
 ---
 feature: docs-ui-polish
-spec: "[[spec]]"
+spec: "[[spec-docs-ui-polish]]"
 created: 2026-05-10
 ---
 # Docs UI Polish — Plan
 
-**For this spec:** [[spec]]
+**For this spec:** [[spec-docs-ui-polish]]
 
-> **For agentic workers:** Use the `executing-plans` workflow (inline execution) — each task is small, surgical, and produces a self-contained commit. Steps use checkbox (`- [ ]`) syntax for tracking. The full task list lives in [[tasks]].
+> **For agentic workers:** Use the `executing-plans` workflow (inline execution) — each task is small, surgical, and produces a self-contained commit. Steps use checkbox (`- [ ]`) syntax for tracking. The full task list lives in [[tasks-docs-ui-polish]].
 
 ## Approach
 
@@ -105,6 +105,6 @@ Each phase is one commit. Phases listed in execution order:
 
 ## Risks / Open Decisions
 
-Resolved in [[spec]] §Risks. The implementer should re-read the Risks table before starting Tasks 8 (OG image font loading), 11 (Twoslash build-time errors), and 12 (R2 API drift + NODE_ENV guard behavior).
+Resolved in [[spec-docs-ui-polish]] §Risks. The implementer should re-read the Risks table before starting Tasks 8 (OG image font loading), 11 (Twoslash build-time errors), and 12 (R2 API drift + NODE_ENV guard behavior).
 
-No open decisions. Implementation proceeds task-by-task per [[tasks]].
+No open decisions. Implementation proceeds task-by-task per [[tasks-docs-ui-polish]].

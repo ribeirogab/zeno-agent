@@ -1,12 +1,12 @@
 ---
 feature: docs-ui-polish
-plan: "[[plan]]"
-spec: "[[spec]]"
+plan: "[[plan-docs-ui-polish]]"
+spec: "[[spec-docs-ui-polish]]"
 created: 2026-05-10
 ---
 # Docs UI Polish — Tasks
 
-**For this plan:** [[plan]]
+**For this plan:** [[plan-docs-ui-polish]]
 
 > Inline execution. Each phase = one commit. Run `pnpm --filter @zeno/docs dev` (port 4242) for any visual verification; run `pnpm run quality-gate` before each commit. Reference Fumadocs typings (`node_modules/fumadocs-ui/dist/*.d.ts`) when an API shape is ambiguous and capture deviations in a new note in `vault/learnings/`.
 
@@ -1429,7 +1429,7 @@ git commit -m "docs(docs): readme correction (pagefind + next 15 → 16)"
 pnpm run quality-gate
 ```
 
-- [ ] Manually verify each AC in [[spec]] against the running dev server.
+- [ ] Manually verify each AC in [[spec-docs-ui-polish]] against the running dev server.
 
 - [ ] Open `http://localhost:4242/preview` and click each sub-route — every one should render cleanly.
 

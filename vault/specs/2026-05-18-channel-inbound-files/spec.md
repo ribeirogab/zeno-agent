@@ -94,7 +94,7 @@ The unit test `wrapWithChannelContext: non-slack with attachments` (see Acceptan
 ### Code structure
 
 - [ ] `apps/worker/src/agent/core.ts` no longer exports a function named `wrapWithSlackContext`. The replacement function is named `wrapWithChannelContext` and is exported with the same `@internal` JSDoc tag.
-- [ ] `apps/worker/src/agent/core.ts` contains exactly one call site for the wrapper (the existing invocation around line 68 area), updated to call `wrapWithChannelContext`. `grep -rn 'wrapWithSlackContext' apps/worker/src` returns zero matches after the change.
+- [ ] `apps/worker/src/agent/core.ts` contains exactly one call site for the wrapper, updated to call `wrapWithChannelContext`. `grep -rn 'wrapWithSlackContext' apps/worker/src` returns zero matches after the change.
 - [ ] The body of `wrapWithChannelContext` gates `[slack_context]` and `[parent_message]` blocks on `message.platform === 'slack'`. The `[attached_files]` block is emitted whenever `message.attachments?.length` is truthy, regardless of `message.platform`.
 - [ ] When `message.platform !== 'slack'` AND `(!message.attachments || message.attachments.length === 0)`, `wrapWithChannelContext` returns `message.text` verbatim (no wrapping, no newlines added).
 
@@ -110,10 +110,11 @@ The unit test `wrapWithChannelContext: non-slack with attachments` (see Acceptan
 
 ### Cleanup behavior (slack adapter)
 
-- [ ] `apps/worker/src/channels/slack/adapter.ts` wraps the `await this.handler(message)` call in a `try/catch/finally` such that the `finally` block runs `rm -rf` (`rm(uploadsDir, { recursive: true, force: true })`) on the per-turn uploads directory iff that directory was created during this dispatch (i.e., iff at least one file was present on the inbound Slack event).
-- [ ] When no files are attached to the inbound Slack event, the cleanup logic does NOT compute a path, does NOT call `rm`, and does NOT emit any `slack_uploads_*` log line. Verified by a unit test `SlackChannel: dispatch without files emits no uploads cleanup log`.
+- [ ] `apps/worker/src/channels/slack/adapter.ts` wraps the `await this.handler(message)` call in a `try/catch/finally` such that the `finally` block runs `rm -rf` (`rm(uploadsDir, { recursive: true, force: true })`) on the per-turn uploads directory iff `downloadSlackFiles` was invoked on this dispatch. The trigger condition is `Array.isArray(slackEvent.files) && slackEvent.files.length > 0` — identical to the existing `if` guard at `apps/worker/src/channels/slack/adapter.ts:103` that wraps the download call. Note: `downloadSlackFiles` calls `mkdir` unconditionally when invoked (see `apps/worker/src/channels/slack/files.ts:34`), so the per-turn directory exists even when every individual file is skipped (oversized, no URL, fetch error). Cleanup must run in those cases too to remove the empty directory.
+- [ ] When no files are attached to the inbound Slack event (`slackEvent.files` is undefined or empty), the cleanup logic does NOT compute a path, does NOT call `rm`, and does NOT emit any `slack_uploads_*` log line. Verified by a unit test `SlackChannel: dispatch without files emits no uploads cleanup log`.
 - [ ] When files are attached and the handler resolves successfully, the cleanup runs, the directory is removed (`existsSync(uploadsDir) === false`), and the worker logs `event: 'slack_uploads_cleaned'` with `correlationId` and `path` fields. Verified by a unit test `SlackChannel: dispatch with files cleans uploads dir after success`.
 - [ ] When files are attached and the handler rejects, the cleanup still runs and the directory is removed. The original `event: 'handler_error'` log is still emitted. Verified by a unit test `SlackChannel: dispatch with files cleans uploads dir after handler throws`.
+- [ ] When files are attached but every file is skipped by `downloadSlackFiles` (e.g., all oversized), the empty per-turn directory is still removed and `event: 'slack_uploads_cleaned'` is emitted. Verified by a unit test `SlackChannel: dispatch with files that are all skipped cleans the empty uploads dir`. This is the unit-level coverage for Scenario 3 (oversized file).
 - [ ] When the cleanup itself fails (e.g., `rm` rejects), the dispatch resolves without throwing, a warn log with `event: 'slack_uploads_cleanup_failed'` is emitted, and the original handler result (success or `handler_error`) is unaffected. Verified by a unit test that mocks `rm` to reject once.
 
 ### Quality gate
@@ -128,7 +129,7 @@ The following four scenarios MUST be executed against a real Slack workspace bef
 - [ ] **E1 (small PDF):** Operator uploads a PDF (≤ 1 MB, multi-paragraph content) to channel `C0B0GLS5UTB` in workspace `flavianasser.slack.com`. Sends `@zeno summarize this file` as the same message or as a follow-up in the same thread. Bot reply contains a summary that demonstrably references PDF content (not a generic "I can't read attachments" reply). Worker log within the same 30-second window shows `event: 'slack_uploads_cleaned'` with a `correlationId` matching the dispatch. `docker exec <container> ls /workspace/uploads/` after the reply lands returns either an empty listing or only directories from concurrent unrelated turns.
 - [ ] **E2 (image describe):** Same flow with a PNG or JPEG (≤ 1 MB). Bot reply describes image content. Same cleanup verification.
 - [ ] **E3 (oversize skip):** Operator uploads a file larger than 50 MB. Worker log shows `event: 'slack_file_too_large'` and either NO `slack_uploads_cleaned` log (if `mkdir` was not reached) OR `slack_uploads_cleaned` on an empty directory. Bot reply does NOT reference the file's content (which it never received).
-- [ ] **E4 (handler error + cleanup):** Operator triggers a handler error path (specific trigger TBD during implementation — likely a deliberately malformed prompt that causes the SDK call to throw before completing). Worker log shows both `event: 'handler_error'` and `event: 'slack_uploads_cleaned'` for the same `correlationId`. The uploads dir is gone after the failure.
+- [ ] **E4 (handler error + cleanup):** Implementer temporarily injects a forced rejection in the message handler (concrete trigger: edit `apps/worker/src/agent/core.ts`'s `handleMessage` entry point — or the equivalent inner function called from `this.handler` — to `throw new Error('e2e-forced-error')` on its first line, rebuild the container, run the scenario, then revert. Alternative concrete trigger if the above is impractical: prefix the temporary throw with `if (message.attachments?.length) ` so only attachment-bearing turns fail.). Operator uploads a small file (≤ 100 KB) and mentions `@zeno` in channel `C0B0GLS5UTB`. Worker log shows both `event: 'handler_error'` (with `err` containing `e2e-forced-error`) and `event: 'slack_uploads_cleaned'` for the same `correlationId`. `docker exec <container> ls /workspace/uploads/` after the failure shows the dir is gone. The injected throw is reverted before opening the PR.
 
 ## Risks and Mitigations
 
@@ -144,3 +145,7 @@ The following four scenarios MUST be executed against a real Slack workspace bef
 ## Open Questions
 
 None at this time. All design questions were resolved during the brainstorming session (boundary, cleanup lifecycle, size/mimetype policy, refactor approach). E2E preflight (bot installation, profile running) was confirmed before this spec was written.
+
+## Implementation Notes
+
+- `apps/worker/src/agent/core.test.ts` does NOT exist in the worktree as of spec creation. The implementation plan must create it from scratch (rather than amending an existing file) to host the parity tests and new non-slack cases. Same applies to any required new test fixtures for `apps/worker/src/channels/slack/adapter.test.ts` if that file is also missing — verify during planning.

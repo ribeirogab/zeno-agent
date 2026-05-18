@@ -1,3 +1,5 @@
+import { rm } from 'node:fs/promises';
+import { join } from 'node:path';
 import { App, LogLevel } from '@slack/bolt';
 import { createLogger } from '@zeno/logger';
 import { downloadSlackFiles, type SlackFile } from '@/channels/slack/files';
@@ -100,8 +102,10 @@ export class SlackChannel implements Channel {
       }
 
       // Download file attachments when present
+      let uploadsDir: string | null = null;
       if (Array.isArray(slackEvent.files) && slackEvent.files.length > 0) {
         const workspaceDir = this.opts.workspaceDir ?? '/workspace';
+        uploadsDir = join(workspaceDir, 'uploads', message.correlationId);
         message.attachments = await downloadSlackFiles(
           slackEvent.files,
           this.opts.botToken,
@@ -131,6 +135,29 @@ export class SlackChannel implements Channel {
           },
           'handler threw',
         );
+      } finally {
+        if (uploadsDir) {
+          try {
+            await rm(uploadsDir, { recursive: true, force: true });
+            logger.info(
+              {
+                event: 'slack_uploads_cleaned',
+                correlationId: message.correlationId,
+                path: uploadsDir,
+              },
+              'cleaned attachment uploads dir',
+            );
+          } catch (err) {
+            logger.warn(
+              {
+                event: 'slack_uploads_cleanup_failed',
+                correlationId: message.correlationId,
+                err: String(err).slice(0, 200),
+              },
+              'failed to clean attachment uploads dir',
+            );
+          }
+        }
       }
     };
 

@@ -8,7 +8,7 @@ created: 2026-05-19
 
 **For this plan:** [[plan-channel-outbound-files]]
 
-> All commands run from the worktree root for this branch: `/Users/gabriel/.zeno/zeno-agent/.claude/worktrees/issue-10-channel-outbound-files`. Node 24 required (use `nvm use 24` if not active). `pnpm run quality-gate` is the lint + typecheck + tests gate. Never use `--no-verify`.
+> All commands run from the worktree root for this branch. Node 24 required (use `nvm use 24` if not active). `pnpm run quality-gate` is the lint + typecheck + tests gate. Never use `--no-verify`.
 
 ## Phase 0: Preflight
 

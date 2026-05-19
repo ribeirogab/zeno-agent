@@ -2,7 +2,7 @@
 
 Outsider-facing documentation site for Zeno. Built with Fumadocs (Next.js 16 + MDX) and Fumadocs's built-in Orama search (served at `/api/search`).
 
-> **Status:** scaffold only. Real content lands in a future spec; see `vault/specs/2026-05-07-apps-docs-scaffold/spec.md`.
+> **Status:** scaffold only. Real content lands in a future spec; see `.vault/specs/2026-05-07-apps-docs-scaffold/spec.md`.
 
 ## Run locally
 

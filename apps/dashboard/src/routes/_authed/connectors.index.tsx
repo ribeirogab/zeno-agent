@@ -1,7 +1,7 @@
 /**
  * `/connectors` — index screen (artboards A1 + A1b).
  *
- * Spec: vault/specs/2026-05-08-connectors-cli-first-design (Phase 4 / Task 22).
+ * Spec: .vault/specs/2026-05-08-connectors-cli-first-design (Phase 4 / Task 22).
  *
  * Lists every installed item (single connectors, multi-instance groups, Apps)
  * via `<ConnectorGroupCard>`. The `[BROWSE CATALOG]` header button opens

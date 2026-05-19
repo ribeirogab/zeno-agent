@@ -33,5 +33,5 @@ locally. The dashboard's port migration is tracked separately.
 
 ## Spec
 
-See `vault/specs/2026-05-07-apps-web-landing/`. The visual contract is the Paper
+See `.vault/specs/2026-05-07-apps-web-landing/`. The visual contract is the Paper
 artboard `apps-web · landing` on page `1-0` of the `zeno-agent` document.

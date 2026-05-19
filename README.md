@@ -42,11 +42,11 @@ agent/       SOUL.md, mcp.json, connectors-catalog.json (committed identity)
 templates/   profile/ — read-only scaffolds the CLI uses on profile create
 infra/       Dockerfile, entrypoint, slack-app-manifest.json
 install.sh   one-shot installer (curl-pipe target)
-vault/       constitution + specs + learnings + conventions + rules
+.vault/       constitution + specs + learnings + conventions + rules
 ~/.zeno/     (off-repo) zeno-agent clone, state.db, profiles/<name>/
 ```
 
-`AGENTS.md` is the agent's working contract. `vault/_index/home.md` is the project's knowledge map. `vault/constitution.md` carries the non-negotiable design principles. The outsider documentation site lives at <https://docs.zeno-agent.dev>.
+`AGENTS.md` is the agent's working contract. `.vault/_index/home.md` is the project's knowledge map. `.vault/constitution.md` carries the non-negotiable design principles. The outsider documentation site lives at <https://docs.zeno-agent.dev>.
 
 ## Contributing, security, license
 

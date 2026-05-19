@@ -45,7 +45,7 @@ The user (or another agent) types `/new-issue` from Claude Code. Optional argume
 
 ## Sanitization
 
-The issue body MUST NOT contain real personal identifiers (per `vault/rules/sanitization.md`). If the user types one in step 3, gently flag it and suggest the canonical placeholder. If the user insists, abort the command — the rule applies even to issue bodies.
+The issue body MUST NOT contain real personal identifiers (per `.vault/rules/sanitization.md`). If the user types one in step 3, gently flag it and suggest the canonical placeholder. If the user insists, abort the command — the rule applies even to issue bodies.
 
 ## Hard constraints
 

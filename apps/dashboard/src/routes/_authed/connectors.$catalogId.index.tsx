@@ -1,7 +1,7 @@
 /**
  * `/connectors/:catalogId` — plain leaves list (artboard A4).
  *
- * Spec: vault/specs/2026-05-08-connectors-cli-first-design (Task 19).
+ * Spec: .vault/specs/2026-05-08-connectors-cli-first-design (Task 19).
  *
  * Renders the installed instances for a given catalog entry. Mutating actions
  * (Install another, Test, Refresh tools, Enable/Disable, Uninstall) all open

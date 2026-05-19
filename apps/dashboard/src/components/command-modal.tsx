@@ -1,7 +1,7 @@
 /**
  * `CommandModal` — read-only popover that displays the exact `zeno connector …`
  * command an operator must run to perform a mutating action. Visual reference:
- * vault/specs/2026-05-08-connectors-cli-first-design/artboards/A3-command-modal.png.
+ * .vault/specs/2026-05-08-connectors-cli-first-design/artboards/A3-command-modal.png.
  *
  * Anatomy (revised — operator feedback 2026-05-09):
  *   - Single panel (~80px tall), 8px corners, panel background.

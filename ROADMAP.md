@@ -2,7 +2,7 @@
 
 This is the public roadmap for zeno-agent — a curated index of what is in flight, what is committed next, and what is on the radar without commitment. For each item the linked issue is the per-item conversation surface.
 
-The maintainer also keeps a private scratch doc on local disk (`vault/backlog.md`, gitignored) for raw ideas that have not yet hardened into commitments. Items move from the scratch doc into the issue tracker, and from the issue tracker into the relevant section below as they progress.
+The maintainer also keeps a private scratch doc on local disk (`.vault/backlog.md`, gitignored) for raw ideas that have not yet hardened into commitments. Items move from the scratch doc into the issue tracker, and from the issue tracker into the relevant section below as they progress.
 
 ## Now (in flight)
 

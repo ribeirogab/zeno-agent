@@ -1,9 +1,9 @@
 # Obsidian vault config (machine-local — Obsidian rewrites these on every open)
-vault/.obsidian/
+.vault/.obsidian/
 Untitled.canvas
 
 # Maintainer scratch — private brainstorming, never committed
-vault/backlog.md
+.vault/backlog.md
 
 # OS
 .DS_Store

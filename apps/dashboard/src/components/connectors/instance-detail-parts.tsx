@@ -1,7 +1,7 @@
 /**
  * Shared building blocks for instance-detail layouts.
  *
- * Spec: vault/specs/2026-05-08-connectors-cli-first-design (Tasks 20 + 21).
+ * Spec: .vault/specs/2026-05-08-connectors-cli-first-design (Tasks 20 + 21).
  *
  * Both `connectors.$catalogId.$id.tsx` (artboard A5 — plain instance detail)
  * and `connectors.$catalogId.$appId.instances.$instanceId.tsx` (artboard A6b —

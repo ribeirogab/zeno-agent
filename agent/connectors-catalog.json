@@ -1,5 +1,5 @@
 {
-  "_doc": "Curated MCP connectors offered to the operator in the dashboard. Spec 0029. Adding a new entry here makes it appear under /connectors. The runtime stores connector configuration in the DB after install \u2014 this file is the directory, not the source of truth.",
+  "_doc": "Curated MCP connectors offered to the operator in the dashboard. Spec 0029. Adding a new entry here makes it appear under /connectors. The runtime stores connector configuration in the DB after install — this file is the directory, not the source of truth.",
   "version": 1,
   "connectors": [
     {
@@ -21,10 +21,22 @@
       "tools": [],
       "pattern": "app",
       "appArgs": [
-        { "key": "app-id", "label": "GitHub App ID", "type": "text", "required": true },
-        { "key": "pem-file", "label": "Private key PEM file", "type": "file", "required": true }
+        {
+          "key": "app-id",
+          "label": "GitHub App ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "pem-file",
+          "label": "Private key PEM file",
+          "type": "file",
+          "required": true
+        }
       ],
-      "terminology": { "instance": "Installation" },
+      "terminology": {
+        "instance": "Installation"
+      },
       "tags": [
         "development",
         "code"
@@ -368,7 +380,7 @@
     {
       "id": "klaviyo",
       "name": "Klaviyo",
-      "description": "Email/SMS marketing \u2014 campaigns, lists, segments, profiles, events.",
+      "description": "Email/SMS marketing — campaigns, lists, segments, profiles, events.",
       "icon": "klaviyo.png",
       "docsUrl": "https://developers.klaviyo.com/en/docs/klaviyo_mcp_server",
       "transport": "stdio",
@@ -395,7 +407,7 @@
         {
           "key": "PRIVATE_API_KEY",
           "label": "Private API Key",
-          "help": "Klaviyo private API key (pk_\u2026). Create at klaviyo.com/settings/api-keys with at least read scopes for accounts, campaigns, lists.",
+          "help": "Klaviyo private API key (pk_…). Create at klaviyo.com/settings/api-keys with at least read scopes for accounts, campaigns, lists.",
           "required": true
         }
       ],
@@ -809,7 +821,62 @@
           "required": true
         }
       ],
-      "tools": [],
+      "tools": [
+        {
+          "name": "analyze_db_health",
+          "description": "Analyzes database health.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "analyze_query_indexes",
+          "description": "Analyze a list of (up to 10) SQL queries and recommend optimal indexes",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "analyze_workload_indexes",
+          "description": "Analyze frequently executed queries in the database and recommend optimal indexes",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "execute_sql",
+          "description": "Execute a read-only SQL query",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "explain_query",
+          "description": "Explains the execution plan for a SQL query, showing how the database will execute it and provides detailed cost estimates.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_object_details",
+          "description": "Show detailed information about a database object",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "get_top_queries",
+          "description": "Reports the slowest or most resource-intensive queries using data from the 'pg_stat_statements' extension.",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_objects",
+          "description": "List objects in a schema",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        },
+        {
+          "name": "list_schemas",
+          "description": "List all schemas in the database",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        }
+      ],
       "terminology": {
         "instance": "Database"
       },
@@ -821,7 +888,7 @@
     {
       "id": "swarmia",
       "name": "Swarmia",
-      "description": "Engineering metrics \u2014 DORA, throughput, code review.",
+      "description": "Engineering metrics — DORA, throughput, code review.",
       "icon": "swarmia.png",
       "docsUrl": "https://help.swarmia.com/settings/integrations/data-export/export-api",
       "transport": "stdio",
@@ -840,7 +907,7 @@
         {
           "key": "SWARMIA_API_TOKEN",
           "label": "API Token",
-          "help": "Personal API token from your Swarmia profile (Settings \u2192 API tokens). Read-only access to Export API.",
+          "help": "Personal API token from your Swarmia profile (Settings → API tokens). Read-only access to Export API.",
           "required": true
         }
       ],
@@ -907,7 +974,7 @@
         {
           "key": "SENTRY_ACCESS_TOKEN",
           "label": "Access Token",
-          "help": "User Auth Token from sentry.io/settings/account/api/auth-tokens. Recommended scopes: org:read, project:read, event:read, member:read, alerts:read. (The package reads this env as `SENTRY_ACCESS_TOKEN` \u2014 different from SENTRY_AUTH_TOKEN used by other Sentry SDKs.) Note: this personal token validates against `sentry.io/api/0/` whoami and works for direct API calls, but Sentry's MCP server may still respond \"Authorization Expired\" because some tools require an OAuth-session credential rather than a personal access token. If MCP `whoami` keeps failing, expect to switch to an OAuth flow once Sentry exposes one.",
+          "help": "User Auth Token from sentry.io/settings/account/api/auth-tokens. Recommended scopes: org:read, project:read, event:read, member:read, alerts:read. (The package reads this env as `SENTRY_ACCESS_TOKEN` — different from SENTRY_AUTH_TOKEN used by other Sentry SDKs.) Note: this personal token validates against `sentry.io/api/0/` whoami and works for direct API calls, but Sentry's MCP server may still respond \"Authorization Expired\" because some tools require an OAuth-session credential rather than a personal access token. If MCP `whoami` keeps failing, expect to switch to an OAuth flow once Sentry exposes one.",
           "required": true
         },
         {

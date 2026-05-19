@@ -551,6 +551,53 @@
       "defaultPermission": "ask"
     }
   ],
+  "postgres": [
+    {
+      "name": "analyze_db_health",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "analyze_query_indexes",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "analyze_workload_indexes",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "execute_sql",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "explain_query",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_object_details",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "get_top_queries",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_objects",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    },
+    {
+      "name": "list_schemas",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    }
+  ],
   "swarmia": [
     {
       "name": "get_capex",

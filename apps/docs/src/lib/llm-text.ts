@@ -12,7 +12,7 @@ type Page = InferPageType<typeof source>;
  * `'processed'` returns the bundled `_markdown` field that `includeProcessedMarkdown`
  * (set in `source.config.ts`) ships inside the page data — works in both Node.js and
  * Workers runtimes. Captured in
- * `vault/learnings/fumadocs-mdx-source-postinstall.md`.
+ * `.vault/learnings/fumadocs-mdx-source-postinstall.md`.
  */
 export async function getLLMText(page: Page): Promise<string> {
   const title = page.data.title;

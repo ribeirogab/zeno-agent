@@ -1,39 +1,39 @@
 [
   {
-    "source": "vault/learnings/source-shared-headings-A.md",
-    "target": "vault/learnings/source-shared-headings-B.md",
+    "source": ".vault/learnings/source-shared-headings-A.md",
+    "target": ".vault/learnings/source-shared-headings-B.md",
     "source_title": "Source Shared Headings A",
     "target_title": "Source Shared Headings B",
     "evidence_type": "shared_heading_terms",
     "evidence_detail": "shared title/H2 terms: headings,migration,procedure,rollback,shared,source,strategy"
   },
   {
-    "source": "vault/learnings/source-shared-headings-B.md",
-    "target": "vault/learnings/source-shared-headings-A.md",
+    "source": ".vault/learnings/source-shared-headings-B.md",
+    "target": ".vault/learnings/source-shared-headings-A.md",
     "source_title": "Source Shared Headings B",
     "target_title": "Source Shared Headings A",
     "evidence_type": "shared_heading_terms",
     "evidence_detail": "shared title/H2 terms: headings,migration,procedure,rollback,shared,source,strategy"
   },
   {
-    "source": "vault/learnings/source-with-filepath.md",
-    "target": "vault/learnings/target-with-filepath.md",
+    "source": ".vault/learnings/source-with-filepath.md",
+    "target": ".vault/learnings/target-with-filepath.md",
     "source_title": "Source With Filepath",
     "target_title": "Target With Filepath",
     "evidence_type": "filepath_in_body",
-    "evidence_detail": "filepath 'vault/learnings/target-with-filepath.md' at body line 3"
+    "evidence_detail": "filepath '.vault/learnings/target-with-filepath.md' at body line 3"
   },
   {
-    "source": "vault/learnings/source-with-title-mention.md",
-    "target": "vault/learnings/target-distinctive-phrase-title.md",
+    "source": ".vault/learnings/source-with-title-mention.md",
+    "target": ".vault/learnings/target-distinctive-phrase-title.md",
     "source_title": "Source With Title Mention",
     "target_title": "Distinctive Phrase Title",
     "evidence_type": "title_in_body",
     "evidence_detail": "title 'Distinctive Phrase Title' at body line 3"
   },
   {
-    "source": "vault/learnings/source-with-wikilink.md",
-    "target": "vault/learnings/target-of-wikilink.md",
+    "source": ".vault/learnings/source-with-wikilink.md",
+    "target": ".vault/learnings/target-of-wikilink.md",
     "source_title": "Source With Wikilink",
     "target_title": "Target Of Wikilink",
     "evidence_type": "wikilink_in_body",

@@ -1,7 +1,7 @@
 /**
  * CLI command builder for the dashboard.
  *
- * Spec: vault/specs/2026-05-08-connectors-cli-first-design (Phase 4 / Task 18).
+ * Spec: .vault/specs/2026-05-08-connectors-cli-first-design (Phase 4 / Task 18).
  *
  * The dashboard never mutates state directly; every actionable button opens
  * a `CommandModal` that displays the exact `zeno connector …` command the

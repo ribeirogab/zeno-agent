@@ -2,7 +2,7 @@
 
 This is the public roadmap for zeno-agent — a curated index of what is in flight, what is committed next, and what is on the radar without commitment. For each item the linked issue is the per-item conversation surface.
 
-The maintainer also keeps a private scratch doc on local disk (`vault/backlog.md`, gitignored) for raw ideas that have not yet hardened into commitments. Items move from the scratch doc into the issue tracker, and from the issue tracker into the relevant section below as they progress.
+The maintainer also keeps a private scratch doc on local disk (`.vault/backlog.md`, gitignored) for raw ideas that have not yet hardened into commitments. Items move from the scratch doc into the issue tracker, and from the issue tracker into the relevant section below as they progress.
 
 ## Now (in flight)
 
@@ -17,6 +17,8 @@ _Nothing currently in flight._
 - [ ] [#45](https://github.com/ribeirogab/zeno-agent/issues/45) — feat(security): production-grade auth layer for profile dashboards
 - [ ] [#46](https://github.com/ribeirogab/zeno-agent/issues/46) — feat(dashboard): onboarding wizard inside profile dashboard
 - [ ] [#47](https://github.com/ribeirogab/zeno-agent/issues/47) — feat(cli): backup / restore tooling for `~/.zeno/`
+- [ ] [#75](https://github.com/ribeirogab/zeno-agent/issues/75) — feat(connectors): add Postgres connector (read-only MCP)
+- [ ] [#76](https://github.com/ribeirogab/zeno-agent/issues/76) — feat(connectors): add AWS connector
 
 ## Later (no commitment)
 

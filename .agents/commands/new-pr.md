@@ -47,7 +47,7 @@ The user (or another agent) types `/new-pr` from Claude Code. Optional argument:
 
    ## Spec / issue
 
-   Spec: [<path-or-title>](https://github.com/<owner>/<repo>/blob/<branch>/vault/specs/<slug>/spec.md)
+   Spec: [<path-or-title>](https://github.com/<owner>/<repo>/blob/<branch>/.vault/specs/<slug>/spec.md)
    Closes: #<N>
 
    ## Test plan
@@ -58,7 +58,7 @@ The user (or another agent) types `/new-pr` from Claude Code. Optional argument:
 
    ## Sanitization
 
-   - [x] No real identifiers introduced in this diff (per [`vault/rules/sanitization.md`](../vault/rules/sanitization.md)).
+   - [x] No real identifiers introduced in this diff (per [`.vault/rules/sanitization.md`](../.vault/rules/sanitization.md)).
 
    ## Quality gate
 
@@ -94,4 +94,4 @@ The user (or another agent) types `/new-pr` from Claude Code. Optional argument:
 - Do not silently include the maintainer's real identifiers in the PR title or body.
 - Do NOT use backticked file paths for the Spec / issue field — always a clickable markdown link to the file on the PR's branch.
 - Do NOT open a PR without `--label` and `--assignee "@me"`. Both are mandatory.
-- The Sanitization heuristic is advisory — the canonical contract lives in `vault/rules/sanitization.md`.
+- The Sanitization heuristic is advisory — the canonical contract lives in `.vault/rules/sanitization.md`.

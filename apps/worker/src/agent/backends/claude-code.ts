@@ -61,7 +61,7 @@ interface ClaudeCodeBackendOptions {
    * Spec 0071: dynamic env provider, called once per `query()`. Used to read
    * the encrypted Claude OAuth token from DB on demand (so we never set
    * `process.env.CLAUDE_CODE_OAUTH_TOKEN` — see
-   * `vault/rules/integration-tokens-in-db-only.md`). Throws
+   * `.vault/rules/integration-tokens-in-db-only.md`). Throws
    * NoBackendConfiguredError when no token is configured; the caller catches
    * and surfaces the user-facing "Claude is not configured" reply.
    *

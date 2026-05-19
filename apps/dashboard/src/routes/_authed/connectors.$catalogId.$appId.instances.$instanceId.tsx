@@ -2,7 +2,7 @@
  * `/connectors/:catalogId/:appId/instances/:instanceId` — App installation
  * detail (artboard A6b).
  *
- * Spec: vault/specs/2026-05-08-connectors-cli-first-design (Task 21).
+ * Spec: .vault/specs/2026-05-08-connectors-cli-first-design (Task 21).
  *
  * Same skeleton as the plain instance detail (A5: status strip + secrets +
  * tools + activity) plus an App-aware breadcrumb (`zeno / connectors /

@@ -5,7 +5,7 @@ description: "Analyze the vault for missing related: frontmatter cross-links and
 
 # Memex Link — Vault Cross-Link Suggestions
 
-Analyze the `vault/` vault and surface candidate `related:` frontmatter additions where genuinely necessary.
+Analyze the `.vault/` vault and surface candidate `related:` frontmatter additions where genuinely necessary.
 
 **Announce at start:** "Analyzing vault for missing cross-links..."
 
@@ -65,7 +65,7 @@ Render a markdown table grouped by confidence:
 For each candidate, in order, prompt the user:
 
 ```
-[1/3] HIGH — vault/specs/.../spec-X.md → vault/learnings/Y.md
+[1/3] HIGH — .vault/specs/.../spec-X.md → .vault/learnings/Y.md
        Reason: wikilink in body line 14
 
        Add to source's `related:`? (y/n/skip-rest)

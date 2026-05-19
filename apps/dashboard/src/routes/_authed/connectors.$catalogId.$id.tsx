@@ -1,7 +1,7 @@
 /**
  * `/connectors/:catalogId/:id` — instance detail (artboards A5 + A6a).
  *
- * Spec: vault/specs/2026-05-08-connectors-cli-first-design (Tasks 20 + 21).
+ * Spec: .vault/specs/2026-05-08-connectors-cli-first-design (Tasks 20 + 21).
  *
  * The route is a single entry point for two record kinds:
  *   - Plain instance (`kind: 'connector'`) — renders artboard A5 (status strip,

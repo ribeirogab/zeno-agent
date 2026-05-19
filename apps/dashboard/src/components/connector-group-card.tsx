@@ -15,7 +15,7 @@
  * destructive surface (kebab → `<CommandModal>`); on the index we deliberately
  * don't render decorative kebabs — only the navigation affordances are real.
  *
- * Spec: vault/specs/2026-05-08-connectors-cli-first-design (Phase 4 / Task 22).
+ * Spec: .vault/specs/2026-05-08-connectors-cli-first-design (Phase 4 / Task 22).
  */
 
 import { Link } from '@tanstack/react-router';

@@ -23,16 +23,16 @@ packages/github-app/tests/jwt.test.ts:private-key:79
 packages/github-app/tests/jwt.test.ts:private-key:101
 
 # Spec/task documentation showing test-fixture session secrets.
-vault/specs/2026-04-26-connectors-e2e/tasks-connectors-e2e.md:generic-api-key:60
-vault/specs/2026-04-16-dashboard-crud/tasks-dashboard-crud.md:generic-api-key:1074
-vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:984
-vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1090
-vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1236
-vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1459
-vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1694
+.vault/specs/2026-04-26-connectors-e2e/tasks-connectors-e2e.md:generic-api-key:60
+.vault/specs/2026-04-16-dashboard-crud/tasks-dashboard-crud.md:generic-api-key:1074
+.vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:984
+.vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1090
+.vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1236
+.vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1459
+.vault/specs/2026-04-16-dashboard-foundation/tasks-dashboard-foundation.md:generic-api-key:1694
 
 # Historical commits — same test fixtures at earlier line numbers / paths
-# (context/ → vault/ rename, line shifts after edits).
+# (context/ → .vault/ rename, line shifts after edits).
 125cff758a76dd4a204bccd515710caf4e934b7b:apps/api/tests/routes/crons.test.ts:generic-api-key:7
 1f7e8903661ff65bff66302b39ba206f54b8b59c:context/specs/0012-dashboard-foundation/tasks.md:generic-api-key:1090
 1f7e8903661ff65bff66302b39ba206f54b8b59c:context/specs/0012-dashboard-foundation/tasks.md:generic-api-key:1236

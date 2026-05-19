@@ -1,7 +1,7 @@
 /**
  * `CatalogModal` — browse-catalog overlay (artboard A2).
  *
- * Spec: vault/specs/2026-05-08-connectors-cli-first-design (Phase 4 / Task 22).
+ * Spec: .vault/specs/2026-05-08-connectors-cli-first-design (Phase 4 / Task 22).
  *
  * Renders a 2-column grid of catalog cards. Per spec Q9:
  *   - The card body opens `docsUrl` in a new tab.

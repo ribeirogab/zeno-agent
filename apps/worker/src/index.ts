@@ -280,7 +280,7 @@ async function main(): Promise<void> {
    * encrypted token from DB on EACH query() call, hydrates the SDK env
    * exclusively for that call. The parent worker process NEVER sets
    * `process.env.CLAUDE_CODE_OAUTH_TOKEN` (per
-   * `vault/rules/integration-tokens-in-db-only.md`). Returns undefined when
+   * `.vault/rules/integration-tokens-in-db-only.md`). Returns undefined when
    * no token is configured — the SDK then fails with auth error which the
    * channel adapter classifies into the user-facing "Claude is not
    * configured" reply.

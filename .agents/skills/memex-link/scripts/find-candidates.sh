@@ -21,8 +21,8 @@ set -eu
 
 SCOPE="${1:-}"
 
-if [ ! -d vault ]; then
-  echo "FATAL: vault/ not found. Run from a directory containing vault/." >&2
+if [ ! -d .vault ]; then
+  echo "FATAL: .vault/ not found. Run from a directory containing .vault/." >&2
   exit 2
 fi
 
@@ -34,9 +34,9 @@ trap 'rm -rf "$CACHE"' EXIT
 # ----- helpers -----
 
 all_notes() {
-  find vault/learnings vault/conventions vault/rules vault/specs \
+  find .vault/learnings .vault/conventions .vault/rules .vault/specs \
     -type f -name '*.md' 2>/dev/null \
-    | grep -v '^vault/specs/_template/' \
+    | grep -v '^.vault/specs/_template/' \
     | grep -Ev '/plan-[^/]+\.md$' \
     | grep -Ev '/tasks-[^/]+\.md$' \
     | sort

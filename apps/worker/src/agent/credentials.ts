@@ -4,7 +4,7 @@ import type { BackendCredentialsRepo } from '@zeno/db/runtime';
  * Spec 0071 — credentials accessor for the worker.
  *
  * The worker MUST NOT set `process.env.CLAUDE_CODE_OAUTH_TOKEN` (per
- * `vault/rules/integration-tokens-in-db-only.md`): anything in process.env is
+ * `.vault/rules/integration-tokens-in-db-only.md`): anything in process.env is
  * `env | grep`-readable by the agent's Bash, defeating the dashboard's
  * disable toggle. Instead, this service reads the encrypted token from DB on
  * demand and the caller decides between (a) passing it to the SDK via the

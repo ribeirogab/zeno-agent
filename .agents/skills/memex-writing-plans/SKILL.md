@@ -15,7 +15,7 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Context:** This should be run in a dedicated worktree (created by brainstorming skill).
 
-**Save plans to:** `vault/specs/YYYY-MM-DD-<slug>/plan-<slug>.md` (alongside the spec at `spec-<slug>.md`)
+**Save plans to:** `.vault/specs/YYYY-MM-DD-<slug>/plan-<slug>.md` (alongside the spec at `spec-<slug>.md`)
 - (User preferences for plan location override this default)
 
 ## Scope Check

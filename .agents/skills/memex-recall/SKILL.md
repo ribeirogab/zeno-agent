@@ -5,7 +5,7 @@ description: "Search the vault for context on a topic"
 
 # Recall — Project Context Scout
 
-Quick reconnaissance of the `vault/` vault. Gives the agent a working map of where things are and what the project cares about, without deep-diving into every file.
+Quick reconnaissance of the `.vault/` vault. Gives the agent a working map of where things are and what the project cares about, without deep-diving into every file.
 
 **Announce at start:** "Running project reconnaissance..."
 
@@ -15,18 +15,18 @@ Execute these steps in order. Read files — do not edit anything.
 
 ### 1. Structure scan
 
-Run a glob for `vault/**/*.md` to get the file tree. Present it as a compact list grouped by folder.
+Run a glob for `.vault/**/*.md` to get the file tree. Present it as a compact list grouped by folder.
 
 ### 2. Constitution (skim)
 
-Read `vault/constitution.md`. Extract and list:
+Read `.vault/constitution.md`. Extract and list:
 - The "Why" summary (1-2 sentences)
 - Scope guardrails (bullet list)
 - Architecture principles (bullet list)
 
 ### 3. MOCs (index scan)
 
-Read all files in `vault/_index/`. For each MOC, list the entries it links to (just the note names, not full content).
+Read all files in `.vault/_index/`. For each MOC, list the entries it links to (just the note names, not full content).
 
 ### 4. Report
 

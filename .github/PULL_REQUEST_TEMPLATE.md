@@ -6,9 +6,9 @@
 
 ## Spec / issue
 
-<!-- Reference the spec under vault/specs/ that this PR lands, or the issue number it closes. Both is fine. -->
+<!-- Reference the spec under .vault/specs/ that this PR lands, or the issue number it closes. Both is fine. -->
 
-Spec: `vault/specs/<slug>/spec.md`
+Spec: `.vault/specs/<slug>/spec.md`
 Closes: #
 
 ## Test plan
@@ -20,7 +20,7 @@ Closes: #
 
 ## Sanitization
 
-- [ ] No real identifiers introduced in this diff (per [`vault/rules/sanitization.md`](../vault/rules/sanitization.md)).
+- [ ] No real identifiers introduced in this diff (per [`.vault/rules/sanitization.md`](../.vault/rules/sanitization.md)).
 
 ## Quality gate
 

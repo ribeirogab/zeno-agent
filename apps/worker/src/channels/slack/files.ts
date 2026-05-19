@@ -18,11 +18,52 @@ export interface SlackFile {
 }
 
 /**
+ * Returns true when the HTTP `Content-Type` response header is compatible with
+ * the file's Slack-declared mimetype. Used to detect Slack's "200 OK HTML
+ * login page" response when the bot token lacks the `files:read` scope.
+ *
+ * Compatibility rules (intentionally loose — Slack sometimes adds `; charset=...`,
+ * sometimes returns `application/octet-stream` for raw files, sometimes returns
+ * the exact mimetype):
+ * - Exact prefix match on the primary type (e.g., `image/` ↔ `image/png`).
+ * - `application/octet-stream` is always accepted (Slack uses this for some
+ *   downloads regardless of declared mimetype).
+ *
+ * The one case we explicitly reject is a `text/html` response when the declared
+ * mimetype is NOT `text/html` — that is the Slack login-page failure mode.
+ */
+function isContentTypeCompatible(actualContentType: string, expectedMimetype: string): boolean {
+  if (!actualContentType) {
+    // No content-type header at all: do not block (some Slack CDN edges omit it).
+    return true;
+  }
+  // Strip params like `; charset=utf-8`.
+  const actual = actualContentType.split(';')[0].trim();
+  const expected = expectedMimetype.toLowerCase();
+
+  // Slack returns octet-stream for some attachment categories.
+  if (actual === 'application/octet-stream') return true;
+
+  // Exact match.
+  if (actual === expected) return true;
+
+  // Same primary type (e.g., `image/jpeg` declared, server sends `image/png`).
+  const actualPrimary = actual.split('/')[0];
+  const expectedPrimary = expected.split('/')[0];
+  if (actualPrimary && actualPrimary === expectedPrimary) return true;
+
+  return false;
+}
+
+/**
  * Download Slack-hosted files to a local directory so Claude Code's
  * built-in `Read` tool can access them (images, PDFs, code, etc.).
  *
  * Each invocation writes into `<workspaceDir>/uploads/<correlationId>/`.
  * Files without a download URL or exceeding the size limit are skipped.
+ * Files whose download response has an incompatible Content-Type (e.g.,
+ * `text/html` for an image) are also skipped — this happens when the bot
+ * token lacks the `files:read` scope and Slack redirects to a login page.
  */
 export async function downloadSlackFiles(
   files: SlackFile[],
@@ -62,6 +103,27 @@ export async function downloadSlackFiles(
         logger.warn(
           { event: 'slack_file_download_failed', fileId: file.id, status: response.status },
           'file download failed',
+        );
+        continue;
+      }
+
+      // Slack redirects unauthorized requests (bot token missing `files:read`
+      // scope, expired session, etc.) to a 200 OK HTML login page instead of a
+      // 401. If we trusted the status alone we'd persist HTML as `image.png`,
+      // confuse the agent, and surface a downstream Anthropic 400
+      // ("Could not process image"). Reject any response whose Content-Type
+      // does not match the file's declared mimetype family.
+      const contentType = (response.headers.get('content-type') ?? '').toLowerCase();
+      if (!isContentTypeCompatible(contentType, file.mimetype)) {
+        logger.warn(
+          {
+            event: 'slack_file_content_type_mismatch',
+            fileId: file.id,
+            fileName: file.name,
+            expectedMimetype: file.mimetype,
+            actualContentType: contentType,
+          },
+          'file download returned unexpected content-type, skipping (likely auth/scope issue)',
         );
         continue;
       }

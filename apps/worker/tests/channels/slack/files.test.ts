@@ -141,4 +141,69 @@ describe('downloadSlackFiles', () => {
       headers: { Authorization: 'Bearer xoxb-fake' },
     });
   });
+
+  it('skips files when Slack returns HTML for an image (login redirect / scope missing)', async () => {
+    // Realistic failure: Slack returns 200 OK with the login page HTML body
+    // when the bot token lacks the `files:read` scope. Without a guard we'd
+    // persist the HTML as `image.png` and surface a downstream Anthropic 400.
+    const htmlBody = '<!DOCTYPE html><html lang="en-US"><head></head><body></body></html>';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(htmlBody, {
+        status: 200,
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      }),
+    );
+
+    const result = await downloadSlackFiles([makeFile()], BOT_TOKEN, correlationId, workspaceDir);
+
+    expect(result).toHaveLength(0);
+  });
+
+  it('accepts content-type matching the file mimetype exactly', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
+        status: 200,
+        headers: { 'content-type': 'image/png' },
+      }),
+    );
+
+    const result = await downloadSlackFiles([makeFile()], BOT_TOKEN, correlationId, workspaceDir);
+    expect(result).toHaveLength(1);
+  });
+
+  it('accepts content-type matching the file mimetype primary type (image/jpeg vs image/png)', async () => {
+    // Slack occasionally serves a JPEG when the declared mimetype is PNG; we
+    // care that it's some image, not the exact subtype.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(Buffer.from([0xff, 0xd8, 0xff]), {
+        status: 200,
+        headers: { 'content-type': 'image/jpeg' },
+      }),
+    );
+
+    const result = await downloadSlackFiles([makeFile()], BOT_TOKEN, correlationId, workspaceDir);
+    expect(result).toHaveLength(1);
+  });
+
+  it('accepts application/octet-stream regardless of declared mimetype', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(Buffer.from('binary'), {
+        status: 200,
+        headers: { 'content-type': 'application/octet-stream' },
+      }),
+    );
+
+    const result = await downloadSlackFiles([makeFile()], BOT_TOKEN, correlationId, workspaceDir);
+    expect(result).toHaveLength(1);
+  });
+
+  it('accepts response with no content-type header (some CDN edges omit it)', async () => {
+    // Response constructed with Buffer body and no headers init → no content-type set.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(Buffer.from('data'), { status: 200 }),
+    );
+
+    const result = await downloadSlackFiles([makeFile()], BOT_TOKEN, correlationId, workspaceDir);
+    expect(result).toHaveLength(1);
+  });
 });

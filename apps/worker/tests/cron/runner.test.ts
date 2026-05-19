@@ -7,17 +7,23 @@ import {
 } from '@zeno/db/runtime';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentBackend } from '@/agent/types';
-import type { Channel, MessageHandler, MessageTarget, ReactionEvent } from '@/channels/types';
+import type {
+  Channel,
+  MessageHandler,
+  MessageTarget,
+  OutgoingMessage,
+  ReactionEvent,
+} from '@/channels/types';
 import { CronRunner } from '@/cron/runner';
 
 class StubChannel implements Channel {
   readonly name = 'slack';
-  readonly sent: Array<{ target: MessageTarget; text: string }> = [];
+  readonly sent: Array<{ target: MessageTarget; message: OutgoingMessage }> = [];
   start(_onMessage: MessageHandler): Promise<void> {
     return Promise.resolve();
   }
-  send(target: MessageTarget, text: string): Promise<{ messageRef: string }> {
-    this.sent.push({ target, text });
+  send(target: MessageTarget, message: OutgoingMessage): Promise<{ messageRef: string }> {
+    this.sent.push({ target, message });
     return Promise.resolve({ messageRef: 'stub' });
   }
   react(): Promise<void> {
@@ -84,7 +90,7 @@ describe('CronRunner.tick', () => {
     expect(channel.sent).toEqual([
       {
         target: { platform: 'slack', conversationId: 'C-test', threadId: null },
-        text: 'hi from zeno',
+        message: { text: 'hi from zeno' },
       },
     ]);
     const reloaded = crons.get(cron.id);

@@ -195,4 +195,67 @@ describe('wrapWithChannelContext', () => {
       vi.useRealTimers();
     }
   });
+
+  it('emits [outbox] block without leading blank line when no other blocks present', () => {
+    const message = makeMessage({ platform: 'discord', text: 'hi' });
+    const result = wrapWithChannelContext(message, { outboxDir: '/workspace/outbox/abc' });
+    expect(result).toBe(
+      '[outbox]\n/workspace/outbox/abc\nWrite any file you want to send to the user into this directory. The channel adapter will upload them alongside your reply.\n[/outbox]\n\nhi',
+    );
+  });
+
+  it('emits [outbox] block with leading blank-line separator after other blocks', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-19T12:00:00.000Z'));
+    try {
+      const result = wrapWithChannelContext(
+        makeMessage({
+          text: 'check these',
+          parentText: 'context',
+          attachments: [
+            {
+              name: 'a.png',
+              mimetype: 'image/png',
+              localPath: '/w/u/c1/a.png',
+              sizeBytes: 1,
+            },
+          ],
+        }),
+        { outboxDir: '/workspace/outbox/c1' },
+      );
+      expect(result).toBe(
+        '[slack_context]\nconversation_id: C1\nthread_id: T1\nuser_id: U1\ncurrent_time: 2026-05-19T12:00:00.000Z\n[/slack_context]\n\n[parent_message]\ncontext\n[/parent_message]\n\n[attached_files]\n- /w/u/c1/a.png (image/png, a.png)\n[/attached_files]\nRead the attached files before responding.\n\n[outbox]\n/workspace/outbox/c1\nWrite any file you want to send to the user into this directory. The channel adapter will upload them alongside your reply.\n[/outbox]\n\ncheck these',
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('omits [outbox] block when opts.outboxDir is undefined', () => {
+    const message = makeMessage({ platform: 'discord', text: 'hi' });
+    const result = wrapWithChannelContext(message, {});
+    expect(result).toBe('hi');
+    expect(result).not.toContain('[outbox]');
+  });
+
+  it('omits [outbox] block when opts.outboxDir is empty string', () => {
+    const message = makeMessage({ platform: 'discord', text: 'hi' });
+    const result = wrapWithChannelContext(message, { outboxDir: '' });
+    expect(result).toBe('hi');
+    expect(result).not.toContain('[outbox]');
+  });
+
+  it('omits [outbox] block when opts argument is missing entirely (slack parity)', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-19T12:00:00.000Z'));
+    try {
+      const result = wrapWithChannelContext(makeMessage({ text: 'hello' }));
+      expect(result).toBe(
+        '[slack_context]\nconversation_id: C1\nthread_id: T1\nuser_id: U1\ncurrent_time: 2026-05-19T12:00:00.000Z\n[/slack_context]\n\nhello',
+      );
+      expect(result).not.toContain('[outbox]');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

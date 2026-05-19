@@ -9,6 +9,7 @@ type EventListener = (args: { event: unknown }) => Promise<void> | void;
 interface MockClient {
   conversations: { open: ReturnType<typeof vi.fn>; replies: ReturnType<typeof vi.fn> };
   chat: { postMessage: ReturnType<typeof vi.fn> };
+  files: { uploadV2: ReturnType<typeof vi.fn> };
   reactions: { add: ReturnType<typeof vi.fn>; remove: ReturnType<typeof vi.fn> };
   auth: { test: ReturnType<typeof vi.fn> };
 }
@@ -39,7 +40,8 @@ vi.mock('@slack/bolt', () => {
           open: vi.fn(),
           replies: vi.fn().mockResolvedValue({ messages: [] }),
         },
-        chat: { postMessage: vi.fn() },
+        chat: { postMessage: vi.fn().mockResolvedValue({ ok: true, ts: '1234.5678' }) },
+        files: { uploadV2: vi.fn() },
         reactions: { add: vi.fn(), remove: vi.fn() },
         auth: { test: vi.fn().mockResolvedValue({ user_id: 'BOT1' }) },
       };
@@ -254,5 +256,188 @@ describe('SlackChannel — per-turn uploads cleanup', () => {
     if (existsSync(uploadsDir)) {
       rmSync(uploadsDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('SlackChannel.send — outbound files', () => {
+  let workspaceDir: string;
+
+  beforeEach(() => {
+    workspaceDir = join(tmpdir(), `zeno-slack-send-${randomUUID()}`);
+    mkdirSync(workspaceDir, { recursive: true });
+    mockAppRef.current = null;
+  });
+
+  afterEach(() => {
+    if (existsSync(workspaceDir)) {
+      rmSync(workspaceDir, { recursive: true, force: true });
+    }
+  });
+
+  function writeFixture(name: string, body: string): string {
+    const path = join(workspaceDir, name);
+    writeFileSync(path, body);
+    return path;
+  }
+
+  async function start(): Promise<{
+    channel: InstanceType<typeof SlackChannel>;
+    client: MockClient;
+  }> {
+    const channel = new SlackChannel({ appToken: APP_TOKEN, botToken: BOT_TOKEN, workspaceDir });
+    await channel.start(vi.fn().mockResolvedValue(undefined));
+    const client = mockAppRef.current?.client as MockClient;
+    return { channel, client };
+  }
+
+  it('text-only routes to chat.postMessage (no uploadV2)', async () => {
+    const { channel, client } = await start();
+    const result = await channel.send(
+      { platform: 'slack', conversationId: 'C1', threadId: 'T1' },
+      { text: 'hi there' },
+    );
+    expect(client.chat.postMessage).toHaveBeenCalledOnce();
+    expect(client.files.uploadV2).not.toHaveBeenCalled();
+    expect(result.messageRef).toBe('1234.5678');
+  });
+
+  it('text + 1 attachment routes to files.uploadV2 with initial_comment + thread_ts', async () => {
+    const path = writeFixture('places.json', '[{"a":1}]');
+    const { channel, client } = await start();
+    client.files.uploadV2.mockResolvedValue({
+      ok: true,
+      files: [{ ok: true, files: [{ id: 'F1' }] }],
+    });
+
+    const result = await channel.send(
+      { platform: 'slack', conversationId: 'C1', threadId: 'T1' },
+      {
+        text: 'segue o arquivo',
+        attachments: [
+          { name: 'places.json', mimetype: 'application/json', localPath: path, sizeBytes: 8 },
+        ],
+      },
+    );
+
+    expect(client.chat.postMessage).not.toHaveBeenCalled();
+    expect(client.files.uploadV2).toHaveBeenCalledOnce();
+    const args = client.files.uploadV2.mock.calls[0][0];
+    expect(args.channel_id).toBe('C1');
+    expect(args.thread_ts).toBe('T1');
+    expect(args.initial_comment).toBeTruthy();
+    expect(Array.isArray(args.file_uploads)).toBe(true);
+    expect(args.file_uploads).toHaveLength(1);
+    expect(args.file_uploads[0].filename).toBe('places.json');
+    expect(args.file_uploads[0].title).toBe('places.json');
+    // messageRef is the first uploaded file's id (uploadV2 does not surface a
+    // posted-message ts in its response, only file ids).
+    expect(result.messageRef).toBe('F1');
+  });
+
+  it('text + 2 attachments uploads both in one files.uploadV2 call', async () => {
+    const p1 = writeFixture('one.md', '# one');
+    const p2 = writeFixture('two.csv', 'a,b\n');
+    const { channel, client } = await start();
+    client.files.uploadV2.mockResolvedValue({
+      ok: true,
+      files: [{ ok: true, files: [{ id: 'F1' }] }],
+    });
+
+    await channel.send(
+      { platform: 'slack', conversationId: 'C1', threadId: 'T1' },
+      {
+        text: 't',
+        attachments: [
+          { name: 'one.md', mimetype: 'text/markdown', localPath: p1, sizeBytes: 5 },
+          { name: 'two.csv', mimetype: 'text/csv', localPath: p2, sizeBytes: 4 },
+        ],
+      },
+    );
+
+    expect(client.files.uploadV2).toHaveBeenCalledOnce();
+    expect(client.files.uploadV2.mock.calls[0][0].file_uploads).toHaveLength(2);
+  });
+
+  it('empty text + 1 attachment omits initial_comment', async () => {
+    const path = writeFixture('only.txt', 'hello');
+    const { channel, client } = await start();
+    client.files.uploadV2.mockResolvedValue({
+      ok: true,
+      files: [{ ok: true, files: [{ id: 'F1' }] }],
+    });
+
+    await channel.send(
+      { platform: 'slack', conversationId: 'C1', threadId: null },
+      {
+        text: '',
+        attachments: [{ name: 'only.txt', mimetype: 'text/plain', localPath: path, sizeBytes: 5 }],
+      },
+    );
+
+    const args = client.files.uploadV2.mock.calls[0][0];
+    expect(args.initial_comment).toBeUndefined();
+  });
+
+  it('uploadV2 failure falls back to chat.postMessage with warning suffix', async () => {
+    const path = writeFixture('rep.json', '{}');
+    const { channel, client } = await start();
+    client.files.uploadV2.mockRejectedValue(new Error('not_allowed_token_type'));
+
+    const result = await channel.send(
+      { platform: 'slack', conversationId: 'C1', threadId: 'T1' },
+      {
+        text: 'reply text',
+        attachments: [
+          { name: 'rep.json', mimetype: 'application/json', localPath: path, sizeBytes: 2 },
+        ],
+      },
+    );
+
+    expect(client.files.uploadV2).toHaveBeenCalledOnce();
+    expect(client.chat.postMessage).toHaveBeenCalledOnce();
+    const fallbackArgs = client.chat.postMessage.mock.calls[0][0];
+    expect(fallbackArgs.text).toContain('reply text');
+    expect(fallbackArgs.text).toContain('file upload failed');
+    expect(result.messageRef).toBe('1234.5678');
+  });
+
+  it('falls back to a flat file shape when the SDK does not nest', async () => {
+    // Some SDK paths return a flat shape: { ok, files: [{id, ...}] } instead of
+    // the nested completeUploadExternal wrapper. Both must resolve.
+    const path = writeFixture('p.json', '{}');
+    const { channel, client } = await start();
+    client.files.uploadV2.mockResolvedValue({
+      ok: true,
+      files: [{ id: 'F-FLAT' }],
+    });
+
+    const result = await channel.send(
+      { platform: 'slack', conversationId: 'C1', threadId: null },
+      {
+        text: 'x',
+        attachments: [
+          { name: 'p.json', mimetype: 'application/json', localPath: path, sizeBytes: 2 },
+        ],
+      },
+    );
+    expect(result.messageRef).toBe('F-FLAT');
+  });
+
+  it('files.uploadV2 returning no file id throws "files.uploadV2 returned no file id"', async () => {
+    const path = writeFixture('q.json', '{}');
+    const { channel, client } = await start();
+    client.files.uploadV2.mockResolvedValue({ ok: true, files: [{}] });
+
+    await expect(
+      channel.send(
+        { platform: 'slack', conversationId: 'C1', threadId: null },
+        {
+          text: 'x',
+          attachments: [
+            { name: 'q.json', mimetype: 'application/json', localPath: path, sizeBytes: 2 },
+          ],
+        },
+      ),
+    ).rejects.toThrow('files.uploadV2 returned no file id');
   });
 });

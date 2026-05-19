@@ -20,6 +20,7 @@
         "chat:write",
         "app_mentions:read",
         "files:read",
+        "files:write",
         "groups:history",
         "im:history",
         "im:read",

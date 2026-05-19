@@ -1,5 +1,11 @@
 import type { Logger } from '@zeno/logger';
-import type { Channel, MessageHandler, MessageTarget, ReactionEvent } from '@/channels/types';
+import type {
+  Channel,
+  MessageHandler,
+  MessageTarget,
+  OutgoingMessage,
+  ReactionEvent,
+} from '@/channels/types';
 
 /**
  * No-op channel used when Slack is not installed yet. Lets the worker boot
@@ -25,7 +31,7 @@ export class NoopChannel implements Channel {
     );
   }
 
-  async send(_target: MessageTarget, _text: string): Promise<{ messageRef: string }> {
+  async send(_target: MessageTarget, _message: OutgoingMessage): Promise<{ messageRef: string }> {
     throw new Error('no channel installed — install Slack via dashboard /connectors and restart');
   }
 

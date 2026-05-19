@@ -21,7 +21,13 @@
 import type { ConnectorRepo } from '@zeno/db/runtime';
 import type { Logger } from '@zeno/logger';
 import { NoopChannel } from '@/channels/noop/noop-channel';
-import type { Channel, MessageHandler, MessageTarget, ReactionEvent } from '@/channels/types';
+import type {
+  Channel,
+  MessageHandler,
+  MessageTarget,
+  OutgoingMessage,
+  ReactionEvent,
+} from '@/channels/types';
 
 export interface ChannelRow {
   id: string;
@@ -134,8 +140,8 @@ export class ChannelManager {
         // The manager owns adapter lifecycle. Callers must not call start() on the
         // proxy — kept as a no-op so the Channel interface remains usable as a drop-in.
       },
-      async send(target: MessageTarget, text: string) {
-        return get().send(target, text);
+      async send(target: MessageTarget, message: OutgoingMessage) {
+        return get().send(target, message);
       },
       async react(target: MessageTarget, emoji: string) {
         return get().react(target, emoji);

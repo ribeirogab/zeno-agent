@@ -1,4 +1,4 @@
-import { rm } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { App, LogLevel } from '@slack/bolt';
 import { createLogger } from '@zeno/logger';
@@ -178,16 +178,89 @@ export class SlackChannel implements Channel {
     if (target.platform !== 'slack') {
       throw new Error(`Unsupported platform: ${target.platform}`);
     }
-    const result = await this.app.client.chat.postMessage({
-      token: this.opts.botToken,
-      channel: target.conversationId,
-      thread_ts: target.threadId ?? undefined,
-      text: toSlackMrkdwn(message.text),
-    });
-    if (!result.ts) {
-      throw new Error('chat.postMessage returned no ts');
+
+    // Text-only fast path — unchanged from pre-#10 behavior.
+    if (!message.attachments?.length) {
+      const result = await this.app.client.chat.postMessage({
+        token: this.opts.botToken,
+        channel: target.conversationId,
+        thread_ts: target.threadId ?? undefined,
+        text: toSlackMrkdwn(message.text),
+      });
+      if (!result.ts) {
+        throw new Error('chat.postMessage returned no ts');
+      }
+      return { messageRef: String(result.ts) };
     }
-    return { messageRef: String(result.ts) };
+
+    // With attachments: single files.uploadV2 call combining text + files.
+    const initialComment = toSlackMrkdwn(message.text) || undefined;
+    try {
+      const fileUploads = await Promise.all(
+        message.attachments.map(async (a) => ({
+          file: await readFile(a.localPath),
+          filename: a.name,
+          title: a.name,
+        })),
+      );
+      const result = await this.app.client.files.uploadV2({
+        token: this.opts.botToken,
+        channel_id: target.conversationId,
+        thread_ts: target.threadId ?? undefined,
+        initial_comment: initialComment,
+        file_uploads: fileUploads,
+      });
+
+      const fileShares = (
+        result as {
+          files?: Array<{
+            shares?: {
+              public?: Record<string, Array<{ ts?: string }>>;
+              private?: Record<string, Array<{ ts?: string }>>;
+            };
+          }>;
+        }
+      ).files?.[0]?.shares;
+      const ts =
+        fileShares?.public?.[target.conversationId]?.[0]?.ts ??
+        fileShares?.private?.[target.conversationId]?.[0]?.ts;
+      if (!ts) {
+        throw new Error('files.uploadV2 returned no message ts');
+      }
+      logger.info(
+        {
+          event: 'slack_files_uploaded',
+          channel: target.conversationId,
+          count: message.attachments.length,
+          totalBytes: message.attachments.reduce((sum, a) => sum + a.sizeBytes, 0),
+          ts,
+        },
+        'files uploaded to slack',
+      );
+      return { messageRef: ts };
+    } catch (error) {
+      if (error instanceof Error && error.message === 'files.uploadV2 returned no message ts') {
+        throw error;
+      }
+      logger.error(
+        {
+          event: 'slack_files_upload_failed',
+          channel: target.conversationId,
+          err: String(error).slice(0, 200),
+        },
+        'files.uploadV2 failed; falling back to text-only postMessage',
+      );
+      const fallback = await this.app.client.chat.postMessage({
+        token: this.opts.botToken,
+        channel: target.conversationId,
+        thread_ts: target.threadId ?? undefined,
+        text: `${toSlackMrkdwn(message.text)}\n\n_(file upload failed — check worker logs)_`,
+      });
+      if (!fallback.ts) {
+        throw new Error('chat.postMessage (fallback) returned no ts');
+      }
+      return { messageRef: String(fallback.ts) };
+    }
   }
 
   async openDm(userId: string): Promise<string> {

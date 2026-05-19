@@ -178,7 +178,10 @@ export class AgentCore {
  * prompt cache valid.
  */
 /** @internal Exported for testing only. */
-export function wrapWithChannelContext(message: IncomingMessage): string {
+export function wrapWithChannelContext(
+  message: IncomingMessage,
+  opts: { outboxDir?: string } = {},
+): string {
   const lines: string[] = [];
 
   // Slack-specific context blocks (gated by platform).
@@ -209,6 +212,17 @@ export function wrapWithChannelContext(message: IncomingMessage): string {
     }
     lines.push('[/attached_files]');
     lines.push('Read the attached files before responding.');
+  }
+
+  // Universal outbox surface: tells the agent where to write files for upload.
+  if (opts.outboxDir) {
+    if (lines.length) lines.push('');
+    lines.push('[outbox]');
+    lines.push(opts.outboxDir);
+    lines.push(
+      'Write any file you want to send to the user into this directory. The channel adapter will upload them alongside your reply.',
+    );
+    lines.push('[/outbox]');
   }
 
   // No context blocks at all → return raw text unchanged.

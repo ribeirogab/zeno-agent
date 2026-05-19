@@ -90,6 +90,8 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/tanstack-router-pretypecheck-regen|Dashboard `tsr generate` not wired to typecheck]] — `route-tree.gen.ts` is gitignored and needs a Vite build before `tsc --noEmit` works; fresh worktrees fail `quality-gate` until then.
 - [[../learnings/fumadocs-gettext-raw-breaks-on-workers|Fumadocs `getText('raw')` reads from disk — breaks on Cloudflare Workers]] — switch to `'processed'` + enable `postprocess.includeProcessedMarkdown` in `source.config.ts`; otherwise `/llms.mdx/<slug>` 500s in production.
 - [[../learnings/turbopack-rejects-og-in-catch-all|Turbopack rejects `opengraph-image` siblings of an optional catch-all]] — `app/[[...slug]]/opengraph-image.tsx` panics on dev-server startup; lift to a sibling `app/og/route.tsx` and wire metadata via `generateMetadata`.
+- [[../learnings/cli-install-verify-skips-on-multi-instance|`zeno connector install --verify` silently skips on multi-instance catalogs]] — the post-install slug-diff walks top-level items only; `connector_group` items have no `slug`, so 2nd+ install of any multi-instance catalog never runs verify. Workaround: `--no-verify` + manual `zeno connector test`.
+- [[../learnings/postgres-mcp-auth-fail-classifies-as-timeout|`crystaldba/postgres-mcp` auth failures surface as `timeout`, not `auth`]] — the MCP server doesn't propagate Postgres' "password authentication failed" within `DISCOVER_TIMEOUT_MS = 10s`; the classifier sees a bare timeout. Functional behavior (install fail + rollback) still correct; only the error CATEGORY differs.
 
 ## `#meta` — Workflow and process
 

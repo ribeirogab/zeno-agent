@@ -23,6 +23,13 @@ RUN set -eux; \
 # Spec 0040: install `uv` for Python-based MCP servers (Klaviyo, Swarmia).
 RUN curl -LsSf https://astral.sh/uv/0.11.7/install.sh | UV_INSTALL_DIR=/usr/local/bin sh
 
+# Spec 2026-05-19-connector-postgres: prefetch postgres-mcp deps so the
+# runtime first-install does not race DISCOVER_TIMEOUT_MS (10s). Resolves
+# ~63 Python deps including psycopg-binary + pglast SQL parser; without
+# this step the first `zeno connector install postgres ...` likely fails
+# verification on slow networks.
+RUN uvx postgres-mcp --help >/dev/null
+
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /app
 

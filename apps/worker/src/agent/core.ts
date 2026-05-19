@@ -1,8 +1,11 @@
+import { mkdir, rm } from 'node:fs/promises';
+import { join } from 'node:path';
 import type { SessionRepo } from '@zeno/db/runtime';
 import { createLogger } from '@zeno/logger';
+import { collectOutbox } from '@/agent/collect-outbox';
 import { NoBackendConfiguredError } from '@/agent/credentials';
 import { type AgentBackend, AgentBackendError, type AgentInput } from '@/agent/types';
-import type { Channel, IncomingMessage, MessageTarget } from '@/channels/types';
+import type { Channel, IncomingMessage, MessageTarget, OutgoingMessage } from '@/channels/types';
 
 const logger = createLogger({ service: 'worker' });
 
@@ -73,50 +76,121 @@ export class AgentCore {
 
       await safe(() => channel.react(target, 'eyes'));
 
-      const resumeSessionId = message.threadId
-        ? (this.opts.sessions.get(message.threadId) ?? undefined)
-        : undefined;
-
-      const agentInput: AgentInput = {
-        systemPrompt: this.opts.getSystemPrompt(),
-        userMessage: wrapWithChannelContext(message),
-        cwd: this.opts.workspaceDir,
-        correlationId: message.correlationId,
-        // Messages without a thread (DM first msg) are stateless — don't persist the SDK session
-        persistSession: message.threadId == null ? false : undefined,
-        resumeSessionId,
-      };
-
-      if (resumeSessionId) {
+      const outboxDir = join(this.opts.workspaceDir, 'outbox', message.correlationId);
+      let outboxReady = false;
+      try {
+        await mkdir(outboxDir, { recursive: true });
+        outboxReady = true;
         logger.info(
+          { event: 'outbox_created', correlationId: message.correlationId, path: outboxDir },
+          'outbox dir ready',
+        );
+      } catch (err) {
+        logger.error(
           {
-            event: 'session_resumed',
+            event: 'outbox_mkdir_failed',
             correlationId: message.correlationId,
-            threadId: message.threadId,
-            sessionId: resumeSessionId,
+            path: outboxDir,
+            err: String(err).slice(0, 200),
           },
-          'resuming session',
+          'failed to create outbox dir; proceeding without outbox surface',
         );
       }
 
       try {
-        const output = await this.opts.backend.query(agentInput);
+        const resumeSessionId = message.threadId
+          ? (this.opts.sessions.get(message.threadId) ?? undefined)
+          : undefined;
 
-        await channel.send(target, { text: output.text });
+        const agentInput: AgentInput = {
+          systemPrompt: this.opts.getSystemPrompt(),
+          userMessage: wrapWithChannelContext(message, {
+            outboxDir: outboxReady ? outboxDir : undefined,
+          }),
+          cwd: this.opts.workspaceDir,
+          correlationId: message.correlationId,
+          persistSession: message.threadId == null ? false : undefined,
+          resumeSessionId,
+        };
+
+        if (resumeSessionId) {
+          logger.info(
+            {
+              event: 'session_resumed',
+              correlationId: message.correlationId,
+              threadId: message.threadId,
+              sessionId: resumeSessionId,
+            },
+            'resuming session',
+          );
+        }
+
+        let replyText: string;
+        let replySessionId: string | undefined;
+        try {
+          const output = await this.opts.backend.query(agentInput);
+          replyText = output.text;
+          replySessionId = output.sessionId;
+        } catch (firstError) {
+          if (resumeSessionId && isResumeFailure(firstError)) {
+            if (message.threadId) this.opts.sessions.delete(message.threadId);
+            logger.warn(
+              {
+                event: 'session_resume_failed',
+                correlationId: message.correlationId,
+                threadId: message.threadId,
+                staleSessionId: resumeSessionId,
+              },
+              'stale session, starting fresh',
+            );
+            try {
+              const retryOutput = await this.opts.backend.query({
+                ...agentInput,
+                resumeSessionId: undefined,
+              });
+              replyText = retryOutput.text;
+              replySessionId = retryOutput.sessionId;
+            } catch (retryError) {
+              await this.reportFailure(channel, target, message.correlationId, retryError);
+              return;
+            }
+          } else {
+            await this.reportFailure(channel, target, message.correlationId, firstError);
+            return;
+          }
+        }
+
+        const attachments = outboxReady ? await collectOutbox(outboxDir) : [];
+        if (outboxReady) {
+          logger.info(
+            {
+              event: 'outbox_collected',
+              correlationId: message.correlationId,
+              path: outboxDir,
+              count: attachments.length,
+              totalBytes: attachments.reduce((sum, a) => sum + a.sizeBytes, 0),
+            },
+            'outbox collected',
+          );
+        }
+
+        const outgoing: OutgoingMessage =
+          attachments.length > 0 ? { text: replyText, attachments } : { text: replyText };
+
+        await channel.send(target, outgoing);
         await safe(() => channel.unreact(target, 'eyes'));
         await safe(() => channel.react(target, 'white_check_mark'));
 
-        // Store the session mapping for this thread
-        if (message.threadId && output.sessionId) {
+        if (message.threadId && replySessionId) {
           const wasNew = this.opts.sessions.get(message.threadId) === null;
-          this.opts.sessions.upsert(message.threadId, output.sessionId);
+          this.opts.sessions.upsert(message.threadId, replySessionId);
           if (wasNew) {
             logger.info(
               {
                 event: 'session_created',
                 correlationId: message.correlationId,
                 threadId: message.threadId,
-                sessionId: output.sessionId,
+                sessionId: replySessionId,
               },
               'session created',
             );
@@ -127,38 +201,26 @@ export class AgentCore {
           { event: 'response_sent', correlationId: message.correlationId },
           'response sent',
         );
-      } catch (firstError) {
-        // If this was a resume attempt and it failed, clear the stale mapping and retry fresh
-        if (resumeSessionId && isResumeFailure(firstError)) {
-          if (message.threadId) this.opts.sessions.delete(message.threadId);
-          logger.warn(
-            {
-              event: 'session_resume_failed',
-              correlationId: message.correlationId,
-              threadId: message.threadId,
-              staleSessionId: resumeSessionId,
-            },
-            'stale session, starting fresh',
-          );
+      } finally {
+        if (outboxReady) {
           try {
-            const retryOutput = await this.opts.backend.query({
-              ...agentInput,
-              resumeSessionId: undefined,
-            });
-            await channel.send(target, { text: retryOutput.text });
-            await safe(() => channel.unreact(target, 'eyes'));
-            await safe(() => channel.react(target, 'white_check_mark'));
-            if (message.threadId && retryOutput.sessionId) {
-              this.opts.sessions.upsert(message.threadId, retryOutput.sessionId);
-            }
-            return;
-          } catch (retryError) {
-            await this.reportFailure(channel, target, message.correlationId, retryError);
-            return;
+            await rm(outboxDir, { recursive: true, force: true });
+            logger.info(
+              { event: 'outbox_cleaned', correlationId: message.correlationId, path: outboxDir },
+              'outbox cleaned',
+            );
+          } catch (err) {
+            logger.warn(
+              {
+                event: 'outbox_cleanup_failed',
+                correlationId: message.correlationId,
+                path: outboxDir,
+                err: String(err).slice(0, 200),
+              },
+              'failed to clean outbox dir',
+            );
           }
         }
-
-        await this.reportFailure(channel, target, message.correlationId, firstError);
       }
     };
   }

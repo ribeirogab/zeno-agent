@@ -5,7 +5,13 @@ import { createLogger } from '@zeno/logger';
 import { downloadSlackFiles, type SlackFile } from '@/channels/slack/files';
 import { toSlackMrkdwn } from '@/channels/slack/format';
 import { normalizeSlackEvent } from '@/channels/slack/normalize';
-import type { Channel, MessageHandler, MessageTarget, ReactionEvent } from '@/channels/types';
+import type {
+  Channel,
+  MessageHandler,
+  MessageTarget,
+  OutgoingMessage,
+  ReactionEvent,
+} from '@/channels/types';
 
 interface ReactionAddedEvent {
   item?: { ts?: string; channel?: string };
@@ -168,7 +174,7 @@ export class SlackChannel implements Channel {
     logger.info({ event: 'slack_connected', botUserId: this.botUserId }, 'Slack connected');
   }
 
-  async send(target: MessageTarget, text: string): Promise<{ messageRef: string }> {
+  async send(target: MessageTarget, message: OutgoingMessage): Promise<{ messageRef: string }> {
     if (target.platform !== 'slack') {
       throw new Error(`Unsupported platform: ${target.platform}`);
     }
@@ -176,7 +182,7 @@ export class SlackChannel implements Channel {
       token: this.opts.botToken,
       channel: target.conversationId,
       thread_ts: target.threadId ?? undefined,
-      text: toSlackMrkdwn(text),
+      text: toSlackMrkdwn(message.text),
     });
     if (!result.ts) {
       throw new Error('chat.postMessage returned no ts');

@@ -49,7 +49,7 @@ export class AgentCore {
       }
     }
     const reply = translateError(error);
-    await channel.send(target, reply);
+    await channel.send(target, { text: reply });
     await safe(() => channel.unreact(target, 'eyes'));
     await safe(() => channel.react(target, 'warning'));
     logger.error(
@@ -102,7 +102,7 @@ export class AgentCore {
       try {
         const output = await this.opts.backend.query(agentInput);
 
-        await channel.send(target, output.text);
+        await channel.send(target, { text: output.text });
         await safe(() => channel.unreact(target, 'eyes'));
         await safe(() => channel.react(target, 'white_check_mark'));
 
@@ -145,7 +145,7 @@ export class AgentCore {
               ...agentInput,
               resumeSessionId: undefined,
             });
-            await channel.send(target, retryOutput.text);
+            await channel.send(target, { text: retryOutput.text });
             await safe(() => channel.unreact(target, 'eyes'));
             await safe(() => channel.react(target, 'white_check_mark'));
             if (message.threadId && retryOutput.sessionId) {

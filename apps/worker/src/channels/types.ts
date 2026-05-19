@@ -5,7 +5,7 @@
 export interface Channel {
   readonly name: string;
   start(onMessage: MessageHandler): Promise<void>;
-  send(target: MessageTarget, text: string): Promise<{ messageRef: string }>;
+  send(target: MessageTarget, message: OutgoingMessage): Promise<{ messageRef: string }>;
   react(target: MessageTarget, emoji: string): Promise<void>;
   unreact(target: MessageTarget, emoji: string): Promise<void>;
   waitForReaction(
@@ -65,4 +65,26 @@ export interface MessageTarget {
   conversationId: string;
   threadId: string | null;
   messageRef?: string;
+}
+
+export interface OutgoingAttachment {
+  /** Display name shown in the channel (typically the filename). */
+  name: string;
+  /** MIME type (inferred from extension when written by the agent's Write tool). */
+  mimetype: string;
+  /** Absolute path to the file on local disk (under `<workspaceDir>/outbox/<correlationId>/`). */
+  localPath: string;
+  /** File size in bytes. */
+  sizeBytes: number;
+}
+
+export interface OutgoingMessage {
+  /** Reply text, posted as the message body or as `initial_comment` alongside files. */
+  text: string;
+  /**
+   * Optional file attachments. Omit the key entirely when there are no
+   * attachments — adapters branch on `message.attachments?.length` to route
+   * between text-only and file-bearing API calls.
+   */
+  attachments?: OutgoingAttachment[];
 }

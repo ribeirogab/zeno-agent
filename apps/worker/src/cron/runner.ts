@@ -252,7 +252,7 @@ export class CronRunner {
       threadId: cron.notifyThreadId,
     };
     try {
-      await this.opts.channel.send(target, text);
+      await this.opts.channel.send(target, { text });
     } catch (error) {
       logger.error(
         { event: 'cron_delivery_failed', cronId: cron.id, err: String(error) },

@@ -39,6 +39,8 @@ The user (or another agent) types `/new-issue` from Claude Code. Optional argume
 
    The label list always includes the type label (`bug` for bugs, `enhancement` for features, `question` for questions) and conditionally `roadmap`.
 
+   **Body line-wrapping (critical).** GitHub renders every single `\n` in an issue body as `<br>` (GFM hard-line-break extension, enabled in issue/PR/comment bodies but NOT in repo `.md` files). Treat each paragraph as ONE line in the heredoc; separate paragraphs with a blank line. Do NOT hard-wrap mid-paragraph at column 72/80 — the wraps become visible breaks in the rendered issue and the body looks fragmented (see incident with #75 / #81 body rendering). Code fences, lists, and tables follow standard Markdown wrapping and are unaffected.
+
 6. **Report the issue number.** Capture the URL the CLI prints; report the number to the user.
 
 7. **Roadmap update.** If the user chose to add the `roadmap` label in step 4, ask which section the new item belongs to (`Now`, `Next`, `Later`) and offer to draft an updated `ROADMAP.md` slotting the new issue in. The user reviews and accepts the diff; the agent commits the change with message `docs(roadmap): add #<N> <short-title>`.

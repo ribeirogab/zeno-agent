@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add Postgres to the curated connectors catalog as a read-only stdio MCP, landing a generic catalog-schema extension (`secrets[].mode: 'env' | 'argv'`) that interpolates secret values into positional argv slots — required because `@modelcontextprotocol/server-postgres` takes the connection URL as a positional argument, not an env var.
+**Goal:** Add `postgres` to the curated connectors catalog as a stdio MCP wrapping `crystaldba/postgres-mcp` invoked via `uvx`, locked to `--access-mode=restricted` for read-only safety.
 
-**Architecture:** Two-layer change. (1) The catalog loader's zod schema gets a new optional `mode` field on each secret, plus a refinement that cross-validates `${KEY}` placeholders in `transportConfig.args` against `mode: 'argv'` secrets. (2) `toStdioConfig` in `@zeno/mcp-discover` detects `${KEY}` tokens in args at spawn time, substitutes the matching secret value, and excludes that key from `env` (defense-in-depth). The new catalog entry exercises this path; every existing entry stays untouched (default `mode: 'env'`).
+**Architecture:** Standard `mode: env` stdio connector — `DATABASE_URI` is read from `process.env` of the spawned subprocess. The catalog entry pins `--access-mode=restricted` in `transportConfig.args` so writes are server-rejected regardless of the role. `categoryPrefixMap` maps the 4 non-standard tool prefixes (`execute_sql`, `explain_`, `analyze_`) to `read`. The Dockerfile prefetches `postgres-mcp` deps so runtime first-install does not race the 10s discovery timeout. **No catalog-schema extension** — the original spec's `mode: argv` extension was dropped after Phase 0 swapped the upstream package to one that uses env.
 
-**Tech Stack:** TypeScript (strict mode), Node.js 24 LTS, pnpm workspaces, vitest, biome, zod, `@modelcontextprotocol/server-postgres` (run via `npx -y`).
+**Tech Stack:** TypeScript (strict mode), Node.js 24 LTS, pnpm workspaces, vitest, biome, zod. Python ≥ 3.12 auto-provisioned by `uv` inside the worker container.
 
 **For this spec:** `[[spec-connector-postgres]]`
 
@@ -16,555 +16,48 @@
 
 | File | Action | Responsibility |
 |---|---|---|
-| `apps/api/src/lib/catalog-loader.ts` | Modify | Add `mode: 'env' \| 'argv'` to `catalogSecretSchema`. Add `catalogEntrySchema` superRefine: every `${KEY}` in `transportConfig.args` has a matching `mode: 'argv'` secret with `key === KEY`. |
-| `apps/api/tests/lib/catalog-loader.test.ts` | Create | Unit tests for the new schema field and the refinement. |
-| `packages/mcp-discover/src/build-config.ts` | Modify | Extend `toStdioConfig` to scan `args` for `${KEY}` tokens, substitute from secrets, exclude those keys from `env`. Throw on unresolved tokens or `source === 'custom'` + any `${KEY}`. |
-| `packages/mcp-discover/tests/build-config.test.ts` | Modify | Add tests for argv interpolation, mixed modes, multi-occurrence, missing-secret throw, custom-source guard. |
-| `apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs` | Modify | Pass `categoryPrefixMap` from the catalog entry into `discoverTools(...)` so `query` classifies as `read` during snapshot regen. |
-| `agent/connectors-catalog.json` | Modify | Add the `postgres` entry: stdio, `npx -y @modelcontextprotocol/server-postgres ${DATABASE_URL}`, `secrets[0].mode: 'argv'`, `authCheckTool: 'query'`, `authCheckArgs: { sql: 'SELECT 1' }`, `categoryPrefixMap`, `tools: []` initially. |
+| `apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs` | Modify | Thread `authCheckTool` / `authCheckArgs` / `categoryPrefixMap` from the catalog entry into the `discoverTools(...)` call. |
+| `infra/Dockerfile` | Modify | Add `RUN uvx postgres-mcp --help` after the existing `uv` install (line 24) so the image ships with `postgres-mcp` deps pre-materialized. |
+| `agent/connectors-catalog.json` | Modify | Add the `postgres` entry: stdio via `uvx postgres-mcp --access-mode=restricted`, `DATABASE_URI` secret (env), `authCheckTool: 'list_schemas'`, explicit `categoryPrefixMap`, `tools: []` initially. |
 | `agent/assets/connectors/postgres.svg` (or `.png`) | Create | Brand icon. |
 
-No DB migration. No new package. No CLI command (the existing `zeno connector install/test/uninstall` already supports the install flow end-to-end — confirmed in spec §"Padrão CLI install").
+No DB migration. No new package. No code change in `mcp-discover` or the API. **No new tests added** — the changes are catalog metadata + a one-line Dockerfile addition + a script options forwarding. The existing API catalog tests (`pnpm --filter @zeno/api test`) cover schema parsing of the new entry, and `pnpm run quality-gate` is the gate.
 
 ---
 
 ## Phase Ordering
 
-1. **Phase 0** — Discovery (gating): verify the upstream package is maintained and capture its live tool list.
-2. **Phase 1** — Catalog schema extension (no behavior change yet).
-3. **Phase 2** — `toStdioConfig` argv interpolation + custom-source guard.
-4. **Phase 3** — Regen script `categoryPrefixMap` patch.
-5. **Phase 4** — Catalog entry + icon.
-6. **Phase 5** — Snapshot regen against a live Postgres → populates `tools[]`.
+1. **Phase 0** — Discovery (already done; see `phase-0-discovery.md`).
+2. **Phase 1** — Regen script: pass options to `discoverTools(...)`.
+3. **Phase 2** — Dockerfile prefetch.
+4. **Phase 3** — Postgres icon.
+5. **Phase 4** — Catalog entry.
+6. **Phase 5** — Snapshot regen against a live Postgres → populate `tools[]`.
 7. **Phase 6** — `pnpm run quality-gate` green.
-8. **Phase 7** — Manual smoke (P1.* / P2.* / P3.* / P4.* per spec).
-9. **Phase 8** — Reflection + spec `status: shipped`.
+8. **Phase 7** — Manual smoke (P1.* / P2.* / P3.* / P4.* per spec). Requires Docker + live Slack profile.
+9. **Phase 8** — Reflection + spec `status: shipped` + PR.
 
-Phase 0 is gating: if upstream is archived/abandoned, stop and escalate to the operator. Phases 1-3 must land before Phase 4 (the catalog entry references `mode: 'argv'` + `${DATABASE_URL}`, which only the new schema + `toStdioConfig` understand).
-
----
-
-## Task 1: Phase 0 — Upstream discovery (gating)
-
-**Files:** No code changes. Output captured in `.vault/specs/2026-05-19-connector-postgres/phase-0-discovery.md` (created in this task).
-
-- [ ] **Step 1: Check upstream status**
-
-Run:
-```bash
-gh repo view modelcontextprotocol/servers --json description,isArchived,pushedAt,defaultBranchRef
-```
-
-Expected: `isArchived: false`, recent `pushedAt`. If `isArchived: true`, STOP — escalate to the operator. The spec is paused until a fallback (e.g. `crystaldba/postgres-mcp`) is approved.
-
-- [ ] **Step 2: Confirm the npm package still resolves**
-
-Run:
-```bash
-npm view @modelcontextprotocol/server-postgres version description deprecated 2>&1 | head -20
-```
-
-Expected: a version string + description; `deprecated` either absent or empty. If the package is marked deprecated, STOP and escalate.
-
-- [ ] **Step 3: Start a throwaway Postgres**
-
-Run:
-```bash
-docker run --rm -d --name pg-discovery -e POSTGRES_PASSWORD=t -p 5599:5432 postgres:16
-sleep 3
-```
-
-Expected: container starts. Use port 5599 to avoid conflicts.
-
-- [ ] **Step 4: Capture the live tool list via MCP inspector**
-
-Run:
-```bash
-npx -y @modelcontextprotocol/inspector --cli npx -y @modelcontextprotocol/server-postgres "postgres://postgres:t@localhost:5599/postgres" --method tools/list 2>&1 | tee tmp/postgres-tools.json
-```
-
-Expected: a JSON array of tool definitions. Capture every `name`. Verify NO tool name starts with `create_`, `update_`, `delete_`, `send_`, `post_`, `put_`, or `write_`. If any does → STOP, escalate (would violate the read-only constraint).
-
-If the inspector CLI is unavailable, fall back:
-```bash
-node -e "
-import('@modelcontextprotocol/sdk/client/index.js').then(async ({Client}) => {
-  const {StdioClientTransport} = await import('@modelcontextprotocol/sdk/client/stdio.js');
-  const c = new Client({name:'probe',version:'0'},{capabilities:{}});
-  const t = new StdioClientTransport({
-    command:'npx',
-    args:['-y','@modelcontextprotocol/server-postgres','postgres://postgres:t@localhost:5599/postgres']
-  });
-  await c.connect(t);
-  console.log(JSON.stringify((await c.listTools()).tools.map(x => x.name), null, 2));
-  await c.close();
-})
-" | tee tmp/postgres-tools.json
-```
-
-- [ ] **Step 5: Write findings**
-
-Create `.vault/specs/2026-05-19-connector-postgres/phase-0-discovery.md` with:
-- Upstream status (archived ✗ / deprecated ✗ / version captured).
-- Full list of tools returned by `tools/list`.
-- A line per tool: `<name> → <expected category>` based on the `categoryPrefixMap` planned in Task 6.
-- Any unexpected names that DON'T match `query` / `list_*` / `read_*` / `get_*` / `search_*` / `find_*` patterns. Note them — they may need an addition to `categoryPrefixMap` in Task 6.
-
-- [ ] **Step 6: Stop the throwaway DB**
-
-Run:
-```bash
-docker stop pg-discovery
-```
-
-Expected: container removed (`--rm` flag in step 3).
-
-- [ ] **Step 7: Commit the discovery note**
-
-```bash
-git add .vault/specs/2026-05-19-connector-postgres/phase-0-discovery.md
-git commit -m "docs(spec): phase 0 discovery for connector-postgres"
-```
-
-(Do NOT commit `tmp/postgres-tools.json` — `tmp/` is gitignored per `.vault/rules/generated-files-location.md`.)
+Phases 1-4 can ship in any order; the snapshot regen (Phase 5) requires Phases 1 and 4 to be on disk. Phase 7 cannot run until the worker image is rebuilt with Phase 2's change (`zeno start --build`).
 
 ---
 
-## Task 2: Catalog schema — `mode` field + zod refinement
+## Task 1: Regen script — forward options to `discoverTools`
 
 **Files:**
-- Modify: `apps/api/src/lib/catalog-loader.ts:11-30` (add `mode` to `catalogSecretSchema`), `:45-126` (add superRefine to `catalogEntrySchema`).
-- Create: `apps/api/tests/lib/catalog-loader.test.ts`.
+- Modify: `apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs` (the `discoverTools(transient, secrets)` call inside `fetchToolsFromLiveMcp`).
 
-- [ ] **Step 1: Write the failing tests**
+The script today calls `discoverTools(transient, secrets)` with no options, so `categoryPrefixMap`, `authCheckTool`, and `authCheckArgs` never get applied. Klaviyo's `klaviyo_*` prefixes go unmapped (the snapshot probably has `interactive` classifications today). For Postgres we need `execute_sql` / `explain_*` / `analyze_*` to classify as `read`, which only happens with the prefix map threaded through.
 
-Create `apps/api/tests/lib/catalog-loader.test.ts`:
-
-```ts
-import { describe, expect, it } from 'vitest';
-import { catalogEntrySchema, catalogSecretSchema } from '../../src/lib/catalog-loader';
-
-describe('catalogSecretSchema', () => {
-  it('defaults mode to "env" when omitted', () => {
-    const parsed = catalogSecretSchema.parse({
-      key: 'API_KEY',
-      label: 'API key',
-      help: 'help',
-      required: true,
-    });
-    expect(parsed.mode).toBe('env');
-  });
-
-  it('accepts mode: "argv"', () => {
-    const parsed = catalogSecretSchema.parse({
-      key: 'DATABASE_URL',
-      label: 'DB URL',
-      help: 'help',
-      required: true,
-      mode: 'argv',
-    });
-    expect(parsed.mode).toBe('argv');
-  });
-
-  it('rejects unknown mode values', () => {
-    expect(() =>
-      catalogSecretSchema.parse({
-        key: 'X',
-        label: 'X',
-        help: 'h',
-        required: true,
-        mode: 'header',
-      }),
-    ).toThrow();
-  });
-});
-
-describe('catalogEntrySchema argv refinement', () => {
-  const base = {
-    id: 'pg',
-    name: 'Postgres',
-    description: 'd',
-    icon: 'pg.svg',
-    docsUrl: 'https://example.com',
-    transport: 'stdio' as const,
-    tools: [],
-  };
-
-  it('accepts ${KEY} in args when a matching mode:argv secret exists', () => {
-    expect(() =>
-      catalogEntrySchema.parse({
-        ...base,
-        transportConfig: {
-          command: 'npx',
-          args: ['-y', '@modelcontextprotocol/server-postgres', '${DATABASE_URL}'],
-        },
-        secrets: [
-          {
-            key: 'DATABASE_URL',
-            label: 'DB URL',
-            help: 'h',
-            required: true,
-            mode: 'argv',
-          },
-        ],
-      }),
-    ).not.toThrow();
-  });
-
-  it('rejects ${KEY} in args when no matching secret exists', () => {
-    expect(() =>
-      catalogEntrySchema.parse({
-        ...base,
-        transportConfig: {
-          command: 'npx',
-          args: ['-y', 'pkg', '${MISSING_KEY}'],
-        },
-        secrets: [],
-      }),
-    ).toThrow(/MISSING_KEY/);
-  });
-
-  it('rejects ${KEY} in args when the matching secret has mode:env', () => {
-    expect(() =>
-      catalogEntrySchema.parse({
-        ...base,
-        transportConfig: {
-          command: 'npx',
-          args: ['-y', 'pkg', '${DATABASE_URL}'],
-        },
-        secrets: [
-          {
-            key: 'DATABASE_URL',
-            label: 'DB URL',
-            help: 'h',
-            required: true,
-            // mode defaults to 'env'
-          },
-        ],
-      }),
-    ).toThrow(/DATABASE_URL/);
-  });
-});
-```
-
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run:
-```bash
-pnpm --filter @zeno/api test -- catalog-loader
-```
-
-Expected: FAIL — `mode` not defined on the schema, refinement absent.
-
-- [ ] **Step 3: Add `mode` to `catalogSecretSchema`**
-
-In `apps/api/src/lib/catalog-loader.ts`, modify `catalogSecretSchema` (around line 11-30):
-
-```ts
-export const catalogSecretSchema = z.object({
-  key: z.string(),
-  label: z.string(),
-  help: z.string(),
-  required: z.boolean(),
-  inputType: z.enum(['text', 'password', 'pem']).optional(),
-  prefix: z.string().optional(),
-  /**
-   * Spec 2026-05-19-connector-postgres: how the secret value is delivered to
-   * the MCP subprocess. `env` (default) injects into `process.env` of the
-   * spawned subprocess. `argv` interpolates into matching `${KEY}` slots of
-   * `transportConfig.args` at spawn time and KEEPS THE KEY OUT OF `env`
-   * (defense-in-depth — see `[[../../rules/integration-tokens-in-db-only]]`).
-   */
-  mode: z.enum(['env', 'argv']).optional().default('env'),
-});
-```
-
-- [ ] **Step 4: Add the argv-consistency refinement to `catalogEntrySchema`**
-
-In the same file, change the `catalogEntrySchema` definition (around line 45) from `z.object({...})` to wrap it with `.superRefine`:
-
-```ts
-const baseCatalogEntrySchema = z.object({
-  // ... all the existing fields ...
-});
-
-export const catalogEntrySchema = baseCatalogEntrySchema.superRefine((entry, ctx) => {
-  const args = entry.transportConfig.args ?? [];
-  const tokenRegex = /\$\{([A-Z_][A-Z0-9_]*)\}/g;
-  for (const slot of args) {
-    const matches = slot.matchAll(tokenRegex);
-    for (const match of matches) {
-      const key = match[1];
-      const secret = entry.secrets.find((s) => s.key === key);
-      if (!secret) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `transportConfig.args references \${${key}} but no matching secrets[] entry was declared`,
-          path: ['transportConfig', 'args'],
-        });
-      } else if (secret.mode !== 'argv') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `transportConfig.args references \${${key}} but secrets[key=${key}].mode is "${secret.mode ?? 'env'}", expected "argv"`,
-          path: ['secrets'],
-        });
-      }
-    }
-  }
-});
-```
-
-Keep the rest of the file (including `catalogFileSchema`, `loadCatalog`, `findCatalogEntry`) referencing the new `catalogEntrySchema` symbol (no rename needed — it's the same export).
-
-- [ ] **Step 5: Run tests to verify they pass**
-
-Run:
-```bash
-pnpm --filter @zeno/api test -- catalog-loader
-```
-
-Expected: PASS for all 6 cases above.
-
-- [ ] **Step 6: Verify the existing catalog still parses**
-
-Run:
-```bash
-pnpm --filter @zeno/api test
-```
-
-Expected: every existing API test stays green. The existing catalog file (`agent/connectors-catalog.json`) parses with no `mode` field on any secret → each defaults to `'env'` → no `${KEY}` tokens in any existing entry's args → refinement passes for every entry.
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add apps/api/src/lib/catalog-loader.ts apps/api/tests/lib/catalog-loader.test.ts
-git commit -m "feat(api): add secrets[].mode + argv-args refinement to catalog schema"
-```
-
----
-
-## Task 3: `toStdioConfig` — argv interpolation + defense-in-depth
-
-**Files:**
-- Modify: `packages/mcp-discover/src/build-config.ts:33-53` (`toStdioConfig` function).
-- Modify: `packages/mcp-discover/tests/build-config.test.ts` (add new test cases).
-
-- [ ] **Step 1: Write the failing tests**
-
-Append to `packages/mcp-discover/tests/build-config.test.ts`, inside the `describe('toStdioConfig', ...)` block (alongside the existing cases):
-
-```ts
-describe('argv interpolation', () => {
-  it('substitutes ${KEY} placeholders in args from secrets and excludes those keys from env', () => {
-    const c = toStdioConfig(
-      baseConnector({
-        source: 'catalog',
-        catalogId: 'postgres',
-        command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-postgres', '${DATABASE_URL}'],
-      }),
-      [{ connectorId: 'i', key: 'DATABASE_URL', value: 'postgres://u:p@h/db' }],
-    );
-    expect(c.args).toEqual([
-      '-y',
-      '@modelcontextprotocol/server-postgres',
-      'postgres://u:p@h/db',
-    ]);
-    expect(c.env).toBeUndefined();
-  });
-
-  it('keeps non-argv secrets in env unchanged when args has no ${KEY}', () => {
-    const c = toStdioConfig(
-      baseConnector({
-        source: 'catalog',
-        catalogId: 'pg',
-        command: 'node',
-        args: ['x.js'],
-      }),
-      [{ connectorId: 'i', key: 'API_KEY', value: 'k' }],
-    );
-    expect(c.env).toEqual({ API_KEY: 'k' });
-    expect(c.args).toEqual(['x.js']);
-  });
-
-  it('handles mixed argv + env secrets on the same connector', () => {
-    const c = toStdioConfig(
-      baseConnector({
-        source: 'catalog',
-        catalogId: 'pg',
-        command: 'npx',
-        args: ['-y', 'pkg', '${DATABASE_URL}'],
-      }),
-      [
-        { connectorId: 'i', key: 'DATABASE_URL', value: 'postgres://u@h/db' },
-        { connectorId: 'i', key: 'LOG_LEVEL', value: 'debug' },
-      ],
-    );
-    expect(c.args).toEqual(['-y', 'pkg', 'postgres://u@h/db']);
-    expect(c.env).toEqual({ LOG_LEVEL: 'debug' });
-  });
-
-  it('substitutes every occurrence when ${KEY} appears in multiple slots', () => {
-    const c = toStdioConfig(
-      baseConnector({
-        source: 'catalog',
-        catalogId: 'pg',
-        command: 'cmd',
-        args: ['--primary', '${URL}', '--replica', '${URL}'],
-      }),
-      [{ connectorId: 'i', key: 'URL', value: 'postgres://x' }],
-    );
-    expect(c.args).toEqual(['--primary', 'postgres://x', '--replica', 'postgres://x']);
-  });
-
-  it('throws when ${KEY} has no matching secret', () => {
-    expect(() =>
-      toStdioConfig(
-        baseConnector({
-          source: 'catalog',
-          catalogId: 'pg',
-          command: 'cmd',
-          args: ['${MISSING}'],
-        }),
-        [],
-      ),
-    ).toThrow(/missing argv secret for MISSING/);
-  });
-
-  it('throws when source is custom and args contains any ${KEY}', () => {
-    expect(() =>
-      toStdioConfig(
-        baseConnector({
-          source: 'custom',
-          command: 'cmd',
-          args: ['${DATABASE_URL}'],
-        }),
-        [{ connectorId: 'i', key: 'DATABASE_URL', value: 'p' }],
-      ),
-    ).toThrow(/custom connector|catalog-only/i);
-  });
-});
-```
-
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run:
-```bash
-pnpm --filter @zeno/mcp-discover test -- build-config
-```
-
-Expected: FAIL on every new case. The existing 3 cases (`builds env from secrets`, `omits env when no secrets`, `throws when no command`) still pass.
-
-- [ ] **Step 3: Patch `toStdioConfig`**
-
-In `packages/mcp-discover/src/build-config.ts`, replace the body of `toStdioConfig` (lines 33-53) with:
-
-```ts
-const ARGV_TOKEN = /\$\{([A-Z_][A-Z0-9_]*)\}/g;
-
-export function toStdioConfig(connector: Connector, secrets: ConnectorSecret[]): McpServerConfig {
-  if (!connector.command) {
-    throw new Error(`connector ${connector.slug} has transport=stdio but no command`);
-  }
-
-  const rawArgs = connector.args ?? [];
-  const argvKeys = new Set<string>();
-  for (const slot of rawArgs) {
-    for (const match of slot.matchAll(ARGV_TOKEN)) {
-      argvKeys.add(match[1] as string);
-    }
-  }
-
-  if (argvKeys.size > 0 && connector.source === 'custom') {
-    throw new Error(
-      `custom connector ${connector.slug} uses \${KEY} args placeholders; argv-interpolation is catalog-only`,
-    );
-  }
-
-  const secretByKey = new Map<string, string>();
-  for (const s of secrets) {
-    secretByKey.set(s.key, s.value);
-  }
-
-  // Substitute ${KEY} tokens in args from secrets. Throw on unresolved tokens.
-  const substitutedArgs = rawArgs.map((slot) =>
-    slot.replace(ARGV_TOKEN, (_, key: string) => {
-      const value = secretByKey.get(key);
-      if (value === undefined) {
-        throw new Error(`missing argv secret for ${key}`);
-      }
-      return value;
-    }),
-  );
-
-  // Build env from secrets, EXCLUDING keys that were consumed by argv
-  // (defense-in-depth: argv-mode secrets MUST NOT leak into process.env of
-  // the spawned subprocess — see `[[../../.vault/rules/integration-tokens-in-db-only]]`).
-  const env: Record<string, string> = {};
-  for (const s of secrets) {
-    if (s.key === RESERVED_MCP_TYPE_KEY) continue;
-    if (GITHUB_APP_RESERVED_KEYS_SET.has(s.key)) continue;
-    if (argvKeys.has(s.key)) continue;
-    if (s.key === RESERVED_AUTHORIZATION_KEY) {
-      env.AUTHORIZATION = s.value;
-      continue;
-    }
-    env[s.key] = s.value;
-  }
-
-  return {
-    type: 'stdio',
-    command: connector.command,
-    args: substitutedArgs,
-    ...(Object.keys(env).length > 0 ? { env } : {}),
-  };
-}
-```
-
-- [ ] **Step 4: Run tests to verify they pass**
-
-Run:
-```bash
-pnpm --filter @zeno/mcp-discover test
-```
-
-Expected: PASS on every case (the 3 existing + the 6 new ones).
-
-- [ ] **Step 5: Run the API tests too (sanity)**
-
-Run:
-```bash
-pnpm --filter @zeno/api test
-```
-
-Expected: green. `toStdioConfig` is used indirectly by the API test endpoint; no behavior change for any existing connector.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add packages/mcp-discover/src/build-config.ts packages/mcp-discover/tests/build-config.test.ts
-git commit -m "feat(mcp-discover): interpolate \${KEY} from secrets into stdio args"
-```
-
----
-
-## Task 4: Regen script — pass `categoryPrefixMap`
-
-**Files:**
-- Modify: `apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs` (the `await discoverTools(transient, secrets)` call, currently lacking the third options argument).
-
-The script today calls `discoverTools(transient, secrets)` with no options, so `categoryPrefixMap` never gets applied. Klaviyo gets away with it because its tools all start with `klaviyo_*` which the default classifier sees as `interactive` (and the catalog's `tools[]` is manually edited or sourced elsewhere). For Postgres we need `query` → `read`, so the script must thread the catalog entry's `categoryPrefixMap` through.
-
-- [ ] **Step 1: Read the current call site**
+- [ ] **Step 1: Locate the call site**
 
 Run:
 ```bash
 grep -n "discoverTools" apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs
 ```
 
-Expected: one line — `const result = await discoverTools(transient, secrets);` inside `fetchToolsFromLiveMcp`.
+Expected: exactly one match — `const result = await discoverTools(transient, secrets);` inside the `fetchToolsFromLiveMcp` function.
 
-- [ ] **Step 2: Patch the call to pass `categoryPrefixMap` (and `authCheckTool` / `authCheckArgs` for symmetry with the test endpoint)**
+- [ ] **Step 2: Patch the call site**
 
 In `apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs`, replace:
 
@@ -582,14 +75,20 @@ if (entry.categoryPrefixMap) options.categoryPrefixMap = entry.categoryPrefixMap
 const result = await discoverTools(transient, secrets, options);
 ```
 
-- [ ] **Step 3: Sanity-run the script in mirror-only mode**
+- [ ] **Step 3: Sanity-run in mirror-only mode**
 
 Run:
 ```bash
 node apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs
 ```
 
-Expected: prints `snapshot written: apps/worker/tests/connectors-e2e/__snapshots__/catalog-tools.snap`. The snapshot file's content is unchanged from before (mirror mode doesn't fetch). `git diff` shows no change.
+Expected: prints `snapshot written: apps/worker/tests/connectors-e2e/__snapshots__/catalog-tools.snap`. Then:
+
+```bash
+git diff apps/worker/tests/connectors-e2e/__snapshots__/catalog-tools.snap
+```
+
+Expected: zero diff (mirror mode doesn't fetch from live MCPs; only mirrors the catalog's `tools[]` into the snapshot file).
 
 - [ ] **Step 4: Commit**
 
@@ -600,40 +99,80 @@ git commit -m "chore(worker): thread authCheckTool / authCheckArgs / categoryPre
 
 ---
 
-## Task 5: Postgres brand icon
+## Task 2: Dockerfile — prefetch `postgres-mcp` deps
 
 **Files:**
-- Create: `agent/assets/connectors/postgres.svg` OR `agent/assets/connectors/postgres.png`.
+- Modify: `infra/Dockerfile:24` (add a `RUN` step right after the existing `uv` install).
 
-The catalog loader's `resolveIconPath` resolves either; the `/catalog/icons/:filename` route emits the right MIME from the extension.
+`crystaldba/postgres-mcp` pulls ~63 Python deps (including `psycopg-binary`, `pglast`) on first `uvx` invocation. On a slow network or cold cache this can exceed `DISCOVER_TIMEOUT_MS = 10s`, breaking the first `zeno connector install postgres ...` against verification. Prefetching at image-build time turns the runtime first-install into a warm-cache lookup.
 
-- [ ] **Step 1: Check the canonical Postgres mark license**
+- [ ] **Step 1: Read the surrounding context**
 
-The official Postgres elephant mark is hosted at `https://wiki.postgresql.org/wiki/Logo`. The SVG is licensed under PostgreSQL's permissive license. Either:
-- Pull a clean SVG (e.g. from the `simple-icons` package — `npx simple-icons download postgresql`), OR
-- Use a PNG fallback if no public-domain SVG is available.
+Open `infra/Dockerfile` and locate line 24 (the `uv` install via `astral.sh/uv/0.11.7/install.sh`). The line right after it (`RUN corepack enable ...`) is where the new `RUN uvx postgres-mcp --help` belongs.
+
+- [ ] **Step 2: Add the prefetch step**
+
+In `infra/Dockerfile`, insert AFTER the existing `RUN curl -LsSf https://astral.sh/uv/0.11.7/install.sh ...` line (which is currently line 24) and BEFORE `RUN corepack enable ...`:
+
+```dockerfile
+# Prefetch postgres-mcp deps so the runtime first-install does not race
+# DISCOVER_TIMEOUT_MS (10s). Resolves ~63 deps including psycopg-binary +
+# pglast. Spec 2026-05-19-connector-postgres.
+RUN uvx postgres-mcp --help >/dev/null
+```
+
+- [ ] **Step 3: Confirm the change is in the right stage**
+
+Run:
+```bash
+grep -n -A1 "postgres-mcp" infra/Dockerfile
+```
+
+Expected: the new `RUN uvx postgres-mcp --help` line appears in the `FROM node:24-slim AS base` block (i.e., before `Stage 2: deps`). It must be in the `base` stage so every downstream stage (deps, builder, runtime) inherits the cached `uv` data.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add infra/Dockerfile
+git commit -m "build(infra): prefetch postgres-mcp deps in worker image"
+```
+
+Note: the runtime won't have the new prefetched cache until the operator runs `zeno start --build`. Document this in the PR description.
+
+---
+
+## Task 3: Postgres brand icon
+
+**Files:**
+- Create: `agent/assets/connectors/postgres.svg` (or `.png` fallback).
+
+The catalog loader's `resolveIconPath` handles either; the `/catalog/icons/:filename` route picks MIME from the extension.
+
+- [ ] **Step 1: Download the simple-icons SVG (CC0)**
 
 Run:
 ```bash
 curl -fsSL "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/postgresql.svg" -o agent/assets/connectors/postgres.svg
 ```
 
-Expected: file ~1 KB, opens cleanly in a browser as a single-path elephant mark.
+Expected: file ~1 KB, single-path elephant mark, opens cleanly in a browser.
 
-If the URL fails or the simple-icons license doesn't fit (Creative Commons Zero — should be fine for an SVG with no embedded text):
+If the URL 404s or the simple-icons fetch fails for any reason, fall back to:
 ```bash
-# fallback: use the elephant PNG from postgresql.org
 curl -fsSL "https://www.postgresql.org/media/img/about/press/elephant.png" -o agent/assets/connectors/postgres.png
 ```
 
-- [ ] **Step 2: Verify the asset is < 50 KB**
+(Use whichever extension landed; Task 4's catalog entry's `icon` field needs to match.)
+
+- [ ] **Step 2: Verify size and content**
 
 Run:
 ```bash
 ls -lh agent/assets/connectors/postgres.*
+file agent/assets/connectors/postgres.*
 ```
 
-Expected: file size in the tens of kilobytes max. Large brand assets bloat the dashboard.
+Expected: a few kilobytes (SVG) or a few tens of kilobytes (PNG). `file` reports `SVG Scalable Vector Graphics image` or `PNG image data`.
 
 - [ ] **Step 3: Commit**
 
@@ -644,54 +183,51 @@ git commit -m "feat(assets): postgres connector icon"
 
 ---
 
-## Task 6: Catalog entry
+## Task 4: Catalog entry
 
 **Files:**
-- Modify: `agent/connectors-catalog.json` (insert the new entry; the file is alphabetized loosely — slot postgres in alphabetical position).
+- Modify: `agent/connectors-catalog.json` (insert the new entry in the `connectors[]` array).
 
-- [ ] **Step 1: Identify the insertion point**
+- [ ] **Step 1: Pick the insertion point**
 
 Run:
 ```bash
 grep -n '"id":' agent/connectors-catalog.json
 ```
 
-Expected: a list of catalog ids in source order. Slot `postgres` alphabetically between `linear` and `sentry` (or wherever it lands — order doesn't matter for the loader, only readability).
+Expected: the entry order shown. Slot `postgres` alphabetically (after `linear`, before `sentry`); order is cosmetic but readability matters.
 
 - [ ] **Step 2: Add the entry**
 
-Insert the following object into the `connectors[]` array in `agent/connectors-catalog.json` (use the icon extension that matches what landed in Task 5 — `postgres.svg` OR `postgres.png`):
+Insert the following object into the `connectors[]` array in `agent/connectors-catalog.json`. Match the icon extension to what landed in Task 3 (`postgres.svg` OR `postgres.png`):
 
 ```json
 {
   "id": "postgres",
   "name": "Postgres",
-  "description": "Read-only access to a Postgres database. One installation per database URL.",
+  "description": "Read-only access to a Postgres database via the Postgres MCP server (crystaldba/postgres-mcp). One installation per database URL.",
   "icon": "postgres.svg",
-  "docsUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/postgres",
+  "docsUrl": "https://github.com/crystaldba/postgres-mcp",
   "transport": "stdio",
   "transportConfig": {
-    "command": "npx",
+    "command": "uvx",
     "args": [
-      "-y",
-      "@modelcontextprotocol/server-postgres",
-      "${DATABASE_URL}"
+      "postgres-mcp",
+      "--access-mode=restricted"
     ]
   },
-  "authCheckTool": "query",
-  "authCheckArgs": { "sql": "SELECT 1" },
+  "authCheckTool": "list_schemas",
   "categoryPrefixMap": {
-    "query": "read",
-    "list_resources": "read",
-    "read_resource": "read"
+    "execute_sql": "read",
+    "explain_": "read",
+    "analyze_": "read"
   },
   "secrets": [
     {
-      "key": "DATABASE_URL",
+      "key": "DATABASE_URI",
       "label": "Connection URL",
-      "help": "postgres://user:pass@host:port/dbname. Use a read-only role — Constitution §Read-only database (cf. global CLAUDE.md Rule 22).",
-      "required": true,
-      "mode": "argv"
+      "help": "postgres://user:pass@host:port/dbname. The connector is locked to --access-mode=restricted (read-only). Use a read-only role for defense-in-depth — Constitution §Read-only database (cf. global CLAUDE.md Rule 22).",
+      "required": true
     }
   ],
   "tools": [],
@@ -700,40 +236,31 @@ Insert the following object into the `connectors[]` array in `agent/connectors-c
 }
 ```
 
-If Task 1 (Phase 0 discovery) surfaced extra tool names that don't fit the three keys in `categoryPrefixMap`, ADD them here BEFORE committing — `read_` / `list_` / `get_` / `search_` / `find_` prefixes are caught by the default classifier, but anything else (e.g. a hypothetical `describe_table` returning schema) needs an explicit entry in `categoryPrefixMap` mapping it to `read`.
-
 - [ ] **Step 3: Verify the catalog parses**
 
 Run:
 ```bash
-pnpm --filter @zeno/api test -- catalog-loader
+pnpm --filter @zeno/api test
 ```
 
-Expected: PASS. The new entry exercises the argv refinement from Task 2 — if Task 2 is wrong, this fails.
-
-Run additionally:
-```bash
-pnpm --filter @zeno/api test -- catalog
-```
-
-Expected: every existing catalog-related API test (icons, listings, install) stays green.
+Expected: every API test green. Pay attention to any `catalog` / `connectors` test that exercises `loadCatalog()` against the real file — those fail if the JSON is malformed or violates `catalogFileSchema`.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add agent/connectors-catalog.json
-git commit -m "feat(connectors): add postgres catalog entry"
+git commit -m "feat(connectors): add postgres catalog entry (crystaldba/postgres-mcp, restricted mode)"
 ```
 
 ---
 
-## Task 7: Populate `tools[]` via snapshot regen
+## Task 5: Populate `tools[]` via snapshot regen
 
 **Files:**
-- Modify: `agent/connectors-catalog.json` (in place — only the `tools[]` array of the postgres entry).
+- Modify (in place): `agent/connectors-catalog.json` — the `postgres.tools[]` array.
 - Touch: `apps/worker/tests/connectors-e2e/__snapshots__/catalog-tools.snap` (rewritten by the script).
 
-This task can only run after the catalog entry exists (Task 6) AND `toStdioConfig` understands argv (Task 3).
+Requires Tasks 1 + 4 on disk. No code change; only data refresh.
 
 - [ ] **Step 1: Start a throwaway Postgres**
 
@@ -743,20 +270,24 @@ docker run --rm -d --name pg-regen -e POSTGRES_PASSWORD=t -p 5599:5432 postgres:
 sleep 3
 ```
 
-Expected: container running.
+Expected: container starts on port 5599.
 
 - [ ] **Step 2: Run the regen script in fetch mode**
 
 Run:
 ```bash
-DATABASE_URL="postgres://postgres:t@localhost:5599/postgres" \
+DATABASE_URI="postgres://postgres:t@localhost:5599/postgres" \
   node apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs --fetch-from-mcp
 ```
 
-Expected:
-- Console: `fetching tools from live MCP for postgres...` followed by `postgres: N tools updated`.
-- `agent/connectors-catalog.json` — the postgres entry's `tools[]` now lists every live tool with `category: "read"` and `defaultPermission: "always_allow"` (or `"ask"` for any unmapped tool).
-- `apps/worker/tests/connectors-e2e/__snapshots__/catalog-tools.snap` — refreshed.
+Expected console output:
+```
+fetching tools from live MCP for postgres...
+  postgres: 9 tools updated
+snapshot written: apps/worker/tests/connectors-e2e/__snapshots__/catalog-tools.snap
+```
+
+(The count is 9 today per Phase 0; if upstream changes, it may differ.)
 
 - [ ] **Step 3: Review the diff manually**
 
@@ -765,20 +296,28 @@ Run:
 git diff agent/connectors-catalog.json
 ```
 
-Expected: only the postgres entry's `tools[]` changed. Every tool's `category` is `read`. No `write_*` / `create_*` / `delete_*` / `update_*` tool appears. If ANY non-read tool sneaks in, STOP — re-open the spec and decide whether to (a) extend `categoryPrefixMap`, (b) drop the tool via a future filtering mechanism (out of scope), or (c) reject this Postgres MCP entirely.
+Expected: only the `postgres.tools[]` array changed. Every tool's `category` is `read`. Verify each name maps as expected:
+- `list_schemas`, `list_objects`, `get_object_details`, `get_top_queries` → `read` (default classifier).
+- `explain_query`, `analyze_workload_indexes`, `analyze_query_indexes`, `analyze_db_health` → `read` (via `categoryPrefixMap`).
+- `execute_sql` → `read` (via `categoryPrefixMap`).
 
-- [ ] **Step 4: Test the skip-with-warning path**
+**If any tool's `category` is `interactive` or `write`, STOP.** Either (a) the prefix map didn't apply (revisit Task 1's patch), or (b) upstream added a new tool prefix → extend `categoryPrefixMap` in `agent/connectors-catalog.json`, re-run Step 2.
 
-Run the script again WITHOUT the env var:
+**If any tool's name starts with `write_` / `create_` / `update_` / `delete_`, STOP and escalate** — this would violate Constitution §Read-only database. The `--access-mode=restricted` server-side enforcement should prevent this, but the catalog must not lie about what tools are reachable.
+
+- [ ] **Step 4: Sanity-test the skip-with-warning path**
+
+Run the script again WITHOUT `DATABASE_URI`:
 ```bash
+unset DATABASE_URI
 node apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs --fetch-from-mcp
+git diff agent/connectors-catalog.json
 ```
 
-Expected: every other catalog entry warns `skip <id>: missing env var <KEY>...`. The postgres entry is the same — `skip postgres: missing env var DATABASE_URL...`. The on-disk `tools[]` for postgres stays as written in Step 2 (no overwrite, no error).
+Expected: warns `skip postgres: missing env var DATABASE_URI ...`; the on-disk `postgres.tools[]` from Step 2 stays as-is (zero diff).
 
 - [ ] **Step 5: Stop the throwaway DB**
 
-Run:
 ```bash
 docker stop pg-regen
 ```
@@ -792,57 +331,54 @@ git commit -m "chore(catalog): populate postgres tools[] from live MCP"
 
 ---
 
-## Task 8: `quality-gate` green
+## Task 6: `quality-gate` green
 
-**Files:** No edits expected. If lint/typecheck/test fails, fix at the source.
+**Files:** No source edits expected. Fix in place if anything fails.
 
 - [ ] **Step 1: Run the gate**
 
-Run:
 ```bash
 pnpm run quality-gate
 ```
 
-Expected: zero failures across lint + typecheck + tests in every workspace. The change set so far:
-- `apps/api/src/lib/catalog-loader.ts` — schema patch.
-- `apps/api/tests/lib/catalog-loader.test.ts` — new tests.
-- `packages/mcp-discover/src/build-config.ts` — `toStdioConfig` patch.
-- `packages/mcp-discover/tests/build-config.test.ts` — new cases.
-- `apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs` — options forwarding.
+Expected: zero failures across lint + typecheck + tests in every workspace. The change set:
+- `apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs` — script patch.
+- `infra/Dockerfile` — prefetch step.
 - `agent/connectors-catalog.json` — new entry + populated tools[].
-- `agent/assets/connectors/postgres.svg` (or `.png`).
+- `agent/assets/connectors/postgres.*` — icon.
 - `apps/worker/tests/connectors-e2e/__snapshots__/catalog-tools.snap` — refreshed.
 
-- [ ] **Step 2: If anything fails, fix in place**
+- [ ] **Step 2: Fix any failures in place**
 
-Common failure modes:
-- Biome flags formatting on the new test file → run `pnpm --filter @zeno/api lint:fix` and `pnpm --filter @zeno/mcp-discover lint:fix`.
-- Typecheck flags `Connector.source` lookup with no narrowing in the new `toStdioConfig` branch → add an explicit `if (connector.source === 'custom')` guard rather than relying on type-narrowing tricks.
-- Snapshot mismatch in `connectors-e2e` → re-run Task 7 Step 2 (the snapshot must reflect the just-committed catalog).
+Common failure modes for this scope:
+- **Biome formatting on JSON** — run `pnpm --filter @zeno/api lint:fix` (catalog file is JSON and biome formats it).
+- **Snapshot mismatch in `connectors-e2e`** — re-run Task 5 Step 2 (the snapshot must reflect the committed catalog).
+- **Catalog schema rejection** — re-check the JSON syntax of the new entry, especially commas + bracket matching.
 
 - [ ] **Step 3: Commit any fix-ups separately**
 
 ```bash
-git add -p   # selectively stage the fix-up changes
+git add -p   # stage only the fix-up changes
 git commit -m "fix(...): post-quality-gate adjustments"
 ```
 
-(Only if Step 2 surfaced anything. If the gate was green on first try, skip.)
+(Skip if the gate was green on first try.)
 
 ---
 
-## Task 9: Manual smoke (P1.* / P2.* / P3.* / P4.*)
+## Task 7: Manual smoke
 
-**Files:** No code. Evidence captured under `tmp/postgres-smoke/` (gitignored).
+**Files:** No code. Evidence captured under `tmp/postgres-smoke/` (gitignored — `.vault/rules/generated-files-location.md`).
 
-This task assumes the worker container is built and running for the active profile. If not:
+**Pre-requisite:** the operator must rebuild the worker image to pick up Task 2's Dockerfile change:
 ```bash
 zeno start --build
 ```
 
+(Otherwise the Dockerfile prefetch never lands in the running container and the runtime first-install may hit the cold-start race.)
+
 - [ ] **Step 1: Provision a smoke Postgres + read-only role**
 
-Run:
 ```bash
 docker run --rm -d --name pg-smoke -e POSTGRES_PASSWORD=root -p 5599:5432 postgres:16
 sleep 3
@@ -855,137 +391,111 @@ docker exec pg-smoke psql -U postgres -d smoke -c "GRANT SELECT ON ALL TABLES IN
 docker exec pg-smoke psql -U postgres -d smoke -c "INSERT INTO orders (total) SELECT random()*1000 FROM generate_series(1,100);"
 ```
 
-Expected: DB up, `ro_user` can `SELECT` on `orders` but cannot `INSERT/UPDATE/DELETE`.
-
-Smoke URL: `postgres://ro_user:ro_pass@host.docker.internal:5599/smoke` (host.docker.internal lets the worker container reach the host's published port).
+URL to paste: `postgresql://ro_user:ro_pass@host.docker.internal:5599/smoke` (macOS/Windows). Linux uses `--add-host=host.docker.internal:host-gateway` on the worker container OR the host LAN IP — note in the PR if running on Linux.
 
 - [ ] **Step 2: P1.1 — install with prompt**
 
-In a terminal attached to the active profile:
 ```bash
 zeno connector install postgres --label "smoke"
-# at the prompt, paste: postgres://ro_user:ro_pass@host.docker.internal:5599/smoke
+# at the prompt, paste: postgresql://ro_user:ro_pass@host.docker.internal:5599/smoke
 ```
 
-Expected CLI output (last 3 lines):
+Expected last 3 lines:
 ```
 queued · correlationId=<uuid>
 installed
-verified · N tools
+verified · 9 tools
 ```
 
-Capture the output to `tmp/postgres-smoke/p1.1.txt`.
+Capture to `tmp/postgres-smoke/p1.1.txt`.
 
-- [ ] **Step 3: P1.2 — install with unreachable URL, expect auto-rollback**
+- [ ] **Step 3: P1.2 — unreachable URL → auto-rollback**
 
-Run:
 ```bash
-zeno connector install postgres --label "p1-2" --secret DATABASE_URL=postgres://nobody:bad@127.0.0.1:9999/x
+zeno connector install postgres --label "p1-2" --secret DATABASE_URI=postgresql://nobody:bad@127.0.0.1:9999/x
 echo "exit=$?"
-zeno connector list | grep -i postgres-p1-2  # must NOT appear
+zeno connector list | grep -i postgres-p1-2 || echo "absent"
 ```
 
-Expected: `verification failed: network`, `rolling back...`, `uninstalled`, exit 1. No `postgres-p1-2` row remains. Save the output to `tmp/postgres-smoke/p1.2.txt`.
+Expected: `verification failed: network`, `rolling back...`, `uninstalled`, exit 1. Final grep prints `absent`.
 
-- [ ] **Step 4: P1.3 — install with bad credentials, expect auto-rollback**
+- [ ] **Step 4: P1.3 — bad credentials → auto-rollback**
 
-Run:
 ```bash
-zeno connector install postgres --label "p1-3" --secret DATABASE_URL=postgres://baduser:badpass@host.docker.internal:5599/smoke
+zeno connector install postgres --label "p1-3" --secret DATABASE_URI=postgresql://baduser:badpass@host.docker.internal:5599/smoke
 echo "exit=$?"
-zeno connector list | grep -i postgres-p1-3  # must NOT appear
+zeno connector list | grep -i postgres-p1-3 || echo "absent"
 ```
 
-Expected: `verification failed: auth`, auto-rollback, exit 1. Save to `tmp/postgres-smoke/p1.3.txt`.
+Expected: `verification failed: auth`, auto-rollback, exit 1. Final grep prints `absent`.
 
-- [ ] **Step 5: P1.4 — list verifies install**
+- [ ] **Step 5: P1.4 — listing reflects install**
 
-Run:
 ```bash
-zeno connector list
+zeno connector list | grep -i postgres
 ```
 
-Expected: `postgres-smoke` row, status `enabled`, `lastVerifiedAt` populated. Capture to `tmp/postgres-smoke/p1.4.txt`.
+Expected: `postgres-smoke` row, `enabled`, `lastVerifiedAt` populated.
 
 - [ ] **Step 6: P1.5 — second instance**
 
-Repeat Step 2 with `--label "smoke2"` and the same URL (or a different one). Verify both rows coexist:
+Repeat Step 2 with `--label "smoke2"` and any URL. Both rows must coexist:
 ```bash
 zeno connector list | grep postgres-
 ```
 
-Expected: two rows — `postgres-smoke`, `postgres-smoke2`. Capture to `tmp/postgres-smoke/p1.5.txt`.
+Expected: `postgres-smoke` and `postgres-smoke2` both present.
 
-- [ ] **Step 7: P2.1 — verify argv placeholder persists literal**
+- [ ] **Step 7: P2.3 — confirm `args` carries `--access-mode=restricted`**
 
-Pick the smoke connector's UUID from `zeno connector list` and curl the API:
 ```bash
-PROFILE_PORT=$(zeno profile show smoke --json | jq -r .port)  # or whatever profile is active
+PROFILE_PORT=$(zeno profile show $(zeno profile list --json | jq -r '.[] | select(.default==true) | .name') --json | jq -r .port)
 curl -s -H "x-zeno-origin: cli" "http://127.0.0.1:${PROFILE_PORT}/api/connectors/postgres-smoke" | jq .args
 ```
 
-Expected: `["-y", "@modelcontextprotocol/server-postgres", "${DATABASE_URL}"]` — the literal placeholder, NOT the URL. Capture to `tmp/postgres-smoke/p2.1.txt`.
+Expected: `["postgres-mcp", "--access-mode=restricted"]`. The `--access-mode=restricted` is part of the persisted connector identity.
 
-- [ ] **Step 8: P2.3 — env isolation in worker container**
+- [ ] **Step 8: P2.2 — env isolation**
 
-Trigger a tool call (e.g. via Slack DM in Task 10) or `zeno connector test postgres-smoke`, then immediately:
+Trigger a tool call (Step 11 below or `zeno connector test postgres-smoke`) and during it:
 ```bash
-docker exec $(zeno profile show smoke --json | jq -r .containerName) env | grep DATABASE_URL || echo "absent"
+docker exec $(zeno profile show smoke --json | jq -r .containerName) env | grep DATABASE_URI || echo "absent"
 ```
 
-Expected: `absent`. The worker's `process.env` does NOT contain `DATABASE_URL`. Capture to `tmp/postgres-smoke/p2.3.txt`.
+Expected: `absent`.
 
-- [ ] **Step 9: P2.4 — URL appears in subprocess argv (documented tradeoff)**
+- [ ] **Step 9: P3.1 — SELECT-style Slack DM**
 
-While a tool call is in flight (run `zeno connector test postgres-smoke` in another shell), capture:
-```bash
-docker exec $(zeno profile show smoke --json | jq -r .containerName) ps auxf | grep -i postgres
-```
+In Slack, DM the agent: "Show me the 10 most recent orders from the smoke postgres."
 
-Expected: a row like `npx -y @modelcontextprotocol/server-postgres postgres://ro_user:ro_pass@...`. The URL IS in argv — this is the documented tradeoff of `mode: 'argv'`. Capture to `tmp/postgres-smoke/p2.4.txt`.
+Expected: the agent calls `mcp__postgres-smoke__execute_sql` with a SELECT, returns rows. Screenshot to `tmp/postgres-smoke/p3.1.png`.
 
-- [ ] **Step 10: P3.1 — SELECT-style DM**
+- [ ] **Step 10: P3.2 — schema introspection DM**
 
-In Slack, DM the agent:
-> "Show me the 10 most recent orders from the smoke postgres."
+DM: "Show me the schema of the orders table in the smoke postgres."
 
-Expected: the agent calls `mcp__postgres-smoke__query` with a SELECT, returns 10 rows. Screenshot to `tmp/postgres-smoke/p3.1.png`.
+Expected: the agent walks `list_schemas` → `list_objects` → `get_object_details`, returns schema. Screenshot to `tmp/postgres-smoke/p3.2.png`.
 
-- [ ] **Step 11: P3.3 — DELETE-style DM (expect refusal)**
+- [ ] **Step 11: P3.3 — DELETE-style DM, expect server-side refusal**
 
-In Slack, DM:
-> "Delete all orders from the smoke postgres."
+DM: "Delete all rows from the orders table in the smoke postgres."
 
-Expected: the agent attempts to call `query` with a DELETE; the server returns an error ("cannot execute DELETE in a read-only transaction" or similar); the agent reports the failure without having mutated data. Verify with:
+Expected: the MCP server rejects under `--access-mode=restricted`; the agent reports failure. Verify:
 ```bash
 docker exec pg-smoke psql -U postgres -d smoke -c "SELECT count(*) FROM orders;"
 ```
 
-Expected: count is still 100. Screenshot the Slack response to `tmp/postgres-smoke/p3.3.png` and save the count check to `tmp/postgres-smoke/p3.3-count.txt`.
+Expected: still 100. Screenshot the Slack response to `tmp/postgres-smoke/p3.3.png` and capture the count check.
 
-- [ ] **Step 12: P4.1 — snapshot regen against the smoke DB**
+- [ ] **Step 12: P4.1 — snapshot regen against smoke DB**
 
-Run (same as Task 7 but pointing at the smoke DB):
-```bash
-DATABASE_URL=postgres://ro_user:ro_pass@127.0.0.1:5599/smoke \
-  node apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs --fetch-from-mcp
-git diff agent/connectors-catalog.json
-```
+Already verified in Task 5 against `postgres:t@localhost:5599`. Re-running with the smoke role isn't necessary unless the operator wants a second sample point. Document this as "P4.1 covered by Task 5 Step 2 evidence".
 
-Expected: zero diff (catalog already populated in Task 7). Confirms regen is idempotent against this DB.
+- [ ] **Step 13: P4.2 — snapshot regen without env var**
 
-- [ ] **Step 13: P4.2 — snapshot regen without env**
+Already verified in Task 5 Step 4. Document the same way.
 
-Run:
-```bash
-unset DATABASE_URL
-node apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs --fetch-from-mcp
-git diff agent/connectors-catalog.json
-```
-
-Expected: `skip postgres: missing env var DATABASE_URL ...`, zero diff.
-
-- [ ] **Step 14: Teardown smoke env**
+- [ ] **Step 14: Teardown**
 
 ```bash
 zeno connector uninstall postgres-smoke --yes
@@ -993,54 +503,53 @@ zeno connector uninstall postgres-smoke2 --yes
 docker stop pg-smoke
 ```
 
-- [ ] **Step 15: Commit the smoke evidence (if applicable)**
+- [ ] **Step 15: Evidence handoff**
 
-The smoke artifacts live in `tmp/` which is gitignored. If any artifact needs to be preserved (e.g. screenshots for the PR description), copy it manually OUT of `tmp/` and into the PR description; do NOT commit `tmp/`.
+`tmp/` is gitignored. Copy any artifact the PR description needs (screenshots, output snippets) OUT of `tmp/` and embed inline in the PR — do NOT commit `tmp/` files.
 
 ---
 
-## Task 10: Reflection + ship
+## Task 8: Reflection + ship
 
 **Files:**
-- Modify: `.vault/specs/2026-05-19-connector-postgres/spec-connector-postgres.md` frontmatter.
-- Possibly create: `.vault/learnings/<slug>.md` if Phase 0 or smoke surfaced anything non-obvious.
+- Modify: `.vault/specs/2026-05-19-connector-postgres/spec-connector-postgres.md` frontmatter + acceptance criteria checkboxes.
+- Possibly create: `.vault/learnings/<slug>.md`.
 - Possibly update: `.vault/_index/learnings.md`.
 
 - [ ] **Step 1: Reflection**
 
-Ask: "What did I learn implementing this that wasn't obvious from the spec?" Consider:
-- Did the upstream tool list differ from expectations? (Phase 0 captures this.)
-- Did the `${KEY}` interpolation surface any edge case the spec missed (escaping, quoting, multi-line)?
-- Was the `categoryPrefixMap` complete, or did snapshot regen reveal a tool name that doesn't fit?
-- Did the cold-start (`npx -y` package download) actually exceed `DISCOVER_TIMEOUT_MS = 10s`?
+Ask: "What did I learn implementing this that wasn't obvious from the spec?" Concrete candidates:
+- Did `uvx postgres-mcp` cold start exceed `DISCOVER_TIMEOUT_MS` even after the Dockerfile prefetch?
+- Did the operator's role-level GRANTs ever override the server-side `--access-mode=restricted` reject? (Should never happen, but worth documenting if it does.)
+- Did the upstream's `--access-mode` flag's semantics surprise — anything it permits that we'd consider mutation?
+- Did the `categoryPrefixMap` need extension during Phase 5?
 
-If at least one of these has a non-obvious answer, create a learning note (see Step 2). If nothing surprising came up, write that explicitly in the PR description ("No new learnings from this spec").
+If at least one answer is non-obvious, write an atomic learning note (see Step 2). If nothing surprising came up, write that explicitly in the PR description ("No new learnings from this spec").
 
 - [ ] **Step 2: Create a learning note (if applicable)**
 
-Use the template:
 ```bash
 cp .vault/templates/learning.md .vault/learnings/<slug>.md
+# edit the file, link back with [[../specs/2026-05-19-connector-postgres/spec-connector-postgres|connector-postgres spec]]
+# add a line under the right heading in .vault/_index/learnings.md
 ```
-
-Edit the new file. Link it to the spec with `[[../specs/2026-05-19-connector-postgres/spec-connector-postgres|connector-postgres spec]]`. Add it to `.vault/_index/learnings.md` under the appropriate `#concept` / `#gotcha` / `#reference` heading.
 
 - [ ] **Step 3: Flip the spec to `shipped`**
 
-In `.vault/specs/2026-05-19-connector-postgres/spec-connector-postgres.md`, change the frontmatter:
+Edit the frontmatter of `.vault/specs/2026-05-19-connector-postgres/spec-connector-postgres.md`:
 ```yaml
 ---
 status: shipped
 feature: connector-postgres
 created: 2026-05-19
-shipped: 2026-05-19   # or the actual ship date
+shipped: 2026-05-19   # actual ship date
 issue: 75
 ---
 ```
 
-- [ ] **Step 4: Tick every `[ ]` Acceptance Criteria bullet that the smoke verified**
+- [ ] **Step 4: Tick verified acceptance criteria**
 
-In the spec's `## Acceptance Criteria` section, change `- [ ]` to `- [x]` for every criterion the smoke (Task 9) or quality-gate (Task 8) satisfied. If any criterion is NOT satisfied, leave it `- [ ]` and explain in the PR description why — but a shippable spec normally has every box ticked.
+In the spec's `## Acceptance Criteria` section, change `- [ ]` to `- [x]` for every criterion the quality-gate (Task 6) and the smoke (Task 7) verified. Leave un-ticked any criterion that wasn't actually verified and explain in the PR description.
 
 - [ ] **Step 5: Commit reflection + ship marker**
 
@@ -1051,49 +560,48 @@ git add .vault/learnings/<slug>.md .vault/_index/learnings.md
 git commit -m "docs(spec): connector-postgres shipped"
 ```
 
-- [ ] **Step 6: Open the PR**
+- [ ] **Step 6: Open the PR via `/new-pr`**
 
-Per CLAUDE.md, use `/new-pr` — DO NOT run `gh pr create` directly. The PR description should:
+Per CLAUDE.md: use `/new-pr` — DO NOT run `gh pr create` directly. The PR description should:
 - Reference issue #75.
-- Link the spec.
-- Include the smoke evidence (output snippets, screenshots) for P1.* / P2.* / P3.* / P4.*.
-- Note the documented tradeoff: URL appears in subprocess argv (P2.4) — intentional given Docker isolation.
+- Note the Phase 0 pivot (canonical `@modelcontextprotocol/server-postgres` deprecated → switched to `crystaldba/postgres-mcp`).
+- Embed smoke evidence (output snippets + screenshots).
+- Flag the Dockerfile change → operator needs `zeno start --build` after merge.
 
 ---
 
 ## Risks / Open Decisions
 
-- **Phase 0 may surface tool names not covered by `categoryPrefixMap`.** Handling: extend the map in Task 6 BEFORE running Task 7. Any `write_*` / `create_*` / `delete_*` tool aborts the spec.
-- **Icon licensing.** Task 5 prefers `simple-icons` (CC0). If the implementer can't reach simple-icons, the PostgreSQL.org elephant PNG is the fallback; license check is the implementer's call.
-- **`host.docker.internal` on Linux hosts.** Smoke Step 1 assumes macOS / Windows Docker Desktop. On Linux, replace with `--add-host=host.docker.internal:host-gateway` on the worker container OR use the host's actual LAN IP. Note in the PR if the smoke was done on Linux.
-- **Cold-start timeout.** If `npx -y` package download exceeds 10s during P1.1, the install verify fails. Mitigation: re-run `zeno connector install` (the second time `npx` hits the cache). Document in the learning note if this hits in practice.
+- **`uvx` cold-start may still exceed 10s on first runtime install** despite the Dockerfile prefetch — for instance if the operator nukes their image cache. Mitigation: re-run `zeno connector install postgres` (the second time hits the per-host `uv` cache, not the in-image one).
+- **`host.docker.internal` on Linux.** Smoke Step 1 assumes Docker Desktop. Linux needs `--add-host=host.docker.internal:host-gateway` on the worker container OR the host's LAN IP. Document the path used.
+- **`--access-mode=restricted` is a trust contract with `crystaldba/postgres-mcp`.** A future release could regress; the snapshot review in Task 5 Step 3 is the canary. If a `write_*` / `create_*` / `update_*` / `delete_*` tool appears, halt and escalate.
 
 ---
 
 ## Self-review
 
-**Spec coverage check.** Every section of the spec maps to a task:
-- §"Brainstorm Q&A — positional-argv problem" → Task 3 (interpolation in `toStdioConfig`).
-- §"Brainstorm Q&A — instance model" → no code task; the existing CLI/API stack supports multi-instance with zero change. P1.5 in Task 9 validates.
-- §"Brainstorm Q&A — tool categorization" → Task 4 (regen pass-through) + Task 6 (`categoryPrefixMap` in entry).
-- §"Constraints — CLI-only operator surface" → no code; Task 9 validates via `zeno connector install/test/uninstall`.
-- §"Constraints — argv interpolation runs at spawn time" → Task 3 implementation + Task 9 P2.1.
-- §"Constraints — custom connectors throw on `${KEY}`" → Task 3 step 1 test 6 + step 3 implementation.
-- §"Constraints — authCheckTool / authCheckArgs" → Task 6 (entry) + Task 4 (regen plumbing).
-- §"Constraints — Phase 0 upstream check" → Task 1.
-- §"User Stories P1.*-P4.*" → Task 9 (all manual smoke steps).
-- §"Acceptance Criteria" — 21 bullets, each maps to either a unit test (Tasks 2/3) or a smoke step (Task 9) or `pnpm run quality-gate` (Task 8).
-- §"Risks and Mitigations — 6 rows" → Documented in Risks section above + Task 1 (upstream check) + smoke (P3.3 verifies read-only enforcement).
-- §"Implementation order — 9 phases" → Tasks 1-10 cover all 9 phases (Task 1 = Phase 0, Task 2 = Phase 1, ..., Task 10 = Phase 8).
+**Spec coverage check.** Every section of the amended spec maps to a task:
+- §"Brainstorm Q&A — which server" → resolved during Phase 0 (operator picked A); recorded in `phase-0-discovery.md`.
+- §"Brainstorm Q&A — read-only enforcement" → Task 4 (catalog entry pins `--access-mode=restricted`).
+- §"Brainstorm Q&A — instance model" → no code; existing multi-instance flow validates via smoke step P1.5.
+- §"Brainstorm Q&A — tool categorization" → Task 1 (regen script pass-through) + Task 4 (`categoryPrefixMap` in entry) + Task 5 (live regen validates classifications).
+- §"Constraints — CLI-only operator surface" → Task 7 (smoke uses only `zeno connector install/test/uninstall`).
+- §"Constraints — `DATABASE_URI` env, encrypted, not `.env`" → no code; existing connector_secrets pipeline handles it. P2.2 + P2.3 validate.
+- §"Constraints — `authCheckTool: 'list_schemas'`" → Task 4 entry.
+- §"Constraints — `categoryPrefixMap`" → Task 4 entry + Task 1 script patch.
+- §"Constraints — Docker prefetch" → Task 2.
+- §"Constraints — smoke against real Postgres" → Task 7.
+- §"Acceptance Criteria" — every bullet maps to either Task 4 (catalog), Task 1 (regen patch), Task 2 (Dockerfile), Task 5 (snapshot regen), Task 6 (quality-gate), or Task 7 (smoke).
+- §"Risks and Mitigations" → echoed in this plan's Risks section.
 
-**Placeholder scan.** No `TBD`, `TODO`, `<...>`, or "implement appropriately" anywhere in this plan. Each code block is complete. Each command has expected output.
+**Placeholder scan.** No `TBD`, `TODO`, `<...>` (except `<live-url>` / `<slug>` style placeholders that are commands the operator fills in, not gaps), or "implement appropriately". Every code block is complete. Every command has expected output.
 
-**Type consistency.** `toStdioConfig` signature unchanged (still `(connector: Connector, secrets: ConnectorSecret[]) => McpServerConfig`). `argvKeys` (local Set), `secretByKey` (local Map), `ARGV_TOKEN` (module-level const). Schema additions are additive only — `mode` on secrets, refinement on entry. Test files use `baseConnector(...)` helper consistent with the existing pattern in `build-config.test.ts`.
+**Type / shape consistency.** The catalog entry's `args` is referenced consistently across Tasks 4, 5, and 7. The regen script's options object (Task 1) uses the same field names the catalog declares.
 
 ---
 
 ## Execution approach
 
-**10 tasks, multi-package, two phases that gate (Phase 0 upstream, Phase 7 manual smoke against a live DB + Slack) → Subagent-Driven.**
+**8 tasks; the heaviest is Task 7 (manual smoke) which requires operator presence (Docker + Slack DM screenshots).** Tasks 1-6 are mechanical and can run inline without subagent dispatch — every task is 1-3 files, with full code blocks in the plan. Execute inline; defer Task 7 + Task 8 for operator return.
 
-Each task is self-contained enough to dispatch a fresh subagent with the task block as context. The brainstorming/spec/plan trio provides every reference an implementer needs. Use `superpowers:subagent-driven-development` between tasks; review the diff and commit before dispatching the next.
+Sub-skill: `superpowers:executing-plans` is sufficient given the focused scope.

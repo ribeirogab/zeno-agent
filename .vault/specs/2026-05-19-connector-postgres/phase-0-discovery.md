@@ -1,98 +1,102 @@
 ---
 date: 2026-05-19
-status: BLOCKED — escalation required
+status: complete
 spec: "[[spec-connector-postgres]]"
 ---
-# Phase 0 — Discovery (gating)
+# Phase 0 — Discovery
 
-## Outcome
+Two rounds. Round 1 blocked the original spec (canonical `@modelcontextprotocol/server-postgres` is deprecated + source removed). Operator picked Option A → switched to `crystaldba/postgres-mcp`. Round 2 unblocked.
 
-**🚨 BLOCKED.** The upstream package the spec was built around — `@modelcontextprotocol/server-postgres` — has been **deprecated on npm AND removed from the canonical reference-servers repo**. Implementation cannot proceed without operator approval to switch to an alternative.
+## Round 1 — `@modelcontextprotocol/server-postgres` (rejected)
 
-## Findings
+| Check | Result |
+|---|---|
+| npm | `0.6.2`, **deprecated** (`Package no longer supported`) |
+| `modelcontextprotocol/servers/src/` content | `postgres/` removed; only `everything fetch filesystem git memory sequentialthinking time` remain |
+| Repo overall | `isArchived: false`, pushed 2026-05-17 — but no longer maintains postgres |
 
-### 1. `@modelcontextprotocol/server-postgres` on npm
+Verdict: cannot proceed with the package the issue named. Escalated to operator.
 
-Captured via `npm view @modelcontextprotocol/server-postgres version description deprecated`:
+## Operator decision (2026-05-19)
 
+> "A" — switch to `crystaldba/postgres-mcp` (Postgres Pro).
+
+## Round 2 — `crystaldba/postgres-mcp` (accepted)
+
+### Package facts (verified live)
+
+| Field | Value |
+|---|---|
+| PyPI | `postgres-mcp@0.3.0` — `pip install postgres-mcp` |
+| GitHub | `crystaldba/postgres-mcp` — MIT, not archived |
+| Runtime | Python ≥ 3.12 |
+| Invocation (uvx) | `uvx postgres-mcp --access-mode=restricted` |
+| Invocation (docker) | `docker run --rm -i crystaldba/postgres-mcp --access-mode=restricted` |
+| Secret | `DATABASE_URI` — read from **env** (not positional argv) |
+| Read-only flag | `--access-mode=restricted` (default is `unrestricted`) |
+
+`--help` output captured directly from `uvx postgres-mcp --help`:
 ```
-version = '0.6.2'
-description = 'MCP server for interacting with PostgreSQL databases'
-deprecated = 'Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.'
+usage: postgres-mcp [-h] [--access-mode {unrestricted,restricted}]
+                    [--transport {stdio,sse}] [--sse-host SSE_HOST]
+                    [--sse-port SSE_PORT]
+                    [database_url]
 ```
 
-The package is **DEPRECATED**. Installing it (`npx -y @modelcontextprotocol/server-postgres ...`) emits a deprecation warning to stderr but still runs at the v0.6.2 frozen behavior. No bug-fix backstop, no security patches, npm may pull it without notice.
+### Live tool list (with `--access-mode=restricted` against postgres:16)
 
-### 2. Source removed from `modelcontextprotocol/servers`
+Captured via direct JSON-RPC stdio probe on `postgres://postgres:t@localhost:5599/postgres`:
 
-Captured via `gh api repos/modelcontextprotocol/servers/contents/src`:
+| Tool | Default classifier | Needs prefix map? |
+|---|---|---|
+| `list_schemas` | `read` (matches `list_`) | no |
+| `list_objects` | `read` (matches `list_`) | no |
+| `get_object_details` | `read` (matches `get_`) | no |
+| `explain_query` | `interactive` | **yes → read** |
+| `analyze_workload_indexes` | `interactive` | **yes → read** |
+| `analyze_query_indexes` | `interactive` | **yes → read** |
+| `analyze_db_health` | `interactive` | **yes → read** |
+| `get_top_queries` | `read` (matches `get_`) | no |
+| `execute_sql` | `interactive` | **yes → read** (description: "Execute a read-only SQL query") |
 
+**No `write_*` / `create_*` / `update_*` / `delete_*` tool present in restricted mode.** Constitution §Read-only database honored.
+
+`categoryPrefixMap` needed (minimal):
+```json
+{
+  "execute_sql": "read",
+  "explain_": "read",
+  "analyze_": "read"
+}
 ```
-everything
-fetch
-filesystem
-git
-memory
-sequentialthinking
-time
-```
 
-`postgres/` is **gone**. The MCP project pruned reference servers; postgres was one of the pruned. The upstream repo itself is not archived (`isArchived: false`, recent commits in 2026-05) — only the postgres source was removed.
+### Implications for the spec
 
-The implication: even if the npm package is un-deprecated tomorrow, the source code maintaining it isn't where the spec expected. Future patches are not coming from the canonical org.
+The schema extension (`secrets[].mode: 'env' | 'argv'` + `${KEY}` interpolation in `toStdioConfig`) **is no longer required** for Postgres — crystaldba's server reads `DATABASE_URI` from env, which fits the existing default path with zero schema change.
 
-### 3. Vetting community alternatives
+Spec scope shrinks substantially:
+- **Drop:** catalog-schema `mode` field, zod refinement, `toStdioConfig` argv interpolation, custom-source guard.
+- **Keep:** regen-script pass-through for `categoryPrefixMap` / `authCheckTool` / `authCheckArgs`.
+- **Add:** `--access-mode=restricted` constraint (constitution rule 22 backstop), Dockerfile prefetch of `postgres-mcp` (cold-start ~5-10s, 63 deps including `psycopg-binary` + `pglast` parser), explicit `categoryPrefixMap`.
 
-| Candidate | Stars | Last push | License | Maintainers | Verdict |
-|---|---|---|---|---|---|
-| `postgres-mcp` (npm, `llm-graph/postgres-mcp` on GitHub) | 0 | 2025-04-20 (>13 months stale) | MIT | 1 (`alvamind`) | ❌ stale + unverified |
-| `crystaldba/postgres-mcp` (Postgres Pro, Python via `uvx`) | n/a (not on npm) | live | — | crystaldba | ⚠ explicitly rejected by spec §Non-Goals item 1 (bigger surface, perf advisor) |
-| Other matches via `gh search repos "postgres mcp"` | — | — | — | — | (search returned no usable result during discovery; can be re-run on escalation) |
+The schema extension can still ship as its own follow-up spec if a future connector genuinely needs argv-mode (Redis, SQLite). Out of scope here.
 
-### 4. What is NOT broken
+### Container considerations
 
-- **The catalog-schema extension (`secrets[].mode: 'env' \| 'argv'`)** designed for this spec is still useful — it's generic, would land cleanly, and benefits any future MCP that takes positional argv (Redis, SQLite, future Postgres replacement, etc.). It can ship independently.
-- **The `toStdioConfig` interpolation logic** in the plan is server-agnostic. Same point.
-- **The `categoryPrefixMap` mechanism** already exists (spec 0048 Q1). The plan's only addition to it (Task 4 — threading it through the regen script) is also server-agnostic.
+| Concern | Mitigation |
+|---|---|
+| `python3` in `node:24-slim` is 3.11.x; `postgres-mcp` needs Python ≥ 3.12 | `uvx` auto-provisions a compatible Python on first run — no `apt install python3.12` needed. Klaviyo + Swarmia already use this path. |
+| Cold-start downloads (~63 deps including `psycopg-binary`, `pglast`) | Add `RUN uvx postgres-mcp --help` to `infra/Dockerfile` after the existing `uv` install. Materializes deps at build time; runtime first-install becomes a warm-cache hit well inside `DISCOVER_TIMEOUT_MS = 10s`. |
+| `uvx` already on PATH | Confirmed at `infra/Dockerfile:24` (spec 0040 landed it for Klaviyo/Swarmia). |
 
-In other words: **everything except the catalog entry (Task 6) and the icon (Task 5) is reusable as-is.** Only the upstream-package decision blocks.
+### Container cleanup
 
-## Recommendation to operator
-
-Three credible paths. Pick one:
-
-### Option A — switch to `crystaldba/postgres-mcp` (Postgres Pro)
-
-Spec § Non-Goals item 1 originally rejected this for "bigger surface". With the canonical server gone, that reasoning weakens — it becomes "the maintained Postgres MCP we know exists". Tradeoffs:
-
-- ✅ Actively maintained.
-- ✅ Read-only mode supported (`--access-mode unrestricted` is opt-in; default is restricted).
-- ❌ Python (uvx), not Node — different runtime to vet inside the worker container. Klaviyo + Swarmia already use `uvx`, so the precedent exists.
-- ❌ Bigger tool surface: in addition to `query`/`describe_*`, also exposes `explain_query`, `get_top_queries` (perf advisor), `analyze_db_health`, etc. Some of these stretch "read-only data" into "operate the DB" territory. `categoryPrefixMap` can still pin them to `read`/`interactive`, but the operator should review the full list.
-- 🔁 Spec needs amendment: `transportConfig.command = "uvx"`, new args shape, expanded `categoryPrefixMap`, possibly extra `secrets` (e.g. `--access-mode` flag).
-
-### Option B — pause indefinitely, no Postgres connector
-
-Drop the spec until either (a) a canonical replacement appears upstream or (b) the operator builds a Zeno-maintained postgres MCP. Issue #75 stays open as backlog.
-
-### Option C — proceed with deprecated package as-is
-
-Document the deprecation; ship today; revisit when it breaks. **Not recommended** — the project's "verify before implementing" principle (constitution §Tooling and workflow principles) and the existence of `[[../../rules/integration-tokens-in-db-only]]`-level risk-aversion both push against shipping a deprecated upstream.
-
-## What landed during Phase 0
-
-Nothing in the working tree. No code changes, no commits beyond this discovery note.
-
-The `feat/connector-postgres` branch is at the same commit as `main` (`d2ab8a6`) — no execution happened past gating.
-
-## What needs operator decision
-
-1. **Pick A / B / C above.** If A, the spec needs amendment (new package, new args shape, expanded `categoryPrefixMap`, possibly new `secrets`); if B, close issue #75 with a note; if C, accept the deprecation risk in writing.
-2. **(Independent of above)** Should the schema extension (`mode: 'env' \| 'argv'`) ship in a separate, smaller spec? It is generic, useful for the future, and has no upstream dependency. Splitting it would let the catalog-schema work land while the operator decides the Postgres question.
+Throwaway DB used for probe: `pg-discover2` (postgres:16, port 5599 → 5432). Stopped via `docker stop pg-discover2` after capture.
 
 ## References
 
-- Spec: `[[spec-connector-postgres]]` § Implementation order Phase 0 (gating definition).
-- Issue: https://github.com/ribeirogab/zeno-agent/issues/75 (motivation + alternatives originally considered).
-- Constitution: §Tooling and workflow principles ("Verify before implementing").
-- Rule: `[[../../rules/integration-tokens-in-db-only]]` (defense-in-depth context that makes a deprecated upstream more uncomfortable than a normal dep).
+- `[[spec-connector-postgres]]` — amended to the v2 design after this discovery.
+- Upstream README: https://github.com/crystaldba/postgres-mcp#readme
+- PyPI: https://pypi.org/project/postgres-mcp/
+- Constitution §Read-only database
+- `[[../../rules/integration-tokens-in-db-only]]` — `DATABASE_URI` lives in `connector_secrets`, not `.env`.

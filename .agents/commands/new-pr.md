@@ -67,6 +67,8 @@ The user (or another agent) types `/new-pr` from Claude Code. Optional argument:
 
    Both the Sanitization and Quality gate boxes are written as `- [x]` (already-checked) because steps 2 and 3 verified them in this session.
 
+   **Body line-wrapping (critical).** GitHub renders every single `\n` in a PR body as `<br>` (GFM hard-line-break extension, enabled in issue/PR/comment bodies but NOT in repo `.md` files). Treat each paragraph as ONE line in the heredoc; separate paragraphs with a blank line. Do NOT hard-wrap mid-paragraph at column 72/80 — the wraps become visible breaks in the rendered PR. Code fences, lists, and tables follow standard Markdown wrapping and are unaffected.
+
 7. **Open the PR.** Run:
 
    ```bash

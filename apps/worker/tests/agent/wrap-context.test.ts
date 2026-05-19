@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { wrapWithSlackContext } from '@/agent/core';
+import { describe, expect, it, vi } from 'vitest';
+import { wrapWithChannelContext } from '@/agent/core';
 import type { IncomingMessage } from '@/channels/types';
 
 function makeMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessage {
@@ -16,14 +16,14 @@ function makeMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessage 
   };
 }
 
-describe('wrapWithSlackContext', () => {
+describe('wrapWithChannelContext', () => {
   it('returns plain text for non-slack platforms', () => {
     const message = makeMessage({ platform: 'discord', text: 'hi' });
-    expect(wrapWithSlackContext(message)).toBe('hi');
+    expect(wrapWithChannelContext(message)).toBe('hi');
   });
 
   it('wraps slack messages with context preamble', () => {
-    const result = wrapWithSlackContext(makeMessage({ text: 'test' }));
+    const result = wrapWithChannelContext(makeMessage({ text: 'test' }));
     expect(result).toContain('[slack_context]');
     expect(result).toContain('conversation_id: C1');
     expect(result).toContain('thread_id: T1');
@@ -33,7 +33,7 @@ describe('wrapWithSlackContext', () => {
   });
 
   it('does not include attached_files block when no attachments', () => {
-    const result = wrapWithSlackContext(makeMessage());
+    const result = wrapWithChannelContext(makeMessage());
     expect(result).not.toContain('[attached_files]');
   });
 
@@ -55,7 +55,7 @@ describe('wrapWithSlackContext', () => {
       ],
     });
 
-    const result = wrapWithSlackContext(message);
+    const result = wrapWithChannelContext(message);
 
     expect(result).toContain('[attached_files]');
     expect(result).toContain(
@@ -81,7 +81,7 @@ describe('wrapWithSlackContext', () => {
       ],
     });
 
-    const result = wrapWithSlackContext(message);
+    const result = wrapWithChannelContext(message);
 
     // Attachments block appears between context and user text
     const attachedIdx = result.indexOf('[attached_files]');
@@ -94,7 +94,105 @@ describe('wrapWithSlackContext', () => {
 
   it('does not include attached_files block when attachments array is empty', () => {
     const message = makeMessage({ attachments: [] });
-    const result = wrapWithSlackContext(message);
+    const result = wrapWithChannelContext(message);
     expect(result).not.toContain('[attached_files]');
+  });
+
+  it('emits [attached_files] block for non-slack platform with attachments', () => {
+    const message = makeMessage({
+      platform: 'discord',
+      text: 'review this',
+      attachments: [
+        {
+          name: 'x.pdf',
+          mimetype: 'application/pdf',
+          localPath: '/workspace/uploads/abc/x.pdf',
+          sizeBytes: 1024,
+        },
+      ],
+    });
+
+    const result = wrapWithChannelContext(message);
+
+    expect(result).toContain('[attached_files]');
+    expect(result).toContain('- /workspace/uploads/abc/x.pdf (application/pdf, x.pdf)');
+    expect(result).toContain('[/attached_files]');
+    expect(result).toContain('Read the attached files before responding.');
+    expect(result).toContain('review this');
+    expect(result).not.toContain('[slack_context]');
+    expect(result).not.toContain('[parent_message]');
+  });
+
+  it('returns text verbatim for non-slack platform with empty attachments array', () => {
+    const message = makeMessage({ platform: 'discord', text: 'hi', attachments: [] });
+    expect(wrapWithChannelContext(message)).toBe('hi');
+  });
+
+  it('parity: slack output is byte-identical across representative shapes', () => {
+    // Freeze time so the `current_time` field is deterministic across shape variants.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-18T12:00:00.000Z'));
+    try {
+      const ts = '2026-05-18T12:00:00.000Z';
+
+      // (a) slack + no parent + no attachments
+      const a = wrapWithChannelContext(makeMessage({ text: 'hello' }));
+      expect(a).toBe(
+        `[slack_context]\nconversation_id: C1\nthread_id: T1\nuser_id: U1\ncurrent_time: ${ts}\n[/slack_context]\n\nhello`,
+      );
+
+      // (b) slack + parent text + no attachments
+      const b = wrapWithChannelContext(
+        makeMessage({ text: 'reply', parentText: 'original question' }),
+      );
+      expect(b).toBe(
+        `[slack_context]\nconversation_id: C1\nthread_id: T1\nuser_id: U1\ncurrent_time: ${ts}\n[/slack_context]\n\n[parent_message]\noriginal question\n[/parent_message]\n\nreply`,
+      );
+
+      // (c) slack + no parent + one attachment
+      const c = wrapWithChannelContext(
+        makeMessage({
+          text: 'see file',
+          attachments: [
+            {
+              name: 'one.pdf',
+              mimetype: 'application/pdf',
+              localPath: '/w/u/c1/one.pdf',
+              sizeBytes: 10,
+            },
+          ],
+        }),
+      );
+      expect(c).toBe(
+        `[slack_context]\nconversation_id: C1\nthread_id: T1\nuser_id: U1\ncurrent_time: ${ts}\n[/slack_context]\n\n[attached_files]\n- /w/u/c1/one.pdf (application/pdf, one.pdf)\n[/attached_files]\nRead the attached files before responding.\n\nsee file`,
+      );
+
+      // (d) slack + parent text + two attachments
+      const d = wrapWithChannelContext(
+        makeMessage({
+          text: 'check these',
+          parentText: 'context',
+          attachments: [
+            {
+              name: 'a.png',
+              mimetype: 'image/png',
+              localPath: '/w/u/c1/a.png',
+              sizeBytes: 1,
+            },
+            {
+              name: 'b.pdf',
+              mimetype: 'application/pdf',
+              localPath: '/w/u/c1/b.pdf',
+              sizeBytes: 2,
+            },
+          ],
+        }),
+      );
+      expect(d).toBe(
+        `[slack_context]\nconversation_id: C1\nthread_id: T1\nuser_id: U1\ncurrent_time: ${ts}\n[/slack_context]\n\n[parent_message]\ncontext\n[/parent_message]\n\n[attached_files]\n- /w/u/c1/a.png (image/png, a.png)\n- /w/u/c1/b.pdf (application/pdf, b.pdf)\n[/attached_files]\nRead the attached files before responding.\n\ncheck these`,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

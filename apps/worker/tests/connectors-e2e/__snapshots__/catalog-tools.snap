@@ -694,32 +694,5 @@
       "category": "write",
       "defaultPermission": "ask"
     }
-  ],
-  "playwright": [
-    {
-      "name": "browser_click",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "browser_type",
-      "category": "interactive",
-      "defaultPermission": "ask"
-    },
-    {
-      "name": "browser_navigate",
-      "category": "read",
-      "defaultPermission": "always_allow"
-    },
-    {
-      "name": "browser_snapshot",
-      "category": "read",
-      "defaultPermission": "always_allow"
-    },
-    {
-      "name": "browser_take_screenshot",
-      "category": "read",
-      "defaultPermission": "always_allow"
-    }
   ]
 }

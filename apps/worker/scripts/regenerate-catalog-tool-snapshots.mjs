@@ -116,7 +116,11 @@ async function fetchToolsFromLiveMcp(catalog) {
     };
     const secrets = [{ connectorId: 'transient', key: envName, value }];
 
-    const result = await discoverTools(transient, secrets);
+    const options = {};
+    if (entry.authCheckTool) options.authCheckTool = entry.authCheckTool;
+    if (entry.authCheckArgs) options.authCheckArgs = entry.authCheckArgs;
+    if (entry.categoryPrefixMap) options.categoryPrefixMap = entry.categoryPrefixMap;
+    const result = await discoverTools(transient, secrets, options);
     if ('error' in result) {
       throw new Error(`discoverTools failed for ${entry.id}: ${result.error}`);
     }

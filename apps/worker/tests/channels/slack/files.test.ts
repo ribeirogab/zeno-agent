@@ -44,7 +44,7 @@ describe('downloadSlackFiles', () => {
     expect(result[0]).toEqual({
       name: 'screenshot.png',
       mimetype: 'image/png',
-      localPath: join(workspaceDir, 'uploads', correlationId, 'screenshot.png'),
+      localPath: join(workspaceDir, 'uploads', correlationId, 'F001-screenshot.png'),
       sizeBytes: content.length,
     });
 
@@ -195,6 +195,38 @@ describe('downloadSlackFiles', () => {
 
     const result = await downloadSlackFiles([makeFile()], BOT_TOKEN, correlationId, workspaceDir);
     expect(result).toHaveLength(1);
+  });
+
+  it('does not collide when multiple files share the same name (Slack clipboard pastes)', async () => {
+    // Slack auto-names clipboard pastes "image.png". 5 such pastes all hit
+    // the same localPath under the old code; writeFile silently overwrote.
+    // With the file.id prefix each gets a unique on-disk path while the
+    // exposed Attachment.name stays as the human-visible original.
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    fetchSpy
+      .mockResolvedValueOnce(new Response(Buffer.from('one'), { status: 200 }))
+      .mockResolvedValueOnce(new Response(Buffer.from('two'), { status: 200 }))
+      .mockResolvedValueOnce(new Response(Buffer.from('three'), { status: 200 }));
+
+    const files = [
+      makeFile({ id: 'F001', name: 'image.png' }),
+      makeFile({ id: 'F002', name: 'image.png' }),
+      makeFile({ id: 'F003', name: 'image.png' }),
+    ];
+    const result = await downloadSlackFiles(files, BOT_TOKEN, correlationId, workspaceDir);
+
+    expect(result).toHaveLength(3);
+
+    // All Attachment.name fields preserve the operator-visible name.
+    expect(result.map((a) => a.name)).toEqual(['image.png', 'image.png', 'image.png']);
+
+    // Each on-disk path is unique (salted by file.id) and the file contents
+    // survive intact — no overwrite collision.
+    const paths = result.map((a) => a.localPath);
+    expect(new Set(paths).size).toBe(3);
+    expect(readFileSync(paths[0]).toString()).toBe('one');
+    expect(readFileSync(paths[1]).toString()).toBe('two');
+    expect(readFileSync(paths[2]).toString()).toBe('three');
   });
 
   it('accepts response with no content-type header (some CDN edges omit it)', async () => {

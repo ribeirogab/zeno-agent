@@ -129,7 +129,12 @@ export async function downloadSlackFiles(
       }
 
       const buffer = Buffer.from(await response.arrayBuffer());
-      const localPath = join(dir, file.name);
+      // Prefix the on-disk filename with the Slack file id so multiple
+      // attachments in the same turn that share a name (e.g., five clipboard
+      // pastes all named `image.png`) do not overwrite each other.
+      // The `Attachment.name` we expose to the agent prompt stays as the
+      // operator-visible original name; only the on-disk path is salted.
+      const localPath = join(dir, `${file.id}-${file.name}`);
       await writeFile(localPath, buffer);
 
       attachments.push({

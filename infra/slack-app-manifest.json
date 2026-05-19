@@ -19,6 +19,7 @@
         "channels:history",
         "chat:write",
         "app_mentions:read",
+        "files:read",
         "groups:history",
         "im:history",
         "im:read",

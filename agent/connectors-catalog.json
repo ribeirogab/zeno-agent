@@ -782,6 +782,43 @@
       ]
     },
     {
+      "id": "postgres",
+      "name": "Postgres",
+      "description": "Read-only access to a Postgres database via the Postgres MCP server (crystaldba/postgres-mcp). One installation per database URL.",
+      "icon": "postgres.svg",
+      "docsUrl": "https://github.com/crystaldba/postgres-mcp",
+      "transport": "stdio",
+      "transportConfig": {
+        "command": "uvx",
+        "args": [
+          "postgres-mcp",
+          "--access-mode=restricted"
+        ]
+      },
+      "authCheckTool": "list_schemas",
+      "categoryPrefixMap": {
+        "execute_sql": "read",
+        "explain_": "read",
+        "analyze_": "read"
+      },
+      "secrets": [
+        {
+          "key": "DATABASE_URI",
+          "label": "Connection URL",
+          "help": "postgres://user:pass@host:port/dbname. Connector is locked to --access-mode=restricted (read-only). Use a read-only role for defense-in-depth — Constitution §Read-only database.",
+          "required": true
+        }
+      ],
+      "tools": [],
+      "terminology": {
+        "instance": "Database"
+      },
+      "tags": [
+        "database",
+        "sql"
+      ]
+    },
+    {
       "id": "swarmia",
       "name": "Swarmia",
       "description": "Engineering metrics \u2014 DORA, throughput, code review.",

@@ -211,21 +211,16 @@ export class SlackChannel implements Channel {
         file_uploads: fileUploads,
       });
 
-      const fileShares = (
-        result as {
-          files?: Array<{
-            shares?: {
-              public?: Record<string, Array<{ ts?: string }>>;
-              private?: Record<string, Array<{ ts?: string }>>;
-            };
-          }>;
-        }
-      ).files?.[0]?.shares;
-      const ts =
-        fileShares?.public?.[target.conversationId]?.[0]?.ts ??
-        fileShares?.private?.[target.conversationId]?.[0]?.ts;
-      if (!ts) {
-        throw new Error('files.uploadV2 returned no message ts');
+      // uploadV2 returns { ok, files: Array<completeUploadExternalResponse> } where
+      // each completeUploadExternalResponse is itself { ok, files: [{id, title, ...}] }.
+      // Some SDK paths flatten the outer wrapper. Try the nested shape first, then
+      // fall back to a flat file object. messageRef is the first uploaded file's id
+      // (not a message ts — uploadV2 does not surface a posted-message ts directly).
+      const outer = (result as { files?: Array<{ id?: string; files?: Array<{ id?: string }> }> })
+        .files?.[0];
+      const fileId = outer?.files?.[0]?.id ?? outer?.id;
+      if (!fileId) {
+        throw new Error('files.uploadV2 returned no file id');
       }
       logger.info(
         {
@@ -233,13 +228,13 @@ export class SlackChannel implements Channel {
           channel: target.conversationId,
           count: message.attachments.length,
           totalBytes: message.attachments.reduce((sum, a) => sum + a.sizeBytes, 0),
-          ts,
+          fileId,
         },
         'files uploaded to slack',
       );
-      return { messageRef: ts };
+      return { messageRef: fileId };
     } catch (error) {
-      if (error instanceof Error && error.message === 'files.uploadV2 returned no message ts') {
+      if (error instanceof Error && error.message === 'files.uploadV2 returned no file id') {
         throw error;
       }
       logger.error(

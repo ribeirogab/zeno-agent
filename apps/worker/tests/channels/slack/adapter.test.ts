@@ -306,12 +306,7 @@ describe('SlackChannel.send — outbound files', () => {
     const { channel, client } = await start();
     client.files.uploadV2.mockResolvedValue({
       ok: true,
-      files: [
-        {
-          id: 'F1',
-          shares: { public: { C1: [{ ts: '1700000000.000001' }] } },
-        },
-      ],
+      files: [{ ok: true, files: [{ id: 'F1' }] }],
     });
 
     const result = await channel.send(
@@ -334,7 +329,9 @@ describe('SlackChannel.send — outbound files', () => {
     expect(args.file_uploads).toHaveLength(1);
     expect(args.file_uploads[0].filename).toBe('places.json');
     expect(args.file_uploads[0].title).toBe('places.json');
-    expect(result.messageRef).toBe('1700000000.000001');
+    // messageRef is the first uploaded file's id (uploadV2 does not surface a
+    // posted-message ts in its response, only file ids).
+    expect(result.messageRef).toBe('F1');
   });
 
   it('text + 2 attachments uploads both in one files.uploadV2 call', async () => {
@@ -343,7 +340,7 @@ describe('SlackChannel.send — outbound files', () => {
     const { channel, client } = await start();
     client.files.uploadV2.mockResolvedValue({
       ok: true,
-      files: [{ id: 'F1', shares: { public: { C1: [{ ts: '1700000000.000002' }] } } }],
+      files: [{ ok: true, files: [{ id: 'F1' }] }],
     });
 
     await channel.send(
@@ -366,7 +363,7 @@ describe('SlackChannel.send — outbound files', () => {
     const { channel, client } = await start();
     client.files.uploadV2.mockResolvedValue({
       ok: true,
-      files: [{ id: 'F1', shares: { public: { C1: [{ ts: '1700000000.000003' }] } } }],
+      files: [{ ok: true, files: [{ id: 'F1' }] }],
     });
 
     await channel.send(
@@ -404,12 +401,14 @@ describe('SlackChannel.send — outbound files', () => {
     expect(result.messageRef).toBe('1234.5678');
   });
 
-  it('messageRef from private channel share when public share is missing', async () => {
+  it('falls back to a flat file shape when the SDK does not nest', async () => {
+    // Some SDK paths return a flat shape: { ok, files: [{id, ...}] } instead of
+    // the nested completeUploadExternal wrapper. Both must resolve.
     const path = writeFixture('p.json', '{}');
     const { channel, client } = await start();
     client.files.uploadV2.mockResolvedValue({
       ok: true,
-      files: [{ id: 'F1', shares: { private: { C1: [{ ts: '1700000000.000004' }] } } }],
+      files: [{ id: 'F-FLAT' }],
     });
 
     const result = await channel.send(
@@ -421,13 +420,13 @@ describe('SlackChannel.send — outbound files', () => {
         ],
       },
     );
-    expect(result.messageRef).toBe('1700000000.000004');
+    expect(result.messageRef).toBe('F-FLAT');
   });
 
-  it('files.uploadV2 returning no shares ts throws "files.uploadV2 returned no message ts"', async () => {
+  it('files.uploadV2 returning no file id throws "files.uploadV2 returned no file id"', async () => {
     const path = writeFixture('q.json', '{}');
     const { channel, client } = await start();
-    client.files.uploadV2.mockResolvedValue({ ok: true, files: [{ id: 'F1' }] });
+    client.files.uploadV2.mockResolvedValue({ ok: true, files: [{}] });
 
     await expect(
       channel.send(
@@ -439,6 +438,6 @@ describe('SlackChannel.send — outbound files', () => {
           ],
         },
       ),
-    ).rejects.toThrow('files.uploadV2 returned no message ts');
+    ).rejects.toThrow('files.uploadV2 returned no file id');
   });
 });

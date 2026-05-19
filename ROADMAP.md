@@ -17,6 +17,8 @@ _Nothing currently in flight._
 - [ ] [#45](https://github.com/ribeirogab/zeno-agent/issues/45) — feat(security): production-grade auth layer for profile dashboards
 - [ ] [#46](https://github.com/ribeirogab/zeno-agent/issues/46) — feat(dashboard): onboarding wizard inside profile dashboard
 - [ ] [#47](https://github.com/ribeirogab/zeno-agent/issues/47) — feat(cli): backup / restore tooling for `~/.zeno/`
+- [ ] [#75](https://github.com/ribeirogab/zeno-agent/issues/75) — feat(connectors): add Postgres connector (read-only MCP)
+- [ ] [#76](https://github.com/ribeirogab/zeno-agent/issues/76) — feat(connectors): add AWS connector
 
 ## Later (no commitment)
 

@@ -13,8 +13,8 @@ export function profileEnvFile(name: string): string {
   return join(profileDir(name), '.env');
 }
 
-export function profileUserMd(name: string): string {
-  return join(profileDir(name), 'USER.md');
+export function profileAgentsMd(name: string): string {
+  return join(profileDir(name), 'AGENTS.md');
 }
 
 export function templatesProfileDir(): string {

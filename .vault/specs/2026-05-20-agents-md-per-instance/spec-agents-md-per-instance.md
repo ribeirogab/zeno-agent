@@ -132,7 +132,7 @@ These checks require access to the operator's local Docker environment and Slack
 
 | Risk | Mitigation |
 |---|---|
-| Rename misses a string reference that TypeScript cannot detect (e.g., a literal `'USER.md'` inside a string or comment), leaving the worker reading a non-existent file. | Final `git grep -E 'USER\.md\|user_md\|user-md\|UserMd\|parse-user-md' apps/ packages/ templates/ agent/` must return empty as an acceptance check before merge. |
+| Rename misses a string reference that TypeScript cannot detect (e.g., a literal `'USER.md'` inside a string or comment), leaving the worker reading a non-existent file. | The end-to-end acceptance criterion runs `git grep -E 'USER\.md|user-md|use-user-md|UserMd|parse-user-md|user_md_' apps/ packages/ templates/ agent/ AGENTS.md CLAUDE.md` and requires empty output before merge. |
 | Hot-reload watcher keeps watching the old `USER.md` path after profile-dir was renamed mid-run, missing edits to `AGENTS.md`. | Restart container after rename (`zeno stop fn && zeno start fn`); watcher tests assert the new path. |
 | Dashboard caches the old hook/component reference after deploy, breaking the settings page. | Smoke-test the settings page in the dev preview after the change; the dashboard is a fresh build per release. |
 | Constitution edit reframes "single-user" in a way that contradicts implementation reality (still one OAuth token). | Constitution wording explicitly says "single-operator, multi-audience-capable" — the OAuth and token model are unchanged. The reframe is conceptual only. |

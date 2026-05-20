@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: agents-md-per-instance
 created: 2026-05-20
-shipped: null
+shipped: 2026-05-20
 ---
 # AGENTS.md Per-Instance Operating Manual — Spec
 
-**Status:** Draft
+**Status:** Shipped (PR [#88](https://github.com/ribeirogab/zeno-agent/pull/88), release [v2026.5.20-1](https://github.com/ribeirogab/zeno-agent/releases/tag/v2026.5.20-1))
 **Scope:** Replace per-profile `USER.md` (single-owner framing) with `AGENTS.md` (multi-audience operating manual loaded deterministically into the cached system prompt). `SOUL.md` (shared baseline identity) stays unchanged. Tracks GitHub issue [#86](https://github.com/ribeirogab/zeno-agent/issues/86).
 
 ## Context

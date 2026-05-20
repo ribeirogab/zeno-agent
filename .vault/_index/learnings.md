@@ -16,6 +16,7 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/async-local-storage-for-sdk-callbacks|AsyncLocalStorage for per-call state in SDK callbacks]] — how `GuardedBackend` gives per-call context to the SDK's constructor-level `canUseTool` hook.
 - [[../learnings/classifier-reuses-oauth-via-sdk-query|Classifier reuses OAuth via SDK query()]] — auxiliary LLM calls inside Zeno reuse the agent SDK with empty tools; no API key, no new dep.
 - [[../learnings/workspace-markdown-files-pattern|Workspace markdown files pattern]] — SOUL.md, AGENTS.md, USER.md, MEMORY.md, SKILL.md as the emerging agent-config lingua franca.
+- [[../learnings/system-prompt-injection-beats-skill-autoload|System-prompt injection beats skill auto-load for inviolable rules]] — SDK skill auto-trigger via description match is probabilistic; rules that must apply every turn belong in the cached system prompt (AGENTS.md), not in the skill body alone. Spec 2026-05-20.
 - [[../learnings/tool-registry-autodiscovery-pattern|Tool registry with import-time auto-discovery]] — Hermes' elegant extension pattern.
 - [[../learnings/gateway-daemon-vs-single-process|Gateway daemon vs single-process]] — when each wins; why Zeno stays single-process for now.
 - [[../learnings/closed-learning-loop-self-improving-skills|Closed learning loop and self-improving skills]] — Hermes' bet; when it's worth adopting.
@@ -93,6 +94,8 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/turbopack-rejects-og-in-catch-all|Turbopack rejects `opengraph-image` siblings of an optional catch-all]] — `app/[[...slug]]/opengraph-image.tsx` panics on dev-server startup; lift to a sibling `app/og/route.tsx` and wire metadata via `generateMetadata`.
 - [[../learnings/cli-install-verify-skips-on-multi-instance|`zeno connector install --verify` silently skips on multi-instance catalogs]] — the post-install slug-diff walks top-level items only; `connector_group` items have no `slug`, so 2nd+ install of any multi-instance catalog never runs verify. Workaround: `--no-verify` + manual `zeno connector test`.
 - [[../learnings/postgres-mcp-auth-fail-classifies-as-timeout|`crystaldba/postgres-mcp` auth failures surface as `timeout`, not `auth`]] — the MCP server doesn't propagate Postgres' "password authentication failed" within `DISCOVER_TIMEOUT_MS = 10s`; the classifier sees a bare timeout. Functional behavior (install fail + rollback) still correct; only the error CATEGORY differs.
+- [[../learnings/regression-tests-vs-final-grep-ac|Regression-guard tests trip final `git grep` AC when they contain the forbidden literal]] — `expect(out).not.toContain('USER.md')` matches the AC's grep just like the real bug would. Use a character class `/[uU]SER\.md/` to keep the assertion meaningful without surfacing the literal in the source. Spec 2026-05-20.
+- [[../learnings/bind-mount-rename-coupled-to-container-rebuild|Bind-mount file rename coupled to container rebuild]] — renaming a file the worker reads from `/app/profile/` cannot land safely before the container has the new code. Sequence: write new file → `zeno restart fn --build` → verify boot log → delete old file. Both names can coexist during the gap. Spec 2026-05-20.
 
 ## `#meta` — Workflow and process
 

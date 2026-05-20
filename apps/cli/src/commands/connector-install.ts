@@ -163,12 +163,48 @@ export function applyPrefix(prefix: string | undefined, value: string): string {
   return prefix + value;
 }
 
-function parseSecretFlags(flag: unknown): Record<string, string> {
-  const flat: string[] = Array.isArray(flag)
-    ? (flag.filter((v): v is string => typeof v === 'string') as string[])
-    : typeof flag === 'string'
-      ? [flag]
-      : [];
+/**
+ * Collect every `--secret KEY=VALUE` (and `--secret=KEY=VALUE`) pair from the
+ * raw CLI args. We scan `rawArgs` instead of trusting citty's parsed
+ * `args.secret` because citty@0.1.6 only retains the LAST occurrence of a
+ * repeated string-typed flag (no array support) — silently dropping every
+ * earlier `--secret` flag. Without this, any multi-secret connector
+ * (mysql with 5 required secrets) would fail at install time because four of
+ * the five values get clobbered before reaching `runConnectorInstall`. The
+ * citty-parsed value is still passed in as `cittyFallback` so commands not
+ * routed through this CLI (tests, programmatic callers) keep working.
+ *
+ * Spec 2026-05-19-connector-mysql Finding #1.
+ */
+export function parseSecretFlags(
+  cittyFallback: unknown,
+  rawArgs?: string[],
+): Record<string, string> {
+  const flat: string[] = [];
+  if (Array.isArray(rawArgs) && rawArgs.length > 0) {
+    for (let i = 0; i < rawArgs.length; i++) {
+      const arg = rawArgs[i];
+      if (typeof arg !== 'string') continue;
+      if (arg === '--secret' || arg === '-s') {
+        const next = rawArgs[i + 1];
+        if (typeof next === 'string' && !next.startsWith('-')) {
+          flat.push(next);
+          i++;
+        }
+      } else if (arg.startsWith('--secret=')) {
+        flat.push(arg.slice('--secret='.length));
+      }
+    }
+  }
+  if (flat.length === 0) {
+    if (Array.isArray(cittyFallback)) {
+      for (const v of cittyFallback) {
+        if (typeof v === 'string') flat.push(v);
+      }
+    } else if (typeof cittyFallback === 'string') {
+      flat.push(cittyFallback);
+    }
+  }
   const out: Record<string, string> = {};
   for (const item of flat) {
     const eq = item.indexOf('=');
@@ -208,7 +244,7 @@ export default defineCommand({
     },
     quiet: { type: 'boolean', description: 'minimal output' },
   },
-  async run({ args }) {
+  async run({ args, rawArgs }) {
     if (args.quiet) setQuiet(true);
     const { name: profile } = await resolveProfile(args.profile as string | undefined);
     const baseUrl = await resolveProfileApiUrl(profile);
@@ -216,7 +252,7 @@ export default defineCommand({
     const catalogId = await resolveCatalog(args.catalogId as string | undefined, {
       listCatalog: () => client.get('/api/connectors/catalog'),
     });
-    const secrets = parseSecretFlags(args.secret);
+    const secrets = parseSecretFlags(args.secret, rawArgs);
     // citty exposes kebab-flag args under both kebab and camelCase keys.
     const noVerify = Boolean(
       (args as Record<string, unknown>)['no-verify'] ?? (args as Record<string, unknown>).noVerify,

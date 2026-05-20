@@ -1,5 +1,10 @@
 /**
- * Parse the operator name from USER.md.
+ * Parse an optional operator name from AGENTS.md.
+ *
+ * AGENTS.md is an operating manual, not a user bio, so a `name:` field
+ * is optional. Operators who want their name surfaced in the dashboard
+ * can add YAML frontmatter or a `Name: <value>` line; everyone else
+ * gets null and the dashboard falls back to the profile slug.
  *
  * Two acceptable formats:
  *
@@ -13,7 +18,7 @@
  *
  * Returns null when neither format matches.
  */
-export function parseUserMdName(content: string): string | null {
+export function parseAgentsMdName(content: string): string | null {
   const fm = content.match(/^---\n([\s\S]*?)\n---/);
   const frontmatterBody = fm?.[1];
   if (frontmatterBody) {

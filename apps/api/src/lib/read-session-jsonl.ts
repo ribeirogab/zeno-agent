@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { parseUserMdName } from './parse-user-md';
+import { parseAgentsMdName } from './parse-agents-md';
 
 const contentBlock = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), text: z.string() }),
@@ -59,10 +59,10 @@ function authorFor(role: 'user' | 'assistant' | 'system', operatorName: string):
 
 function readOperatorName(profileDir: string | undefined): string {
   if (!profileDir) return 'user';
-  const userMdPath = join(profileDir, 'USER.md');
-  if (!existsSync(userMdPath)) return 'user';
-  const content = readFileSync(userMdPath, 'utf8');
-  return parseUserMdName(content) ?? 'user';
+  const agentsMdPath = join(profileDir, 'AGENTS.md');
+  if (!existsSync(agentsMdPath)) return 'user';
+  const content = readFileSync(agentsMdPath, 'utf8');
+  return parseAgentsMdName(content) ?? 'user';
 }
 
 export function readSessionMessages(

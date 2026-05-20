@@ -1,11 +1,11 @@
 import { existsSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Hono } from 'hono';
-import { parseUserMdName } from '../lib/parse-user-md';
+import { parseAgentsMdName } from '../lib/parse-agents-md';
 
-export { parseUserMdName };
+export { parseAgentsMdName };
 
-const TRACKED_FILES = ['SOUL.md', 'USER.md', 'crons.yaml'] as const;
+const TRACKED_FILES = ['SOUL.md', 'AGENTS.md', 'crons.yaml'] as const;
 
 // Spec 0067 C: CommandRepo dep removed alongside the Restart Worker
 // route. Re-add when a settings action needs to enqueue commands again.
@@ -39,26 +39,27 @@ function readProfileFiles(profileDir: string): ProfileFile[] {
 }
 
 /**
- * Read profile metadata from USER.md. Returns the parsed operator
- * name (or null if USER.md is missing/unparseable) and the profile
- * slug from the ZENO_PROFILE env.
+ * Read profile metadata from AGENTS.md. Returns an optional operator
+ * name (parsed from a `name:` frontmatter or body line if the operator
+ * added one — AGENTS.md is an operating manual, not a bio, so the
+ * field is optional) and the profile slug from the ZENO_PROFILE env.
  */
 function readProfileInfo(profileDir: string): ProfileInfo {
   const slug = process.env.ZENO_PROFILE ?? 'default';
-  const userMdPath = join(profileDir, 'USER.md');
-  if (!existsSync(userMdPath)) return { name: null, slug };
-  const content = readFileSync(userMdPath, 'utf8');
-  return { name: parseUserMdName(content), slug };
+  const agentsMdPath = join(profileDir, 'AGENTS.md');
+  if (!existsSync(agentsMdPath)) return { name: null, slug };
+  const content = readFileSync(agentsMdPath, 'utf8');
+  return { name: parseAgentsMdName(content), slug };
 }
 
-// Spec 0067 B: hardcoded allowlist of profile files writable via the
-// API. Only USER.md flips writable in this spec — SOUL.md is committed
-// identity, crons.yaml is legacy (manage via /crons), mcp.json is gone
-// (post-spec-0032 it's DB-managed). Anything not in this set returns 403.
-const WRITABLE_FILES = new Set(['USER.md']);
+// Spec 2026-05-20 (agents-md-per-instance): per-profile operating
+// manual is AGENTS.md. SOUL.md is shared baseline identity (committed
+// in agent/, read-only). crons.yaml is legacy (manage via /crons).
+// Anything not in this set returns 403.
+const WRITABLE_FILES = new Set(['AGENTS.md']);
 
-// Spec 0067 B: hard cap on PUT body. USER.md is structural metadata,
-// not free-form content — 32 kB is generous (typical USER.md is 1–2 kB).
+// Hard cap on PUT body. AGENTS.md is structural metadata, not free-form
+// content — 32 kB is generous (typical AGENTS.md is 1–2 kB).
 const MAX_PROFILE_FILE_BYTES = 32_768;
 
 export function buildSettingsRoute(deps: SettingsRouteDeps): Hono {
@@ -76,9 +77,9 @@ export function buildSettingsRoute(deps: SettingsRouteDeps): Hono {
   /**
    * Spec 0067 B: read a profile file's full content (paired with PUT).
    *
-   * Same allowlist as PUT — only USER.md is exposed today. Returns
+   * Same allowlist as PUT — only AGENTS.md is exposed today. Returns
    * 404 when the file is missing (the dashboard renders an empty
-   * textarea seeded with default frontmatter in that case).
+   * textarea in that case).
    */
   route.get('/profile-files/:path', (c) => {
     const path = c.req.param('path');
@@ -99,7 +100,7 @@ export function buildSettingsRoute(deps: SettingsRouteDeps): Hono {
    *
    * Path is taken verbatim from the URL parameter — no joining with
    * user-supplied bytes. The hardcoded WRITABLE_FILES allowlist
-   * rejects anything other than USER.md (returning 403). A path
+   * rejects anything other than AGENTS.md (returning 403). A path
    * containing '/' or '..' won't reach this handler at all because
    * Hono treats them as separate segments and the route registration
    * uses `:path` (no wildcard).

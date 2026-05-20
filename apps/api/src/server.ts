@@ -72,7 +72,7 @@ export interface AppDeps {
    * cleanup spec.
    */
   claudeHomeRoot?: string;
-  /** Directory holding the agent profile files (SOUL.md, USER.md, crons.yaml). */
+  /** Directory holding the agent profile files (SOUL.md, AGENTS.md, crons.yaml). */
   profileDir: string;
   /** Absolute path to the dashboard's built static assets (apps/dashboard/dist). Optional in tests. */
   spaDir?: string;

@@ -62,12 +62,12 @@ describe('GET /api/settings', () => {
   });
 
   // Spec 0066 A: profile { name, slug } block. Source for `name`
-  // is USER.md YAML frontmatter. `slug` comes from ZENO_PROFILE env
+  // is AGENTS.md YAML frontmatter. `slug` comes from ZENO_PROFILE env
   // (set in docker-compose) with a 'default' fallback.
 
-  it('parses profile.name from USER.md frontmatter', async () => {
+  it('parses profile.name from AGENTS.md frontmatter', async () => {
     writeFileSync(
-      join(profileDir, 'USER.md'),
+      join(profileDir, 'AGENTS.md'),
       '---\nname: Alex\ngithub: alex-octocat\n---\n\n# bio',
     );
     const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
@@ -76,22 +76,22 @@ describe('GET /api/settings', () => {
     expect(body.profile.slug).toBe('default');
   });
 
-  it('returns profile.name=null when USER.md is missing', async () => {
+  it('returns profile.name=null when AGENTS.md is missing', async () => {
     const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBeNull();
     expect(body.profile.slug).toBe('default');
   });
 
-  it('returns profile.name=null when USER.md has no frontmatter and no Name: in body', async () => {
-    writeFileSync(join(profileDir, 'USER.md'), '# just a heading\n\nno name in here');
+  it('returns profile.name=null when AGENTS.md has no frontmatter and no Name: in body', async () => {
+    writeFileSync(join(profileDir, 'AGENTS.md'), '# just a heading\n\nno name in here');
     const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBeNull();
   });
 
   it('returns profile.name=null when frontmatter has no `name:` key', async () => {
-    writeFileSync(join(profileDir, 'USER.md'), '---\ngithub: alex-octocat\n---\n\n# bio');
+    writeFileSync(join(profileDir, 'AGENTS.md'), '---\ngithub: alex-octocat\n---\n\n# bio');
     const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBeNull();
@@ -101,7 +101,7 @@ describe('GET /api/settings', () => {
   // frontmatter is absent. Matches the common per-team profile shape.
   it('parses profile.name from `**Name:** X` markdown body', async () => {
     writeFileSync(
-      join(profileDir, 'USER.md'),
+      join(profileDir, 'AGENTS.md'),
       '# User\n\n## Identity\n\n- **Name:** Alex\n- **GitHub username:** `alex-octocat`\n',
     );
     const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
@@ -110,7 +110,7 @@ describe('GET /api/settings', () => {
   });
 
   it('parses profile.name from plain `Name: X` markdown line', async () => {
-    writeFileSync(join(profileDir, 'USER.md'), '# User\n\nName: Maria José\n\nbio');
+    writeFileSync(join(profileDir, 'AGENTS.md'), '# User\n\nName: Maria José\n\nbio');
     const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBe('Maria José');
@@ -118,7 +118,7 @@ describe('GET /api/settings', () => {
 
   it('frontmatter wins over body when both are present', async () => {
     writeFileSync(
-      join(profileDir, 'USER.md'),
+      join(profileDir, 'AGENTS.md'),
       '---\nname: FromFrontmatter\n---\n\n- **Name:** FromBody\n',
     );
     const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
@@ -127,7 +127,7 @@ describe('GET /api/settings', () => {
   });
 
   it('strips trailing markdown emphasis from body name', async () => {
-    writeFileSync(join(profileDir, 'USER.md'), '# User\n\n**Name:** *Alex*\n');
+    writeFileSync(join(profileDir, 'AGENTS.md'), '# User\n\n**Name:** *Alex*\n');
     const res = await makeApp(db).request('/api/settings', { headers: csrfHeaders() });
     const body = (await res.json()) as { profile: { name: string | null; slug: string } };
     expect(body.profile.name).toBe('Alex');
@@ -156,23 +156,23 @@ describe('GET /api/settings', () => {
 // (documented on the about tab).
 
 // Spec 0067 B: GET + PUT /api/settings/profile-files/:path. Allowlist
-// limits to USER.md only (SOUL.md / crons.yaml stay read-only via the
+// limits to AGENTS.md only (SOUL.md / crons.yaml stay read-only via the
 // listing in GET /api/settings).
-describe('GET /api/settings/profile-files/USER.md', () => {
+describe('GET /api/settings/profile-files/AGENTS.md', () => {
   it('returns the file content + mtime', async () => {
-    writeFileSync(join(profileDir, 'USER.md'), '---\nname: Alex\n---\n\n# Bio');
-    const res = await makeApp(db).request('/api/settings/profile-files/USER.md', {
+    writeFileSync(join(profileDir, 'AGENTS.md'), '---\nname: Alex\n---\n\n# Bio');
+    const res = await makeApp(db).request('/api/settings/profile-files/AGENTS.md', {
       headers: csrfHeaders(),
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { path: string; content: string; bytes: number };
-    expect(body.path).toBe('USER.md');
+    expect(body.path).toBe('AGENTS.md');
     expect(body.content).toContain('name: Alex');
     expect(body.bytes).toBeGreaterThan(0);
   });
 
-  it('returns 404 when USER.md is missing', async () => {
-    const res = await makeApp(db).request('/api/settings/profile-files/USER.md', {
+  it('returns 404 when AGENTS.md is missing', async () => {
+    const res = await makeApp(db).request('/api/settings/profile-files/AGENTS.md', {
       headers: csrfHeaders(),
     });
     expect(res.status).toBe(404);
@@ -187,9 +187,9 @@ describe('GET /api/settings/profile-files/USER.md', () => {
   });
 });
 
-describe('PUT /api/settings/profile-files/USER.md', () => {
-  function putUserMd(database: RuntimeDB, content: string) {
-    return makeApp(database).request('/api/settings/profile-files/USER.md', {
+describe('PUT /api/settings/profile-files/AGENTS.md', () => {
+  function putAgentsMd(database: RuntimeDB, content: string) {
+    return makeApp(database).request('/api/settings/profile-files/AGENTS.md', {
       method: 'PUT',
       headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({ content }),
@@ -198,13 +198,13 @@ describe('PUT /api/settings/profile-files/USER.md', () => {
 
   it('writes and returns mtime+content (200)', async () => {
     const next = '---\nname: Alex (Gabe)\n---\n\nupdated bio.';
-    const res = await putUserMd(db, next);
+    const res = await putAgentsMd(db, next);
     expect(res.status).toBe(200);
     const body = (await res.json()) as { path: string; content: string; mtime: string };
-    expect(body.path).toBe('USER.md');
+    expect(body.path).toBe('AGENTS.md');
     expect(body.content).toBe(next);
     // File on disk matches.
-    const onDisk = readFileSync(join(profileDir, 'USER.md'), 'utf8');
+    const onDisk = readFileSync(join(profileDir, 'AGENTS.md'), 'utf8');
     expect(onDisk).toBe(next);
   });
 
@@ -219,12 +219,12 @@ describe('PUT /api/settings/profile-files/USER.md', () => {
 
   it('rejects bodies larger than 32 kB with 413', async () => {
     const oversized = 'x'.repeat(32_769);
-    const res = await putUserMd(db, oversized);
+    const res = await putAgentsMd(db, oversized);
     expect(res.status).toBe(413);
   });
 
   it('rejects non-string content with 400', async () => {
-    const res = await makeApp(db).request('/api/settings/profile-files/USER.md', {
+    const res = await makeApp(db).request('/api/settings/profile-files/AGENTS.md', {
       method: 'PUT',
       headers: { ...csrfHeaders(), 'content-type': 'application/json' },
       body: JSON.stringify({ content: 42 }),

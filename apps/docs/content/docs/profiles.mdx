@@ -3,7 +3,7 @@ title: Profiles
 description: One Zeno install runs N isolated profiles, each with its own container, dashboard, and credentials.
 ---
 
-A **profile** is one Zeno instance. The profile is the unit of isolation: each one has its own container, its own dashboard port, its own master key, its own USER.md, its own connector credentials, and its own runtime database.
+A **profile** is one Zeno instance. The profile is the unit of isolation: each one has its own container, its own dashboard port, its own master key, its own AGENTS.md, its own connector credentials, and its own runtime database.
 
 You can run as many profiles as you want side by side. The maintainer's typical setup is `personal` and `work`; nothing stops you from adding `experiments` or `client-acme` next to them.
 
@@ -13,7 +13,7 @@ You can run as many profiles as you want side by side. The maintainer's typical 
 | --- | --- | --- |
 | `~/.zeno/zeno-agent/` | The repo, cloned by the installer | source code, Dockerfile, templates |
 | `~/.zeno/state.db` | The CLI (host SQLite, `chmod 600`) | one row per profile: name, owner, port, master-key fingerprint, sticky-default flag |
-| `~/.zeno/profiles/<name>/` | The CLI | per-profile `USER.md`, `.env`, master key |
+| `~/.zeno/profiles/<name>/` | The CLI | per-profile `AGENTS.md`, `.env`, master key |
 | Docker volume `zeno-<name>-workspace` | The container | the agent's writable workspace |
 | Docker volume `zeno-<name>-claude-home` | The container | the Claude SDK's `~/.claude/` (skills, sessions) |
 | Container `zeno-<name>` | Docker | the runtime: api + worker + dashboard processes |

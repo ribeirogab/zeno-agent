@@ -6,7 +6,7 @@ description: From zero to "@zeno hello" in five steps.
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 import { Callout } from 'fumadocs-ui/components/callout';
 
-A **profile** is one Zeno instance — its own container, dashboard, master key, USER.md, and credentials. You can have many side by side (`personal`, `work`, etc.); each one is independent.
+A **profile** is one Zeno instance — its own container, dashboard, master key, AGENTS.md operating manual, and credentials. You can have many side by side (`personal`, `work`, etc.); each one is independent.
 
 This page walks the happy path end-to-end. By the end you'll have a profile running, Claude connected, one connector installed, and Zeno replying in Slack.
 
@@ -25,22 +25,22 @@ This page walks the happy path end-to-end. By the end you'll have a profile runn
 ### Create the profile
 
 ```bash
-zeno profile create personal --owner "Alice"
+zeno profile create personal
 ```
 
-The CLI allocates a host port (`6101+`), generates a master key, and scaffolds `~/.zeno/profiles/personal/USER.md` and `.env` from the templates under `templates/profile/`.
+The CLI allocates a host port (`6101+`), generates a master key, and scaffolds `~/.zeno/profiles/personal/AGENTS.md` and `.env` from the templates under `templates/profile/`.
 
 </Step>
 
 <Step>
 
-### Edit your USER.md
+### Edit your AGENTS.md
 
 ```bash
-$EDITOR ~/.zeno/profiles/personal/USER.md
+$EDITOR ~/.zeno/profiles/personal/AGENTS.md
 ```
 
-Fill in your name, time zone, communication preferences, and any context you want the agent to know about (project names, language preferences, what you don't want it to do). The agent reads this file on every turn.
+Fill in the per-instance operating manual: inviolable rules, which skills to invoke and when, channel conventions, language defaults. The agent reads this file on every turn (it is part of the cached system prompt).
 
 </Step>
 

@@ -5,7 +5,7 @@ import { AboutRow } from '@/components/settings/about-row';
 import { AgentCapabilitiesSection } from '@/components/settings/agent-capabilities-section';
 import { ProfileFileRow } from '@/components/settings/profile-file-row';
 import { TabStrip } from '@/components/settings/tab-strip';
-import { UserMdEditor } from '@/components/settings/user-md-editor';
+import { AgentsMdEditor } from '@/components/settings/agents-md-editor';
 import { SettingsSectionSkeleton } from '@/components/skeletons/settings-section-skeleton';
 import { useHealth } from '@/lib/use-health';
 import { type SettingsSnapshot, useSettings } from '@/lib/use-settings';
@@ -95,7 +95,7 @@ function TabContent({
     case 'profile':
       return (
         <div className="flex flex-col gap-10">
-          <UserMdEditor />
+          <AgentsMdEditor />
           <ReadOnlyProfileFilesSection files={data.profileFiles} />
         </div>
       );
@@ -124,7 +124,7 @@ function Header(): JSX.Element {
         </h1>
         {/* Spec 0072 — copy replaced; backend tab moved to its own /backend page. */}
         <p className="mt-2.5 max-w-[640px] m-0 font-sans text-sm leading-[1.6] text-text-secondary">
-          Edit USER.md inline; flip capabilities. Worker auto-reloads on profile changes. Backend
+          Edit AGENTS.md inline; flip capabilities. Worker auto-reloads on profile changes. Backend
           lives at <InlineCode>/backend</InlineCode>.
         </p>
       </div>
@@ -166,7 +166,7 @@ function Section({
   );
 }
 
-// Spec 0067 B: USER.md is now editable inline (see <UserMdEditor>).
+// Spec 2026-05-20: AGENTS.md is editable inline (see <AgentsMdEditor>).
 // Other profile files stay read-only — SOUL.md is committed identity,
 // crons.yaml is legacy (manage via /crons).
 function ReadOnlyProfileFilesSection({
@@ -174,7 +174,7 @@ function ReadOnlyProfileFilesSection({
 }: {
   files: SettingsSnapshot['profileFiles'];
 }): JSX.Element {
-  const readOnly = files.filter((f) => f.path !== 'USER.md');
+  const readOnly = files.filter((f) => f.path !== 'AGENTS.md');
   return (
     <Section title="other profile files" meta="read-only · bind-mounted">
       <div className="bg-panel border border-border-subtle flex flex-col">

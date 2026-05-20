@@ -147,9 +147,9 @@ export function CronForm({
   );
 }
 
-// Spec 0066 A follow-up: DM hint targets the operator described in
-// USER.md frontmatter, not the legacy hardcoded 'alex'. Falls back to
-// the profile slug when frontmatter has no name.
+// Spec 2026-05-20: DM hint targets the operator name parsed from
+// AGENTS.md (optional). Falls back to the profile slug when AGENTS.md
+// has no name field (the common case).
 function DmHint(): JSX.Element {
   const settings = useSettings();
   const profile = settings.data?.profile;

@@ -342,9 +342,10 @@ export function deriveInitials(name: string | null | undefined, slug: string): s
 
 function User(): JSX.Element {
   const settings = useSettings();
-  // Spec 0066 A: read identity from USER.md frontmatter via the API.
-  // Until the response lands we render placeholders — never the old
-  // hardcoded 'alex' / 'single-owner · hmac' strings.
+  // Spec 2026-05-20: read optional operator name from AGENTS.md via
+  // the API. AGENTS.md is an operating manual, not a bio, so the name
+  // field is optional — until the response lands (or if no name is
+  // set) we render the profile slug or placeholders.
   const profile = settings.data?.profile;
   const displayName = profile?.name ?? profile?.slug ?? '…';
   const subtitle = profile ? `${profile.slug} · profile` : '';

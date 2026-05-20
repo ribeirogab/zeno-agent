@@ -18,7 +18,6 @@ _Nothing currently in flight._
 - [ ] [#46](https://github.com/ribeirogab/zeno-agent/issues/46) — feat(dashboard): onboarding wizard inside profile dashboard
 - [ ] [#47](https://github.com/ribeirogab/zeno-agent/issues/47) — feat(cli): backup / restore tooling for `~/.zeno/`
 - [ ] [#76](https://github.com/ribeirogab/zeno-agent/issues/76) — feat(connectors): add AWS connector
-- [ ] [#81](https://github.com/ribeirogab/zeno-agent/issues/81) — feat(connectors): add MySQL connector (read-only MCP)
 
 ## Later (no commitment)
 
@@ -27,6 +26,7 @@ _Nothing currently in flight._
 
 ## Recently shipped
 
+- [x] [#81](https://github.com/ribeirogab/zeno-agent/issues/81) — feat(connectors): add MySQL connector (read-only MCP) ([PR #84](https://github.com/ribeirogab/zeno-agent/pull/84))
 - [x] [#75](https://github.com/ribeirogab/zeno-agent/issues/75) — feat(connectors): add Postgres connector (read-only MCP) ([PR #80](https://github.com/ribeirogab/zeno-agent/pull/80))
 - [x] [#52](https://github.com/ribeirogab/zeno-agent/issues/52) — feat(install): drop pnpm host prereq via corepack bootstrap
 - [x] [#57](https://github.com/ribeirogab/zeno-agent/issues/57) — feat(channels): manage channels via CLI + read-only `/channels` page + `ChannelManager` hot-reload ([PR #70](https://github.com/ribeirogab/zeno-agent/pull/70))

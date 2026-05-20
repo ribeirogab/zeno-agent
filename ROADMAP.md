@@ -18,6 +18,7 @@ _Nothing currently in flight._
 - [ ] [#46](https://github.com/ribeirogab/zeno-agent/issues/46) — feat(dashboard): onboarding wizard inside profile dashboard
 - [ ] [#47](https://github.com/ribeirogab/zeno-agent/issues/47) — feat(cli): backup / restore tooling for `~/.zeno/`
 - [ ] [#76](https://github.com/ribeirogab/zeno-agent/issues/76) — feat(connectors): add AWS connector
+- [ ] [#86](https://github.com/ribeirogab/zeno-agent/issues/86) — refactor(profile): replace USER.md with per-instance AGENTS.md
 
 ## Later (no commitment)
 

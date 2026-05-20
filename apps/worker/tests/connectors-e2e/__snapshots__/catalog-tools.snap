@@ -551,6 +551,7 @@
       "defaultPermission": "ask"
     }
   ],
+  "mysql": [],
   "postgres": [
     {
       "name": "analyze_db_health",

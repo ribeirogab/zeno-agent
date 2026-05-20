@@ -794,6 +794,68 @@
       ]
     },
     {
+      "id": "mysql",
+      "name": "MySQL",
+      "description": "Read-only access to a MySQL database via the MySQL MCP server (@benborla29/mcp-server-mysql). Writes are gated behind upstream ALLOW_INSERT_OPERATION / ALLOW_UPDATE_OPERATION / ALLOW_DELETE_OPERATION env vars which this catalog never sets. One installation per database connection.",
+      "icon": "mysql.svg",
+      "docsUrl": "https://github.com/benborla/mcp-server-mysql",
+      "transport": "stdio",
+      "transportConfig": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@benborla29/mcp-server-mysql"
+        ]
+      },
+      "authCheckTool": "mysql_query",
+      "authCheckArgs": {
+        "sql": "SELECT 1"
+      },
+      "categoryPrefixMap": {
+        "mysql_query": "read"
+      },
+      "secrets": [
+        {
+          "key": "MYSQL_HOST",
+          "label": "Host",
+          "help": "Hostname or IP of the MySQL server. Example: db.example.com or an RDS endpoint. Connector is locked to read-only — Constitution §Read-only database.",
+          "required": true
+        },
+        {
+          "key": "MYSQL_PORT",
+          "label": "Port",
+          "help": "TCP port. MySQL default is 3306.",
+          "required": true
+        },
+        {
+          "key": "MYSQL_USER",
+          "label": "User",
+          "help": "Database user. Use a read-only role for defense-in-depth — Constitution §Read-only database.",
+          "required": true
+        },
+        {
+          "key": "MYSQL_PASS",
+          "label": "Password",
+          "help": "User password. Stored encrypted in connector_secrets, never in .env.",
+          "required": true
+        },
+        {
+          "key": "MYSQL_DB",
+          "label": "Database name",
+          "help": "Default database/schema to connect to.",
+          "required": true
+        }
+      ],
+      "tools": [],
+      "terminology": {
+        "instance": "Database"
+      },
+      "tags": [
+        "database",
+        "sql"
+      ]
+    },
+    {
       "id": "postgres",
       "name": "Postgres",
       "description": "Read-only access to a Postgres database via the Postgres MCP server (crystaldba/postgres-mcp). One installation per database URL.",

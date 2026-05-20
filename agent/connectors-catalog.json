@@ -846,7 +846,14 @@
           "required": true
         }
       ],
-      "tools": [],
+      "tools": [
+        {
+          "name": "mysql_query",
+          "description": "[MySQL MCP Server [v2026.5.19-2]] Run SQL queries against MySQL database (READ-ONLY)",
+          "category": "read",
+          "defaultPermission": "always_allow"
+        }
+      ],
       "terminology": {
         "instance": "Database"
       },

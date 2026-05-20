@@ -13,7 +13,7 @@ const AGENT_CANDIDATES = ['/app/agent', 'agent'];
 const PROFILE_CANDIDATES = ['/app/profile', 'profile'];
 
 interface ProfileWatcherOptions {
-  /** Called when SOUL.md (agent/) or USER.md (profile/) changes. */
+  /** Called when SOUL.md (agent/) or AGENTS.md (profile/) changes. */
   onPromptFilesChanged: () => void;
   /** Spec 0052/0062: called when any skill content changes (SSH-edits in agent/profile/dashboard skills, dashboard zip uploads, etc.). */
   onSkillsChanged?: () => void;
@@ -179,7 +179,7 @@ function findSourceDir(candidates: string[]): string | null {
 export function classify(source: SourceKind, filename: string): FileGroup {
   const normalized = filename.replace(/\\/g, '/');
   if (source === 'agent' && normalized === 'SOUL.md') return 'prompt';
-  if (source === 'profile' && normalized === 'USER.md') return 'prompt';
+  if (source === 'profile' && normalized === 'AGENTS.md') return 'prompt';
   if (source === 'skills') return 'skills';
   // Spec 0062: edits to agent/skills/* and profile/skills/* fire skills events.
   if (source === 'agent' && normalized.startsWith('skills/')) return 'skills';

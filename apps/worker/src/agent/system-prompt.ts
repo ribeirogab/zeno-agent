@@ -46,12 +46,12 @@ export function loadProfileFile(filename: string): string | null {
  * AGENTS from `profile/`. Pass null when files are missing — sensible
  * defaults are used.
  *
- * Spec 2026-05-20 (agents-md-per-instance): replaced the per-profile
- * USER.md (single-owner framing) with AGENTS.md (per-instance operating
- * manual). The reframe reflects reality — a Zeno instance has one
- * operator (OAuth-token owner) and N audiences (people on the channel) —
- * and removes the misleading `# About the user` heading from the
- * cached system prompt.
+ * Spec 2026-05-20 (agents-md-per-instance): replaced the legacy
+ * per-profile user-bio file (single-owner framing) with AGENTS.md
+ * (per-instance operating manual). The reframe reflects reality — a
+ * Zeno instance has one operator (OAuth-token owner) and N audiences
+ * (people on the channel) — and removes the misleading "About the user"
+ * heading from the cached system prompt.
  *
  * Spec 0052 invariant: the call site (`apps/worker/src/agent/backends/claude-code.ts`)
  * MUST wrap this return value in the preset option shape

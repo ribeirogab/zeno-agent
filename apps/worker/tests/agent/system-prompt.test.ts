@@ -17,7 +17,9 @@ describe('buildSystemPrompt', () => {
   it('emits a generic note when AGENTS.md is missing', () => {
     const out = buildSystemPrompt('You are Zeno.', null);
     expect(out).toContain('AGENTS.md not found');
-    expect(out).not.toContain('USER.md');
+    // Regression guard: the legacy framing (per-profile user-bio file +
+    // '# About the user' heading) must never resurface in the system prompt.
+    expect(out).not.toMatch(/[uU]SER\.md/);
     expect(out).not.toContain('About the user');
   });
 

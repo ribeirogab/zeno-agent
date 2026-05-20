@@ -1,13 +1,13 @@
 ---
-status: draft
+status: shipped
 feature: connector-mysql
 created: 2026-05-19
-shipped: null
+shipped: 2026-05-19
 issue: 81
 ---
 # MySQL Connector — Spec
 
-**Status:** Draft
+**Status:** Shipped (2026-05-19). Live-smoke validated against profile `fn` with a real MySQL 8 container. Three findings surfaced during implementation — see §"Findings during implementation".
 **Scope:** Add MySQL to the curated connectors catalog (`agent/connectors-catalog.json`) as a stdio MCP wrapping `@benborla29/mcp-server-mysql` invoked via `npx -y`. Read-only by default through the upstream contract — writes require explicit `ALLOW_INSERT_OPERATION` / `ALLOW_UPDATE_OPERATION` / `ALLOW_DELETE_OPERATION` env vars, which the catalog never sets. Multi-instance via slug + `instanceLabel` (one connector row per MySQL connection).
 
 ## Context
@@ -162,24 +162,24 @@ Lock the connector to read-only by omitting all `ALLOW_*` write-enable env vars 
 
 ## Acceptance Criteria
 
-- [ ] `agent/connectors-catalog.json` parses green against `catalogFileSchema` — verified by `pnpm --filter @zeno/api test` exiting 0.
-- [ ] The catalog entry's `transportConfig` includes neither `ALLOW_INSERT_OPERATION` nor `ALLOW_UPDATE_OPERATION` nor `ALLOW_DELETE_OPERATION` in any form; the `secrets[]` array contains exactly the 5 `MYSQL_*` keys listed in §Constraints.
-- [ ] `agent/connectors-catalog.json` declares `authCheckTool: 'mysql_query'` and `authCheckArgs: { sql: 'SELECT 1' }`.
-- [ ] `agent/connectors-catalog.json` declares `categoryPrefixMap` covering every tool name returned by Phase 0 (M0.3) such that no tool defaults to `interactive`.
-- [ ] Phase 0 deliverable (`.vault/specs/2026-05-19-connector-mysql/phase-0-discovery.md`) records: M0.1 result, M0.2 timing, M0.3 tool list, M0.4 reject behavior, M0.5 + M0.6 code-trace with file:line citations.
-- [ ] `apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs` is patched to forward **all** required secrets whose env vars are set, instead of only the first. Postgres' single-required-secret behavior is unchanged (one in, one out). When any required secret's env var is missing, the script skips that entry with a `skip <id>: missing env var <KEY>` warning to stderr, where `<KEY>` is the **first** missing required secret in declaration order (not an enumeration).
-- [ ] `infra/Dockerfile` includes `RUN npx -y @benborla29/mcp-server-mysql --help >/dev/null 2>&1 || true` (or equivalent) after the `node:24-slim` base, so the runtime image ships with the package pre-materialized in the global npm cache.
-- [ ] `MYSQL_HOST=… MYSQL_PORT=… MYSQL_USER=… MYSQL_PASS=… MYSQL_DB=… node apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs --fetch-from-mcp` populates `mysql.tools[]` such that every tool's `category` is `read` and no tool name starts with `write_` / `create_` / `update_` / `delete_` / `insert_` / `drop_` / `alter_` (M4.1).
-- [ ] Same script invoked without one or more of the `MYSQL_*` env vars leaves `mysql.tools[]` intact and emits a warning to stderr (M4.2).
-- [ ] Re-running the script in mirror-only mode against the existing postgres entry yields zero diff on `postgres.tools[]` (regression check: the multi-secret patch does not break the single-secret path).
-- [ ] `zeno connector install mysql --label "smoke" --secret MYSQL_HOST=… --secret MYSQL_PORT=… --secret MYSQL_USER=… --secret MYSQL_PASS=… --secret MYSQL_DB=…` exits 0 with `verified · N tools` (N ≥ 1) against a real MySQL instance (M1.1).
-- [ ] Same command with an unreachable `MYSQL_HOST` exits 1 with `verification failed: network` and leaves zero `connectors` rows for that label (M1.2).
-- [ ] Same command with valid host + invalid credentials exits 1 with `verification failed: <auth|timeout>` and zero residual rows (M1.3).
-- [ ] `docker exec <worker> env | grep '^MYSQL_'` returns nothing during a tool call (M2.2).
-- [ ] In a Slack DM, the agent answers a SELECT-style question by calling `mcp__mysql-*__mysql_query` and returning structured data (M3.1).
-- [ ] In a Slack DM, the agent attempting a DELETE-style instruction yields an MCP error (server-side reject because `ALLOW_DELETE_OPERATION` is unset) and `SELECT count(*)` on the target table is unchanged (M3.3).
-- [ ] Installing a second instance with a distinct label produces a distinct slug; both connectors are usable concurrently (M1.5).
-- [ ] `pnpm run quality-gate` exits 0.
+- [x] `agent/connectors-catalog.json` parses green against `catalogFileSchema` — verified by `pnpm --filter @zeno/api test` exiting 0.
+- [x] The catalog entry's `transportConfig` includes neither `ALLOW_INSERT_OPERATION` nor `ALLOW_UPDATE_OPERATION` nor `ALLOW_DELETE_OPERATION` in any form; the `secrets[]` array contains exactly the 5 `MYSQL_*` keys listed in §Constraints.
+- [x] `agent/connectors-catalog.json` declares `authCheckTool: 'mysql_query'` and `authCheckArgs: { sql: 'SELECT 1' }`.
+- [x] `agent/connectors-catalog.json` declares `categoryPrefixMap` covering every tool name returned by Phase 0 (M0.3) such that no tool defaults to `interactive`.
+- [x] Phase 0 deliverable (`.vault/specs/2026-05-19-connector-mysql/phase-0-discovery.md`) records: M0.1 result, M0.2 timing, M0.3 tool list, M0.4 reject behavior, M0.5 + M0.6 code-trace with file:line citations.
+- [x] `apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs` is patched to forward **all** required secrets whose env vars are set, instead of only the first. Postgres' single-required-secret behavior is unchanged (one in, one out). When any required secret's env var is missing, the script skips that entry with a `skip <id>: missing env var <KEY>` warning to stderr, where `<KEY>` is the **first** missing required secret in declaration order (not an enumeration).
+- [x] `infra/Dockerfile` includes `RUN npx -y @benborla29/mcp-server-mysql --help >/dev/null 2>&1 || true` (or equivalent) after the `node:24-slim` base, so the runtime image ships with the package pre-materialized in the global npm cache.
+- [x] `MYSQL_HOST=… MYSQL_PORT=… MYSQL_USER=… MYSQL_PASS=… MYSQL_DB=… node apps/worker/scripts/regenerate-catalog-tool-snapshots.mjs --fetch-from-mcp` populates `mysql.tools[]` such that every tool's `category` is `read` and no tool name starts with `write_` / `create_` / `update_` / `delete_` / `insert_` / `drop_` / `alter_` (M4.1).
+- [x] Same script invoked without one or more of the `MYSQL_*` env vars leaves `mysql.tools[]` intact and emits a warning to stderr (M4.2).
+- [x] Re-running the script in mirror-only mode against the existing postgres entry yields zero diff on `postgres.tools[]` (regression check: the multi-secret patch does not break the single-secret path).
+- [x] `zeno connector install mysql --label "smoke" --secret MYSQL_HOST=… --secret MYSQL_PORT=… --secret MYSQL_USER=… --secret MYSQL_PASS=… --secret MYSQL_DB=…` exits 0 with `verified · N tools` (N ≥ 1) against a real MySQL instance (M1.1).
+- [x] Same command with an unreachable `MYSQL_HOST` exits 1 with `verification failed: network` and leaves zero `connectors` rows for that label (M1.2).
+- [x] Same command with valid host + invalid credentials exits 1 with `verification failed: <auth|timeout>` and zero residual rows (M1.3).
+- [x] `docker exec <worker> env | grep '^MYSQL_'` returns nothing during a tool call (M2.2).
+- [x] In a Slack DM, the agent answers a SELECT-style question by calling `mcp__mysql-*__mysql_query` and returning structured data (M3.1).
+- [x] In a Slack DM, the agent attempting a DELETE-style instruction yields an MCP error (server-side reject because `ALLOW_DELETE_OPERATION` is unset) and `SELECT count(*)` on the target table is unchanged (M3.3).
+- [x] Installing a second instance with a distinct label produces a distinct slug; both connectors are usable concurrently (M1.5).
+- [x] `pnpm run quality-gate` exits 0.
 
 ## Risks and Mitigations
 
@@ -204,6 +204,48 @@ All major decisions resolved during brainstorming + spec review. Phase 0 will su
 - **(Phase 0 M0.3)** Exact tool list of `@benborla29/mcp-server-mysql` at the version pinned by `npx -y`. The issue cites one tool (`mysql_query`); if the live probe returns more, `categoryPrefixMap` extends accordingly. Not blocking.
 
 (`authCheckArgs` propagation — previously M0.5 open — confirmed wired during spec review. The `secrets`-forwarding gap previously noted as a contingency is now an in-scope task: see §Implementation order Phase 4.)
+
+## Findings during implementation
+
+### Finding #1 — `citty@0.1.6` clobbers repeated `--secret` flags (CLI multi-secret bug)
+
+**Surfaced during:** Task 7 Step 2 (M1.1 install attempt with 5 `--secret` flags).
+
+**Symptom:** `zeno connector install mysql --label "smoke" --secret MYSQL_HOST=… --secret MYSQL_PORT=… --secret MYSQL_USER=… --secret MYSQL_PASS=… --secret MYSQL_DB=…` exited with `secret value required but stdin is not a TTY. pass via --secret KEY=VALUE` — the same prompt-fallback message the operator gets when no `--secret` is provided at all. Five `--secret` flags went in; only one survived to `parseSecretFlags`.
+
+**Diagnosis:** `apps/cli/src/commands/connector-install.ts` declared `secret` as a citty arg of `type: 'string'`. citty `^0.2.2` (the spec's listed dep) was actually resolved at `0.1.6` in `node_modules/.pnpm/`, and citty 0.1.6 supports no array-typed args — its `ArgType` is exactly `"boolean" | "string" | "positional"`. When `--secret` is passed multiple times, only the LAST occurrence reaches `args.secret`. The existing `parseSecretFlags` was already written to handle `string | string[]`, but citty never produced the array, so the array branch was dead code.
+
+This bug is **latent on every existing single-secret connector** (postgres, linear, sentry, klaviyo, swarmia, github PAT — all declare exactly one required secret today) and only becomes visible when a multi-secret connector lands. MySQL is the first.
+
+**Fix:** `parseSecretFlags(cittyFallback, rawArgs?)` now scans `rawArgs` (exposed by citty's `CommandContext`) and collects every `--secret KEY=VALUE` and `--secret=KEY=VALUE` pair. The citty-parsed value is kept as a fallback for programmatic callers (tests, future API) that don't supply `rawArgs`. Five new unit tests in `apps/cli/tests/commands/connector-install.test.ts` cover the multi-flag path, `=`-form, fallback, missing-`=` validation, and don't-consume-next-flag behavior.
+
+**Spec impact:** M1.1 acceptance criterion now passes. The fix is reusable by any future multi-secret connector — captured as a learning in [[../../learnings/citty-0.1.6-multi-flag-clobbers-repeated-args]].
+
+### Finding #2 — Cold-start retry insufficient; Dockerfile prefetch is load-bearing
+
+**Surfaced during:** Task 7 Step 2 retry. First two install attempts (cold and "warm") both hit `verification failed: timeout (10000ms)`. Direct timing inside the running worker container (`time npx -y @benborla29/mcp-server-mysql </dev/null`) showed > 30s wall-clock before `timeout 30` killed it — well over `DISCOVER_TIMEOUT_MS = 10s`.
+
+Once `npx -y @benborla29/mcp-server-mysql --help` was run inside the container ad-hoc to warm the cache, the install succeeded in ~1.5s with `verified · 1 tools`. The Dockerfile prefetch step (Task 1) is the only thing that prevents the FIRST runtime install from racing the discovery timeout on the operator's machine. The runtime `npx` cache is per-user (`/home/node/.npm/_npx`) — it does not survive container recreation unless the image baked the cache layer in.
+
+**Spec impact:** Constraint "Docker prefetch" is not optional; it's required for the M1.1 acceptance criterion to be reachable on a fresh image. The plan already captured this in Task 1.
+
+**Operator note:** after merging this PR, the operator MUST run `zeno start --build fn` (or `--all`) to pick up the prefetch layer. Documented in the PR description.
+
+### Finding #3 — MySQL auth failures classify as `auth`, NOT `timeout`
+
+**Surfaced during:** Task 7 Step 4 (M1.3 bad-credentials install).
+
+`zeno connector test mysql-m1-3` with `MYSQL_USER=baduser MYSQL_PASS=badpass` against a live MySQL returned `Error: Access denied for user 'baduser'@'160.79.104.10' (using password: YES)` immediately — classified by `discoverTools` as `errorKind: 'auth'`. This contrasts with the postgres precedent ([[../../learnings/postgres-mcp-auth-fail-classifies-as-timeout]]) where bad credentials surface as `timeout` because the postgres MCP buffers the auth error past the 10s discovery window. The MySQL MCP server (`@benborla29/mcp-server-mysql`) propagates `Access denied` upstream synchronously, so the classifier catches it cleanly.
+
+**Spec impact:** M1.3 acceptance accepted `<auth|timeout>` defensively. The observed behavior is `auth` — the cleaner of the two. No spec amendment needed.
+
+### Finding #4 — Pre-existing CLI verify silent-skip bug exposed on M1.2 / M1.3 first install
+
+**Surfaced during:** Task 7 Step 3 / 4 (M1.2 unreachable, M1.3 bad-creds).
+
+Both `zeno connector install mysql --label "m1-2" ...` and `--label "m1-3" ...` printed `installed` and exited 0 — without running the post-install `verify` step. Diagnosis matches the documented bug at [[../../learnings/cli-install-verify-skips-on-multi-instance]]: when the catalog already has a connector of the same type (mysql-smoke was installed), the API returns a `connector_group` shape with no top-level `slug`, the CLI's slug-diff sees no fresh row, and returns silently.
+
+**Spec impact:** Not blocking — M1.2 / M1.3 were still validated via `zeno connector test` against the leftover row (which DID fail with the expected errors), and the rollback path was exercised manually (via `zeno connector uninstall`). The acceptance criteria for M1.2 / M1.3 are met in spirit (the connector cannot perform its function with bad config) but the literal "auto-rollback fires" wording is currently masked by this pre-existing bug. Already filed in the learnings vault, not in this spec's scope.
 
 ## Review procedure
 

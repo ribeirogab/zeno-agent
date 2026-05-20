@@ -82,8 +82,9 @@ CLI:
 API:
 
 - [ ] `apps/api/src/routes/settings.ts` `TRACKED_FILES` constant equals `['SOUL.md', 'AGENTS.md', 'crons.yaml']` (exact tuple, order preserved).
+- [ ] `apps/api/src/routes/settings.ts` `WRITABLE_FILES` set equals `new Set(['AGENTS.md'])`; PUT to `USER.md` returns 403.
 - [ ] `apps/api/src/lib/parse-user-md.ts` is deleted; `apps/api/src/lib/parse-agents-md.ts` exists; all imports updated; tests pass.
-- [ ] GET `/api/settings/files/AGENTS.md` returns the file content; PUT `/api/settings/files/AGENTS.md` writes it. The `USER.md` route returns 404 (file is not tracked).
+- [ ] GET `/api/settings/profile-files/AGENTS.md` returns the file content with `200`; PUT `/api/settings/profile-files/AGENTS.md` with a JSON body `{ "content": "..." }` writes the file and returns `200`. GET/PUT for `/api/settings/profile-files/USER.md` both return `403` (file not in `WRITABLE_FILES`).
 
 Dashboard:
 
@@ -108,19 +109,24 @@ Repo + agent identity + constitution:
 
 - [ ] Repo root `AGENTS.md` line 3 reads `~/.zeno/profiles/<profile>/AGENTS.md` (not `USER.md`). The `CLAUDE.md` symlink at repo root continues to resolve to this file (already a symlink today).
 - [ ] `agent/SOUL.md` substitutes the line "If `USER.md` specifies a preferred language" with "If `AGENTS.md` specifies a preferred language". No other SOUL.md content changes.
-- [ ] `.vault/constitution.md` updates four references to `USER.md` to `AGENTS.md` (lines 13, 28, 47, 88 in the current file). The "Zeno is single-user" wording in line 28 is replaced with wording that admits multi-audience use under a single operator. No other constitution content changes. No FN-specific content is added.
+- [ ] `.vault/constitution.md` updates four references to `USER.md` to `AGENTS.md` (lines 13, 28, 47, 88 in the current file). The "Zeno is single-user" wording in line 28 is replaced with wording that admits multi-audience use under a single operator. Line 48's "Migration to API key (or enterprise auth) is reserved for the day Zeno serves multiple people" is reworded to "Migration to API key (or enterprise auth) is reserved for the day Zeno serves multiple billed operators" (or equivalent wording that distinguishes audiences from billed operators) so the reframe in line 28 does not contradict the OAuth/API-key principle. No other constitution content changes. No FN-specific content is added.
 
 Migration (FN profile, manual inside the PR):
 
 - [ ] `~/.zeno/profiles/fn/USER.md` no longer exists.
 - [ ] `~/.zeno/profiles/fn/AGENTS.md` exists and contains the FN-specific operating manual drafted in this spec (operator confirmed wording during PR review).
-- [ ] After `zeno restart fn`, the worker log contains `agents_md_loaded` for the FN profile and zero occurrences of `user_md_loaded`.
 
-End-to-end:
+End-to-end (reviewer-verifiable):
 
-- [ ] `git grep -E 'USER\.md|user-md|use-user-md|UserMd|parse-user-md' apps/ packages/ templates/ agent/ AGENTS.md` (case-sensitive) returns no results.
+- [ ] `git grep -E 'USER\.md|user-md|use-user-md|UserMd|parse-user-md|user_md_' apps/ packages/ templates/ agent/ AGENTS.md CLAUDE.md` (case-sensitive) returns no results.
 - [ ] `pnpm run quality-gate` is green at HEAD of the feature branch.
-- [ ] After the PR merges and the FN profile is restarted, a smoke test (a non-developer sends a Slack message about an existing technical surface) produces a reply that does NOT contain repo names, file paths, function names, or constant names — i.e., the regression the spec prevents is verified absent.
+
+## Manual verification (operator-only, post-merge)
+
+These checks require access to the operator's local Docker environment and Slack workspace. They are run by the operator after the PR merges and are NOT a gate on PR sign-off (they cannot be verified by a non-operator reviewer in under a minute):
+
+- After `zeno restart fn`, the worker log contains `agents_md_loaded` for the FN profile.
+- A smoke test (a non-developer audience sends a Slack message about an existing technical surface to the FN instance) produces a reply that does NOT contain repo names, file paths, function names, or constant names. This is the regression the spec prevents; if it reappears, file a follow-up issue.
 
 ## Risks and Mitigations
 

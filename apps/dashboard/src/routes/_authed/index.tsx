@@ -40,9 +40,8 @@ export const Route = createFileRoute('/_authed/')({
   component: HomeScreen,
 });
 
-// Spec 0066 A follow-up: derive the displayed name from the API
-// (`profile.name` parsed from USER.md frontmatter, fallback to slug).
-// Replaces the previous hardcoded 'alex' constant.
+// Spec 2026-05-20: derive the displayed name from the API
+// (`profile.name` parsed from AGENTS.md, optional; falls back to slug).
 function useDisplayName(): string {
   const settings = useSettings();
   const profile = settings.data?.profile;

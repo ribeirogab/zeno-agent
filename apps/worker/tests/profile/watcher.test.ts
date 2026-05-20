@@ -167,9 +167,9 @@ describe('ProfileWatcher', () => {
       expect(classify('skills', 'whatever.txt')).toBe('skills');
     });
 
-    it('preserves prompt routes — SOUL.md → prompt, USER.md → prompt', () => {
+    it('preserves prompt routes — SOUL.md → prompt, AGENTS.md → prompt', () => {
       expect(classify('agent', 'SOUL.md')).toBe('prompt');
-      expect(classify('profile', 'USER.md')).toBe('prompt');
+      expect(classify('profile', 'AGENTS.md')).toBe('prompt');
     });
 
     it('config.yaml is no longer recognized (killed in multi-profile-cli spec)', () => {

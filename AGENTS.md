@@ -1,6 +1,6 @@
 # Zeno — Agent Instructions
 
-Zeno is a personal agent. The operator of this instance is described in `~/.zeno/profiles/<profile>/USER.md` (off-repo, owner-only). The canonical scaffold lives at `templates/profile/USER.md`; the `zeno` CLI substitutes placeholders into the operator's copy on `zeno profile create`. This repo is Zeno's workspace: identity, capabilities, configuration, and operating knowledge.
+Zeno is a personal agent. The per-instance operating manual lives in `~/.zeno/profiles/<profile>/AGENTS.md` (off-repo, owner-only). The canonical scaffold lives at `templates/profile/AGENTS.md`; the `zeno` CLI writes it verbatim on `zeno profile create` (the template is static — no placeholder substitution). This repo is Zeno's workspace: identity, capabilities, configuration, and operating knowledge.
 
 ## Before starting any work
 
@@ -37,7 +37,7 @@ The `zeno` CLI is the documented entry point for daily ops. The CLI talks direct
 | Command | What it does |
 |---|---|
 | `pnpm run quality-gate` | Lint + typecheck + tests across all workspaces. Gates every commit. |
-| `zeno profile create <profile> [--owner X]` | Create a new profile (allocates port, generates master key, scaffolds USER.md + .env). |
+| `zeno profile create <profile>` | Create a new profile (allocates port, generates master key, scaffolds AGENTS.md + .env). |
 | `zeno profile list` / `show <profile>` / `delete <profile>` | Inventory + drill-down + tear-down. |
 | `zeno profile edit <profile> --port N` | Move a profile's host port. |
 | `zeno profile use <profile>` | Set sticky default. |

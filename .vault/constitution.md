@@ -10,7 +10,7 @@ If you are tempted to violate a rule here, stop and open a discussion first. Nev
 
 ## Why Zeno exists
 
-Zeno is a personal agent that operates across the apps you use, by composing the connectors you install. The owner is described in `profiles/<name>/USER.md` (gitignored — see `profiles/default/USER.example.md` for the template). This repository is Zeno's workspace — the place where its identity, configuration, and operating knowledge live.
+Zeno is a personal agent that operates across the apps you use, by composing the connectors you install. The per-instance operating manual lives in `profiles/<name>/AGENTS.md` (gitignored). This repository is Zeno's workspace — the place where its identity, configuration, and operating knowledge live.
 
 The architecture is intentionally layered, in order of weight:
 
@@ -25,7 +25,7 @@ The goal is that adding a capability is always a matter of installing or buildin
 ## Scope guardrails
 
 - This repo is **Zeno's workspace**: source code of the agent, its specs, its operational knowledge. Not a place for unrelated experiments.
-- **Personal scope.** Zeno is single-user — the user defined in `USER.md`. Multi-user (allowlists, OAuth per user, billing isolation) is explicitly deferred until the use case appears.
+- **Single-operator, multi-audience-capable.** Each Zeno instance is owned by one operator (the OAuth-token holder) and may serve multiple audiences on the same channel (e.g., several people in one Slack workspace). Multi-tenant scope — allowlists, OAuth per user, billing isolation — is explicitly deferred until the use case appears.
 - **No production deploy concerns.** Zeno runs locally on the user's machine. Cloud migration is possible later (Docker-first design) but not a current goal.
 - Do not add dependencies, tooling, or frameworks without first writing a learning or spec explaining the decision. Premature lock-in is the main risk during early growth.
 
@@ -44,8 +44,8 @@ This repository is public. Everything committed is a potential leak.
 - **Ports & adapters.** Three pluggable abstractions: `Channel` (message sources — Slack today, Discord/Telegram/etc. future), `AgentBackend` (reasoning engines — Claude Code today, Codex/Gemini future), and **Connector** (MCP tool surfaces the agent calls — DB-managed via the dashboard since spec 0032). The Agent Core orchestrator depends only on the first two interfaces; the agent backend itself consumes Connectors via the SDK's `mcpServers` map at query time. Adding a new channel, backend, or connector must be additive — never a modification to the core. Channel ≠ Connector — Slack is both, but they are distinct concepts (input/output adapter vs tool callable by the agent). See `[[learnings/channel-vs-connector]]`.
 - **Capabilities come from connectors.** External capabilities are surfaced exclusively as MCP tools exposed by the connectors the operator installs via the dashboard. The agent does not have direct shell, filesystem, or web-fetch access at runtime. If a capability is missing, the answer is to install or build a connector for it, not to script around it.
 - **Stateless per turn (current MVP).** No conversation memory between Slack mentions. Persistent thread sessions are a future iteration and require an explicit storage decision attached to a spec before being added.
-- **Sandboxed execution.** The agent runs inside a Docker container with no shell or filesystem access of its own — capabilities flow exclusively through connector MCP subprocesses spawned by the worker. The container has no host filesystem access beyond mounted volumes (`workspace`, `USER.md` read-only).
-- **OAuth, not API key.** Claude is accessed via `CLAUDE_CODE_OAUTH_TOKEN` (subscription auth), not `ANTHROPIC_API_KEY`. This aligns the cost model with personal use and respects the design constraint set by the user. Migration to API key (or enterprise auth) is reserved for the day Zeno serves multiple people.
+- **Sandboxed execution.** The agent runs inside a Docker container with no shell or filesystem access of its own — capabilities flow exclusively through connector MCP subprocesses spawned by the worker. The container has no host filesystem access beyond mounted volumes (`workspace`, `AGENTS.md` read-only).
+- **OAuth, not API key.** Claude is accessed via `CLAUDE_CODE_OAUTH_TOKEN` (subscription auth), not `ANTHROPIC_API_KEY`. This aligns the cost model with personal use and respects the design constraint set by the operator. Migration to API key (or enterprise auth) is reserved for the day Zeno serves multiple billed operators — note that "audiences" (people on a channel) and "operators" (token holders) are distinct; multi-audience use is already current reality.
 
 Principles that frame all of the above:
 
@@ -85,7 +85,7 @@ Specs never get deleted. Shipped specs remain in `.vault/specs/` as historical r
 ## Knowledge layering
 
 - `.vault/` is **maintainer-facing documentation** — for humans or AI agents WORKING ON Zeno's source code. The Zeno running in production does NOT mount or read this directory; it would be source-code metadata, irrelevant to its runtime job (serving Slack messages).
-- Runtime context the agent actually needs is narrow: who the user is (`USER.md`, mounted), the system prompt (built at boot), and the MCP tools exposed by the connectors the operator has enabled via the dashboard.
+- Runtime context the agent actually needs is narrow: the per-instance operating manual (`AGENTS.md`, mounted), the system prompt (built at boot), and the MCP tools exposed by the connectors the operator has enabled via the dashboard.
 - Anything Zeno-specific that a future maintainer (or future-you) would want to know — principles, decisions, architecture, surprises, conventions — lives in `.vault/`.
 - Only add notes here for things unique to Zeno. Generic patterns that apply to any project belong in global instructions or the user's global memory.
 - When a decision is made about Zeno's stack or architecture, update this constitution **and** write a matching learning explaining the reasoning.

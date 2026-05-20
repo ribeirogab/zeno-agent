@@ -66,7 +66,7 @@ describe('<DashboardSidebar>', () => {
     expect(screen.queryByText('logs')).toBeNull();
   });
 
-  it('renders the user row from USER.md name + slug (spec 0066 A)', () => {
+  it('renders the user row from AGENTS.md name + slug (spec 2026-05-20)', () => {
     useSettingsMock.mockReturnValue(settingsResult({ name: 'Alex', slug: 'work' }));
     render(<DashboardSidebar />);
     expect(screen.getByText('Alex')).toBeDefined();
@@ -74,7 +74,7 @@ describe('<DashboardSidebar>', () => {
     expect(screen.getByText('AL')).toBeDefined();
   });
 
-  it('falls back to slug when USER.md has no name (spec 0066 A)', () => {
+  it('falls back to slug when AGENTS.md has no name (spec 2026-05-20)', () => {
     useSettingsMock.mockReturnValue(settingsResult({ name: null, slug: 'default' }));
     render(<DashboardSidebar />);
     expect(screen.getByText('default')).toBeDefined();

@@ -9,7 +9,7 @@ const NODES = [
   {
     kicker: 'core',
     name: 'Channel adapter',
-    caption: 'Normalizes the message, attaches USER.md context.',
+    caption: 'Normalizes the message, attaches AGENTS.md operating manual.',
   },
   {
     kicker: 'backend',

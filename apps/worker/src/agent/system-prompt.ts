@@ -70,9 +70,7 @@ export function buildSystemPrompt(
   }
 
   const agents =
-    agentsMdContent && agentsMdContent.trim().length > 0
-      ? agentsMdContent.trim()
-      : NO_AGENTS_NOTE;
+    agentsMdContent && agentsMdContent.trim().length > 0 ? agentsMdContent.trim() : NO_AGENTS_NOTE;
 
   return `${soul}\n\n${agents}`;
 }

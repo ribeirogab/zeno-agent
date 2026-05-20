@@ -141,9 +141,7 @@ export function AgentsMdEditor(): JSX.Element {
           </span>
         </div>
         {isLoading ? (
-          <div className="px-5 py-12 font-mono text-xs text-text-tertiary">
-            loading AGENTS.md…
-          </div>
+          <div className="px-5 py-12 font-mono text-xs text-text-tertiary">loading AGENTS.md…</div>
         ) : (
           <textarea
             ref={textareaRef}

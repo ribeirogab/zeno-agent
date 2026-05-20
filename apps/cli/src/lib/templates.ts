@@ -26,10 +26,7 @@ export function renderEnv(opts: { masterKey: string }): string {
  * Materialize a fresh profile directory at ~/.zeno/profiles/<profile>/ with
  * AGENTS.md and .env written from the canonical templates.
  */
-export function materializeProfile(opts: {
-  profile: string;
-  masterKey: string;
-}): void {
+export function materializeProfile(opts: { profile: string; masterKey: string }): void {
   const dir = profileDir(opts.profile);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'AGENTS.md'), readAgentsTemplate(), 'utf8');

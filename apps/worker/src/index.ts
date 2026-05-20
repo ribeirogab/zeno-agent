@@ -310,10 +310,7 @@ async function main(): Promise<void> {
     logger.info({ event: 'soul_md_loaded', bytes: initialSoul.length }, 'SOUL.md loaded');
   }
   if (initialAgents) {
-    logger.info(
-      { event: 'agents_md_loaded', bytes: initialAgents.length },
-      'AGENTS.md loaded',
-    );
+    logger.info({ event: 'agents_md_loaded', bytes: initialAgents.length }, 'AGENTS.md loaded');
   } else {
     logger.warn(
       { event: 'agents_md_missing' },

@@ -179,19 +179,20 @@ async function main(): Promise<void> {
   // Spec 0072: defer the claude-cli healthcheck until we know the active
   // backend slug from the runtime DB. The check moves below DB open.
 
-  // Load identity files (SOUL.md from agent/, USER.md from profile/).
-  // Spec 0050: skills are no longer part of the runtime; the system prompt
-  // is just SOUL + USER.
+  // Load identity files (SOUL.md from agent/, AGENTS.md from profile/).
+  // Spec 2026-05-20 (agents-md-per-instance): the per-profile operating
+  // manual lives at /app/profile/AGENTS.md. Shared baseline (SOUL.md)
+  // stays at /app/agent/SOUL.md.
   const buildPromptNow = (): string => {
     const soul = loadAgentFile('SOUL.md');
-    const user = loadProfileFile('USER.md');
-    return buildSystemPrompt(soul, user);
+    const agents = loadProfileFile('AGENTS.md');
+    return buildSystemPrompt(soul, agents);
   };
 
   const initialSoul = loadAgentFile('SOUL.md');
-  const initialUser = loadProfileFile('USER.md');
+  const initialAgents = loadProfileFile('AGENTS.md');
 
-  const promptHolder = { value: buildSystemPrompt(initialSoul, initialUser) };
+  const promptHolder = { value: buildSystemPrompt(initialSoul, initialAgents) };
 
   const dbPath = join(config.workspaceDir, 'zeno.db');
   const opened = openRuntimeDatabase(dbPath);
@@ -308,12 +309,15 @@ async function main(): Promise<void> {
   if (initialSoul) {
     logger.info({ event: 'soul_md_loaded', bytes: initialSoul.length }, 'SOUL.md loaded');
   }
-  if (initialUser) {
-    logger.info({ event: 'user_md_loaded', bytes: initialUser.length }, 'USER.md loaded');
+  if (initialAgents) {
+    logger.info(
+      { event: 'agents_md_loaded', bytes: initialAgents.length },
+      'AGENTS.md loaded',
+    );
   } else {
     logger.warn(
-      { event: 'user_md_missing' },
-      'USER.md not found — Zeno will run without user-specific context',
+      { event: 'agents_md_missing' },
+      'AGENTS.md not found — Zeno will run without per-instance operating manual',
     );
   }
 

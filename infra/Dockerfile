@@ -30,6 +30,12 @@ RUN curl -LsSf https://astral.sh/uv/0.11.7/install.sh | UV_INSTALL_DIR=/usr/loca
 # verification on slow networks.
 RUN uvx postgres-mcp --help >/dev/null
 
+# Spec 2026-05-19-connector-mysql: prefetch @benborla29/mcp-server-mysql so the
+# runtime first-install does not race DISCOVER_TIMEOUT_MS (10s). `|| true`
+# because the package's `--help` exits non-zero in some versions; the goal is
+# to populate npm's global cache, not test help.
+RUN npx -y @benborla29/mcp-server-mysql --help >/dev/null 2>&1 || true
+
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /app
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { runConnectorInstall } from '@/commands/connector-install.js';
+import { parseSecretFlags, runConnectorInstall } from '@/commands/connector-install.js';
 
 describe('zeno connector install', () => {
   it('POSTs to /api/connectors and waits for the command to succeed (verify: false)', async () => {
@@ -260,6 +260,75 @@ describe('zeno connector install', () => {
       // get called for catalog + at least one command status; no /api/connectors snapshot.
       expect(client.get.mock.calls.some(([path]) => path === '/api/connectors')).toBe(false);
       expect(client.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('parseSecretFlags', () => {
+    it('collects every --secret KEY=VALUE from rawArgs (multi-secret connectors)', () => {
+      // citty@0.1.6 clobbers repeated string-typed flags down to the last
+      // occurrence. The fallback ('MYSQL_DB=smoke') is what citty hands us.
+      // The patch scans rawArgs to recover every flag the operator typed.
+      const cittyFallback = 'MYSQL_DB=smoke';
+      const rawArgs = [
+        'connector',
+        'install',
+        'mysql',
+        '--label',
+        'production',
+        '--secret',
+        'MYSQL_HOST=db.example.com',
+        '--secret',
+        'MYSQL_PORT=3306',
+        '--secret',
+        'MYSQL_USER=ro_user',
+        '--secret',
+        'MYSQL_PASS=p@ss',
+        '--secret',
+        'MYSQL_DB=smoke',
+      ];
+      const out = parseSecretFlags(cittyFallback, rawArgs);
+      expect(out).toEqual({
+        MYSQL_HOST: 'db.example.com',
+        MYSQL_PORT: '3306',
+        MYSQL_USER: 'ro_user',
+        MYSQL_PASS: 'p@ss',
+        MYSQL_DB: 'smoke',
+      });
+    });
+
+    it('supports --secret=KEY=VALUE form alongside space-separated form', () => {
+      const out = parseSecretFlags(undefined, [
+        '--secret=A=1',
+        '--secret',
+        'B=2',
+        '--secret=C=value-with-=equals',
+      ]);
+      expect(out).toEqual({ A: '1', B: '2', C: 'value-with-=equals' });
+    });
+
+    it('falls back to the citty-parsed value when rawArgs is unavailable', () => {
+      // Programmatic callers (tests, future API) may not pass rawArgs.
+      expect(parseSecretFlags('KEY=val')).toEqual({ KEY: 'val' });
+      expect(parseSecretFlags(['A=1', 'B=2'])).toEqual({ A: '1', B: '2' });
+      expect(parseSecretFlags(undefined)).toEqual({});
+    });
+
+    it('throws on invalid --secret missing the "=" delimiter', () => {
+      expect(() => parseSecretFlags(undefined, ['--secret', 'NOEQUAL'])).toThrow(
+        /invalid --secret "NOEQUAL"/,
+      );
+    });
+
+    it('ignores --secret followed by another flag (no value)', () => {
+      // `--secret --label foo` should NOT consume `--label` as a value.
+      const out = parseSecretFlags(undefined, [
+        '--secret',
+        '--label',
+        'foo',
+        '--secret',
+        'KEY=val',
+      ]);
+      expect(out).toEqual({ KEY: 'val' });
     });
   });
 });

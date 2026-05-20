@@ -551,6 +551,13 @@
       "defaultPermission": "ask"
     }
   ],
+  "mysql": [
+    {
+      "name": "mysql_query",
+      "category": "read",
+      "defaultPermission": "always_allow"
+    }
+  ],
   "postgres": [
     {
       "name": "analyze_db_health",

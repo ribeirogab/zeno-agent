@@ -78,18 +78,17 @@ async function fetchToolsFromLiveMcp(catalog) {
   const { discoverTools } = await import('@zeno/mcp-discover');
 
   for (const entry of catalog.connectors) {
-    const required = (entry.secrets ?? []).find((s) => s.required);
-    if (!required) {
+    const requiredSecrets = (entry.secrets ?? []).filter((s) => s.required);
+    if (requiredSecrets.length === 0) {
       console.error(
         `skip ${entry.id}: no required secret (cannot derive env var name)`,
       );
       continue;
     }
-    const envName = required.key;
-    const value = process.env[envName];
-    if (!value) {
+    const missing = requiredSecrets.find((s) => !process.env[s.key]);
+    if (missing) {
       console.warn(
-        `skip ${entry.id}: missing env var ${envName} (set it to fetch tools for this entry)`,
+        `skip ${entry.id}: missing env var ${missing.key} (set it to fetch tools for this entry)`,
       );
       continue;
     }
@@ -114,7 +113,11 @@ async function fetchToolsFromLiveMcp(catalog) {
       createdAt: '',
       updatedAt: '',
     };
-    const secrets = [{ connectorId: 'transient', key: envName, value }];
+    const secrets = requiredSecrets.map((s) => ({
+      connectorId: 'transient',
+      key: s.key,
+      value: process.env[s.key],
+    }));
 
     const options = {};
     if (entry.authCheckTool) options.authCheckTool = entry.authCheckTool;

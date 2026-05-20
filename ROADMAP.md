@@ -18,6 +18,9 @@ _Nothing currently in flight._
 - [ ] [#46](https://github.com/ribeirogab/zeno-agent/issues/46) — feat(dashboard): onboarding wizard inside profile dashboard
 - [ ] [#47](https://github.com/ribeirogab/zeno-agent/issues/47) — feat(cli): backup / restore tooling for `~/.zeno/`
 - [ ] [#76](https://github.com/ribeirogab/zeno-agent/issues/76) — feat(connectors): add AWS connector
+- [ ] [#90](https://github.com/ribeirogab/zeno-agent/issues/90) — feat(profile): per-profile knowledge folder + auto-index
+- [ ] [#91](https://github.com/ribeirogab/zeno-agent/issues/91) — feat(dashboard): read-only knowledge browser page
+- [ ] [#92](https://github.com/ribeirogab/zeno-agent/issues/92) — feat(dashboard): interactive graph view for knowledge
 
 ## Later (no commitment)
 

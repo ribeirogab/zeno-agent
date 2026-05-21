@@ -15,6 +15,7 @@
     "@slack/bolt": "^4.7.0",
     "@zeno/db": "workspace:*",
     "@zeno/github-app": "workspace:*",
+    "@zeno/knowledge": "workspace:*",
     "@zeno/logger": "workspace:*",
     "@zeno/mcp-discover": "workspace:*",
     "better-sqlite3": "^12.9.0",

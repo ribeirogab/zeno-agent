@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractWikilinks } from '../src/wikilink.js';
+import { extractWikilinks, resolveWikilinks } from '../src/wikilink.js';
 
 describe('extractWikilinks', () => {
   it('returns empty array on body with no wikilinks', () => {
@@ -35,5 +35,42 @@ describe('extractWikilinks', () => {
 
   it('trims whitespace inside the wikilink', () => {
     expect(extractWikilinks('[[ spaced-slug ]]')).toEqual(['spaced-slug']);
+  });
+});
+
+describe('resolveWikilinks', () => {
+  it('returns empty object on empty input', () => {
+    expect(resolveWikilinks([], ['foo.md'])).toEqual({});
+  });
+
+  it('resolves a bare slug to a root-level file', () => {
+    expect(resolveWikilinks(['foo'], ['foo.md', 'bar.md'])).toEqual({ foo: 'foo.md' });
+  });
+
+  it('resolves a bare slug to a file in a subfolder', () => {
+    expect(resolveWikilinks(['release-flow'], ['processes/release-flow.md'])).toEqual({
+      'release-flow': 'processes/release-flow.md',
+    });
+  });
+
+  it('returns null when slug is ambiguous (multiple matches)', () => {
+    expect(resolveWikilinks(['foo'], ['foo.md', 'sub/foo.md'])).toEqual({ foo: null });
+  });
+
+  it('resolves dir-prefixed slug exactly', () => {
+    const out = resolveWikilinks(
+      ['processes/release-flow'],
+      ['processes/release-flow.md', 'other/release-flow.md'],
+    );
+    expect(out).toEqual({ 'processes/release-flow': 'processes/release-flow.md' });
+  });
+
+  it('returns null when slug has no match', () => {
+    expect(resolveWikilinks(['ghost'], ['foo.md'])).toEqual({ ghost: null });
+  });
+
+  it('handles multiple slugs in one call', () => {
+    const out = resolveWikilinks(['foo', 'ghost', 'bar'], ['foo.md', 'bar.md', 'sub/bar.md']);
+    expect(out).toEqual({ foo: 'foo.md', ghost: null, bar: null });
   });
 });

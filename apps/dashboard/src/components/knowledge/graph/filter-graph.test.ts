@@ -81,15 +81,16 @@ describe('applyFilters', () => {
 
   it('filters by folder membership (ghosts always pass)', () => {
     const out = applyFilters(raw, { ...DEFAULT_FILTER_STATE, folders: ['processes'] });
-    expect(out.nodes.every((n) => n.group === 'processes' || n.id.startsWith('?ghost:'))).toBe(true);
+    expect(out.nodes.every((n) => n.group === 'processes' || n.id.startsWith('?ghost:'))).toBe(
+      true,
+    );
   });
 
   it('drops links whose endpoints were filtered out', () => {
     const out = applyFilters(raw, { ...DEFAULT_FILTER_STATE, existingOnly: true });
     expect(
       out.links.every(
-        (l) =>
-          out.nodes.some((n) => n.id === l.source) && out.nodes.some((n) => n.id === l.target),
+        (l) => out.nodes.some((n) => n.id === l.source) && out.nodes.some((n) => n.id === l.target),
       ),
     ).toBe(true);
   });

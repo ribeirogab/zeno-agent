@@ -39,11 +39,7 @@ export function Controls(props: ControlsProps): JSX.Element {
       {open !== null && (
         <div className="w-[260px] border-l border-border-subtle pl-3">
           {open === 'filters' && (
-            <FiltersPanel
-              raw={props.raw}
-              value={props.filters}
-              onChange={props.onFiltersChange}
-            />
+            <FiltersPanel raw={props.raw} value={props.filters} onChange={props.onFiltersChange} />
           )}
           {open === 'groups' && <GroupsPanel groups={props.raw?.groups ?? []} />}
           {open === 'display' && (

@@ -37,6 +37,7 @@ Learnings here are specific to Zeno. Code style conventions live in `[[conventio
 - [[../learnings/citty-0.1.6-multi-flag-clobbers-repeated-args|citty 0.1.6 clobbers repeated string-typed flags]] — a `type: 'string'` flag passed multiple times keeps only the LAST occurrence. Scan `rawArgs` yourself to recover every value. Surfaced by the first multi-secret connector (MySQL, spec 2026-05-19-connector-mysql).
 - [[../learnings/tsup-bundle-symlinked-cli|tsup must bundle deps for symlinked CLIs]] — `noExternal: ['citty', ...]` is required so the bundle is self-contained; externalized deps break when the dist file is moved or `node_modules` is pruned.
 - [[../learnings/skill-scoped-credentials-pattern|Skill-scoped credentials pattern]] — **superseded by spec 0049**: skills no longer exist at runtime; credentials are connector-scoped (DB-stored, dashboard-managed).
+- [[../learnings/react-force-graph-2d-decision|`react-force-graph-2d` for the dashboard graph view]] — canvas-based React wrapper, ~80 KB gz, single static import inside the lazy chunk; verify `pnpm why three` is empty. Spec 2026-05-21-knowledge-graph-view.
 - [[../learnings/github-app-token-rotation|GitHub App token rotation]] — JWT → installation token exchange; 55-min refresh loop. **Spec 0051 update:** the per-installation operator-picked envVar field was retired; the github-mcp-server subprocess receives `GITHUB_PERSONAL_ACCESS_TOKEN` synthesized from the cached token.
 
 ## `#reference` — Environment and commands

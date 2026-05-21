@@ -47,6 +47,7 @@ COPY apps/api/package.json ./apps/api/
 COPY apps/dashboard/package.json ./apps/dashboard/
 COPY packages/backends/package.json ./packages/backends/
 COPY packages/db/package.json ./packages/db/
+COPY packages/knowledge/package.json ./packages/knowledge/
 COPY packages/logger/package.json ./packages/logger/
 COPY packages/mcp-discover/package.json ./packages/mcp-discover/
 COPY packages/github-app/package.json ./packages/github-app/
@@ -77,6 +78,9 @@ COPY --from=builder /app/packages/backends/node_modules ./packages/backends/node
 COPY --from=builder /app/packages/db/dist ./packages/db/dist
 COPY --from=builder /app/packages/db/package.json ./packages/db/
 COPY --from=builder /app/packages/db/node_modules ./packages/db/node_modules
+COPY --from=builder /app/packages/knowledge/dist ./packages/knowledge/dist
+COPY --from=builder /app/packages/knowledge/package.json ./packages/knowledge/
+COPY --from=builder /app/packages/knowledge/node_modules ./packages/knowledge/node_modules
 COPY --from=builder /app/packages/logger/dist ./packages/logger/dist
 COPY --from=builder /app/packages/logger/package.json ./packages/logger/
 COPY --from=builder /app/packages/logger/node_modules ./packages/logger/node_modules

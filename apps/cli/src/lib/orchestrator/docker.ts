@@ -104,6 +104,12 @@ export class DockerOrchestrator implements Orchestrator {
             Target: '/app/profile',
             ReadOnly: true,
           },
+          {
+            Type: 'bind',
+            Source: spec.knowledgeMountSource,
+            Target: '/app/knowledge',
+            ReadOnly: true,
+          },
         ],
         RestartPolicy: { Name: 'unless-stopped' },
       },

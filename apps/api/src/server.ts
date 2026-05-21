@@ -32,6 +32,7 @@ import { buildCronConnectorsRoute } from '@/routes/cron-connectors';
 import { buildCronSkillsRoute } from '@/routes/cron-skills';
 import { buildCronsRoute } from '@/routes/crons';
 import { buildHealthRoute } from '@/routes/health';
+import { buildKnowledgeRoute } from '@/routes/knowledge';
 import { buildLogsRoute } from '@/routes/logs';
 import { buildModeRoute } from '@/routes/mode';
 import { buildSessionsRoute } from '@/routes/sessions';
@@ -74,6 +75,8 @@ export interface AppDeps {
   claudeHomeRoot?: string;
   /** Directory holding the agent profile files (SOUL.md, AGENTS.md, crons.yaml). */
   profileDir: string;
+  /** Spec 2026-05-20-knowledge-browser-page: read-only root for /api/knowledge. */
+  knowledgeRoot: string;
   /** Absolute path to the dashboard's built static assets (apps/dashboard/dist). Optional in tests. */
   spaDir?: string;
   /** Spec 0057: parsed channels catalog. Optional — when present, /api/channels/* routes mount; absent in tests that don't exercise channel routes. */
@@ -156,6 +159,7 @@ export function createApp(deps: AppDeps): Hono {
     }),
   );
   app.route('/api/logs', buildLogsRoute({ logs: deps.logRepo }));
+  app.route('/api/knowledge', buildKnowledgeRoute({ knowledgeRoot: deps.knowledgeRoot }));
   if (deps.connectorRepo) {
     app.route(
       '/api/connectors',

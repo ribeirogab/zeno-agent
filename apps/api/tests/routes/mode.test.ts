@@ -37,6 +37,7 @@ function makeApp(database: RuntimeDB, writes: ApiWriteMode) {
     logRepo: new LogRepo(database),
     claudeHome: '/tmp',
     profileDir: '/tmp',
+    knowledgeRoot: '/tmp',
     writes,
   });
 }

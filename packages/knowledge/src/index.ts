@@ -1,4 +1,5 @@
 export { applyCap, type CapResult } from './cap.js';
+export { extractDescription } from './description.js';
 export {
   type Frontmatter,
   type ParsedDoc,
@@ -11,3 +12,5 @@ export {
 } from './related.js';
 export { type RenderResult, renderIndex } from './render.js';
 export { type FileMeta, scanKnowledge } from './scan.js';
+export { extractTitle } from './title.js';
+export { extractWikilinks, resolveWikilinks } from './wikilink.js';

@@ -16,6 +16,7 @@
     "@zeno/backends": "workspace:*",
     "@zeno/db": "workspace:*",
     "@zeno/github-app": "workspace:*",
+    "@zeno/knowledge": "workspace:*",
     "@zeno/logger": "workspace:*",
     "@zeno/mcp-discover": "workspace:*",
     "archiver": "^7.0.1",

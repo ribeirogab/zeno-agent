@@ -42,6 +42,7 @@ function makeApp(database: RuntimeDB) {
     logRepo: new LogRepo(database),
     claudeHome: '/tmp',
     profileDir,
+    knowledgeRoot: '/tmp',
   });
 }
 

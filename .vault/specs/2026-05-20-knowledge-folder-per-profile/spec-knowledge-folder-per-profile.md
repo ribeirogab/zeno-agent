@@ -1,12 +1,12 @@
 ---
-status: draft
+status: shipped
 feature: knowledge-folder-per-profile
 created: 2026-05-20
-shipped: null
+shipped: 2026-05-21
 ---
 # Per-Profile Knowledge Folder + Auto-Index — Spec
 
-**Status:** Draft
+**Status:** Shipped (PR [#94](https://github.com/ribeirogab/zeno-agent/pull/94), release [v2026.5.21](https://github.com/ribeirogab/zeno-agent/releases/tag/v2026.5.21))
 **Scope:** Add a per-profile `knowledge/` folder bind-mounted read-only into the worker container, with an auto-generated `_index.md` table of contents injected into the cached system prompt every turn. The folder is operator-authored long-form documentation about the operator, products, processes, glossary, team, habits, projects — context the agent should treat as ambient. Tracks GitHub issue [#90](https://github.com/ribeirogab/zeno-agent/issues/90).
 
 ## Context

@@ -1,10 +1,10 @@
-import { type Frontmatter, extractTitle, extractWikilinks, resolveWikilinks } from '@zeno/knowledge';
-import type {
-  GraphLink,
-  GraphNode,
-  GraphResponse,
-  GroupColor,
-} from '@/routes/knowledge';
+import {
+  extractTitle,
+  extractWikilinks,
+  type Frontmatter,
+  resolveWikilinks,
+} from '@zeno/knowledge';
+import type { GraphLink, GraphNode, GraphResponse, GroupColor } from '@/routes/knowledge';
 
 export interface GraphInputFile {
   path: string;
@@ -12,12 +12,7 @@ export interface GraphInputFile {
   frontmatter: Frontmatter | null;
 }
 
-const PALETTE = [
-  '#d9b362',
-  '#6bd3a3',
-  '#e8617a',
-  '#7aa6e8',
-] as const;
+const PALETTE = ['#d9b362', '#6bd3a3', '#e8617a', '#7aa6e8'] as const;
 const FALLBACK_COLOR = '#4b4f66';
 const GHOST_PREFIX = '?ghost:';
 const GHOST_GROUP = '?ghost';
@@ -87,9 +82,7 @@ export function buildGraph(files: GraphInputFile[]): GraphResponse {
   const nodes = [...realNodes, ...ghostNodes];
 
   const distinctGroups = Array.from(new Set(nodes.map((n) => n.group)));
-  const sorted = distinctGroups
-    .filter((g) => g !== GHOST_GROUP)
-    .sort((a, b) => a.localeCompare(b));
+  const sorted = distinctGroups.filter((g) => g !== GHOST_GROUP).sort((a, b) => a.localeCompare(b));
   const groups: GroupColor[] = sorted.map((group, i) => ({
     group,
     color: i < PALETTE.length ? (PALETTE[i] ?? FALLBACK_COLOR) : FALLBACK_COLOR,

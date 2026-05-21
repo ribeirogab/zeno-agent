@@ -27,9 +27,7 @@ describe('GET /api/knowledge/graph', () => {
       ]),
     );
     expect(body.links).toHaveLength(3);
-    expect(body.groups.find((g: { group: string }) => g.group === '?ghost')?.color).toBe(
-      '#4b4f66',
-    );
+    expect(body.groups.find((g: { group: string }) => g.group === '?ghost')?.color).toBe('#4b4f66');
   });
 
   it('returns empty arrays when the knowledge root does not exist', async () => {

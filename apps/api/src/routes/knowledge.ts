@@ -7,7 +7,7 @@ import {
   resolveWikilinks,
 } from '@zeno/knowledge';
 import { Hono } from 'hono';
-import { type GraphInputFile, buildGraph } from '@/lib/build-graph';
+import { buildGraph, type GraphInputFile } from '@/lib/build-graph';
 
 export interface KnowledgeRouteDeps {
   knowledgeRoot: string;

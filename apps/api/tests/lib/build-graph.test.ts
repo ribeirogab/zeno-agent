@@ -8,9 +8,7 @@ describe('buildGraph', () => {
   });
 
   it('returns one orphan node, no links, one group for a single file', () => {
-    const out = buildGraph([
-      { path: 'foo.md', body: '# Foo\n', frontmatter: null },
-    ]);
+    const out = buildGraph([{ path: 'foo.md', body: '# Foo\n', frontmatter: null }]);
     expect(out.nodes).toHaveLength(1);
     expect(out.nodes[0]).toMatchObject({
       id: 'foo.md',
@@ -36,9 +34,7 @@ describe('buildGraph', () => {
   });
 
   it('emits a ghost node for an unresolved slug', () => {
-    const out = buildGraph([
-      { path: 'd.md', body: 'see [[nope]]', frontmatter: null },
-    ]);
+    const out = buildGraph([{ path: 'd.md', body: 'see [[nope]]', frontmatter: null }]);
     const ghost = out.nodes.find((n) => n.id === '?ghost:nope');
     expect(ghost).toMatchObject({
       id: '?ghost:nope',

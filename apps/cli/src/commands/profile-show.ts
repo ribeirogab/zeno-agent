@@ -17,17 +17,17 @@ import {
   profileDir,
   workspaceBindPath,
 } from '../lib/paths.js';
+import { requireProfile } from '../lib/profile.js';
+import { resolveLiveStatus, snapshotLive } from '../lib/profile-state.js';
+import { resolveProfile } from '../lib/resolvers.js';
+import { db } from '../lib/state.js';
+import type { ProfileShowJson } from '../types/json-output.js';
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
-import { requireProfile } from '../lib/profile.js';
-import { resolveLiveStatus, snapshotLive } from '../lib/profile-state.js';
-import { resolveProfile } from '../lib/resolvers.js';
-import { db } from '../lib/state.js';
-import type { ProfileShowJson } from '../types/json-output.js';
 
 const IMAGE_TAG = 'zeno-agent:dev';
 

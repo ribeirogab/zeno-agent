@@ -35,9 +35,7 @@ export default defineCommand({
     writeFileSync(join(dir, '_index.md'), result.markdown, 'utf8');
 
     const totalBytes = files.reduce((acc, f) => acc + f.bytes, 0);
-    console.log(
-      ok(`Indexed ${files.length} files (${formatBytes(totalBytes)}) in ${c.gray(dir)}`),
-    );
+    console.log(ok(`Indexed ${files.length} files (${formatBytes(totalBytes)}) in ${c.gray(dir)}`));
 
     if (result.unresolvedRelated.length > 0) {
       console.log('');

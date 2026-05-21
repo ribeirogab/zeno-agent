@@ -36,7 +36,11 @@ describe('ProfileWatcher knowledge group', () => {
     watcher.start();
     await new Promise((r) => setTimeout(r, 50));
 
-    writeFileSync(join(tmpRoot, 'profile', 'knowledge', 'a.md'), '---\ntitle: A\n---\nbody', 'utf8');
+    writeFileSync(
+      join(tmpRoot, 'profile', 'knowledge', 'a.md'),
+      '---\ntitle: A\n---\nbody',
+      'utf8',
+    );
     await new Promise((r) => setTimeout(r, 200));
     watcher.stop();
 

@@ -55,10 +55,7 @@ describe('GET /api/knowledge/files', () => {
   it('returns flat list with title/bytes/mtime/tags', async () => {
     writeFileSync(join(knowledgeRoot, 'foo.md'), '---\ntitle: Foo\ntags: [a, b]\n---\nbody');
     mkdirSync(join(knowledgeRoot, 'processes'));
-    writeFileSync(
-      join(knowledgeRoot, 'processes', 'release-flow.md'),
-      '# Release Flow\nsteps',
-    );
+    writeFileSync(join(knowledgeRoot, 'processes', 'release-flow.md'), '# Release Flow\nsteps');
     const res = await makeApp().request('/api/knowledge/files');
     expect(res.status).toBe(200);
     const body = (await res.json()) as {

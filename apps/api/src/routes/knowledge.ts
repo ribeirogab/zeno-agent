@@ -12,6 +12,32 @@ export interface KnowledgeRouteDeps {
   knowledgeRoot: string;
 }
 
+export interface GraphNode {
+  id: string;
+  label: string;
+  group: string;
+  size: number;
+  tags: string[];
+  exists: boolean;
+  isMeta: boolean;
+}
+
+export interface GraphLink {
+  source: string;
+  target: string;
+}
+
+export interface GroupColor {
+  group: string;
+  color: string;
+}
+
+export interface GraphResponse {
+  nodes: GraphNode[];
+  links: GraphLink[];
+  groups: GroupColor[];
+}
+
 interface FileSummary {
   path: string;
   title: string;

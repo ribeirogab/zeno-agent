@@ -7,9 +7,36 @@ import {
   resolveWikilinks,
 } from '@zeno/knowledge';
 import { Hono } from 'hono';
+import { buildGraph, type GraphInputFile } from '@/lib/build-graph';
 
 export interface KnowledgeRouteDeps {
   knowledgeRoot: string;
+}
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  group: string;
+  size: number;
+  tags: string[];
+  exists: boolean;
+  isMeta: boolean;
+}
+
+export interface GraphLink {
+  source: string;
+  target: string;
+}
+
+export interface GroupColor {
+  group: string;
+  color: string;
+}
+
+export interface GraphResponse {
+  nodes: GraphNode[];
+  links: GraphLink[];
+  groups: GroupColor[];
 }
 
 interface FileSummary {
@@ -92,6 +119,32 @@ export function buildKnowledgeRoute(deps: KnowledgeRouteDeps): Hono {
       wikilinks,
     };
     return c.json(body);
+  });
+
+  route.get('/graph', (c) => {
+    const root = knowledgeRoot;
+    if (!existsSync(root)) {
+      const empty: GraphResponse = { nodes: [], links: [], groups: [] };
+      return c.json(empty);
+    }
+    const entries = readdirSync(root, { recursive: true, withFileTypes: true });
+    const inputs: GraphInputFile[] = [];
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      if (!entry.name.endsWith('.md')) continue;
+      const abs = join(entry.parentPath, entry.name);
+      const relParts = abs.slice(root.length).split(sep).filter(Boolean);
+      const relPath = relParts.join('/');
+      let raw: string;
+      try {
+        raw = readFileSync(abs, 'utf8');
+      } catch {
+        continue;
+      }
+      const { frontmatter, body } = parseFrontmatter(raw);
+      inputs.push({ path: relPath, body, frontmatter });
+    }
+    return c.json(buildGraph(inputs));
   });
 
   return route;

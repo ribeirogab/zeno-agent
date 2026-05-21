@@ -18,11 +18,7 @@ describe('scanKnowledge', () => {
   it('returns FileMeta sorted by case-insensitive relPath', () => {
     const files = scanKnowledge(FIXTURE_ROOT);
     const paths = files.map((f) => f.relPath);
-    expect(paths).toEqual([
-      'about-me.md',
-      'engineering/stack.md',
-      'processes/release-flow.md',
-    ]);
+    expect(paths).toEqual(['about-me.md', 'engineering/stack.md', 'processes/release-flow.md']);
   });
 
   it('extracts title via fallback chain (frontmatter → H1 → filename)', () => {

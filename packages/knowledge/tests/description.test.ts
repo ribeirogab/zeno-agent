@@ -26,6 +26,8 @@ describe('extractDescription', () => {
   });
 
   it('returns an empty string when no paragraph is available', () => {
-    expect(extractDescription({ frontmatter: null, body: '# Heading\n\n## Subheading\n' })).toBe('');
+    expect(extractDescription({ frontmatter: null, body: '# Heading\n\n## Subheading\n' })).toBe(
+      '',
+    );
   });
 });

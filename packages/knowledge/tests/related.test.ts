@@ -22,9 +22,7 @@ describe('resolveRelated', () => {
     const out = resolveRelated(PATHS, [
       { file: 'processes/release-flow.md', slug: 'no-such-thing' },
     ]);
-    expect(out.unresolved).toEqual([
-      { file: 'processes/release-flow.md', slug: 'no-such-thing' },
-    ]);
+    expect(out.unresolved).toEqual([{ file: 'processes/release-flow.md', slug: 'no-such-thing' }]);
     expect(out.resolved.get('processes/release-flow.md')).toBeUndefined();
   });
 

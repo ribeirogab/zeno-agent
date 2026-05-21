@@ -18,7 +18,6 @@ _Nothing currently in flight._
 - [ ] [#46](https://github.com/ribeirogab/zeno-agent/issues/46) — feat(dashboard): onboarding wizard inside profile dashboard
 - [ ] [#47](https://github.com/ribeirogab/zeno-agent/issues/47) — feat(cli): backup / restore tooling for `~/.zeno/`
 - [ ] [#76](https://github.com/ribeirogab/zeno-agent/issues/76) — feat(connectors): add AWS connector
-- [ ] [#91](https://github.com/ribeirogab/zeno-agent/issues/91) — feat(dashboard): read-only knowledge browser page
 - [ ] [#92](https://github.com/ribeirogab/zeno-agent/issues/92) — feat(dashboard): interactive graph view for knowledge
 
 ## Later (no commitment)
@@ -28,6 +27,7 @@ _Nothing currently in flight._
 
 ## Recently shipped
 
+- [x] [#91](https://github.com/ribeirogab/zeno-agent/issues/91) — feat(dashboard): read-only knowledge browser page ([PR #96](https://github.com/ribeirogab/zeno-agent/pull/96))
 - [x] [#90](https://github.com/ribeirogab/zeno-agent/issues/90) — feat(profile): per-profile knowledge folder + auto-index ([PR #94](https://github.com/ribeirogab/zeno-agent/pull/94))
 - [x] [#86](https://github.com/ribeirogab/zeno-agent/issues/86) — refactor(profile): replace USER.md with per-instance AGENTS.md ([PR #88](https://github.com/ribeirogab/zeno-agent/pull/88))
 - [x] [#81](https://github.com/ribeirogab/zeno-agent/issues/81) — feat(connectors): add MySQL connector (read-only MCP) ([PR #84](https://github.com/ribeirogab/zeno-agent/pull/84))

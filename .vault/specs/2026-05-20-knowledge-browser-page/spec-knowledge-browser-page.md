@@ -1,13 +1,15 @@
 ---
-status: draft
+status: shipped
 feature: knowledge-browser-page
 created: 2026-05-20
-shipped: null
+shipped: 2026-05-21
 issue: 91
+pr: 96
+release: v2026.5.21-1
 ---
 # Knowledge Browser Page — Spec
 
-**Status:** Draft
+**Status:** Shipped — PR [#96](https://github.com/ribeirogab/zeno-agent/pull/96), released as [v2026.5.21-1](https://github.com/ribeirogab/zeno-agent/releases/tag/v2026.5.21-1).
 **Scope:** Add a read-only `/knowledge` route in the profile dashboard that surfaces the contents of the profile's `knowledge/` folder as a tree + markdown viewer with resolvable wikilinks. API surface lives in `apps/api`; rendering lives in `apps/dashboard`. No edit, no delete, no create.
 
 ## Context

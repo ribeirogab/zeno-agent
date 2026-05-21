@@ -61,6 +61,10 @@ export function Canvas({
     return m;
   }, [links]);
 
+  // Stable graphData ref — force-graph reheats sim when this object identity changes.
+  // Recompute only when actual data (nodes/links arrays) changes, NOT on hover/selection.
+  const graphData = useMemo(() => ({ nodes, links }), [nodes, links]);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -120,7 +124,7 @@ export function Canvas({
     <div ref={containerRef} className="w-full h-full" style={{ backgroundColor: '#08090F' }}>
       <ForceGraph2D
         ref={fgRef as never}
-        graphData={{ nodes, links }}
+        graphData={graphData}
         width={size.width}
         height={size.height}
         backgroundColor="#08090F"

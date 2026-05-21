@@ -26,6 +26,7 @@ _Nothing currently in flight._
 
 ## Recently shipped
 
+- [x] [#90](https://github.com/ribeirogab/zeno-agent/issues/90) — feat(profile): per-profile knowledge folder + auto-index ([PR #94](https://github.com/ribeirogab/zeno-agent/pull/94))
 - [x] [#86](https://github.com/ribeirogab/zeno-agent/issues/86) — refactor(profile): replace USER.md with per-instance AGENTS.md ([PR #88](https://github.com/ribeirogab/zeno-agent/pull/88))
 - [x] [#81](https://github.com/ribeirogab/zeno-agent/issues/81) — feat(connectors): add MySQL connector (read-only MCP) ([PR #84](https://github.com/ribeirogab/zeno-agent/pull/84))
 - [x] [#75](https://github.com/ribeirogab/zeno-agent/issues/75) — feat(connectors): add Postgres connector (read-only MCP) ([PR #80](https://github.com/ribeirogab/zeno-agent/pull/80))

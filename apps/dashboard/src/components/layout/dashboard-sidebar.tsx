@@ -5,7 +5,15 @@ import { useBackends } from '@/lib/use-backends';
 import { type ServiceStatus, useHealth } from '@/lib/use-health';
 import { useSettings } from '@/lib/use-settings';
 
-type NavId = 'home' | 'backend' | 'crons' | 'channels' | 'connectors' | 'skills' | 'settings';
+type NavId =
+  | 'home'
+  | 'backend'
+  | 'crons'
+  | 'channels'
+  | 'connectors'
+  | 'knowledge'
+  | 'skills'
+  | 'settings';
 
 // Spec 0066 B: `sessions` removed from the primary nav. The route
 // stays mounted (`/sessions/*`) and is reachable from log entries
@@ -22,6 +30,7 @@ const NAV: { id: NavId; label: string; to: string; badge?: number }[] = [
   // (tool surface) — conceptual ordering: where Zeno talks vs what Zeno calls.
   { id: 'channels', label: 'channels', to: '/channels' },
   { id: 'connectors', label: 'connectors', to: '/connectors' },
+  { id: 'knowledge', label: 'knowledge', to: '/knowledge' },
   { id: 'skills', label: 'skills', to: '/skills' },
   { id: 'settings', label: 'settings', to: '/settings' },
 ];
@@ -54,6 +63,7 @@ function navIdForPath(path: string): NavId {
   if (path.startsWith('/crons')) return 'crons';
   if (path.startsWith('/channels')) return 'channels';
   if (path.startsWith('/connectors')) return 'connectors';
+  if (path.startsWith('/knowledge')) return 'knowledge';
   if (path.startsWith('/skills')) return 'skills';
   if (path.startsWith('/settings')) return 'settings';
   // /sessions/* and /logs/* deep-links land on the route but no nav
@@ -219,6 +229,14 @@ function NavIcon({ id }: { id: NavId }): JSX.Element {
           <path d="M9 7v4M15 7v4" />
           <path d="M5 11h14v3a4 4 0 0 1-4 4h-6a4 4 0 0 1-4-4v-3z" />
           <path d="M12 18v3" />
+        </svg>
+      );
+    case 'knowledge':
+      return (
+        <svg {...props} aria-hidden="true">
+          {/* open-book icon — knowledge */}
+          <path d="M4 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H4z" />
+          <path d="M20 5h-6a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h7z" />
         </svg>
       );
     case 'skills':

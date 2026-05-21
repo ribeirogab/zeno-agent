@@ -106,4 +106,42 @@ describe('buildGraph', () => {
     ]);
     expect(out.nodes[0]?.tags).toEqual(['security', 'audit']);
   });
+
+  it('emits tag nodes connected to files using each tag', () => {
+    const out = buildGraph([
+      { path: 'a.md', body: '# A', frontmatter: { tags: ['security', 'ops'] } },
+      { path: 'b.md', body: '# B', frontmatter: { tags: ['ops'] } },
+      { path: 'c.md', body: '# C', frontmatter: null },
+    ]);
+    const security = out.nodes.find((n) => n.id === '?tag:security');
+    const ops = out.nodes.find((n) => n.id === '?tag:ops');
+    expect(security).toMatchObject({ kind: 'tag', label: '#security', group: '?tag', size: 1 });
+    expect(ops).toMatchObject({ kind: 'tag', label: '#ops', group: '?tag', size: 2 });
+    expect(out.links).toContainEqual({ source: '?tag:security', target: 'a.md' });
+    expect(out.links).toContainEqual({ source: '?tag:ops', target: 'a.md' });
+    expect(out.links).toContainEqual({ source: '?tag:ops', target: 'b.md' });
+    expect(out.groups).toContainEqual({ group: '?tag', color: '#e8a87c' });
+  });
+
+  it('tags are deduped across files', () => {
+    const out = buildGraph([
+      { path: 'a.md', body: '# A', frontmatter: { tags: ['x', 'x'] } },
+      { path: 'b.md', body: '# B', frontmatter: { tags: ['x'] } },
+    ]);
+    const tags = out.nodes.filter((n) => n.kind === 'tag');
+    expect(tags).toHaveLength(1);
+    expect(tags[0]?.id).toBe('?tag:x');
+  });
+
+  it('emits no tag nodes when no frontmatter tags exist', () => {
+    const out = buildGraph([{ path: 'a.md', body: '# A', frontmatter: null }]);
+    expect(out.nodes.every((n) => n.kind !== 'tag')).toBe(true);
+    expect(out.groups.find((g) => g.group === '?tag')).toBeUndefined();
+  });
+
+  it('every node has a kind field (file | tag | ghost)', () => {
+    const out = buildGraph([{ path: 'a.md', body: '[[missing]]', frontmatter: { tags: ['x'] } }]);
+    const kinds = new Set(out.nodes.map((n) => n.kind));
+    expect(kinds).toEqual(new Set(['file', 'tag', 'ghost']));
+  });
 });

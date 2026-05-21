@@ -14,14 +14,18 @@ export interface GraphInputFile {
 
 const PALETTE = ['#d9b362', '#6bd3a3', '#e8617a', '#7aa6e8'] as const;
 const FALLBACK_COLOR = '#4b4f66';
+const TAG_COLOR = '#e8a87c';
 const GHOST_PREFIX = '?ghost:';
+const TAG_PREFIX = '?tag:';
 const GHOST_GROUP = '?ghost';
+const TAG_GROUP = '?tag';
 
 export function buildGraph(files: GraphInputFile[]): GraphResponse {
   if (files.length === 0) return { nodes: [], links: [], groups: [] };
 
   const allPaths = files.map((f) => f.path);
 
+  // file → file wikilink edges + file → ghost edges
   const edges: Array<[string, string]> = [];
   for (const file of files) {
     const slugs = extractWikilinks(file.body);
@@ -38,6 +42,17 @@ export function buildGraph(files: GraphInputFile[]): GraphResponse {
     }
   }
 
+  // file → tag edges (one per (file, tag) pair)
+  const tagSet = new Set<string>();
+  for (const file of files) {
+    for (const tag of file.frontmatter?.tags ?? []) {
+      if (typeof tag !== 'string' || tag.length === 0) continue;
+      tagSet.add(tag);
+      edges.push([file.path, `${TAG_PREFIX}${tag}`]);
+    }
+  }
+
+  // dedup undirected
   const linkSet = new Set<string>();
   const links: GraphLink[] = [];
   for (const [a, b] of edges) {
@@ -48,13 +63,15 @@ export function buildGraph(files: GraphInputFile[]): GraphResponse {
     links.push({ source, target });
   }
 
+  // degree per id
   const degree = new Map<string, number>();
   for (const { source, target } of links) {
     degree.set(source, (degree.get(source) ?? 0) + 1);
     degree.set(target, (degree.get(target) ?? 0) + 1);
   }
 
-  const realNodes: GraphNode[] = files.map((f) => ({
+  // file nodes
+  const fileNodes: GraphNode[] = files.map((f) => ({
     id: f.path,
     label: extractTitle({ frontmatter: f.frontmatter, body: f.body, relPath: f.path }),
     group: derivedGroup(f.path),
@@ -62,8 +79,10 @@ export function buildGraph(files: GraphInputFile[]): GraphResponse {
     tags: f.frontmatter?.tags ?? [],
     exists: true,
     isMeta: isMetaPath(f.path),
+    kind: 'file',
   }));
 
+  // ghost nodes — only emit if referenced by an edge
   const ghostIds = new Set<string>();
   for (const { source, target } of links) {
     if (source.startsWith(GHOST_PREFIX)) ghostIds.add(source);
@@ -77,19 +96,35 @@ export function buildGraph(files: GraphInputFile[]): GraphResponse {
     tags: [],
     exists: false,
     isMeta: false,
+    kind: 'ghost',
   }));
 
-  const nodes = [...realNodes, ...ghostNodes];
+  // tag nodes — one per distinct frontmatter tag
+  const tagNodes: GraphNode[] = Array.from(tagSet)
+    .sort()
+    .map((tag) => ({
+      id: `${TAG_PREFIX}${tag}`,
+      label: `#${tag}`,
+      group: TAG_GROUP,
+      size: degree.get(`${TAG_PREFIX}${tag}`) ?? 0,
+      tags: [],
+      exists: true,
+      isMeta: false,
+      kind: 'tag',
+    }));
 
-  const distinctGroups = Array.from(new Set(nodes.map((n) => n.group)));
-  const sorted = distinctGroups.filter((g) => g !== GHOST_GROUP).sort((a, b) => a.localeCompare(b));
-  const groups: GroupColor[] = sorted.map((group, i) => ({
+  const nodes = [...fileNodes, ...ghostNodes, ...tagNodes];
+
+  // group palette — alphabetic for file folders, fixed colors for ghost + tag
+  const fileGroupsDistinct = Array.from(new Set(fileNodes.map((n) => n.group))).sort((a, b) =>
+    a.localeCompare(b),
+  );
+  const groups: GroupColor[] = fileGroupsDistinct.map((group, i) => ({
     group,
     color: i < PALETTE.length ? (PALETTE[i] ?? FALLBACK_COLOR) : FALLBACK_COLOR,
   }));
-  if (distinctGroups.includes(GHOST_GROUP)) {
-    groups.push({ group: GHOST_GROUP, color: FALLBACK_COLOR });
-  }
+  if (ghostNodes.length > 0) groups.push({ group: GHOST_GROUP, color: FALLBACK_COLOR });
+  if (tagNodes.length > 0) groups.push({ group: TAG_GROUP, color: TAG_COLOR });
 
   return { nodes, links, groups };
 }

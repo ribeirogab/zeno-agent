@@ -13,6 +13,7 @@ describe('GET /api/knowledge/graph', () => {
     const ids = body.nodes.map((n: { id: string }) => n.id).sort();
     expect(ids).toEqual([
       '?ghost:ghost-note',
+      '?tag:security',
       'a.md',
       'b.md',
       'c.md',
@@ -24,10 +25,12 @@ describe('GET /api/knowledge/graph', () => {
         { source: 'a.md', target: 'b.md' },
         { source: 'a.md', target: 'processes/release.md' },
         { source: '?ghost:ghost-note', target: 'd.md' },
+        { source: '?tag:security', target: 'a.md' },
       ]),
     );
-    expect(body.links).toHaveLength(3);
+    expect(body.links).toHaveLength(4);
     expect(body.groups.find((g: { group: string }) => g.group === '?ghost')?.color).toBe('#4b4f66');
+    expect(body.groups.find((g: { group: string }) => g.group === '?tag')?.color).toBe('#e8a87c');
   });
 
   it('returns empty arrays when the knowledge root does not exist', async () => {

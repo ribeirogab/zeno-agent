@@ -2,19 +2,36 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { Canvas } from './canvas';
-import { DEFAULT_DISPLAY_STATE } from './types';
 
 describe('Canvas (mocked react-force-graph-2d)', () => {
   it('renders the mock with node + link counts', () => {
     render(
       <Canvas
         nodes={[
-          { id: 'a.md', label: 'A', group: '', size: 1, tags: [], exists: true, isMeta: false },
-          { id: 'b.md', label: 'B', group: '', size: 1, tags: [], exists: true, isMeta: false },
+          {
+            id: 'a.md',
+            label: 'A',
+            group: '',
+            size: 1,
+            tags: [],
+            exists: true,
+            isMeta: false,
+            kind: 'file',
+          },
+          {
+            id: 'b.md',
+            label: 'B',
+            group: '',
+            size: 1,
+            tags: [],
+            exists: true,
+            isMeta: false,
+            kind: 'file',
+          },
         ]}
         links={[{ source: 'a.md', target: 'b.md' }]}
         groups={[{ group: '', color: '#d9b362' }]}
-        display={DEFAULT_DISPLAY_STATE}
+        selectedId={undefined}
         onNodeClick={() => {}}
       />,
     );
@@ -28,11 +45,20 @@ describe('Canvas (mocked react-force-graph-2d)', () => {
     render(
       <Canvas
         nodes={[
-          { id: 'a.md', label: 'A', group: '', size: 0, tags: [], exists: true, isMeta: false },
+          {
+            id: 'a.md',
+            label: 'A',
+            group: '',
+            size: 0,
+            tags: [],
+            exists: true,
+            isMeta: false,
+            kind: 'file',
+          },
         ]}
         links={[]}
         groups={[]}
-        display={DEFAULT_DISPLAY_STATE}
+        selectedId={undefined}
         onNodeClick={onClick}
       />,
     );

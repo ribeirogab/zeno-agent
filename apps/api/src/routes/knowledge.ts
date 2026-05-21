@@ -13,6 +13,8 @@ export interface KnowledgeRouteDeps {
   knowledgeRoot: string;
 }
 
+export type GraphNodeKind = 'file' | 'tag' | 'ghost';
+
 export interface GraphNode {
   id: string;
   label: string;
@@ -21,6 +23,7 @@ export interface GraphNode {
   tags: string[];
   exists: boolean;
   isMeta: boolean;
+  kind: GraphNodeKind;
 }
 
 export interface GraphLink {

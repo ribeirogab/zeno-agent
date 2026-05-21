@@ -39,6 +39,7 @@ export function KnowledgeViewer({ file }: Props): JSX.Element {
           <div className="font-mono text-[11px] text-status-failed">frontmatter invalid</div>
         ) : null}
       </header>
+      {file.frontmatter !== null ? <FrontmatterProperties frontmatter={file.frontmatter} /> : null}
       <div className="prose prose-invert max-w-none font-sans text-sm leading-[1.6]">
         <ReactMarkdown
           remarkPlugins={plugins as Parameters<typeof ReactMarkdown>[0]['remarkPlugins']}
@@ -49,6 +50,59 @@ export function KnowledgeViewer({ file }: Props): JSX.Element {
       </div>
     </article>
   );
+}
+
+function FrontmatterProperties({
+  frontmatter,
+}: {
+  frontmatter: Record<string, unknown>;
+}): JSX.Element | null {
+  const keys = Object.keys(frontmatter);
+  if (keys.length === 0) return null;
+  return (
+    <dl className="grid grid-cols-[120px_1fr] gap-x-4 gap-y-1.5 rounded border border-border-subtle bg-panel-2/40 px-4 py-3 font-mono text-[12px]">
+      {keys.map((key) => (
+        <PropertyRow key={key} keyName={key} value={frontmatter[key]} />
+      ))}
+    </dl>
+  );
+}
+
+function PropertyRow({ keyName, value }: { keyName: string; value: unknown }): JSX.Element {
+  return (
+    <>
+      <dt className="text-text-tertiary uppercase tracking-wide text-[10px] self-center">
+        {keyName}
+      </dt>
+      <dd className="m-0 text-text-secondary break-words">{renderValue(keyName, value)}</dd>
+    </>
+  );
+}
+
+function renderValue(keyName: string, value: unknown): JSX.Element | string {
+  if (value === null || value === undefined) return <span className="text-text-tertiary">—</span>;
+  if (keyName === 'tags' && Array.isArray(value)) {
+    return (
+      <span className="flex flex-wrap gap-1.5">
+        {value.map((t, i) => (
+          <span
+            // biome-ignore lint/suspicious/noArrayIndexKey: tag values may repeat
+            key={`${String(t)}-${i}`}
+            className="inline-flex items-center rounded-full border border-gold-line bg-gold-soft px-2 py-0.5 text-[10px] uppercase tracking-wide text-gold"
+          >
+            {String(t)}
+          </span>
+        ))}
+      </span>
+    );
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => String(v)).join(', ');
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  return String(value);
 }
 
 const markdownComponents: Components = {

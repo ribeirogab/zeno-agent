@@ -1,3 +1,5 @@
+export type GraphNodeKind = 'file' | 'tag' | 'ghost';
+
 export interface GraphNode {
   id: string;
   label: string;
@@ -6,6 +8,7 @@ export interface GraphNode {
   tags: string[];
   exists: boolean;
   isMeta: boolean;
+  kind: GraphNodeKind;
 }
 
 export interface GraphLink {
@@ -23,33 +26,3 @@ export interface GraphResponse {
   links: GraphLink[];
   groups: GroupColor[];
 }
-
-export interface FilterState {
-  search: string;
-  tags: string[];
-  folders: string[];
-  showMeta: boolean;
-  existingOnly: boolean;
-  showOrphans: boolean;
-}
-
-export interface DisplayState {
-  nodeSize: number;
-  linkThickness: number;
-  labelFadeZoom: number;
-}
-
-export const DEFAULT_FILTER_STATE: FilterState = {
-  search: '',
-  tags: [],
-  folders: [],
-  showMeta: false,
-  existingOnly: false,
-  showOrphans: true,
-};
-
-export const DEFAULT_DISPLAY_STATE: DisplayState = {
-  nodeSize: 1.0,
-  linkThickness: 1.0,
-  labelFadeZoom: 1.5,
-};

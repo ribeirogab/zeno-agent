@@ -19,12 +19,7 @@ const files = [
 describe('<KnowledgeTree>', () => {
   it('renders root files and nested folders', () => {
     render(
-      <KnowledgeTree
-        files={files}
-        selectedPath={undefined}
-        showMeta={false}
-        onSelect={() => {}}
-      />,
+      <KnowledgeTree files={files} selectedPath={undefined} showMeta={false} onSelect={() => {}} />,
     );
     expect(screen.getByText('foo.md')).toBeTruthy();
     expect(screen.getByText('processes')).toBeTruthy();
@@ -32,12 +27,7 @@ describe('<KnowledgeTree>', () => {
 
   it('hides _-prefixed files when showMeta is false', () => {
     render(
-      <KnowledgeTree
-        files={files}
-        selectedPath={undefined}
-        showMeta={false}
-        onSelect={() => {}}
-      />,
+      <KnowledgeTree files={files} selectedPath={undefined} showMeta={false} onSelect={() => {}} />,
     );
     expect(screen.queryByText('_index.md')).toBeNull();
   });
@@ -64,12 +54,7 @@ describe('<KnowledgeTree>', () => {
   it('calls onSelect with file path when a file is clicked', () => {
     const onSelect = vi.fn();
     render(
-      <KnowledgeTree
-        files={files}
-        selectedPath={undefined}
-        showMeta={false}
-        onSelect={onSelect}
-      />,
+      <KnowledgeTree files={files} selectedPath={undefined} showMeta={false} onSelect={onSelect} />,
     );
     fireEvent.click(screen.getByText('foo.md'));
     expect(onSelect).toHaveBeenCalledWith('foo.md');

@@ -37,9 +37,7 @@ export function useKnowledgeFile(path: string | undefined) {
   return useQuery({
     queryKey: ['knowledge', 'file', path ?? null],
     queryFn: () =>
-      apiFetch<KnowledgeFileResponse>(
-        `/api/knowledge/file?path=${encodeURIComponent(path ?? '')}`,
-      ),
+      apiFetch<KnowledgeFileResponse>(`/api/knowledge/file?path=${encodeURIComponent(path ?? '')}`),
     enabled: typeof path === 'string' && path.length > 0,
     staleTime: 0,
   });

@@ -12,18 +12,14 @@ interface Props {
 export function KnowledgeViewer({ file }: Props): JSX.Element {
   const plugins = useMemo(
     () =>
-      file === null
-        ? [remarkGfm]
-        : [remarkGfm, [wikilinkPlugin, { wikilinks: file.wikilinks }]],
+      file === null ? [remarkGfm] : [remarkGfm, [wikilinkPlugin, { wikilinks: file.wikilinks }]],
     [file],
   );
   if (file === null) {
     return <KnowledgeEmptyState />;
   }
   const frontmatterBroken = file.frontmatter === null && file.content.startsWith('---');
-  const tags = Array.isArray(file.frontmatter?.tags)
-    ? (file.frontmatter.tags as string[])
-    : [];
+  const tags = Array.isArray(file.frontmatter?.tags) ? (file.frontmatter.tags as string[]) : [];
   return (
     <article className="flex flex-col gap-4">
       <header className="border-b border-border-subtle pb-3 flex flex-col gap-2">
@@ -77,12 +73,15 @@ function Breadcrumb({ path }: { path: string }): JSX.Element {
   const parts = path.split('/');
   return (
     <h2 className="font-mono text-[13px] text-text-primary m-0">
-      {parts.map((part, idx) => (
-        <span key={`${idx}-${part}`}>
-          {idx > 0 ? <span className="text-text-tertiary"> / </span> : null}
-          <span>{part}</span>
-        </span>
-      ))}
+      {parts.map((part, idx) => {
+        const acc = parts.slice(0, idx + 1).join('/');
+        return (
+          <span key={acc}>
+            {idx > 0 ? <span className="text-text-tertiary"> / </span> : null}
+            <span>{part}</span>
+          </span>
+        );
+      })}
     </h2>
   );
 }

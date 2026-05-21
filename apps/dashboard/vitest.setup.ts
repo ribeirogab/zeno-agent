@@ -1,5 +1,11 @@
+import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
 import { createElement } from 'react';
-import { vi } from 'vitest';
+import { afterEach, vi } from 'vitest';
+
+afterEach(() => {
+  cleanup();
+});
 
 vi.mock('react-force-graph-2d', () => {
   type ForceGraphProps = {

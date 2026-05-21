@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { scanKnowledge } from '@zeno/knowledge';
 import { defineCommand } from 'citty';
 import {
   c,
@@ -11,9 +13,16 @@ import {
 import {
   claudeHomeVolumeName,
   containerName,
+  knowledgeDir,
   profileDir,
   workspaceBindPath,
 } from '../lib/paths.js';
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
 import { requireProfile } from '../lib/profile.js';
 import { resolveLiveStatus, snapshotLive } from '../lib/profile-state.js';
 import { resolveProfile } from '../lib/resolvers.js';
@@ -79,10 +88,21 @@ export default defineCommand({
     console.log(`  ${c.bold('Storage')}`);
     console.log(`    workspace:     ${c.gray(workspaceBindPath(name))}`);
     console.log(`    claude home:   ${c.gray(claudeHomeVolumeName(name))} ${c.gray('(volume)')}`);
+    const kDir = knowledgeDir(name);
+    if (existsSync(kDir)) {
+      const files = scanKnowledge(kDir);
+      const totalBytes = files.reduce((acc, f) => acc + f.bytes, 0);
+      console.log(
+        `    knowledge:     ${c.gray(`${files.length} files · ${formatBytes(totalBytes)}`)}`,
+      );
+    } else {
+      console.log(`    knowledge:     ${c.gray('(not created)')}`);
+    }
     console.log('');
     console.log(`  ${c.bold('Mounts')} ${c.gray('(read-only binds)')}`);
     console.log(`    /app/agent     ${c.gray('← ~/.zeno/zeno-agent/agent')}`);
     console.log(`    /app/profile   ${c.gray(`← ~/.zeno/profiles/${name}`)}`);
+    console.log(`    /app/knowledge ${c.gray(`← ~/.zeno/profiles/${name}/knowledge`)}`);
     console.log('');
   },
 });

@@ -102,6 +102,9 @@ importers:
       '@zeno/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@zeno/knowledge':
+        specifier: workspace:*
+        version: link:../../packages/knowledge
       better-sqlite3:
         specifier: ^12.9.0
         version: 12.9.0

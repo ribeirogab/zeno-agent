@@ -17,6 +17,7 @@
   "dependencies": {
     "@zeno/backends": "workspace:*",
     "@zeno/db": "workspace:*",
+    "@zeno/knowledge": "workspace:*",
     "better-sqlite3": "^12.9.0",
     "citty": "^0.2.2",
     "dockerode": "^5.0.0",

@@ -73,6 +73,7 @@ export default defineCommand({
     console.log(ok(`Profile ${c.bold(name)} created`));
     console.log(`  Port:        ${c.gold(String(port))}`);
     console.log(`  AGENTS.md:   ${c.gray(`~/.zeno/profiles/${name}/AGENTS.md`)}`);
+    console.log(`  Knowledge:   ${c.gray(`~/.zeno/profiles/${name}/knowledge/`)}`);
     console.log('');
     console.log(`  ${c.gray('Edit:')}  $EDITOR ~/.zeno/profiles/${name}/AGENTS.md`);
     console.log(`  ${c.gray('Then:')}  ${c.gold(`zeno start ${name}`)}`);

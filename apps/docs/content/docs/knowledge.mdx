@@ -1,0 +1,59 @@
+---
+title: Knowledge
+description: Operator-authored long-form context the agent reads on demand.
+---
+
+Every Zeno profile has a `knowledge/` folder for operator-authored markdown files describing the operator, their products, processes, glossary, team, habits, and projects. The agent sees a compact table of contents in its system prompt every turn (via an auto-generated `_index.md`) and reads individual files on demand.
+
+Knowledge is **read-only from the agent's perspective**. The agent never writes to it. The folder structure is up to you — flat for solo use, nested for organizations.
+
+## Folder structure
+
+```
+~/.zeno/profiles/<name>/knowledge/
+├── _index.md          ← auto-generated table of contents (do not hand-edit)
+├── _template.md       ← copy this to start a new note
+└── **/*.md            ← your content, any layout
+```
+
+Files or directories whose name starts with `_` are **ignored by the scanner**. Use this for drafts (`_drafts/`), archives (`_archive/`), or any file you want kept around but invisible to the agent.
+
+## Frontmatter (all fields optional)
+
+```yaml
+---
+title: Release flow
+description: How code goes from main to production
+tags: [process, deploy]
+related: [stack, ci-cd, on-call]
+---
+```
+
+- `title` — display name. Falls back to the first `# Heading` in the body, then the filename.
+- `description` — one-line summary shown in `_index.md`. Falls back to the first paragraph of the body, truncated to 120 chars.
+- `tags` — flat list, powers the `## By tag` section of `_index.md`. No nested syntax.
+- `related` — wikilink-style slugs pointing at other knowledge notes. Resolved by basename (`stack` → `stack.md`); use a path prefix (`engineering/stack`) to disambiguate.
+
+## Scales by operator size
+
+**Solo user (5 files):** `about-me.md`, `my-projects.md`, `habits.md`, `goals.md`, `current-focus.md`.
+
+**Two friends on a side project:** `the-project.md`, `our-roles.md`, `recent-decisions.md`.
+
+**Small company:** `team.md`, `products.md`, `glossary.md`, `processes.md`.
+
+**Large company:** nested folders `engineering/`, `products/`, `policies/`, `people/`, each with several files.
+
+## How the agent uses it
+
+The worker bind-mounts the knowledge folder read-only at `/app/knowledge`. At boot and on every change, it loads `_index.md` (or live-scans the tree if missing or stale) and injects the content as a `# Knowledge available` block in the cached system prompt. The block is capped at 8 KB; over that, it is truncated with a note pointing the agent at the Read tool.
+
+When the agent sees a request that matches an entry in the index, it calls Read on `/app/knowledge/<path>` to pull the full file body.
+
+## CLI
+
+- `zeno knowledge list <profile>` — print every file with title, tags, and size.
+- `zeno knowledge open <profile>` — open the folder in your OS file browser.
+- `zeno knowledge index <profile>` — regenerate `_index.md` from the current file tree.
+
+You can also edit files directly in your editor, Finder, or IDE — the CLI is a convenience, not a requirement.

@@ -12,6 +12,7 @@
     "channels",
     "connectors",
     "skills",
+    "knowledge",
     "crons",
     "---Reference---",
     "cli",

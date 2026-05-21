@@ -15,6 +15,7 @@ export interface ContainerSpec {
   claudeHomeVolume: string;
   agentMountSource: string;
   profileMountSource: string;
+  knowledgeMountSource: string;
 }
 
 export interface ContainerInfo {

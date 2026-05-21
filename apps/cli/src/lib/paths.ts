@@ -17,8 +17,16 @@ export function profileAgentsMd(name: string): string {
   return join(profileDir(name), 'AGENTS.md');
 }
 
+export function knowledgeDir(name: string): string {
+  return join(profileDir(name), 'knowledge');
+}
+
 export function templatesProfileDir(): string {
   return join(ZENO_HOME, 'templates', 'profile');
+}
+
+export function templatesProfileKnowledgeDir(): string {
+  return join(templatesProfileDir(), 'knowledge');
 }
 
 export function agentMountSource(): string {

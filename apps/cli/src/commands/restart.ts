@@ -8,6 +8,7 @@ import {
   agentMountSource,
   claudeHomeVolumeName,
   containerName,
+  knowledgeDir,
   profileDir,
   profileEnvFile,
   workspaceBindPath,
@@ -84,6 +85,10 @@ export default defineCommand({
         const wsBind = workspaceBindPath(name);
         mkdirSync(wsBind, { recursive: true });
 
+        // Spec 0090 — knowledge dir bind-mounted RO; ensure it exists.
+        const kDir = knowledgeDir(name);
+        mkdirSync(kDir, { recursive: true });
+
         await spin(
           `starting container ${c.gray(cName)}`,
           async () => {
@@ -96,6 +101,7 @@ export default defineCommand({
               claudeHomeVolume: claudeHomeVolumeName(name),
               agentMountSource: agentMountSource(),
               profileMountSource: profileDir(name),
+              knowledgeMountSource: kDir,
             });
             await orch.startContainer(cName);
           },

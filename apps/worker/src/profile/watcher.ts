@@ -5,7 +5,7 @@ import { createLogger } from '@zeno/logger';
 const logger = createLogger({ service: 'worker' });
 
 /** Logical groupings of identity/config files. The watcher dispatches one group per debounce window. */
-type FileGroup = 'prompt' | 'skills' | 'ignored';
+type FileGroup = 'prompt' | 'skills' | 'knowledge' | 'ignored';
 
 type SourceKind = 'agent' | 'profile' | 'skills';
 
@@ -17,6 +17,8 @@ interface ProfileWatcherOptions {
   onPromptFilesChanged: () => void;
   /** Spec 0052/0062: called when any skill content changes (SSH-edits in agent/profile/dashboard skills, dashboard zip uploads, etc.). */
   onSkillsChanged?: () => void;
+  /** Spec 0090: called when any file under `profile/knowledge/` changes (any `.md` not `_`-prefixed, or `_index.md`). */
+  onKnowledgeChanged?: () => void;
   /**
    * Spec 0062: absolute path to `/workspace/skills/` (the dashboard upload
    * volume). When provided, the watcher monitors it as a third source
@@ -147,6 +149,9 @@ export class ProfileWatcher {
         case 'skills':
           this.opts.onSkillsChanged?.();
           break;
+        case 'knowledge':
+          this.opts.onKnowledgeChanged?.();
+          break;
       }
     } catch (error) {
       logger.error(
@@ -184,5 +189,21 @@ export function classify(source: SourceKind, filename: string): FileGroup {
   // Spec 0062: edits to agent/skills/* and profile/skills/* fire skills events.
   if (source === 'agent' && normalized.startsWith('skills/')) return 'skills';
   if (source === 'profile' && normalized.startsWith('skills/')) return 'skills';
+  // Spec 0090: edits under profile/knowledge/ fire knowledge events.
+  // _index.md is always included (so `zeno knowledge index` triggers reload).
+  // Any other `_`-prefixed file or any file inside a `_`-prefixed directory
+  // is ignored — operator uses those for drafts/archive.
+  if (source === 'profile' && normalized.startsWith('knowledge/')) {
+    const tail = normalized.slice('knowledge/'.length);
+    if (tail.length === 0) return 'ignored';
+    const segments = tail.split('/');
+    const fileName = segments[segments.length - 1] ?? '';
+    if (fileName === '_index.md') return 'knowledge';
+    const intermediate = segments.slice(0, -1);
+    if (intermediate.some((s) => s.startsWith('_'))) return 'ignored';
+    if (fileName.startsWith('_')) return 'ignored';
+    if (!fileName.endsWith('.md')) return 'ignored';
+    return 'knowledge';
+  }
   return 'ignored';
 }

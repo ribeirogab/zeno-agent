@@ -183,6 +183,32 @@ describe('ProfileWatcher', () => {
     });
   });
 
+  describe('classify (knowledge group)', () => {
+    it('classifies profile/knowledge/foo.md as knowledge', () => {
+      expect(classify('profile', 'knowledge/foo.md')).toBe('knowledge');
+    });
+
+    it('classifies nested profile/knowledge/engineering/stack.md as knowledge', () => {
+      expect(classify('profile', 'knowledge/engineering/stack.md')).toBe('knowledge');
+    });
+
+    it('classifies profile/knowledge/_drafts/wip.md as ignored', () => {
+      expect(classify('profile', 'knowledge/_drafts/wip.md')).toBe('ignored');
+    });
+
+    it('classifies profile/knowledge/_template.md as ignored', () => {
+      expect(classify('profile', 'knowledge/_template.md')).toBe('ignored');
+    });
+
+    it('classifies profile/knowledge/_index.md as knowledge (worker reload on regen)', () => {
+      expect(classify('profile', 'knowledge/_index.md')).toBe('knowledge');
+    });
+
+    it('still classifies profile/AGENTS.md as prompt (regression guard)', () => {
+      expect(classify('profile', 'AGENTS.md')).toBe('prompt');
+    });
+  });
+
   it('does not crash when a handler throws', async () => {
     const watcher = new ProfileWatcher({
       onPromptFilesChanged: () => {

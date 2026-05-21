@@ -47,6 +47,7 @@ import { buildCronMcpServer } from '@/cron/tools';
 import { type GitHubAppAuth, loadGitHubAppFromDb } from '@/github/app-auth';
 import { resolveGitIdentity } from '@/github/git-identity';
 import { ConnectorGatedBackend } from '@/guardrails/connector-gated-backend';
+import { type LoadResult as KnowledgeLoadResult, loadKnowledgeBlock } from '@/knowledge/loader';
 import { LogsRetention } from '@/logs/retention';
 import { ProfileWatcher } from '@/profile/watcher';
 import { cleanupTmpExtractDirs, materializeSkillsToFs } from '@/skills/materialize';
@@ -183,16 +184,60 @@ async function main(): Promise<void> {
   // Spec 2026-05-20 (agents-md-per-instance): the per-profile operating
   // manual lives at /app/profile/AGENTS.md. Shared baseline (SOUL.md)
   // stays at /app/agent/SOUL.md.
+  const logKnowledgeEvent = (result: KnowledgeLoadResult): void => {
+    const base = { bytes: result.content.length, fileCount: result.fileCount };
+    switch (result.source) {
+      case 'absent':
+        bootLogger.info({ event: 'knowledge_dir_absent' }, 'knowledge dir not mounted');
+        return;
+      case 'index':
+        bootLogger.info({ event: 'knowledge_index_loaded', ...base }, 'knowledge index loaded');
+        break;
+      case 'scan-missing':
+        bootLogger.warn(
+          { event: 'knowledge_index_missing', ...base },
+          '_index.md missing; live-scanned knowledge',
+        );
+        break;
+      case 'scan-stale':
+        bootLogger.warn(
+          {
+            event: 'knowledge_index_stale',
+            ...base,
+            stalestMtime: result.stalestMtime,
+          },
+          '_index.md stale; live-scanned knowledge',
+        );
+        break;
+    }
+    if (result.truncated) {
+      bootLogger.warn(
+        {
+          event: 'knowledge_index_truncated',
+          originalBytes: result.originalBytes,
+          droppedCount: result.droppedCount,
+        },
+        'knowledge block exceeded 8 KB cap',
+      );
+    }
+  };
+
   const buildPromptNow = (): string => {
     const soul = loadAgentFile('SOUL.md');
     const agents = loadProfileFile('AGENTS.md');
-    return buildSystemPrompt(soul, agents);
+    const knowledge = loadKnowledgeBlock();
+    logKnowledgeEvent(knowledge);
+    return buildSystemPrompt(soul, agents, knowledge.content || null);
   };
 
   const initialSoul = loadAgentFile('SOUL.md');
   const initialAgents = loadProfileFile('AGENTS.md');
+  const initialKnowledge = loadKnowledgeBlock();
+  logKnowledgeEvent(initialKnowledge);
 
-  const promptHolder = { value: buildSystemPrompt(initialSoul, initialAgents) };
+  const promptHolder = {
+    value: buildSystemPrompt(initialSoul, initialAgents, initialKnowledge.content || null),
+  };
 
   const dbPath = join(config.workspaceDir, 'zeno.db');
   const opened = openRuntimeDatabase(dbPath);
@@ -745,6 +790,13 @@ async function main(): Promise<void> {
           );
         }
       })();
+    },
+    onKnowledgeChanged: () => {
+      promptHolder.value = buildPromptNow();
+      logger.info(
+        { event: 'system_prompt_reloaded_knowledge', bytes: promptHolder.value.length },
+        'system prompt reloaded (knowledge)',
+      );
     },
     dashboardSkillsPath: dashboardSkillsRoot,
   });

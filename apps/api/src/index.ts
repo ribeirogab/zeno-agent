@@ -35,6 +35,15 @@ function resolveProfileDir(): string {
   return PROFILE_CANDIDATES[PROFILE_CANDIDATES.length - 1] as string;
 }
 
+const KNOWLEDGE_CANDIDATES = ['/app/knowledge', 'knowledge'];
+
+function resolveKnowledgeDir(): string {
+  for (const candidate of KNOWLEDGE_CANDIDATES) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return KNOWLEDGE_CANDIDATES[KNOWLEDGE_CANDIDATES.length - 1] as string;
+}
+
 // Bootstrap logger for messages that happen before the DB is open. Once the
 // LogRepo exists we swap to a runtime logger wired to the dbSink so every
 // log line also lands in the logs table (powering the Logs page).
@@ -85,6 +94,7 @@ function main(): void {
   // Spec 0052: skill SKILL.md files live one directory up at $HOME/.claude/skills/.
   const claudeHomeRoot = join(homedir(), '.claude');
   const profileDir = resolveProfileDir();
+  const knowledgeRoot = resolveKnowledgeDir();
   // Spec 0057: load channels catalog at boot. If the file is missing/malformed,
   // log + omit the dep — /api/channels/* routes won't mount, but the rest of
   // the API keeps working (parallel to how missing connector-apps repo behaves).
@@ -116,6 +126,7 @@ function main(): void {
     claudeHome,
     claudeHomeRoot,
     profileDir,
+    knowledgeRoot,
     spaDir,
     ...(channelsCatalog ? { channelsCatalog } : {}),
   });

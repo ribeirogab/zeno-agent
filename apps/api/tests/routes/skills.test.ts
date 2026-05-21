@@ -90,6 +90,7 @@ function makeApp(database: RuntimeDB) {
     agentCapabilityRepo: new AgentCapabilityRepo(database),
     claudeHome: '/tmp',
     profileDir: '/tmp',
+    knowledgeRoot: '/tmp',
   });
 }
 

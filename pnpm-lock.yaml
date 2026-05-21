@@ -47,6 +47,9 @@ importers:
       '@zeno/github-app':
         specifier: workspace:*
         version: link:../../packages/github-app
+      '@zeno/knowledge':
+        specifier: workspace:*
+        version: link:../../packages/knowledge
       '@zeno/logger':
         specifier: workspace:*
         version: link:../../packages/logger

@@ -53,6 +53,7 @@ function makeApp(database: RuntimeDB) {
     claudeHome: '/tmp',
     claudeHomeRoot: '/tmp',
     profileDir: '/tmp',
+    knowledgeRoot: '/tmp',
   });
 }
 

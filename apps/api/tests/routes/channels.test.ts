@@ -60,6 +60,7 @@ function makeApp(
     }),
     claudeHome: '/tmp',
     profileDir: '/tmp',
+    knowledgeRoot: '/tmp',
     channelsCatalog: loadChannelsCatalog(),
     writes,
     ...(fetchImpl ? { fetchImpl } : {}),

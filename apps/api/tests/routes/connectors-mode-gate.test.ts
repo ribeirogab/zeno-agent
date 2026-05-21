@@ -43,6 +43,7 @@ function makeApp(database: RuntimeDB, writes: ApiWriteMode) {
     }),
     claudeHome: '/tmp',
     profileDir: '/tmp',
+    knowledgeRoot: '/tmp',
     writes,
   });
 }

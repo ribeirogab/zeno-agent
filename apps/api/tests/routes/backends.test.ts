@@ -60,6 +60,7 @@ function makeApp(database: RuntimeDB, opts: AppOpts = {}) {
     backendSettingsRepo: new BackendSettingsRepo(database, 'test'),
     claudeHome: '/tmp',
     profileDir: '/tmp',
+    knowledgeRoot: '/tmp',
     ...(opts.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
   });
 }

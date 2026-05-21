@@ -186,13 +186,13 @@ async function main(): Promise<void> {
   const buildPromptNow = (): string => {
     const soul = loadAgentFile('SOUL.md');
     const agents = loadProfileFile('AGENTS.md');
-    return buildSystemPrompt(soul, agents);
+    return buildSystemPrompt(soul, agents, null);
   };
 
   const initialSoul = loadAgentFile('SOUL.md');
   const initialAgents = loadProfileFile('AGENTS.md');
 
-  const promptHolder = { value: buildSystemPrompt(initialSoul, initialAgents) };
+  const promptHolder = { value: buildSystemPrompt(initialSoul, initialAgents, null) };
 
   const dbPath = join(config.workspaceDir, 'zeno.db');
   const opened = openRuntimeDatabase(dbPath);

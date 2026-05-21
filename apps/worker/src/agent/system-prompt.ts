@@ -61,6 +61,7 @@ export function loadProfileFile(filename: string): string | null {
 export function buildSystemPrompt(
   soulMdContent: string | null,
   agentsMdContent: string | null,
+  knowledgeBlock: string | null,
 ): string {
   const soul =
     soulMdContent && soulMdContent.trim().length > 0 ? soulMdContent.trim() : DEFAULT_SOUL;
@@ -72,5 +73,9 @@ export function buildSystemPrompt(
   const agents =
     agentsMdContent && agentsMdContent.trim().length > 0 ? agentsMdContent.trim() : NO_AGENTS_NOTE;
 
-  return `${soul}\n\n${agents}`;
+  let combined = `${soul}\n\n${agents}`;
+  if (knowledgeBlock && knowledgeBlock.trim().length > 0) {
+    combined += `\n\n# Knowledge available\n\n${knowledgeBlock.trim()}`;
+  }
+  return combined;
 }

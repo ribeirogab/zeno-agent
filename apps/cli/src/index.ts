@@ -3,6 +3,7 @@ import backend from './commands/backend.js';
 import channel from './commands/channel.js';
 import connector from './commands/connector.js';
 import doctor from './commands/doctor.js';
+import knowledge from './commands/knowledge.js';
 import logs from './commands/logs.js';
 import open from './commands/open.js';
 import profile from './commands/profile.js';
@@ -34,6 +35,7 @@ const main = defineCommand({
     connector,
     backend,
     channel,
+    knowledge,
   },
 });
 

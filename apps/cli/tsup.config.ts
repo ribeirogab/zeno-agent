@@ -10,6 +10,6 @@ export default defineConfig({
   sourcemap: false,
   dts: false,
   banner: { js: '#!/usr/bin/env node' },
-  noExternal: ['citty'],
+  noExternal: ['citty', '@zeno/knowledge'],
   minify: false,
 });

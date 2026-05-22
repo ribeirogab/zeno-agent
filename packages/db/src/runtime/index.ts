@@ -63,12 +63,7 @@ export { CronRunRepo } from './repos/cron-runs.js';
 export type { CronSkillLink } from './repos/cron-skills.js';
 
 export { CronSkillRepo } from './repos/cron-skills.js';
-export type {
-  CreateCronInput,
-  Cron,
-  CronSource,
-  UpdateCronInput,
-} from './repos/crons.js';
+export type { Cron, UpsertCronInput } from './repos/crons.js';
 
 export { CronRepo } from './repos/crons.js';
 export type { CreateLogInput, Log, LogFilter, LogLevel } from './repos/logs.js';

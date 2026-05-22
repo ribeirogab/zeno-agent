@@ -4,11 +4,20 @@ import type { RuntimeDB } from '../db.js';
 import { commands } from '../schema.js';
 
 export type CommandType =
+  // Spec 2026-05-22 (crons CLI-first): legacy cron CRUD command types are
+  // retired. Crons are now filesystem-managed. The poller still recognizes
+  // these strings so historical rows resolve to 'skipped' rather than throwing.
   | 'cron_create'
   | 'cron_pause'
   | 'cron_resume'
   | 'cron_run_now'
   | 'cron_delete'
+  // Spec 2026-05-22 (crons CLI-first): one-shot fire driven by the operator
+  // via `zeno cron test`. The API enqueues this command; the worker fires the
+  // cron through the chat backend and writes { sessionId, status, latencyMs,
+  // error } back into the row's `result` column. The CLI polls via
+  // /api/commands/:correlationId until terminal.
+  | 'cron_test'
   // Spec 0067 C: 'worker_restart' removed. Historical rows in the
   // commands table keep their type string; the dispatcher silently
   // skips unknown types.

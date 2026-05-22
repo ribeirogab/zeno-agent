@@ -1,71 +1,53 @@
-import { useNavigate } from '@tanstack/react-router';
-import type { JSX } from 'react';
-import { useDeleteCron, usePauseCron, useResumeCron, useRunNowCron } from '@/lib/mutations';
+/**
+ * Spec 2026-05-22 (crons CLI-first) — read-only action cluster.
+ * Each chip opens a <CommandModal> with the exact `zeno cron …` command.
+ */
+
+import { type JSX, useState } from 'react';
+import { CommandModal } from '@/components/command-modal';
+import type { CommandKind } from '@/lib/build-cli-command';
 import type { CronApi } from '@/lib/use-crons';
 
-/**
- * Detail-page action cluster (pause / run now / delete). Visual reference:
- * `apps/design/src/routes/dashboard/crons/detail/index.tsx` — `<ActionButtons>`.
- */
-export function CronActions({
-  cron,
-  onRequestDelete,
-}: {
-  cron: CronApi;
-  /** When provided, called instead of firing delete directly — for surfacing a confirmation modal. */
-  onRequestDelete?: (cron: CronApi) => void;
-}): JSX.Element {
-  const pause = usePauseCron();
-  const resume = useResumeCron();
-  const runNow = useRunNowCron();
-  const deleteCron = useDeleteCron();
-  const navigate = useNavigate();
-
-  const handlePauseToggle = (): void => {
-    if (cron.enabled) pause.mutate(cron.id);
-    else resume.mutate(cron.id);
-  };
-  const handleRunNow = (): void => {
-    runNow.mutate(cron.id);
-  };
-  const handleDelete = (): void => {
-    if (onRequestDelete) onRequestDelete(cron);
-    else
-      deleteCron.mutate(cron.id, {
-        onSuccess: () => void navigate({ to: '/crons' }),
-      });
-  };
+export function CronActions({ cron }: { cron: CronApi }): JSX.Element {
+  const [open, setOpen] = useState<CommandKind | null>(null);
 
   return (
-    <div className="flex shrink-0 self-end gap-2">
-      <button
-        type="button"
-        onClick={handlePauseToggle}
-        disabled={cron.enabled ? pause.isPending : resume.isPending}
-        className="inline-flex items-center gap-2 px-3.5 py-2 border border-transparent font-mono text-xs font-medium tracking-[0.06em] leading-4 uppercase text-text-secondary hover:text-text-primary transition-colors duration-[120ms] disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {cron.enabled ? 'pause' : 'resume'}
-      </button>
-      <button
-        type="button"
-        onClick={handleRunNow}
-        disabled={runNow.isPending || !cron.enabled}
-        className="inline-flex items-center gap-2 px-3.5 py-2 bg-gold border border-gold font-mono text-xs font-semibold tracking-[0.06em] leading-4 uppercase text-text-ink hover:bg-gold-bright hover:border-gold-bright transition-colors duration-[120ms] disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        <PlayIcon />
-        run now
-      </button>
-      {cron.source === 'chat' ? (
+    <>
+      <div className="flex shrink-0 self-end gap-2">
         <button
           type="button"
-          onClick={handleDelete}
-          disabled={deleteCron.isPending}
-          className="inline-flex items-center px-3.5 py-2 border border-status-failed/40 font-mono text-xs font-semibold tracking-[0.06em] leading-4 uppercase text-status-failed hover:bg-status-failed/[0.08] transition-colors duration-[120ms] disabled:cursor-not-allowed disabled:opacity-60"
+          onClick={() => setOpen({ kind: 'cron-open', slug: cron.id })}
+          className="inline-flex items-center gap-2 px-3.5 py-2 border border-transparent font-mono text-xs font-medium tracking-[0.06em] leading-4 uppercase text-text-secondary hover:text-text-primary transition-colors duration-[120ms]"
+        >
+          open
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            setOpen({ kind: cron.enabled ? 'cron-disable' : 'cron-enable', slug: cron.id })
+          }
+          className="inline-flex items-center gap-2 px-3.5 py-2 border border-transparent font-mono text-xs font-medium tracking-[0.06em] leading-4 uppercase text-text-secondary hover:text-text-primary transition-colors duration-[120ms]"
+        >
+          {cron.enabled ? 'disable' : 'enable'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen({ kind: 'cron-test', slug: cron.id })}
+          className="inline-flex items-center gap-2 px-3.5 py-2 bg-gold border border-gold font-mono text-xs font-semibold tracking-[0.06em] leading-4 uppercase text-text-ink hover:bg-gold-bright hover:border-gold-bright transition-colors duration-[120ms]"
+        >
+          <PlayIcon />
+          test
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen({ kind: 'cron-delete', slug: cron.id })}
+          className="inline-flex items-center px-3.5 py-2 border border-status-failed/40 font-mono text-xs font-semibold tracking-[0.06em] leading-4 uppercase text-status-failed hover:bg-status-failed/[0.08] transition-colors duration-[120ms]"
         >
           delete
         </button>
-      ) : null}
-    </div>
+      </div>
+      {open ? <CommandModal spec={open} onClose={() => setOpen(null)} /> : null}
+    </>
   );
 }
 

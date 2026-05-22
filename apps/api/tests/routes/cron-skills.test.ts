@@ -58,11 +58,15 @@ function makeApp(database: RuntimeDB) {
 }
 
 function seedCron(database: RuntimeDB, name: string) {
-  return new CronRepo(database).create({
+  return new CronRepo(database).upsertFromFile({
+    slug: name,
     name,
-    prompt: 'p',
+    description: null,
     schedule: '0 9 * * *',
-    source: 'chat',
+    enabled: true,
+    contentHash: 'h',
+    mtimeMs: 1,
+    nextRunAt: null,
   });
 }
 

@@ -14,7 +14,16 @@ beforeEach(() => {
   close = opened.close;
   cronRepo = new CronRepo(opened.drizzle);
   runRepo = new CronRunRepo(opened.drizzle);
-  const cron = cronRepo.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'chat' });
+  const cron = cronRepo.upsertFromFile({
+    slug: 'x',
+    name: 'x',
+    description: null,
+    schedule: '* * * * *',
+    enabled: true,
+    contentHash: 'h',
+    mtimeMs: 1,
+    nextRunAt: null,
+  });
   cronId = cron.id;
 });
 
@@ -32,7 +41,7 @@ describe('CronRunRepo', () => {
 
   it('finish sets status, output, finished_at', () => {
     const run = runRepo.start(cronId);
-    runRepo.finish(run.id, 'success', 'all good');
+    runRepo.finish(run.id, 'success', { output: 'all good' });
     const fetched = runRepo.get(run.id);
     expect(fetched?.status).toBe('success');
     expect(fetched?.output).toBe('all good');
@@ -41,10 +50,17 @@ describe('CronRunRepo', () => {
 
   it('finish with failed status records error', () => {
     const run = runRepo.start(cronId);
-    runRepo.finish(run.id, 'failed', null, 'rate limit');
+    runRepo.finish(run.id, 'failed', { error: 'rate limit' });
     const fetched = runRepo.get(run.id);
     expect(fetched?.status).toBe('failed');
     expect(fetched?.error).toBe('rate limit');
+  });
+
+  it('finish records sessionId', () => {
+    const run = runRepo.start(cronId);
+    runRepo.finish(run.id, 'success', { sessionId: 'sess_abc' });
+    const fetched = runRepo.get(run.id);
+    expect(fetched?.sessionId).toBe('sess_abc');
   });
 
   it('recent returns runs in descending start order', () => {

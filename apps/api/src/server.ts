@@ -91,6 +91,9 @@ export interface AppDeps {
    *  Defaults to 'cli' (read-only dashboard). When omitted, falls back to
    *  parsing `process.env.ZENO_API_WRITES`. */
   writes?: ApiWriteMode;
+  /** Spec 2026-05-22 (crons CLI-first): host bind path for the crons folder
+   *  inside the worker container. Defaults to '/app/crons' inside `buildCronsRoute`. */
+  cronsRootDir?: string;
 }
 
 export function createApp(deps: AppDeps): Hono {
@@ -121,6 +124,8 @@ export function createApp(deps: AppDeps): Hono {
       crons: deps.cronRepo,
       cronRuns: deps.cronRunRepo,
       commands: deps.commandRepo,
+      writes,
+      ...(deps.cronsRootDir ? { cronsRootDir: deps.cronsRootDir } : {}),
     }),
   );
   // Spec 0054: cron ↔ skills + connectors M:N (mounted under /api/crons).

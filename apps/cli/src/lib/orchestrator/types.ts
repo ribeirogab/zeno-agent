@@ -16,6 +16,8 @@ export interface ContainerSpec {
   agentMountSource: string;
   profileMountSource: string;
   knowledgeMountSource: string;
+  /** Spec 2026-05-22 (crons CLI-first): host bind for ~/.zeno/profiles/<name>/crons. */
+  cronsMountSource: string;
 }
 
 export interface ContainerInfo {

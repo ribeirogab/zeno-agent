@@ -10,6 +10,8 @@ export interface CronRunApi {
   status: 'running' | 'success' | 'failed' | 'skipped';
   output: string | null;
   error: string | null;
+  /** Spec 2026-05-22 (crons CLI-first): agent session id captured at fire time. */
+  sessionId: string | null;
 }
 
 export function useCron(id: string) {

@@ -13,6 +13,7 @@ export interface CronRun {
   status: CronRunStatus;
   output: string | null;
   error: string | null;
+  sessionId: string | null;
 }
 
 interface CronRunRow {
@@ -23,6 +24,7 @@ interface CronRunRow {
   status: string;
   output: string | null;
   error: string | null;
+  sessionId: string | null;
 }
 
 function rowToCronRun(row: CronRunRow): CronRun {
@@ -34,6 +36,7 @@ function rowToCronRun(row: CronRunRow): CronRun {
     status: row.status as CronRunStatus,
     output: row.output,
     error: row.error,
+    sessionId: row.sessionId,
   };
 }
 
@@ -51,16 +54,20 @@ export class CronRunRepo {
   finish(
     id: string,
     status: Exclude<CronRunStatus, 'running'>,
-    output?: string | null,
-    error?: string | null,
+    options?: {
+      output?: string | null;
+      error?: string | null;
+      sessionId?: string | null;
+    },
   ): void {
     this.db
       .update(cronRuns)
       .set({
         status,
         finishedAt: sql`CURRENT_TIMESTAMP`,
-        output: output ?? null,
-        error: error ?? null,
+        output: options?.output ?? null,
+        error: options?.error ?? null,
+        sessionId: options?.sessionId ?? null,
       })
       .where(eq(cronRuns.id, id))
       .run();

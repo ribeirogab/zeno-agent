@@ -1,4 +1,5 @@
-import type { ConnectorAppRepo, ConnectorRepo, CronRepo, CronRunRepo } from '@zeno/db/runtime';
+import type { ConnectorAppRepo, ConnectorRepo } from '@zeno/db/runtime';
+import type { AgentBackend } from '@/agent/types';
 import type { HandlerMap } from '@/commands/dispatcher';
 import { buildAppInstallHandler } from '@/commands/handlers/app-install';
 import { buildAppUninstallHandler } from '@/commands/handlers/app-uninstall';
@@ -6,20 +7,13 @@ import { buildConnectorCreateHandler } from '@/commands/handlers/connector-creat
 import { buildConnectorRefreshToolsHandler } from '@/commands/handlers/connector-refresh-tools';
 import { buildConnectorUninstallHandler } from '@/commands/handlers/connector-uninstall';
 import { buildConnectorUpdateHandler } from '@/commands/handlers/connector-update';
-import { buildCreateHandler } from '@/commands/handlers/create';
-import { buildDeleteHandler } from '@/commands/handlers/delete';
-import { buildPauseHandler } from '@/commands/handlers/pause';
-import { buildResumeHandler } from '@/commands/handlers/resume';
-import { buildRunNowHandler, type RunnerLike } from '@/commands/handlers/run-now';
+import { buildCronTestHandler } from '@/commands/handlers/cron-test';
 import type { GitHubAppAuth } from '@/github/app-auth';
 
 export interface HandlerDeps {
-  crons: CronRepo;
-  cronRuns: CronRunRepo;
   connectors: ConnectorRepo;
   /** Spec 0044: ConnectorApp repo for `connector_apps` table mutations. */
   connectorApps: ConnectorAppRepo;
-  runner: RunnerLike;
   exit: (code: number) => void;
   /**
    * Spec 0044: getter for the (mutable) GitHubAppAuth singleton. Handlers
@@ -31,15 +25,16 @@ export interface HandlerDeps {
   bootstrapGithubApp: () => Promise<GitHubAppAuth | null>;
   /** Spec 0044: tear down singleton on `app_uninstall`. */
   tearDownGithubApp: () => void;
+  /** Spec 2026-05-22 (crons CLI-first): agent backend used by cron_test handler. */
+  getCronBackend: () => AgentBackend | null;
 }
 
 export function buildHandlerMap(deps: HandlerDeps): HandlerMap {
   return {
-    cron_create: buildCreateHandler(deps.crons),
-    cron_pause: buildPauseHandler(deps.crons),
-    cron_resume: buildResumeHandler(deps.crons),
-    cron_run_now: buildRunNowHandler(deps.crons, deps.runner),
-    cron_delete: buildDeleteHandler(deps.crons),
+    // Cron CRUD command handlers removed in spec 2026-05-22 (crons CLI-first):
+    // crons are now filesystem-managed. Only the one-shot `cron_test` survives,
+    // driven by `zeno cron test <slug>`.
+    cron_test: buildCronTestHandler({ getBackend: deps.getCronBackend }),
     connector_create: buildConnectorCreateHandler({
       connectors: deps.connectors,
       getGithubApp: deps.getGithubApp,

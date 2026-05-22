@@ -6,7 +6,6 @@ interface NextCron {
   name: string;
   schedule: string;
   nextRunAt: string;
-  notifyConversationId?: string;
 }
 
 export function useNextCrons(limit = 3) {

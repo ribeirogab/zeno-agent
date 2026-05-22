@@ -4,7 +4,10 @@ export type HandlerResult = { ok: true; data?: unknown } | { ok: false; error: s
 
 export type Handler = (cmd: Command) => Promise<HandlerResult>;
 
-export type HandlerMap = Record<Command['type'], Handler>;
+// Spec 2026-05-22 (crons CLI-first): some command types are retired but kept
+// in the union for historical row compatibility. Handlers may legitimately
+// omit them — the dispatcher returns `skipped` for any type without a handler.
+export type HandlerMap = Partial<Record<Command['type'], Handler>>;
 
 export function buildDispatcher(handlers: HandlerMap): (cmd: Command) => Promise<HandlerResult> {
   return async (cmd) => {

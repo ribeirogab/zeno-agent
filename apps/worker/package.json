@@ -20,6 +20,7 @@
     "@zeno/mcp-discover": "workspace:*",
     "better-sqlite3": "^12.9.0",
     "cron-parser": "^5.5.0",
+    "gray-matter": "^4.0.3",
     "yaml": "^2.8.3",
     "zod": "^4.3.6"
   },

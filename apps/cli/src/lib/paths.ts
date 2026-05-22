@@ -21,12 +21,28 @@ export function knowledgeDir(name: string): string {
   return join(profileDir(name), 'knowledge');
 }
 
+export function cronsDir(name: string): string {
+  return join(profileDir(name), 'crons');
+}
+
+export function cronDir(profile: string, slug: string): string {
+  return join(cronsDir(profile), slug);
+}
+
+export function cronFile(profile: string, slug: string): string {
+  return join(cronDir(profile, slug), 'CRON.md');
+}
+
 export function templatesProfileDir(): string {
   return join(ZENO_HOME, 'templates', 'profile');
 }
 
 export function templatesProfileKnowledgeDir(): string {
   return join(templatesProfileDir(), 'knowledge');
+}
+
+export function templatesProfileCronsDir(): string {
+  return join(templatesProfileDir(), 'crons');
 }
 
 export function agentMountSource(): string {

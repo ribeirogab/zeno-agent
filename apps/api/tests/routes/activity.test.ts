@@ -51,15 +51,22 @@ describe('GET /api/activity', () => {
   it('returns recent cron_runs joined with cron name, default limit 10', async () => {
     const crons = new CronRepo(db);
     const runs = new CronRunRepo(db);
-    const cron = crons.create({
+    const cron = crons.upsertFromFile({
+      slug: 'morning-summary',
       name: 'morning-summary',
-      prompt: 'p',
+      description: null,
       schedule: '* * * * *',
-      source: 'chat',
+      enabled: true,
+      contentHash: 'h',
+      mtimeMs: 1,
+      nextRunAt: null,
     });
     for (let i = 0; i < 12; i += 1) {
       const r = runs.start(cron.id);
-      runs.finish(r.id, i % 4 === 0 ? 'failed' : 'success', `out-${i}`, i % 4 === 0 ? 'err' : null);
+      runs.finish(r.id, i % 4 === 0 ? 'failed' : 'success', {
+        output: `out-${i}`,
+        error: i % 4 === 0 ? 'err' : null,
+      });
     }
     const res = await makeApp(db).request('/api/activity', { headers: csrfHeaders() });
     const body = (await res.json()) as Array<{
@@ -77,7 +84,16 @@ describe('GET /api/activity', () => {
   it('honors ?limit query', async () => {
     const crons = new CronRepo(db);
     const runs = new CronRunRepo(db);
-    const cron = crons.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'chat' });
+    const cron = crons.upsertFromFile({
+      slug: 'x',
+      name: 'x',
+      description: null,
+      schedule: '* * * * *',
+      enabled: true,
+      contentHash: 'h',
+      mtimeMs: 1,
+      nextRunAt: null,
+    });
     for (let i = 0; i < 5; i += 1) runs.start(cron.id);
     const res = await makeApp(db).request('/api/activity?limit=3', { headers: csrfHeaders() });
     expect(((await res.json()) as unknown[]).length).toBe(3);

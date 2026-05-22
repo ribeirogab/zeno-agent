@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { openRuntimeDatabase, runRuntimeMigrations } from '../../src/runtime/db.js';
 
 describe('runRuntimeMigrations', () => {
-  it('creates the schema_migrations table and applies the baseline + 0001 + 0002 once', () => {
+  it('creates the schema_migrations table and applies the baseline + 0001 + 0002 + 0003 once', () => {
     const { raw, close } = openRuntimeDatabase(':memory:');
     try {
       runRuntimeMigrations(raw);
       const versions = raw
         .prepare('SELECT version FROM schema_migrations ORDER BY version')
         .all() as { version: number }[];
-      expect(versions.map((v) => v.version)).toEqual([0, 1, 2]);
+      expect(versions.map((v) => v.version)).toEqual([0, 1, 2, 3]);
 
       const tables = raw
         .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
@@ -30,6 +30,18 @@ describe('runRuntimeMigrations', () => {
         name: string;
       }[];
       expect(secretCols.map((c) => c.name)).toContain('updated_at');
+
+      // Spec 2026-05-22: 0003 slims crons table + adds session_id to cron_runs.
+      const cronCols = raw.prepare('PRAGMA table_info(crons)').all() as { name: string }[];
+      const cronColNames = cronCols.map((c) => c.name);
+      expect(cronColNames).not.toContain('prompt');
+      expect(cronColNames).not.toContain('source');
+      expect(cronColNames).not.toContain('notify_conversation_id');
+      expect(cronColNames).toContain('content_hash');
+      expect(cronColNames).toContain('mtime_ms');
+      expect(cronColNames).toContain('last_error');
+      const cronRunCols = raw.prepare('PRAGMA table_info(cron_runs)').all() as { name: string }[];
+      expect(cronRunCols.map((c) => c.name)).toContain('session_id');
     } finally {
       close();
     }

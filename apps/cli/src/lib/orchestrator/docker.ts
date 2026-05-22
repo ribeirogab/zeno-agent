@@ -110,6 +110,12 @@ export class DockerOrchestrator implements Orchestrator {
             Target: '/app/knowledge',
             ReadOnly: true,
           },
+          {
+            Type: 'bind',
+            Source: spec.cronsMountSource,
+            Target: '/app/crons',
+            ReadOnly: true,
+          },
         ],
         RestartPolicy: { Name: 'unless-stopped' },
       },

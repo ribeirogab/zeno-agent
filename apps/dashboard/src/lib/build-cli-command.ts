@@ -53,7 +53,18 @@ export type CommandKind =
   | { kind: 'channel-configure'; slug: string }
   | { kind: 'channel-test'; slug: string }
   | { kind: 'channel-rotate'; slug: string }
-  | { kind: 'channel-uninstall'; slug: string };
+  | { kind: 'channel-uninstall'; slug: string }
+  // Spec 2026-05-22 (crons CLI-first) — cron lifecycle is CLI-only. The
+  // dashboard /crons page surfaces each action via CommandModal. `cron-create`
+  // intentionally keeps the slug and schedule as placeholders — operator fills
+  // them in their terminal.
+  | { kind: 'cron-create' }
+  | { kind: 'cron-show'; slug: string }
+  | { kind: 'cron-open'; slug?: string }
+  | { kind: 'cron-enable'; slug: string }
+  | { kind: 'cron-disable'; slug: string }
+  | { kind: 'cron-delete'; slug: string }
+  | { kind: 'cron-test'; slug: string };
 
 export interface CliCommand {
   title: string;
@@ -232,6 +243,55 @@ export function buildCliCommand(spec: CommandKind): CliCommand {
         command: `zeno channel uninstall ${spec.slug} --yes`,
         docsAnchor: 'zeno-channel-uninstall',
         destructive: true,
+      };
+    case 'cron-create':
+      return {
+        title: 'New cron',
+        command: `zeno cron create <slug> --schedule '<expr>'`,
+        docsAnchor: 'zeno-cron-create',
+        destructive: false,
+      };
+    case 'cron-show':
+      return {
+        title: `Show ${spec.slug}`,
+        command: `zeno cron show ${spec.slug}`,
+        docsAnchor: 'zeno-cron-show',
+        destructive: false,
+      };
+    case 'cron-open':
+      return {
+        title: spec.slug ? `Open ${spec.slug}` : 'Open crons folder',
+        command: spec.slug ? `zeno cron open ${spec.slug}` : 'zeno cron open',
+        docsAnchor: 'zeno-cron-open',
+        destructive: false,
+      };
+    case 'cron-enable':
+      return {
+        title: `Enable ${spec.slug}`,
+        command: `zeno cron enable ${spec.slug}`,
+        docsAnchor: 'zeno-cron-enable--zeno-cron-disable',
+        destructive: false,
+      };
+    case 'cron-disable':
+      return {
+        title: `Disable ${spec.slug}`,
+        command: `zeno cron disable ${spec.slug}`,
+        docsAnchor: 'zeno-cron-enable--zeno-cron-disable',
+        destructive: false,
+      };
+    case 'cron-delete':
+      return {
+        title: `Delete ${spec.slug}`,
+        command: `zeno cron delete ${spec.slug} --yes`,
+        docsAnchor: 'zeno-cron-delete',
+        destructive: true,
+      };
+    case 'cron-test':
+      return {
+        title: `Test ${spec.slug}`,
+        command: `zeno cron test ${spec.slug}`,
+        docsAnchor: 'zeno-cron-test',
+        destructive: false,
       };
     default: {
       // Exhaustiveness check — TS will error here if a new CommandKind is

@@ -92,12 +92,14 @@ describe('resolveProfile', () => {
     expect(p.name).toBe('fn');
   });
 
-  it('uses single profile + emits hint when only one exists, no sticky', async () => {
+  it('opens picker when only one profile exists, no sticky', async () => {
     setTTY(true);
     queriesMock.getSticky.mockReturnValue(null);
-    queriesMock.listProfiles.mockReturnValue([{ name: 'only', port: 6101 }]);
+    queriesMock.listProfiles.mockReturnValue([{ name: 'only', port: 6101, status: 'running' }]);
+    pickMock.pick.mockResolvedValue(0);
     const p = await resolveProfile(undefined);
     expect(p.name).toBe('only');
+    expect(pickMock.pick).toHaveBeenCalledTimes(1);
     expect(stdoutChunks.join('')).toMatch(/zeno profile use only/);
   });
 

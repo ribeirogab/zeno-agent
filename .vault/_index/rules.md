@@ -18,6 +18,7 @@ Rules are added when a project-specific safety or workflow constraint is discove
 - [[../rules/generated-files-location|Generated / temporary files go under `tmp/`]] — screenshots, scratch scripts, dumps, browser output. Never at repo root.
 - [[../rules/ui-in-paper|UI lives in Paper]] — every rendered `.tsx` must have an artboard inside the matching route container in the `zeno-agent` Paper file.
 - [[../rules/design-md-canonical|DESIGN.md is canonical for design tokens]] — on any token change, edit `/DESIGN.md` first; `packages/ui/src/styles/tokens.css` and consumers follow in the same commit.
+- [[../rules/cli-only-mutations|CLI is the only mutation surface]] — all state changes (profiles, connectors, crons, skills, capabilities, credentials) go through `zeno` CLI. Dashboard is read-only. New write features must not be added to dashboard; existing migrate incrementally.
 
 ## `severity: advisory`
 

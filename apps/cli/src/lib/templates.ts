@@ -26,14 +26,18 @@ export function readKnowledgeIndexPlaceholder(): string {
   return readFileSync(join(templatesProfileKnowledgeDir(), '_index.md'), 'utf8');
 }
 
+export function readKnowledgeReadme(): string {
+  return readFileSync(join(templatesProfileKnowledgeDir(), '_README.md'), 'utf8');
+}
+
 export function renderEnv(opts: { masterKey: string }): string {
   return readEnvTemplate().replace(/<generated>/g, opts.masterKey);
 }
 
 /**
  * Materialize a fresh profile directory at ~/.zeno/profiles/<profile>/ with
- * AGENTS.md, .env, and knowledge/{_template.md,_index.md} written from
- * the canonical templates.
+ * AGENTS.md, .env, and knowledge/{_template.md,_index.md,_README.md} written
+ * from the canonical templates.
  */
 export function materializeProfile(opts: { profile: string; masterKey: string }): void {
   const dir = profileDir(opts.profile);
@@ -45,4 +49,5 @@ export function materializeProfile(opts: { profile: string; masterKey: string })
   if (!existsSync(kDir)) mkdirSync(kDir, { recursive: true });
   writeFileSync(join(kDir, '_template.md'), readKnowledgeTemplateMd(), 'utf8');
   writeFileSync(join(kDir, '_index.md'), readKnowledgeIndexPlaceholder(), 'utf8');
+  writeFileSync(join(kDir, '_README.md'), readKnowledgeReadme(), 'utf8');
 }

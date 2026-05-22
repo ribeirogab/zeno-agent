@@ -52,9 +52,20 @@ describe('GET /api/stats', () => {
 
   it('counts active crons (enabled=1)', async () => {
     const crons = new CronRepo(db);
-    crons.create({ name: 'a', prompt: 'x', schedule: '* * * * *', source: 'chat', enabled: true });
-    crons.create({ name: 'b', prompt: 'x', schedule: '* * * * *', source: 'chat', enabled: false });
-    crons.create({ name: 'c', prompt: 'x', schedule: '* * * * *', source: 'chat', enabled: true });
+    const seed = (slug: string, enabled: boolean) =>
+      crons.upsertFromFile({
+        slug,
+        name: slug,
+        description: null,
+        schedule: '* * * * *',
+        enabled,
+        contentHash: 'h',
+        mtimeMs: 1,
+        nextRunAt: null,
+      });
+    seed('a', true);
+    seed('b', false);
+    seed('c', true);
     const res = await makeApp(db).request('/api/stats', { headers: csrfHeaders() });
     const body = (await res.json()) as { activeCrons: number };
     expect(body.activeCrons).toBe(2);
@@ -77,11 +88,20 @@ describe('GET /api/stats', () => {
   it('counts cron runs from today and failures in last 24h', async () => {
     const cronRuns = new CronRunRepo(db);
     const crons = new CronRepo(db);
-    const cron = crons.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'chat' });
+    const cron = crons.upsertFromFile({
+      slug: 'x',
+      name: 'x',
+      description: null,
+      schedule: '* * * * *',
+      enabled: true,
+      contentHash: 'h',
+      mtimeMs: 1,
+      nextRunAt: null,
+    });
     const run1 = cronRuns.start(cron.id);
-    cronRuns.finish(run1.id, 'success', 'ok');
+    cronRuns.finish(run1.id, 'success', { output: 'ok' });
     const run2 = cronRuns.start(cron.id);
-    cronRuns.finish(run2.id, 'failed', null, 'boom');
+    cronRuns.finish(run2.id, 'failed', { error: 'boom' });
     const res = await makeApp(db).request('/api/stats', { headers: csrfHeaders() });
     const body = (await res.json()) as { runsToday: number; failures24h: number };
     expect(body.runsToday).toBe(2);

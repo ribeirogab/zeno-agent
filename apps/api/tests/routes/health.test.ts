@@ -61,11 +61,15 @@ describe('GET /api/health', () => {
   it('reports runner=ticking when a cron_run started in last 90s', async () => {
     const crons = new CronRepo(db);
     const runs = new CronRunRepo(db);
-    const cron = crons.create({
+    const cron = crons.upsertFromFile({
+      slug: 'x',
       name: 'x',
-      prompt: 'p',
+      description: null,
       schedule: '* * * * *',
-      source: 'chat',
+      enabled: true,
+      contentHash: 'h',
+      mtimeMs: 1,
+      nextRunAt: null,
     });
     runs.start(cron.id);
     const res = await makeApp(db).request('/api/health');
@@ -79,11 +83,15 @@ describe('GET /api/health', () => {
 
   it('reports runner=stale when most recent run is older than 90s', async () => {
     const crons = new CronRepo(db);
-    const cron = crons.create({
+    const cron = crons.upsertFromFile({
+      slug: 'x',
       name: 'x',
-      prompt: 'p',
+      description: null,
       schedule: '* * * * *',
-      source: 'chat',
+      enabled: true,
+      contentHash: 'h',
+      mtimeMs: 1,
+      nextRunAt: null,
     });
     opened.raw
       .prepare(

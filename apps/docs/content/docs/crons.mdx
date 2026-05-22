@@ -1,36 +1,88 @@
 ---
 title: Crons
-description: Schedule recurring agent runs from the dashboard. Persistent across restarts; run history visible per cron.
+description: Recurring agent runs declared as markdown files on disk. CLI scaffolds + manages lifecycle; dashboard renders read-only.
 ---
 
-A **cron** is a scheduled run of the agent. The operator writes a prompt + a cron expression in the dashboard at `/crons`, and from that point on the worker fires the prompt against the agent on the schedule. Replies land where the cron points — most commonly back into the configured Slack channel, but the cron's prompt is a normal agent turn so it can call any installed connector.
+A **cron** is a scheduled run of the agent declared as a markdown file under `~/.zeno/profiles/<name>/crons/<slug>/CRON.md`. The worker watches the folder; when a schedule fires the agent runs with the file's body as its prompt and `/app/crons/<slug>/` as its working directory.
 
-## How they work
+## Folder layout
 
-1. The operator opens `/crons` in their profile dashboard and clicks **New cron**.
-2. They give it a name, a cron expression (UTC), a prompt, and pick a channel for the reply.
-3. The dashboard writes the cron to the runtime DB.
-4. The worker's cron loop fires the prompt at the scheduled time, using the same agent the channel uses.
-5. Each run produces a row in the cron's history — start time, end time, success / failure, and a link to the full session log.
+```
+~/.zeno/profiles/<name>/crons/
+├── _README.md        # operator-facing how-it-works (scaffolded on profile create)
+├── _template/        # blank scaffold; `zeno cron create` copies CRON.md from here
+│   └── CRON.md
+├── send-hello/       # operator-created cron
+│   ├── CRON.md
+│   └── scripts/      # optional aux files the agent reads via Bash
+└── daily-digest/
+    └── CRON.md
+```
 
-## What the operator does
+Folders prefixed with `_` (or `.`) are meta — the reconciler skips them silently. Reserved slugs: `_template`, `_README.md`, `.disabled`, `.tmp`. Other slugs must match `^[a-z][a-z0-9-]*$` (lowercase, kebab-case, ≤ 63 chars).
 
-- **Schedule** — `0 9 * * 1-5` for "weekday mornings at 09:00 UTC". The dashboard validates the expression up front; invalid expressions can't be saved.
-- **Pause / resume** — toggle a cron without losing its history. A paused cron isn't fired but its rows stay in place.
-- **Edit** — change the prompt, the schedule, or the target channel. The history is preserved across edits.
-- **Inspect history** — every fire shows up in the cron's run table. Click into a run to see the full session log: which tools the agent called, what they returned, what it replied.
+## CRON.md format
 
-## What the operator doesn't do
+YAML frontmatter + markdown body. The body is the prompt the agent receives on every fire.
 
-- **CLI surface.** The CLI does not expose cron CRUD. There is no `zeno cron create`. Crons live entirely in the dashboard.
-- **Static cron files.** The previous `config.yaml` `cron:` section is gone. Crons exist only as DB rows; the source of truth is the runtime database, persisted in the profile's volume.
-- **Cross-profile crons.** Each profile has its own cron table; profiles do not share scheduled work.
+```markdown
+---
+name: Send hello              # required, human-readable
+description: Daily greeting   # optional
+schedule: 0 9 * * 1-5         # required, cron expression (UTC)
+enabled: true                 # required boolean
+---
+Say hello to the workspace. Pull 3 open Linear issues I should focus on today
+and list them with their priorities.
+```
+
+| Key | Type | Required | What it does |
+|---|---|---|---|
+| `name` | string | yes | Human-readable name surfaced in dashboard + CLI. |
+| `description` | string | no | One-line summary. |
+| `schedule` | string | yes | Cron expression (UTC). Validate at [crontab.guru](https://crontab.guru). |
+| `enabled` | boolean | yes | `false` skips firing without deleting the cron. |
+
+Invalid `schedule` or missing required keys → the cron is registered as disabled with the parse error in `lastError`. Fix the file and the reconciler retries within 2 s.
+
+## Lifecycle
+
+1. **Scaffold** with `zeno cron create <slug> --schedule '<expr>'`. The CLI writes `CRON.md` from the profile's `_template/CRON.md` and prints the path.
+2. **Edit** the body in your editor. The CLI never launches `$EDITOR` — `zeno cron open <slug>` reveals the folder in your OS file browser if you need the path.
+3. **Reconciler picks up** the change within 2 s and schedules the next fire.
+4. **`zeno cron test <slug>`** fires the cron once synchronously and returns the agent session id, so you can verify the prompt does what you want before letting it run on schedule.
+5. **`zeno cron enable / disable <slug>`** flip the frontmatter `enabled` flag in place (atomic tmp-file + rename). Body bytes are untouched.
+6. **`zeno cron delete <slug>`** removes the folder; the reconciler clears the DB row and run history within 4 s.
+
+The CLI reference at [`/docs/cli#cron-management`](/docs/cli#cron-management) has every flag table.
+
+## Dashboard
+
+The dashboard `/crons` page is read-only. Each row shows the cron's status, next run, and last error (if any). Every action chip — `[NEW CRON]`, `[OPEN]`, `[ENABLE]` / `[DISABLE]`, `[TEST]`, `[DELETE]` — opens a `<CommandModal>` with the exact `zeno cron …` command to copy and run in your terminal. The dashboard never mutates state directly; mutation flows entirely through the CLI per [`vault/rules/cli-only-mutations.md`](https://github.com/ribeirogab/zeno-agent/blob/main/.vault/rules/cli-only-mutations.md).
+
+The detail page `/crons/:slug` renders the parsed frontmatter, the markdown body, and the run history table (with the agent session id of each fire).
+
+## Aux scripts
+
+Drop arbitrary files into `crons/<slug>/scripts/` and reference them from your prompt — the agent's working directory is `/app/crons/<slug>/` so `cat scripts/payload.json` and friends just work. No special declaration in `CRON.md` is needed.
 
 ## Persistence
 
-Crons live in the profile's runtime DB inside the container's volume. They survive `zeno restart`, `zeno stop` + `zeno start`, container rebuilds, and `zeno upgrade`. They do not survive `zeno profile delete <name>` — the volume goes with the profile.
+The folder lives entirely under `~/.zeno/profiles/<name>/` on your machine. It is **not** committed to the Zeno repository. If you want a backup, init your own git repo inside it:
+
+```bash
+cd ~/.zeno/profiles/<name>/crons
+git init && git add . && git commit -m "initial"
+```
+
+Audit before committing — your prompts may reference secrets or internal context.
 
 ## What crons are not
 
-- **Crons are not skills.** A [skill](/skills) is a playbook that runs when the agent's request description matches. A cron is a fired prompt on a schedule.
-- **Crons are not background workers.** Each cron run is a single agent turn — request in, reply out. There is no long-running process the cron creates.
+- **Crons are not skills.** A [skill](/docs/skills) is a playbook that runs when the agent's request description matches. A cron is a fixed prompt fired on a schedule.
+- **Crons are not background workers.** Each fire is a single agent turn — request in, response out. There is no long-running process the cron creates.
+- **Crons no longer live in the runtime DB.** The DB stores only derived state (next run, last run, error message, content hash for poll dedup) and the run history (`cron_runs`). All operator-authored content is on disk.
+
+## Migration from the legacy DB-backed crons
+
+Before spec `crons-cli-first` (2026-05-22), crons lived in the runtime SQLite database, created and edited through the dashboard. The migration that ships with this rework clears every existing row (`crons` + `cron_runs`) and slims the schema. If you had crons in production, scaffold them again from the CLI; the previous prompts are not preserved by this spec. The single-operator scope of Zeno made the clean-slate approach acceptable; a future migration is not planned.

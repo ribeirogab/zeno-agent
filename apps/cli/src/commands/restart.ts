@@ -8,6 +8,7 @@ import {
   agentMountSource,
   claudeHomeVolumeName,
   containerName,
+  cronsDir,
   knowledgeDir,
   profileDir,
   profileEnvFile,
@@ -89,6 +90,10 @@ export default defineCommand({
         const kDir = knowledgeDir(name);
         mkdirSync(kDir, { recursive: true });
 
+        // Spec 2026-05-22 (crons CLI-first) — crons dir bind-mounted RO.
+        const cDir = cronsDir(name);
+        mkdirSync(cDir, { recursive: true });
+
         await spin(
           `starting container ${c.gray(cName)}`,
           async () => {
@@ -102,6 +107,7 @@ export default defineCommand({
               agentMountSource: agentMountSource(),
               profileMountSource: profileDir(name),
               knowledgeMountSource: kDir,
+              cronsMountSource: cDir,
             });
             await orch.startContainer(cName);
           },

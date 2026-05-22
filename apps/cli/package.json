@@ -20,7 +20,9 @@
     "@zeno/knowledge": "workspace:*",
     "better-sqlite3": "^12.9.0",
     "citty": "^0.2.2",
+    "cron-parser": "^5.5.0",
     "dockerode": "^5.0.0",
+    "gray-matter": "^4.0.3",
     "node-pty": "^1.1.0",
     "yaml": "^2.8.3"
   },

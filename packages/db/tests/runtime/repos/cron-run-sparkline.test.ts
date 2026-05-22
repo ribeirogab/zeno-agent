@@ -21,7 +21,16 @@ beforeEach(() => {
   close = opened.close;
   cronRepo = new CronRepo(db);
   runRepo = new CronRunRepo(db);
-  const cron = cronRepo.create({ name: 'x', prompt: 'p', schedule: '* * * * *', source: 'chat' });
+  const cron = cronRepo.upsertFromFile({
+    slug: 'x',
+    name: 'x',
+    description: null,
+    schedule: '* * * * *',
+    enabled: true,
+    contentHash: 'h',
+    mtimeMs: 1,
+    nextRunAt: null,
+  });
   cronId = cron.id;
 });
 

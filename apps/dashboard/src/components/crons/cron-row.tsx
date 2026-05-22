@@ -1,15 +1,12 @@
 import { Link } from '@tanstack/react-router';
 import cronstrue from 'cronstrue';
 import type { JSX } from 'react';
-import { CronRowActions } from '@/components/crons/cron-row-actions';
 import { type CronStatus, CronStatusPill } from '@/components/crons/cron-status-pill';
-import { isTempId } from '@/lib/temp-id';
 import type { CronApi } from '@/lib/use-crons';
 
 /**
- * Display-shaped row for the crons table. Co-located with the row component
- * (no central `data/types.ts` per spec 0031). Map from `CronApi` via
- * `cronToTableRow` at the page boundary.
+ * Spec 2026-05-22 (crons CLI-first): read-only row shape. No mutation
+ * controls; the detail page's <CronActions> renders the action chips.
  */
 export type CronTableRow = {
   id: string;
@@ -19,33 +16,17 @@ export type CronTableRow = {
   scheduleHuman: string;
   nextRun: string;
   nextRunAbsolute: string;
-  source: 'chat' | 'static';
   status: CronStatus;
-  /** Optimistic only — show the row dimmed while saving. */
-  pending?: boolean;
-  /** Whether a run-now is in flight. Sets the run button disabled label. */
-  running?: boolean;
+  lastError: string | null;
 };
 
-export function CronRow({
-  row,
-  last,
-  onDelete,
-}: {
-  row: CronTableRow;
-  last?: boolean;
-  /** When provided, the delete action calls this instead of firing the mutation directly. */
-  onDelete?: (row: CronTableRow) => void;
-}): JSX.Element {
+export function CronRow({ row, last }: { row: CronTableRow; last?: boolean }): JSX.Element {
   const borderClass = last ? '' : 'border-b border-border-subtle';
   return (
     <Link
       to="/crons/$id"
       params={{ id: row.id }}
-      aria-disabled={row.pending}
-      className={`group/row relative flex items-center gap-4 px-5 py-3.5 ${borderClass} font-mono text-xs cursor-pointer transition-colors duration-[120ms] hover:bg-panel-2 min-w-[840px] before:content-[''] before:absolute before:left-0 before:inset-y-0 before:w-0.5 before:bg-gold before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-[120ms] ${
-        row.pending ? 'pointer-events-none opacity-60' : ''
-      }`}
+      className={`group/row relative flex items-center gap-4 px-5 py-3.5 ${borderClass} font-mono text-xs cursor-pointer transition-colors duration-[120ms] hover:bg-panel-2 min-w-[720px] before:content-[''] before:absolute before:left-0 before:inset-y-0 before:w-0.5 before:bg-gold before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-[120ms]`}
     >
       <div className="flex-1 min-w-0 flex flex-col gap-[3px]">
         <span className="font-mono text-[13px] font-medium text-text-primary tracking-[0.02em] truncate">
@@ -54,6 +35,11 @@ export function CronRow({
         {row.description ? (
           <span className="font-sans text-xs text-text-secondary leading-[1.5] truncate">
             {row.description}
+          </span>
+        ) : null}
+        {row.lastError ? (
+          <span className="font-mono text-[11px] text-status-failed leading-[1.4] truncate">
+            ⚠ {row.lastError}
           </span>
         ) : null}
       </div>
@@ -78,18 +64,8 @@ export function CronRow({
         </span>
       </div>
 
-      <span className="w-[90px] shrink-0 flex">
-        <span className="inline-flex items-center px-2 py-px border border-border-subtle text-text-tertiary font-mono text-[10px] tracking-[0.1em] uppercase whitespace-nowrap">
-          {row.source}
-        </span>
-      </span>
-
       <span className="w-[108px] shrink-0 flex">
         <CronStatusPill status={row.status} />
-      </span>
-
-      <span className="w-[150px] shrink-0 flex justify-end">
-        {row.pending ? null : <CronRowActions row={row} {...(onDelete ? { onDelete } : {})} />}
       </span>
     </Link>
   );
@@ -106,13 +82,13 @@ export function cronToTableRow(cron: CronApi, now: Date = new Date()): CronTable
     scheduleHuman: humanSchedule(cron.schedule),
     nextRun: nextRunRelative(cron, now),
     nextRunAbsolute: nextRunAbsolute(cron, now),
-    source: cron.source,
     status: cronStatus(cron),
-    pending: isTempId(cron.id),
+    lastError: cron.lastError,
   };
 }
 
 function cronStatus(cron: CronApi): CronStatus {
+  if (cron.lastError) return 'paused';
   if (!cron.enabled) return 'paused';
   return 'active';
 }
@@ -142,11 +118,9 @@ function nextRunAbsolute(cron: CronApi, now: Date): string {
   const next = new Date(cron.nextRunAt);
   const pad = (n: number): string => String(n).padStart(2, '0');
   const time = `${pad(next.getHours())}:${pad(next.getMinutes())}`;
-
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const dateStart = new Date(next.getFullYear(), next.getMonth(), next.getDate());
   const dayDiff = Math.round((dateStart.getTime() - todayStart.getTime()) / 86_400_000);
-
   if (dayDiff === 0) return `today · ${time}`;
   if (dayDiff === 1) return `tomorrow · ${time}`;
   return next.toLocaleString('en-US', {

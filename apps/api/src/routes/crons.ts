@@ -1,53 +1,33 @@
+// Spec 2026-05-22 (crons CLI-first) — crons API surface is read-only except
+// for `POST /:slug/test` (gated by ZENO_API_WRITES). Filesystem is the source
+// of truth: GET /:slug/source reads CRON.md at request time; mutations
+// happen in the filesystem via the CLI and are reconciled by CronManager.
+// The test endpoint enqueues a `cron_test` command so the worker's chat
+// backend can fire the cron; the CLI polls /api/commands/:correlationId.
+
 import { randomUUID } from 'node:crypto';
-import { zValidator } from '@hono/zod-validator';
-import type { CommandRepo, CronRepo, CronRunRepo, CronSource } from '@zeno/db/runtime';
+import { promises as fs } from 'node:fs';
+import { join } from 'node:path';
+import type { CommandRepo, CronRepo, CronRunRepo } from '@zeno/db/runtime';
 import { Hono } from 'hono';
-import { z } from 'zod';
-
-const listQuery = z.object({
-  enabled: z.enum(['true', 'false']).optional(),
-  source: z.enum(['static', 'chat']).optional(),
-});
-
-const createBody = z.object({
-  name: z
-    .string()
-    .min(1)
-    .regex(/^[a-z0-9][a-z0-9-]*$/),
-  description: z.string().optional(),
-  prompt: z.string().min(1),
-  schedule: z.string().min(1),
-  notifyConversationId: z.string().nullish(),
-  notifyThreadId: z.string().nullish(),
-});
+import type { ApiWriteMode } from '@/lib/api-mode';
+import { blockIfCli } from '@/lib/block-if-cli';
 
 export interface CronsRouteDeps {
   crons: CronRepo;
   cronRuns: CronRunRepo;
   commands: CommandRepo;
-}
-
-function enqueue(
-  deps: CronsRouteDeps,
-  type: 'cron_pause' | 'cron_resume' | 'cron_run_now' | 'cron_delete',
-  cronId: string,
-): void {
-  deps.commands.enqueue({
-    type,
-    payload: { cronId },
-    correlationId: randomUUID(),
-  });
+  /** Absolute path to the crons folder inside the container. Defaults to '/app/crons'. */
+  cronsRootDir?: string;
+  writes: ApiWriteMode;
 }
 
 export function buildCronsRoute(deps: CronsRouteDeps): Hono {
   const route = new Hono();
+  const rootDir = deps.cronsRootDir ?? '/app/crons';
 
-  route.get('/', zValidator('query', listQuery), (c) => {
-    const { enabled, source } = c.req.valid('query');
-    const filter: { enabled?: boolean; source?: CronSource } = {};
-    if (enabled !== undefined) filter.enabled = enabled === 'true';
-    if (source !== undefined) filter.source = source;
-    return c.json(deps.crons.list(filter));
+  route.get('/', (c) => {
+    return c.json(deps.crons.list());
   });
 
   route.get('/next', (c) => {
@@ -59,60 +39,61 @@ export function buildCronsRoute(deps: CronsRouteDeps): Hono {
         name: cron.name,
         schedule: cron.schedule,
         nextRunAt: cron.nextRunAt,
-        notifyConversationId: cron.notifyConversationId ?? undefined,
       })),
     );
   });
 
-  route.get('/:id', (c) => {
-    const id = c.req.param('id');
-    const cron = deps.crons.get(id);
+  route.get('/:slug', (c) => {
+    const slug = c.req.param('slug');
+    const cron = deps.crons.get(slug);
     if (!cron) return c.json({ error: 'not_found' }, 404);
-    const recentRuns = deps.cronRuns.recent(id, 20);
+    const recentRuns = deps.cronRuns.recent(slug, 20);
     return c.json({ cron, recentRuns });
   });
 
-  route.post('/', zValidator('json', createBody), (c) => {
-    const body = c.req.valid('json');
-    deps.commands.enqueue({
-      type: 'cron_create',
-      payload: body,
-      correlationId: randomUUID(),
-    });
-    return c.body(null, 204);
-  });
-
-  route.post('/:id/pause', (c) => {
-    const id = c.req.param('id');
-    if (!deps.crons.get(id)) return c.json({ error: 'not_found' }, 404);
-    enqueue(deps, 'cron_pause', id);
-    return c.body(null, 204);
-  });
-
-  route.post('/:id/resume', (c) => {
-    const id = c.req.param('id');
-    if (!deps.crons.get(id)) return c.json({ error: 'not_found' }, 404);
-    enqueue(deps, 'cron_resume', id);
-    return c.body(null, 204);
-  });
-
-  route.post('/:id/run-now', (c) => {
-    const id = c.req.param('id');
-    if (!deps.crons.get(id)) return c.json({ error: 'not_found' }, 404);
-    enqueue(deps, 'cron_run_now', id);
-    return c.body(null, 204);
-  });
-
-  route.delete('/:id', (c) => {
-    const id = c.req.param('id');
-    const cron = deps.crons.get(id);
-    if (!cron) return c.json({ error: 'not_found' }, 404);
-    if (cron.source === 'static') {
-      return c.json({ error: 'cannot_delete_static' }, 409);
+  route.get('/:slug/source', async (c) => {
+    const slug = c.req.param('slug');
+    if (!isValidSlug(slug)) return c.json({ error: 'invalid_slug' }, 400);
+    const path = join(rootDir, slug, 'CRON.md');
+    try {
+      const raw = await fs.readFile(path, 'utf-8');
+      return c.json({ raw });
+    } catch {
+      return c.json({ error: 'not_found' }, 404);
     }
-    enqueue(deps, 'cron_delete', id);
-    return c.body(null, 204);
+  });
+
+  route.post('/:slug/test', async (c) => {
+    const blocked = blockIfCli(c, {
+      writes: deps.writes,
+      action: 'test',
+      cli: `zeno cron test ${c.req.param('slug')}`,
+    });
+    if (blocked) return blocked;
+
+    const slug = c.req.param('slug');
+    if (!isValidSlug(slug)) return c.json({ error: 'invalid_slug' }, 400);
+
+    // Confirm the cron exists on disk before enqueuing.
+    const path = join(rootDir, slug, 'CRON.md');
+    try {
+      await fs.stat(path);
+    } catch {
+      return c.json({ error: 'not_found' }, 404);
+    }
+
+    const correlationId = randomUUID();
+    deps.commands.enqueue({
+      type: 'cron_test',
+      payload: { slug },
+      correlationId,
+    });
+    return c.json({ correlationId }, 202);
   });
 
   return route;
+}
+
+function isValidSlug(slug: string): boolean {
+  return /^[a-z][a-z0-9-]*$/.test(slug) && slug.length <= 63;
 }

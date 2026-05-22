@@ -42,8 +42,9 @@ import { buildDispatcher } from '@/commands/dispatcher';
 import { buildHandlerMap } from '@/commands/handlers';
 import { CommandsPoller } from '@/commands/poller';
 import { type Config, loadConfig } from '@/config';
-import { CronRunner } from '@/cron/runner';
-import { buildCronMcpServer } from '@/cron/tools';
+// Spec 2026-05-22 (crons CLI-first): legacy CronRunner + cron MCP tools retired.
+// CronManager owns the cron lifecycle and reads CRON.md files at fire time.
+import { CronManager } from '@/cron/manager';
 import { type GitHubAppAuth, loadGitHubAppFromDb } from '@/github/app-auth';
 import { resolveGitIdentity } from '@/github/git-identity';
 import { ConnectorGatedBackend } from '@/guardrails/connector-gated-backend';
@@ -563,7 +564,6 @@ async function main(): Promise<void> {
     },
   });
   const slack: Channel = channelManager.asChannel();
-  const defaultCronChannel = process.env.ZENO_CRON_DEFAULT_CHANNEL ?? null;
 
   const isClaudeBackend = activeBackendId === 'claude-code';
   const gatedDeps = {
@@ -574,79 +574,27 @@ async function main(): Promise<void> {
     logger,
   };
 
-  // Spec 0054: cron backend goes through the same gate as the chat backend
-  // (single-guardrail canon, spec 0050). The gate's PreToolUse hook owns:
-  //   - skill-level injection cache (anti-double-inject when a skill is
-  //     linked to BOTH a connector AND a cron),
-  //   - `cron_used_unlinked_connector` audit log.
-  // Per-call state (pre-injected skill ids + audit context) flows through
-  // AsyncLocalStorage — race-free under concurrent cron firings (e.g. a
-  // tick mid-execute on cron A while chat fires `cron_run_now` for cron B).
-  //
-  // Wiring: the inner `ClaudeCodeBackend` requires `preToolUseHook` at
-  // construction; the wrapper requires the inner. We resolve the circular
-  // dep with a lazy hook ref — the inner is built with a thunk that
-  // delegates to the wrapper at SDK call time. The thunk reference is
-  // populated immediately after the wrapper is constructed.
-  //
-  // Cron backend omits the cron MCP server (cron prompts don't call
-  // mcp__zeno__cron_run_now), avoiding the runner ↔ cronMcp circular dep.
-  let backendForRunner: AgentBackend;
-  if (isClaudeBackend) {
-    let cronOuterHook:
-      | ((
-          ...args: Parameters<ReturnType<ConnectorGatedBackend['buildPreToolUseHook']>>
-        ) => ReturnType<ReturnType<ConnectorGatedBackend['buildPreToolUseHook']>>)
-      | null = null;
-    const cronLazyHook: ReturnType<ConnectorGatedBackend['buildPreToolUseHook']> = (
-      ...args: Parameters<ReturnType<ConnectorGatedBackend['buildPreToolUseHook']>>
-    ) => {
-      if (!cronOuterHook) throw new Error('cron preToolUseHook not bound');
-      return cronOuterHook(...args);
-    };
-    const cronGatedInner = new ClaudeCodeBackend({
-      getMcpServers,
-      preToolUseHook: cronLazyHook,
-      onInvocation,
-      envProvider: claudeEnvProvider,
-    });
-    const cronWrapper = new ConnectorGatedBackend(cronGatedInner, gatedDeps);
-    cronOuterHook = cronWrapper.buildPreToolUseHook();
-    backendForRunner = cronWrapper;
-  } else {
-    backendForRunner = buildBackend(logger, activeBackendId, {
-      getMcpServers,
-      onInvocation,
-      envProvider: claudeEnvProvider,
-    });
-  }
-
-  const runner = new CronRunner({
-    crons,
-    cronRuns,
-    cronSkills: cronSkillRepo,
-    cronConnectors: cronConnectorRepo,
-    skillRepo, // Spec 0062: needed to read body content from FS at fire time.
-    backend: backendForRunner,
-    getSystemPrompt: () => promptHolder.value,
-    workspaceDir: config.workspaceDir,
-    channel: slack,
-    defaultConversationId: defaultCronChannel,
-  });
+  // Spec 2026-05-22 (crons CLI-first): cron fires now flow through CronManager
+  // → AgentBackend.query() with the cron's body as the user message and the
+  // cron folder as cwd. The dedicated `backendForRunner` and the cron MCP
+  // server were retired together; the cron backend now shares the chat
+  // backend below (built immediately after) via a closure that the
+  // CronManager captures.
+  let backendForRunner: AgentBackend | null = null;
 
   const dispatcher = buildDispatcher(
     buildHandlerMap({
-      crons,
-      cronRuns,
       connectors,
       connectorApps,
-      runner,
       exit: (code) => process.exit(code),
       // Spec 0044: pass getter so handlers observe the current value of the
       // (mutable) singleton. bootstrap/tearDown wired through the helpers above.
       getGithubApp: () => githubAppHolder.value,
       bootstrapGithubApp,
       tearDownGithubApp,
+      // Spec 2026-05-22 (crons CLI-first): the cron_test handler needs the
+      // chat backend. Built immediately below, so close over the binding.
+      getCronBackend: () => backendForRunner,
     }),
   );
 
@@ -656,22 +604,11 @@ async function main(): Promise<void> {
     logger,
   });
 
-  // The chat-facing backend gets the in-process MCP server with cron CRUD
-  // tools wired to repos + runner (so chat can `cron_run_now` etc).
   // Spec 0050: the only guardrail is the connector-permission gate.
-  // Spec 0054: cron backend (above) is also gated; both paths share the same
-  // gate semantics + skill injection logic.
-  const cronMcp = buildCronMcpServer({ crons, cronRuns, runner });
-
+  // Spec 2026-05-22: the chat backend no longer hosts the cron MCP server.
+  // Cron CRUD is operator-only via the `zeno cron …` CLI surface.
   let chatBackend: AgentBackend;
   if (isClaudeBackend) {
-    // Lazy hook ref pattern: same rationale as the cron backend above. The
-    // inner ClaudeCodeBackend requires `preToolUseHook` at construction;
-    // the wrapper requires the inner. The thunk delegates to the wrapper
-    // at SDK call time so the hook reads/writes the wrapper's state (and
-    // the wrapper's ALS context for cron-side state when applicable —
-    // chat doesn't use ALS today, but the wrapper's hook is still bound to
-    // the wrapper instance the chat code actually uses).
     let chatOuterHook:
       | ((
           ...args: Parameters<ReturnType<ConnectorGatedBackend['buildPreToolUseHook']>>
@@ -685,7 +622,6 @@ async function main(): Promise<void> {
     };
     const gatedInner = new ClaudeCodeBackend({
       getMcpServers,
-      inProcessMcpServers: { zeno: cronMcp },
       preToolUseHook: chatLazyHook,
       onInvocation,
       envProvider: claudeEnvProvider,
@@ -695,12 +631,11 @@ async function main(): Promise<void> {
     chatBackend = chatWrapper;
     logger.info(
       { event: 'connector_gate_enabled' },
-      'connector-permission gate enabled (spec 0050 + spec 0054 cron)',
+      'connector-permission gate enabled (spec 0050)',
     );
   } else {
     chatBackend = buildBackend(logger, activeBackendId, {
       getMcpServers,
-      inProcessMcpServers: { zeno: cronMcp },
       onInvocation,
       envProvider: claudeEnvProvider,
     });
@@ -709,6 +644,7 @@ async function main(): Promise<void> {
       'connector-permission gate skipped: backend is not claude-code',
     );
   }
+  backendForRunner = chatBackend;
 
   const core = new AgentCore({
     backend: chatBackend,
@@ -805,7 +741,39 @@ async function main(): Promise<void> {
   // registers the agent core's message handler on each one. The `slack` Channel
   // reference above is the manager's proxy — it stays valid across restarts.
   await channelManager.start(core.bind(slack));
-  runner.start();
+
+  // Spec 2026-05-22 (crons CLI-first): CronManager replaces the legacy
+  // CronRunner. Reads /app/crons/*/CRON.md and fires each cron's body
+  // through the chat backend at scheduled times.
+  const cronManager = new CronManager({
+    rootDir: '/app/crons',
+    crons,
+    cronRuns,
+    fire: async (slug, body, cwd) => {
+      if (!backendForRunner) {
+        return { sessionId: null, status: 'failed', error: 'backend not initialized' };
+      }
+      try {
+        const result = await backendForRunner.query({
+          systemPrompt: promptHolder.value,
+          userMessage: body,
+          cwd,
+          correlationId: `cron-${slug}-${Date.now()}`,
+          persistSession: false,
+        });
+        return { sessionId: result.sessionId ?? null, status: 'success' };
+      } catch (err) {
+        return {
+          sessionId: null,
+          status: 'failed',
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    },
+    logger: logger.child({ scope: 'cron-manager' }),
+  });
+  await cronManager.start();
+
   commandsPoller.start();
   watcher.start();
 
@@ -830,7 +798,7 @@ async function main(): Promise<void> {
       // best effort
     }
     try {
-      runner.stop();
+      await cronManager.stop();
     } catch {
       // best effort
     }

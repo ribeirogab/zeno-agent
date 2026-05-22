@@ -36,6 +36,15 @@ import ChannelConfigureFlags from '@/generated/cli-flags/channel-configure.mdx';
 import ChannelTestFlags from '@/generated/cli-flags/channel-test.mdx';
 import ChannelRotateFlags from '@/generated/cli-flags/channel-rotate.mdx';
 import ChannelUninstallFlags from '@/generated/cli-flags/channel-uninstall.mdx';
+import CronFlags from '@/generated/cli-flags/cron.mdx';
+import CronListFlags from '@/generated/cli-flags/cron-list.mdx';
+import CronShowFlags from '@/generated/cli-flags/cron-show.mdx';
+import CronCreateFlags from '@/generated/cli-flags/cron-create.mdx';
+import CronOpenFlags from '@/generated/cli-flags/cron-open.mdx';
+import CronEnableFlags from '@/generated/cli-flags/cron-enable.mdx';
+import CronDisableFlags from '@/generated/cli-flags/cron-disable.mdx';
+import CronDeleteFlags from '@/generated/cli-flags/cron-delete.mdx';
+import CronTestFlags from '@/generated/cli-flags/cron-test.mdx';
 import DoctorFlags from '@/generated/cli-flags/doctor.mdx';
 import LogsFlags from '@/generated/cli-flags/logs.mdx';
 import OpenFlags from '@/generated/cli-flags/open.mdx';
@@ -647,6 +656,98 @@ cd "$(zeno repo)"
 ```
 
 <RepoFlags />
+
+## Cron management
+
+`zeno cron` is the **only** path to manage crons. Each cron is a folder under `~/.zeno/profiles/<name>/crons/<slug>/` with a `CRON.md` file (YAML frontmatter + markdown body). The body is the prompt that fires on the schedule declared in the frontmatter. The worker's `CronManager` polls the folder every 2 s and reconciles a slim DB cache; only the agent session id and run history live in SQLite. The dashboard `/crons` page reads that cache and surfaces every action through a `<CommandModal>` showing the corresponding `zeno cron …` command.
+
+Mutation verbs (`create`, `enable`, `disable`, `delete`) operate on the filesystem directly — no HTTP call, no `ZENO_API_WRITES` gate. The single HTTP verb is `test`, which fires the cron synchronously and is gated like every other CLI mutation (the dashboard never calls it).
+
+Slugs match `^[a-z][a-z0-9-]*$` (lowercase, kebab-case, ≤ 63 chars). Reserved names: anything starting with `_` or `.` (e.g. `_template`, `_README.md`, `.disabled`).
+
+### `zeno cron`
+
+Parent command — mounts the eight verbs.
+
+<CronFlags />
+
+### `zeno cron list`
+
+Walk the filesystem and join with the API's slim DB cache. Both sources are surfaced; an entry shown only on disk means the reconciler hasn't picked it up yet (within 2 s).
+
+```bash
+zeno cron list
+zeno cron list --json
+```
+
+<CronListFlags />
+
+### `zeno cron show`
+
+Print the parsed frontmatter and the raw markdown body of a single cron.
+
+```bash
+zeno cron show send-hello
+zeno cron show send-hello --json
+```
+
+<CronShowFlags />
+
+### `zeno cron create`
+
+Scaffold a cron folder + `CRON.md` from the profile's `_template/CRON.md`. Validates the slug and the schedule (via `cron-parser`) before writing anything. The new cron lands with `enabled: true`; the body is the placeholder from the template, ready for the operator to replace.
+
+```bash
+zeno cron create send-hello --schedule '0 9 * * 1-5'
+zeno cron create daily-digest --schedule '0 8 * * *' --name "Daily digest"
+```
+
+<CronCreateFlags />
+
+### `zeno cron open`
+
+Open the profile's `crons/` folder — or a specific cron's subfolder — in the OS file browser. Mirrors `zeno knowledge open`.
+
+```bash
+zeno cron open                 # opens crons/
+zeno cron open send-hello      # opens crons/send-hello/
+```
+
+<CronOpenFlags />
+
+### `zeno cron enable` / `zeno cron disable`
+
+Flip the frontmatter `enabled` flag in place. The body bytes are untouched (atomic tmp-file + rename). The reconciler picks up the change on the next poll tick.
+
+```bash
+zeno cron enable send-hello
+zeno cron disable send-hello
+```
+
+<CronEnableFlags />
+<CronDisableFlags />
+
+### `zeno cron delete`
+
+Remove the cron folder. TTY prompts `delete cron '<slug>'? (y/N)`; non-TTY requires `--yes`. The reconciler clears the DB row + run history (CASCADE) within 4 s.
+
+```bash
+zeno cron delete send-hello
+zeno cron delete send-hello --yes
+```
+
+<CronDeleteFlags />
+
+### `zeno cron test`
+
+Fire the cron once on demand. Synchronous (≤ 5 s). Prints the agent session id of the run. The route the CLI hits (`POST /api/crons/:slug/test`) is the only mutation endpoint left in `/api/crons/*`.
+
+```bash
+zeno cron test send-hello
+zeno cron test send-hello --json
+```
+
+<CronTestFlags />
 
 ## Scripting & automation
 

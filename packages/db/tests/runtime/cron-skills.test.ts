@@ -25,11 +25,15 @@ beforeEach(() => {
 });
 
 function seedCron(name: string) {
-  return crons.create({
+  return crons.upsertFromFile({
+    slug: name,
     name,
-    prompt: 'p',
+    description: null,
     schedule: '0 9 * * *',
-    source: 'chat',
+    enabled: true,
+    contentHash: 'h',
+    mtimeMs: 1,
+    nextRunAt: null,
   });
 }
 

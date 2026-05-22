@@ -4,8 +4,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  cronsDir,
   knowledgeDir,
   profileDir,
+  templatesProfileCronsDir,
   templatesProfileDir,
   templatesProfileKnowledgeDir,
 } from './paths.js';
@@ -30,6 +32,14 @@ export function readKnowledgeReadme(): string {
   return readFileSync(join(templatesProfileKnowledgeDir(), '_README.md'), 'utf8');
 }
 
+export function readCronsReadme(): string {
+  return readFileSync(join(templatesProfileCronsDir(), '_README.md'), 'utf8');
+}
+
+export function readCronTemplateMd(): string {
+  return readFileSync(join(templatesProfileCronsDir(), '_template', 'CRON.md'), 'utf8');
+}
+
 export function renderEnv(opts: { masterKey: string }): string {
   return readEnvTemplate().replace(/<generated>/g, opts.masterKey);
 }
@@ -50,4 +60,12 @@ export function materializeProfile(opts: { profile: string; masterKey: string })
   writeFileSync(join(kDir, '_template.md'), readKnowledgeTemplateMd(), 'utf8');
   writeFileSync(join(kDir, '_index.md'), readKnowledgeIndexPlaceholder(), 'utf8');
   writeFileSync(join(kDir, '_README.md'), readKnowledgeReadme(), 'utf8');
+
+  // Spec 2026-05-22 (crons CLI-first) — scaffold crons folder.
+  const cDir = cronsDir(opts.profile);
+  if (!existsSync(cDir)) mkdirSync(cDir, { recursive: true });
+  writeFileSync(join(cDir, '_README.md'), readCronsReadme(), 'utf8');
+  const templateDir = join(cDir, '_template');
+  if (!existsSync(templateDir)) mkdirSync(templateDir, { recursive: true });
+  writeFileSync(join(templateDir, 'CRON.md'), readCronTemplateMd(), 'utf8');
 }

@@ -1,17 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { ErrorState } from '@zeno/ui';
 import cronstrue from 'cronstrue';
-import type { JSX, ReactNode } from 'react';
-import { useState } from 'react';
+import { type JSX, type ReactNode, useEffect, useState } from 'react';
 import { CronActions } from '@/components/crons/cron-actions';
 import { CronRunHistoryRow } from '@/components/crons/cron-run-history-row';
 import { type CronStatus, CronStatusPill } from '@/components/crons/cron-status-pill';
-import { LinkedCronConnectorsSection } from '@/components/crons/linked-connectors-section';
-import { LinkedCronSkillsSection } from '@/components/crons/linked-skills-section';
 import { DashboardTopstrip } from '@/components/layout/dashboard-topstrip';
-import { DeleteCronModal } from '@/components/modals/delete-cron-modal';
 import { CronDetailRunsSkeleton } from '@/components/skeletons/cron-detail-runs-skeleton';
-import { useDeleteCron } from '@/lib/mutations';
+import { apiFetch } from '@/lib/api-client';
 import { type CronRunApi, useCron } from '@/lib/use-cron';
 import type { CronApi } from '@/lib/use-crons';
 
@@ -22,8 +18,21 @@ export const Route = createFileRoute('/_authed/crons/$id')({
 function CronDetailScreen(): JSX.Element {
   const { id } = Route.useParams();
   const query = useCron(id);
-  const deleteCron = useDeleteCron();
-  const [pendingDelete, setPendingDelete] = useState<CronApi | null>(null);
+  const [source, setSource] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch<{ raw: string }>(`/api/crons/${id}/source`)
+      .then((r) => {
+        if (!cancelled) setSource(r.raw);
+      })
+      .catch(() => {
+        if (!cancelled) setSource(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   if (query.isLoading) {
     return (
@@ -62,7 +71,8 @@ function CronDetailScreen(): JSX.Element {
   }
 
   const { cron, recentRuns } = query.data;
-  const status: CronStatus = cron.enabled ? 'active' : 'paused';
+  const status: CronStatus = cron.enabled && !cron.lastError ? 'active' : 'paused';
+  const body = source ? extractBody(source) : null;
 
   return (
     <>
@@ -73,39 +83,17 @@ function CronDetailScreen(): JSX.Element {
         ]}
       />
       <div className="max-w-[1080px] w-full mx-auto px-12 pt-10 pb-30 flex flex-col gap-10 min-w-0">
-        <Header cron={cron} status={status} onRequestDelete={(c) => setPendingDelete(c)} />
-        <PromptBlock prompt={cron.prompt} />
-        <LinkedCronSkillsSection cronId={cron.id} cronName={cron.name} />
-        <LinkedCronConnectorsSection cronId={cron.id} cronName={cron.name} />
-        <StatsStrip cron={cron} runs={recentRuns} />
+        <Header cron={cron} status={status} />
+        {cron.lastError ? <ErrorBanner error={cron.lastError} /> : null}
+        {body !== null ? <PromptBlock prompt={body} /> : null}
+        <StatsStrip runs={recentRuns} />
         <RunHistory runs={recentRuns} />
       </div>
-      <DeleteCronModal
-        open={pendingDelete !== null}
-        onOpenChange={(v) => {
-          if (!v) setPendingDelete(null);
-        }}
-        cron={pendingDelete}
-        onConfirm={() => {
-          if (pendingDelete) deleteCron.mutate(pendingDelete.id);
-          setPendingDelete(null);
-        }}
-      />
     </>
   );
 }
 
-// ─── Header + meta bar ───────────────────────────────────────────────────────
-
-function Header({
-  cron,
-  status,
-  onRequestDelete,
-}: {
-  cron: CronApi;
-  status: CronStatus;
-  onRequestDelete: (cron: CronApi) => void;
-}): JSX.Element {
+function Header({ cron, status }: { cron: CronApi; status: CronStatus }): JSX.Element {
   return (
     <header className="flex items-end justify-between gap-6 border-b border-border-subtle pb-6">
       <div className="flex flex-col flex-1 min-w-0">
@@ -119,7 +107,7 @@ function Header({
         ) : null}
         <MetaBar cron={cron} status={status} />
       </div>
-      <CronActions cron={cron} onRequestDelete={onRequestDelete} />
+      <CronActions cron={cron} />
     </header>
   );
 }
@@ -137,7 +125,7 @@ function MetaBar({ cron, status }: { cron: CronApi; status: CronStatus }): JSX.E
       <CronStatusPill status={status} />
       <Sep />
       <span className="font-sans text-[13px] leading-4 text-text-secondary">
-        source {cron.source}
+        slug <code className="font-mono text-gold">{cron.id}</code>
       </span>
       {nextRun ? (
         <>
@@ -153,7 +141,13 @@ function Sep(): JSX.Element {
   return <span className="font-sans text-base leading-5 text-text-tertiary select-none">·</span>;
 }
 
-// ─── Prompt block ────────────────────────────────────────────────────────────
+function ErrorBanner({ error }: { error: string }): JSX.Element {
+  return (
+    <div className="border border-status-failed/60 bg-status-failed/10 px-5 py-3 font-mono text-[12px] text-status-failed leading-[1.5]">
+      ⚠ {error}
+    </div>
+  );
+}
 
 function PromptBlock({ prompt }: { prompt: string }): JSX.Element {
   return (
@@ -168,9 +162,7 @@ function PromptBlock({ prompt }: { prompt: string }): JSX.Element {
   );
 }
 
-// ─── Stats strip ─────────────────────────────────────────────────────────────
-
-function StatsStrip({ cron, runs }: { cron: CronApi; runs: CronRunApi[] }): JSX.Element {
+function StatsStrip({ runs }: { runs: CronRunApi[] }): JSX.Element {
   const total = runs.length;
   const succ = runs.filter((r) => r.status === 'success').length;
   const successRate = total > 0 ? Math.round((succ / total) * 100) : 0;
@@ -207,12 +199,6 @@ function StatsStrip({ cron, runs }: { cron: CronApi; runs: CronRunApi[] }): JSX.
         </span>
         <Caption>{completed.length} completed</Caption>
       </StatCell>
-      <StatCell label="notifies">
-        <span className="font-serif text-[32px] tracking-[-0.02em] leading-none text-text-primary">
-          {cron.notifyConversationId ? `#${cron.notifyConversationId.slice(0, 12)}` : '—'}
-        </span>
-        <Caption>slack channel</Caption>
-      </StatCell>
     </div>
   );
 }
@@ -248,8 +234,6 @@ function Caption({ children }: { children: ReactNode }): JSX.Element {
   );
 }
 
-// ─── Run history ─────────────────────────────────────────────────────────────
-
 function RunHistory({ runs }: { runs: CronRunApi[] }): JSX.Element {
   return (
     <section className="flex flex-col gap-4">
@@ -265,7 +249,7 @@ function RunHistory({ runs }: { runs: CronRunApi[] }): JSX.Element {
       </div>
       {runs.length === 0 ? (
         <div className="bg-panel border border-border-subtle px-5 py-6 font-mono text-xs text-text-tertiary text-center">
-          run-now to see results here.
+          test the cron from your terminal to see results here.
         </div>
       ) : (
         <div className="bg-panel border border-border-subtle py-1 flex flex-col">
@@ -278,7 +262,10 @@ function RunHistory({ runs }: { runs: CronRunApi[] }): JSX.Element {
   );
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+function extractBody(raw: string): string {
+  const m = raw.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n([\s\S]*)$/);
+  return (m?.[1] ?? raw).trim();
+}
 
 function humanSchedule(cron: string): string {
   try {

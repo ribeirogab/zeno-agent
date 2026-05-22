@@ -1,5 +1,5 @@
-import { createFileRoute, Link, redirect } from '@tanstack/react-router';
-import { type DotTone, useToast } from '@zeno/ui';
+import { createFileRoute, redirect } from '@tanstack/react-router';
+import type { DotTone } from '@zeno/ui';
 import cronstrue from 'cronstrue';
 import type { JSX } from 'react';
 import { ActivityRow } from '@/components/home/activity-row';
@@ -68,9 +68,6 @@ function HomeScreen(): JSX.Element {
       </>
     );
   }
-
-  const isFirstRun = (stats.data?.activeCrons ?? 0) === 0 && (activity.data ?? []).length === 0;
-  if (isFirstRun) return <HomeEmpty />;
 
   const now = new Date();
   const greeting = greetingForHour(now.getHours(), displayName);
@@ -313,155 +310,6 @@ function SectionHeader({ label, hint }: { label: string; hint: string }): JSX.El
       <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-text-tertiary whitespace-nowrap">
         {hint}
       </span>
-    </div>
-  );
-}
-
-// ─── Empty (first-run) state ─────────────────────────────────────────────────
-
-function HomeEmpty(): JSX.Element {
-  const toast = useToast();
-  const displayName = useDisplayName();
-  return (
-    <>
-      <DashboardTopstrip crumbs={[{ label: 'home', current: true }]} />
-      <div className="max-w-[1080px] w-full mx-auto px-12 pt-14 pb-30 flex flex-col gap-10 min-w-0">
-        <FirstRunHero displayName={displayName} />
-        <FirstRunChecklist
-          onPasteToken={() =>
-            toast.success(
-              <>
-                <span className="text-status-active">slack</span> · token saved · listener up
-              </>,
-            )
-          }
-        />
-      </div>
-    </>
-  );
-}
-
-function FirstRunHero({ displayName }: { displayName: string }): JSX.Element {
-  return (
-    <header className="flex flex-col gap-3.5">
-      <div className="flex items-baseline justify-between gap-6">
-        <span className="font-mono text-[11px] font-medium tracking-[0.18em] leading-[14px] uppercase text-gold">
-          first run · welcome
-        </span>
-        <span className="font-mono text-[10px] tracking-[0.15em] leading-3 uppercase text-text-tertiary">
-          profile · default · single-owner
-        </span>
-      </div>
-      <h1 className="m-0 font-serif text-[64px] font-normal tracking-[-0.02em] leading-[1.05] text-text-primary">
-        Hi <em className="italic text-gold">{displayName}</em>. Let's wire Zeno up.
-      </h1>
-      <p className="m-0 max-w-[640px] font-sans text-base leading-[1.6] text-text-secondary">
-        Everything's quiet — that's expected on a fresh profile. Three steps below get Claude
-        connected, the agent listening, and a cron on the wall.
-      </p>
-    </header>
-  );
-}
-
-function FirstRunChecklist({ onPasteToken }: { onPasteToken: () => void }): JSX.Element {
-  return (
-    <section className="flex flex-col gap-4">
-      <div className="flex items-baseline justify-between border-b border-dashed border-border-subtle pb-2.5">
-        <h2 className="m-0 font-sans text-lg font-medium tracking-[-0.005em] leading-[22px] text-text-primary">
-          setup checklist
-        </h2>
-        <span className="font-mono text-[10px] tracking-[0.2em] leading-3 uppercase text-text-tertiary">
-          0 of 3 complete · ~7 min
-        </span>
-      </div>
-      <FirstRunStep
-        index={1}
-        title="configure Claude backend"
-        helper="Zeno needs a Claude OAuth token before it can reply. Run `zeno backend configure` from your terminal — the worker picks it up within ~5s."
-        cta="open /backend →"
-        ctaTo="/backend"
-        active
-      />
-      <FirstRunStep
-        index={2}
-        title="connect a Slack workspace"
-        helper="Zeno listens for mentions and DMs in your workspace. Bot already deployed — just paste the bot token from api.slack.com."
-        cta="paste token →"
-        active
-        onClick={onPasteToken}
-      />
-      <FirstRunStep
-        index={3}
-        title="schedule your first cron"
-        helper="A morning standup, a weekly digest, a health-check ping. The runner ticks every 60s once a cron lands."
-        cta="+ new cron"
-        ctaTo="/crons"
-        active
-      />
-    </section>
-  );
-}
-
-function FirstRunStep({
-  index,
-  title,
-  helper,
-  cta,
-  active,
-  ctaTo,
-  ctaSearch,
-  onClick,
-}: {
-  index: number;
-  title: string;
-  helper: string;
-  cta: string;
-  active?: boolean;
-  ctaTo?: string;
-  ctaSearch?: Record<string, string>;
-  onClick?: () => void;
-}): JSX.Element {
-  const containerCls = `relative flex items-start gap-5 px-7 py-6 border ${
-    active ? 'border-gold-line' : 'border-border-subtle'
-  } bg-panel`;
-  const indexCls = `shrink-0 w-7 h-7 inline-flex items-center justify-center border font-mono text-xs font-semibold leading-3 ${
-    active ? 'border-gold-line bg-gold-soft text-gold' : 'border-border-subtle text-text-tertiary'
-  }`;
-  const titleCls = `font-mono text-[13px] font-medium tracking-[0.02em] leading-4 ${
-    active ? 'text-text-primary' : 'text-text-secondary'
-  }`;
-  const helperCls = `m-0 font-sans text-[13px] leading-[1.6] ${
-    active ? 'text-text-secondary' : 'text-text-tertiary'
-  }`;
-  const ctaCls = `shrink-0 inline-flex items-center px-3.5 py-2 border ${
-    active
-      ? 'border-gold bg-gold text-text-ink hover:bg-gold-bright cursor-pointer'
-      : 'border-border-subtle text-text-tertiary cursor-default'
-  } font-mono text-xs font-semibold tracking-[0.06em] leading-4 uppercase transition-colors duration-[120ms]`;
-
-  return (
-    <div className={containerCls}>
-      {active ? <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-gold" /> : null}
-      <span className={indexCls}>{index}</span>
-      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-        <span className={titleCls}>{title}</span>
-        <p className={helperCls}>{helper}</p>
-      </div>
-      {ctaTo ? (
-        ctaSearch ? (
-          <Link to={ctaTo} search={ctaSearch} className={ctaCls}>
-            {cta}
-          </Link>
-        ) : (
-          <Link to={ctaTo} className={ctaCls}>
-            {cta}
-          </Link>
-        )
-      ) : (
-        <button type="button" onClick={onClick} disabled={!active} className={ctaCls}>
-          {cta}
-        </button>
-      )}
     </div>
   );
 }
